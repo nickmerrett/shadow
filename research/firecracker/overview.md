@@ -42,7 +42,7 @@ Your application combines Kubernetes orchestration with Firecracker microVMs to 
 **Infrastructure Requirements:**
 
 - AWS EC2 bare metal instances for KVM support [3](#4-2)
-- Kubernetes cluster with containerd runtime
+- Kubernetes cluster with container runtime
 - Container registry for your coding agent images
 - Persistent storage for task artifacts and logs
 
