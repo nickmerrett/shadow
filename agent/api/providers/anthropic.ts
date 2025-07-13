@@ -1,7 +1,7 @@
-import { APIHandler } from "./llm";
-import { ChatMessage, LLMConfig, LLM, Role, ToolCall } from "./types";
+import { APIHandler } from "@/api/llm";
+import { ChatMessage, LLMConfig, LLM, Role, ToolCall } from "@/api/types";
 import { Anthropic } from "@anthropic-ai/sdk";
-import { APIStream, APIStreamChunk } from "./stream";
+import { APIStream, APIStreamChunk } from "@/api/stream";
 
 // Just a wrapper around the Anthropic API with smart caching and streaming
 // TODO: Add support for tools
@@ -66,7 +66,8 @@ export class AnthropicAPIHandler implements APIHandler {
             model: this.modelName,
         });
 
-        for await (const chunk of stream) {
+		// Type is complex so set to any
+        for await (const chunk of stream as any) {
 			switch (chunk?.type) {
                 // See https://docs.anthropic.com/en/docs/build-with-claude/streaming for more info on the chunks format
 				case "message_start":
