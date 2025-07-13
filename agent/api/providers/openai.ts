@@ -5,7 +5,7 @@ import { Anthropic } from "@anthropic-ai/sdk";
 import { APIStream, APIStreamChunk } from "@/api/stream";
 import { convertToOpenAiMessages } from "@/agent/tools/convertToOpenAI";
 
-// Just a wrapper around the OpenAI API with smart caching and streaming
+// Just a wrapper around the OpenAI API with  streaming
 // TODO: Add support for tools
 export class OpenAIAPIHandler implements APIHandler {
     private apiKey: string;
@@ -25,7 +25,6 @@ export class OpenAIAPIHandler implements APIHandler {
             throw new Error("Failed to initialize OpenAI client");
         }
     }
-    
     
     async* createMessage(systemPrompt: string, messages: Anthropic.Messages.MessageParam[]): APIStream{
         const openAiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [

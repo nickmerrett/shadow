@@ -9,6 +9,14 @@ export const models = {
         name: "claude-3-7-sonnet",
         isReasoning: true,
     },
+    gpt_4o: {
+        name: "gpt-4o",
+        isReasoning: false,
+    },
+    gpt_4o_mini: {
+        name: "gpt-4o-mini",
+        isReasoning: false,
+    },
 }
 
 export interface Tool {
