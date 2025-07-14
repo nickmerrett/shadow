@@ -1,12 +1,14 @@
 {
   "name": "frontend",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "check-types": "tsc --noEmit",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -29,6 +31,7 @@
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
+    "@repo/typescript-config": "*",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^20",
