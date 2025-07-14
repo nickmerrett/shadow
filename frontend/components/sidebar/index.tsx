@@ -119,9 +119,13 @@ export function SidebarComponent() {
       <SidebarContent>
         <SidebarGroup>
           <div className="flex w-full items-center justify-between">
-            <div className="flex size-9 items-center justify-center">
+            <Link
+              href="/"
+              className="flex size-9 items-center justify-center"
+              aria-label="Home"
+            >
               <Image src="/shadow.svg" alt="Logo" width={22} height={22} />
-            </div>
+            </Link>
             {isTaskPage && (
               <SidebarViewSwitcher
                 activeView={activeView}
