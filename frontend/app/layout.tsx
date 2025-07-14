@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { Toaster } from "sonner";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarComponent } from "@/components/sidebar";
 import { cookies } from "next/headers";
 
@@ -33,7 +33,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} overscroll-none antialiased`}
       >
         <ThemeProvider
           attribute="class"
@@ -42,7 +42,13 @@ export default async function RootLayout({
         >
           <SidebarProvider defaultOpen={defaultOpen}>
             <SidebarComponent />
-            {children}
+            <div className="flex size-full min-h-svh flex-col overflow-hidden">
+              <div className="flex w-full items-center justify-between p-3">
+                <SidebarTrigger />
+                <div className="bg-muted-foreground size-8 rounded-full"></div>
+              </div>
+              {children}
+            </div>
             <Toaster />
           </SidebarProvider>
         </ThemeProvider>

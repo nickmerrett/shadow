@@ -16,13 +16,13 @@ export function PromptForm() {
       {/* Wrapper div with textarea styling */}
       <div
         className={cn(
-          "border-border focus-within:ring-ring/5 dark:bg-input flex min-h-24 w-full flex-col rounded-lg border bg-transparent shadow-xs transition-[color,box-shadow] focus-within:ring-4",
+          "border-border focus-within:ring-ring/5 from-input/25 to-input flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow] focus-within:ring-4",
         )}
       >
         {/* Textarea without border/background since wrapper handles it */}
         <Textarea
           placeholder="Build a cool new feature..."
-          className="max-h-48 flex-1 resize-none rounded-lg border-0 bg-transparent shadow-none focus-visible:ring-0"
+          className="max-h-48 flex-1 resize-none rounded-lg border-0 bg-transparent! shadow-none focus-visible:ring-0"
         />
 
         {/* Buttons inside the container */}

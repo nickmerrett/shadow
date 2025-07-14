@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -123,4 +124,14 @@
 
 li {
   @apply list-none;
+}
+
+html,
+body,
+:root {
+  height: 100%;
+}
+
+#__next {
+  height: 100%;
 }

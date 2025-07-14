@@ -1,5 +1,8 @@
+"use client";
+
 import {
   Archive,
+  Brain,
   Calendar,
   CheckCircle2,
   ChevronDown,
@@ -8,6 +11,7 @@ import {
   GitBranch,
   Home,
   Inbox,
+  Monitor,
   Search,
   Settings,
 } from "lucide-react";
@@ -30,6 +34,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "../ui/collapsible";
+import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 const buttons = [
   {
@@ -101,12 +107,27 @@ const taskSections = [
 ];
 
 export function SidebarComponent() {
+  const pathname = usePathname();
+  const isTaskPage = pathname.match(/^\/tasks\/[^/]+$/);
+
+  const [activeView, setActiveView] = useState<"home" | "task">(
+    isTaskPage ? "task" : "home",
+  );
+
   return (
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <div className="w-full items-center justify-between">
-            <Image src="/shadow.svg" alt="Logo" width={24} height={24} />
+          <div className="flex w-full items-center justify-between">
+            <div className="flex size-9 items-center justify-center">
+              <Image src="/shadow.svg" alt="Logo" width={22} height={22} />
+            </div>
+            {isTaskPage && (
+              <SidebarViewSwitcher
+                activeView={activeView}
+                setActiveView={setActiveView}
+              />
+            )}
           </div>
         </SidebarGroup>
         <div className="flex flex-col gap-4">
@@ -173,5 +194,42 @@ export function SidebarComponent() {
         </div>
       </SidebarContent>
     </Sidebar>
+  );
+}
+
+function SidebarViewSwitcher({
+  activeView,
+  setActiveView,
+}: {
+  activeView: "home" | "task";
+  setActiveView: (view: "home" | "task") => void;
+}) {
+  return (
+    <div className="bg-accent border-sidebar-border flex gap-0.5 rounded-full border p-[3px]">
+      <Button
+        size="iconSm"
+        variant={activeView === "home" ? "default" : "ghost"}
+        onClick={() => setActiveView("home")}
+        className={
+          activeView === "home"
+            ? "rounded-full"
+            : "text-muted-foreground hover:text-primary rounded-full hover:bg-transparent"
+        }
+      >
+        <Monitor className="size-4" />
+      </Button>
+      <Button
+        size="iconSm"
+        variant={activeView === "task" ? "default" : "ghost"}
+        onClick={() => setActiveView("task")}
+        className={
+          activeView === "task"
+            ? "rounded-full"
+            : "text-muted-foreground hover:text-primary rounded-full hover:bg-transparent"
+        }
+      >
+        <Brain className="size-4" />
+      </Button>
+    </div>
   );
 }
