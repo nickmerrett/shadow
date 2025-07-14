@@ -1,0 +1,86 @@
+---
+alwaysApply: true
+---
+
+# Shadow Project Overview
+
+## 1. Core Application Functionality
+
+1. **Task Submission**
+   - User picks a GitHub repo and branch
+   - Chooses the LLM model (e.g. Claude v4)
+   - Enters natural-language instructions for the coding task
+
+2. **Live Session View**
+   - Chat-style interface showing user ↔ agent messages
+   - Real-time terminal stream (commands & output)
+   - File-edit diffs presented inline
+
+3. **User-in-the-Loop Controls**
+   - Pause/approve mode for critical edits
+   - Manual command injection into the sandbox
+   - Option to switch between fully autonomous vs. guided
+
+4. **History & Artifacts**
+   - Persisted chat history of completed messages
+   - Downloadable code diffs or full working directory snapshot
+   - Logs, test reports, build artifacts stored for review
+
+5. **Multi-Task & Multi-User**
+   - Users can run several tasks in parallel
+   - Share or revisit past sessions with full audit trail
+
+---
+
+## 2. Main User Flows
+
+1. **Create a Task**
+   - Fill form → backend spins up a sandbox pod → UI shows “Initializing…”
+
+2. **Watch & Interact**
+   - Agent loads code, reasons with the LLM, makes edits, runs tests
+   - You see live console output, diff previews, and can step in when needed
+
+3. **Complete & Retrieve**
+   - Agent declares “done” → final code + artifacts uploaded → task marked completed
+   - You download patches, inspect logs, or re-spawn the environment if needed
+
+---
+
+## 3. System Design Overview
+
+- **Frontend (Next.js)**
+  - Single-page app for forms, chat UI, and terminal emulator
+  - Maintains a WebSocket to receive live updates
+
+- **Backend Orchestrator**
+  - Receives task requests, calls the Kubernetes API to launch pods
+  - Manages WebSocket broadcasts and persists chat messages to Postgres
+
+- **Task Pod**
+  - **Firecracker microVM**: boots a minimal Linux with the user's code mounted
+  - **Sidecar container**:
+    - Streams console I/O (in-memory buffers → WebSocket)
+    - Mounts shared workspace (EFS) and syncs files
+    - Uploads final artifacts to S3
+
+- **Storage Layers**
+  - **EFS** for the live workspace (code, tests, logs)
+  - **S3** for completed artifacts (zips, logs, binaries)
+
+- **LLM Integration**
+  - Backend (or agent inside VM) sends prompts to Claude v4 API
+  - Receives streaming tokens, broadcasts them live, then writes the final text to the database
+
+---
+
+## 4. Key Technologies & Patterns
+
+| Layer               | Technology/Pattern                      |
+| ------------------- | --------------------------------------- |
+| Frontend            | Next.js, React, WebSockets              |
+| Compute & Sandbox   | Kubernetes (EKS), Firecracker + Sidecar |
+| Storage             | AWS EFS (NFS), AWS S3                   |
+| Database            | PostgreSQL                              |
+| Real-time Streaming | WebSockets + in-memory buffers          |
+| AI Model            | Anthropic Claude v4 (hosted API)        |

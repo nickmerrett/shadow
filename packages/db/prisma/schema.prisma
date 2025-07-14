@@ -10,17 +10,166 @@ datasource db {
 }
 
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
-  posts Post[]
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks Task[]
 }
 
-model Post {
-  id        Int     @id @default(autoincrement())
-  title     String
-  content   String?
-  published Boolean @default(false)
-  authorId  Int
-  author    User    @relation(fields: [authorId], references: [id])
+model Task {
+  id          String     @id @default(cuid())
+  title       String?
+  description String?
+  status      TaskStatus @default(PENDING)
+
+  // Git repo config
+  repoUrl String
+  branch  String @default("main")
+
+  // Execution config
+  llmModel String
+  mode     TaskMode @default(FULL_AUTO)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages    ChatMessage[]
+  commands    TerminalCommand[]
+  fileChanges FileChange[]
+  artifacts   Artifact[]
+  sessions    TaskSession[]
+}
+
+model ChatMessage {
+  id       String      @id @default(cuid())
+  content  String
+  role     MessageRole
+  metadata Json? // For streaming tokens, model info, etc
+
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+}
+
+model TerminalCommand {
+  id           String  @id @default(cuid())
+  command      String
+  output       String?
+  exitCode     Int?
+  workingDir   String?
+  isBackground Boolean @default(false)
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+}
+
+model FileChange {
+  id         String  @id @default(cuid())
+  filePath   String
+  operation  FileOp
+  oldContent String? // For edits/deletes
+  newContent String? // For creates/edits
+  diffPatch  String? // Git-style diff
+
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+}
+
+model Artifact {
+  id          String       @id @default(cuid())
+  name        String
+  type        ArtifactType
+  description String?
+
+  // Storage info
+  s3Key    String? // S3 object key
+  efsPath  String? // EFS file path
+  size     Int? // Size in bytes
+  mimeType String?
+
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+}
+
+model TaskSession {
+  id           String  @id @default(cuid())
+  podName      String? // Kubernetes pod name
+  podNamespace String?
+  isActive     Boolean @default(true)
+
+  // WebSocket connection info
+  connectionId String?
+
+  createdAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, isActive])
+}
+
+// Enums
+enum TaskStatus {
+  PENDING
+  INITIALIZING
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum TaskMode {
+  FULL_AUTO
+  INTELLIGENT_AUTO
+  MANUAL
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum FileOp {
+  CREATE
+  UPDATE
+  DELETE
+  RENAME
+  MOVE
+}
+
+enum ArtifactType {
+  CODE_SNAPSHOT // Full workspace zip
+  DIFF_PATCH // Git patch file
+  LOG_FILE // Execution logs
+  TEST_REPORT // Test results
+  BUILD_OUTPUT // Compiled artifacts
+  BINARY // Executables, images, etc
 }
