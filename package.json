@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.56.0",
-    "openai": "^5.9.0"
-  }
-}
