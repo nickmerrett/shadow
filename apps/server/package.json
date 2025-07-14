@@ -1,12 +1,14 @@
 {
   "name": "server",
   "version": "1.0.0",
+  "type": "module",
   "description": "",
   "main": "index.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/server.ts",
+    "check-types": "tsc --noEmit",
     "format": "prettier --write 'src/**/*.ts'"
   },
   "author": "",
