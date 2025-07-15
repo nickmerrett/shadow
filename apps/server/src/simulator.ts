@@ -34,7 +34,7 @@ export async function* simulateOpenAIStream(): AsyncGenerator<string> {
 
     // Add realistic delay between chunks
     await new Promise((resolve) =>
-      setTimeout(resolve, 20 + Math.random() * 30)
+      setTimeout(resolve, 50 + Math.random() * 100)
     );
   }
 
