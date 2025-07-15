@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
+import config from "./config";
 import { errorHandler } from "./middleware/error-handler";
 import { simulateOpenAIStream } from "./simulator";
 
@@ -10,7 +11,7 @@ const app = express();
 const socketIOServer = http.createServer(app);
 const io = new Server(socketIOServer, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: config.clientUrl,
     methods: ["GET", "POST"],
   },
 });
@@ -45,7 +46,6 @@ app.use(
 app.use(express.json());
 
 /* ROUTES */
-// app.use("/api/items", itemRoutes);
 app.get("/", (req, res) => {
   res.send("<h1>Hello world</h1>");
 });
