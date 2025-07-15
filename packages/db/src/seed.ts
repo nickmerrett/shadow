@@ -27,7 +27,6 @@ async function main() {
       status: "RUNNING",
       repoUrl: "https://github.com/ishaan1013/shadow",
       branch: "main",
-      llmModel: "claude-3-5-sonnet-20241022",
       mode: "FULL_AUTO",
       userId: user.id,
     },
@@ -37,13 +36,12 @@ async function main() {
     where: { id: "demo-task-2" },
     update: {},
     create: {
-      id: "demo-task-2", 
+      id: "demo-task-2",
       title: "Optimize API performance",
       description: "Improve the performance of our REST API endpoints",
       status: "COMPLETED",
       repoUrl: "https://github.com/ishaan1013/shadow",
       branch: "main",
-      llmModel: "claude-3-5-sonnet-20241022",
       mode: "INTELLIGENT_AUTO",
       userId: user.id,
     },
@@ -56,10 +54,9 @@ async function main() {
       id: "demo-task-3",
       title: "Add authentication system",
       description: "Implement user authentication with JWT tokens",
-      status: "PENDING", 
+      status: "PENDING",
       repoUrl: "https://github.com/ishaan1013/shadow",
       branch: "feature/auth",
-      llmModel: "claude-3-5-sonnet-20241022",
       mode: "MANUAL",
       userId: user.id,
     },
@@ -72,12 +69,15 @@ async function main() {
     {
       taskId: task1.id,
       role: "USER" as const,
-      content: "Create a simple todo app with React and TypeScript. Make it look modern and include add, delete, and toggle complete functionality.",
+      content:
+        "Create a simple todo app with React and TypeScript. Make it look modern and include add, delete, and toggle complete functionality.",
     },
     {
       taskId: task1.id,
       role: "ASSISTANT" as const,
-      content: "I'll help you create a modern React todo app with TypeScript. Let me start by setting up the basic structure with components for the todo list, individual todo items, and an input form for adding new todos.",
+      content:
+        "I'll help you create a modern React todo app with TypeScript. Let me start by setting up the basic structure with components for the todo list, individual todo items, and an input form for adding new todos.",
+      llmModel: "claude-3-5-sonnet-20241022",
     },
     {
       taskId: task1.id,
@@ -87,7 +87,9 @@ async function main() {
     {
       taskId: task1.id,
       role: "ASSISTANT" as const,
-      content: "Absolutely! I'll use Tailwind CSS to create a clean, modern design with proper spacing, colors, and hover effects. The app will have a centered layout with a card-based design for the todo items.",
+      content:
+        "Absolutely! I'll use Tailwind CSS to create a clean, modern design with proper spacing, colors, and hover effects. The app will have a centered layout with a card-based design for the todo items.",
+      llmModel: "claude-3-5-sonnet-20241022",
     },
   ];
 
@@ -97,7 +99,9 @@ async function main() {
     });
   }
 
-  console.log(`Created ${messages.length} sample messages for task ${task1.id}`);
+  console.log(
+    `Created ${messages.length} sample messages for task ${task1.id}`
+  );
 
   // Add some messages for task2
   const task2Messages = [
@@ -109,7 +113,9 @@ async function main() {
     {
       taskId: task2.id,
       role: "ASSISTANT" as const,
-      content: "I've analyzed your API endpoints and identified several optimization opportunities: database query optimization, caching strategies, response compression, and connection pooling. The changes resulted in a 60% reduction in average response times.",
+      content:
+        "I've analyzed your API endpoints and identified several optimization opportunities: database query optimization, caching strategies, response compression, and connection pooling. The changes resulted in a 60% reduction in average response times.",
+      llmModel: "claude-3-5-sonnet-20241022",
     },
   ];
 
@@ -119,7 +125,9 @@ async function main() {
     });
   }
 
-  console.log(`Created ${task2Messages.length} sample messages for task ${task2.id}`);
+  console.log(
+    `Created ${task2Messages.length} sample messages for task ${task2.id}`
+  );
 
   console.log("🌱 Database seeded successfully!");
 }
