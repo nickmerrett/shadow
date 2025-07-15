@@ -1,7 +1,5 @@
 lol here's a deepwiki's explanation about an open source deepwiki clone
 
-You're asking about the specific implementation details of how DeepWiki analyzes code structure and performs AI generation during the indexing process. Let me break down the technical specifics based on the codebase.
-
 ## Code Structure Analysis Implementation
 
 The code structure analysis happens through `data_pipeline.py` [1](#1-0) , which orchestrates the repository processing pipeline. The system performs several specific analysis steps:
