@@ -10,9 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ArrowUp, Folder, GitBranch, Layers, Square } from "lucide-react";
 
-export function HomePromptForm() {
+export function PromptForm() {
   return (
-    <div className="flex w-full flex-col">
+    <div className="flex w-full flex-col sticky bottom-0 pb-6 max-w-lg bg-background rounded-t-lg">
       {/* Wrapper div with textarea styling */}
       <div
         className={cn(

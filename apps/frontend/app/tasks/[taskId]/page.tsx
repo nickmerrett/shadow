@@ -1,6 +1,6 @@
 "use client";
 
-import { PromptForm } from "@/components/home/prompt-form";
+import { PromptForm } from "@/components/chat/prompt-form";
 import { socket } from "@/lib/socket";
 import { useEffect, useState } from "react";
 
@@ -94,8 +94,8 @@ export default function TaskPage() {
   }, []);
 
   return (
-    <div className="mx-auto flex size-full max-w-lg grow flex-col items-center pb-6">
-      <div className="w-full grow bg-red-500/5 overflow-y-auto p-4">
+    <div className="mx-auto flex size-full max-w-lg flex-col items-center">
+      <div className="w-full h-[200vh] bg-red-500/50 p-4 mb-24">
         <div className="mb-4 space-y-2">
           <p>Status: {isConnected ? "connected" : "disconnected"}</p>
           <p>Transport: {transport}</p>

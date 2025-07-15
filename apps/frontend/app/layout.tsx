@@ -1,11 +1,11 @@
+import { ThemeProvider } from "@/components/layout/theme-provider";
+import { SidebarComponent } from "@/components/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { ThemeProvider } from "@/components/layout/theme-provider";
-import { Toaster } from "sonner";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { SidebarComponent } from "@/components/sidebar";
 import { cookies } from "next/headers";
+import { Toaster } from "sonner";
+import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,8 +42,8 @@ export default async function RootLayout({
         >
           <SidebarProvider defaultOpen={defaultOpen}>
             <SidebarComponent />
-            <div className="flex size-full min-h-svh flex-col overflow-hidden">
-              <div className="flex w-full items-center justify-between p-3">
+            <div className="flex size-full min-h-svh flex-col relative">
+              <div className="flex w-full items-center justify-between p-3 sticky top-0">
                 <SidebarTrigger />
                 <div className="bg-muted-foreground size-8 rounded-full"></div>
               </div>

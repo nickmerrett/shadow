@@ -1,9 +1,9 @@
-import { PromptForm } from "@/components/home/prompt-form";
+import { HomePromptForm } from "@/components/home/prompt-form";
 
 export default function Home() {
   return (
-    <div className="mx-auto flex w-full max-w-lg grow flex-col items-center pt-32">
-      <PromptForm />
+    <div className="mx-auto flex size-full max-w-lg flex-col items-center pt-32">
+      <HomePromptForm />
     </div>
   );
 }
