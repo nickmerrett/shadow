@@ -1,8 +1,10 @@
 "use client";
 
+import { Messages } from "@/components/chat/messages";
 import { PromptForm } from "@/components/chat/prompt-form";
 import { socket } from "@/lib/socket";
 import { useEffect, useState } from "react";
+import { EXAMPLE_CHAT_HISTORY } from "./example-data";
 
 export default function TaskPage() {
   const [isConnected, setIsConnected] = useState(false);
@@ -93,19 +95,23 @@ export default function TaskPage() {
     };
   }, []);
 
-  return (
-    <div className="mx-auto flex size-full max-w-lg flex-col items-center">
-      <div className="w-full h-[200vh] bg-red-500/50 p-4 mb-24">
-        <div className="mb-4 space-y-2">
-          <p>Status: {isConnected ? "connected" : "disconnected"}</p>
-          <p>Transport: {transport}</p>
-        </div>
-
-        <div className="font-mono text-sm whitespace-pre-wrap text-red-300">
-          {accumulatedContent || "Waiting for stream data..."}
-          {isStreaming && <span className="animate-pulse">█</span>}
-        </div>
+  const socketTestComponent = (
+    <div className="w-full h-[200vh] bg-red-500/5 p-4 mb-24">
+      <div className="mb-4 space-y-2">
+        <p>Status: {isConnected ? "connected" : "disconnected"}</p>
+        <p>Transport: {transport}</p>
       </div>
+
+      <div className="font-mono text-sm whitespace-pre-wrap text-red-300">
+        {accumulatedContent || "Waiting for stream data..."}
+        {isStreaming && <span className="animate-pulse">█</span>}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="mx-auto flex w-full grow max-w-lg flex-col items-center">
+      <Messages messages={EXAMPLE_CHAT_HISTORY} />
       <PromptForm />
     </div>
   );
