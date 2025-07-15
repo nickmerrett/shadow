@@ -18,6 +18,7 @@ export type AssistantMessage = BaseMessage & {
   metadata: {
     type: "thinking";
     content: string;
+    duration: number; // seconds
   } | null;
 };
 
@@ -27,7 +28,7 @@ export type ToolMessage = BaseMessage & {
   metadata: {
     tool: string;
     args: Record<string, any>;
-    status: "pending" | "running" | "success" | "error";
+    status: "running" | "success" | "error";
     result?: string;
     error?: string;
     changes?: {
@@ -59,6 +60,7 @@ export const EXAMPLE_CHAT_HISTORY: (
       type: "thinking",
       content:
         "I need to examine the current login function to understand its structure and identify where error handling should be added. Let me first read the auth.ts file to see what we're working with.",
+      duration: 3,
     },
   },
   {
@@ -95,6 +97,7 @@ export const EXAMPLE_CHAT_HISTORY: (
       type: "thinking",
       content:
         "I can see several issues with this login function: 1) No error handling for database queries, 2) Will throw if user is null when accessing passwordHash, 3) No validation for input parameters, 4) No proper error types/messages. I should add try-catch blocks and proper validation.",
+      duration: 2,
     },
   },
   {
