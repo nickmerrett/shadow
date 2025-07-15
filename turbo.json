@@ -30,6 +30,9 @@
     "db:seed": {
       "cache": false
     },
+    "db:studio": {
+      "cache": false
+    },
     "generate": {
       "dependsOn": ["^generate"],
       "cache": false
