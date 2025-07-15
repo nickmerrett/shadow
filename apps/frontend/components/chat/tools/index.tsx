@@ -1,5 +1,12 @@
-import type { ToolMessage as TToolMessage } from "@/app/tasks/[taskId]/example-data";
 import React from "react";
+
+type ToolMessage = {
+  id: string;
+  role: "TOOL";
+  content: string;
+  createdAt: string;
+  metadata?: any;
+};
 
 function StatusComponent({
   status,
@@ -15,7 +22,7 @@ function StatusComponent({
   }
 }
 
-function formatToolContent(message: TToolMessage): React.ReactElement {
+function formatToolContent(message: ToolMessage): React.ReactElement {
   const { tool, args, changes } = message.metadata;
 
   if (tool === "read_file") {
@@ -42,7 +49,7 @@ function formatToolContent(message: TToolMessage): React.ReactElement {
   }
 }
 
-export function ToolMessage({ message }: { message: TToolMessage }) {
+export function ToolMessage({ message }: { message: ToolMessage }) {
   return (
     <div className="px-3 py-2 flex justify-between items-center">
       <div className="flex gap-1.5 items-center">

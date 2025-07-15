@@ -1,10 +1,27 @@
-import type { AssistantMessage as TAssistantMessage } from "@/app/tasks/[taskId]/example-data";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
-export function AssistantMessage({ message }: { message: TAssistantMessage }) {
+type AssistantMessage = {
+  id: string;
+  role: "ASSISTANT";
+  content: string;
+  createdAt: string;
+  metadata?: any;
+};
+
+export function AssistantMessage({ message }: { message: AssistantMessage }) {
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
+
+  // Handle streaming message
+  if (message.metadata?.isStreaming) {
+    return (
+      <div className="flex items-start gap-2">
+        <div>{message.content}</div>
+        <span className="animate-pulse text-muted-foreground">█</span>
+      </div>
+    );
+  }
 
   if (message.metadata?.type === "thinking") {
     return (

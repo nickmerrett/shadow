@@ -1,5 +1,11 @@
-import type { UserMessage as TUserMessage } from "@/app/tasks/[taskId]/example-data";
+type UserMessage = {
+  id: string;
+  role: "USER";
+  content: string;
+  createdAt: string;
+  metadata?: any;
+};
 
-export function UserMessage({ message }: { message: TUserMessage }) {
+export function UserMessage({ message }: { message: UserMessage }) {
   return <div>{message.content}</div>;
 }

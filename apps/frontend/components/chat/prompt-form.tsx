@@ -9,19 +9,46 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ArrowUp, Folder, GitBranch, Layers, Square } from "lucide-react";
+import { useState } from "react";
 
-export function PromptForm() {
+interface PromptFormProps {
+  onSubmit?: (message: string) => void;
+  disabled?: boolean;
+}
+
+export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
+  const [message, setMessage] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim() || disabled) return;
+    
+    onSubmit?.(message);
+    setMessage("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
   return (
-    <div className="flex w-full flex-col sticky bottom-0 pb-6 max-w-lg bg-background rounded-t-lg">
+    <form onSubmit={handleSubmit} className="flex w-full flex-col sticky bottom-0 pb-6 max-w-lg bg-background rounded-t-lg">
       {/* Wrapper div with textarea styling */}
       <div
         className={cn(
-          "border-border focus-within:ring-ring/5 from-input/25 to-input flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow] focus-within:ring-4"
+          "border-border focus-within:ring-ring/5 from-input/25 to-input flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow] focus-within:ring-4",
+          disabled && "opacity-50"
         )}
       >
         {/* Textarea without border/background since wrapper handles it */}
         <Textarea
-          placeholder="Build a cool new feature..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          placeholder={disabled ? "Assistant is responding..." : "Build a cool new feature..."}
           className="max-h-48 flex-1 resize-none rounded-lg border-0 bg-transparent! shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/50"
         />
 
@@ -81,7 +108,9 @@ export function PromptForm() {
               <span>main</span>
             </Button>
             <Button
+              type="submit"
               size="iconSm"
+              disabled={disabled || !message.trim()}
               className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
             >
               <ArrowUp className="size-4" />
@@ -89,6 +118,6 @@ export function PromptForm() {
           </div>
         </div>
       </div>
-    </div>
+    </form>
   );
 }

@@ -1,11 +1,13 @@
 import http from "http";
 import { Server } from "socket.io";
 import config from "./config";
+import { ChatService } from "./chat";
 
 // In-memory stream state
 let currentStreamContent = "";
 let isStreaming = false;
 let io: Server;
+let chatService: ChatService;
 
 export function parseOpenAIChunk(chunk: string): string | null {
   if (chunk.startsWith("data: ")) {
@@ -32,6 +34,9 @@ export function createSocketServer(server: http.Server): Server {
     },
   });
 
+  // Initialize chat service
+  chatService = new ChatService();
+
   io.on("connection", (socket) => {
     console.log("a user connected");
 
@@ -48,10 +53,32 @@ export function createSocketServer(server: http.Server): Server {
         isStreaming: false,
       });
     }
-  });
 
-  io.on("disconnect", (socket) => {
-    console.log("a user disconnected");
+    // Handle user message
+    socket.on("user-message", async (data: { taskId: string; message: string }) => {
+      try {
+        console.log("Received user message:", data);
+        await chatService.processUserMessage(data.taskId, data.message);
+      } catch (error) {
+        console.error("Error processing user message:", error);
+        socket.emit("message-error", { error: "Failed to process message" });
+      }
+    });
+
+    // Handle request for chat history
+    socket.on("get-chat-history", async (data: { taskId: string }) => {
+      try {
+        const history = await chatService.getChatHistory(data.taskId);
+        socket.emit("chat-history", { taskId: data.taskId, messages: history });
+      } catch (error) {
+        console.error("Error getting chat history:", error);
+        socket.emit("chat-history-error", { error: "Failed to get chat history" });
+      }
+    });
+
+    socket.on("disconnect", () => {
+      console.log("a user disconnected");
+    });
   });
 
   return io;

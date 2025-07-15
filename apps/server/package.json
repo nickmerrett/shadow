@@ -27,6 +27,8 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.1",
+    "@repo/db": "*",
     "@types/dotenv": "^8.2.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
