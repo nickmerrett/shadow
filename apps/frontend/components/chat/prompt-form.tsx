@@ -8,22 +8,33 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { AvailableModels, type ModelType } from "@repo/types";
 import { ArrowUp, Folder, GitBranch, Layers, Square } from "lucide-react";
 import { useState } from "react";
 
 interface PromptFormProps {
-  onSubmit?: (message: string) => void;
+  onSubmit?: (message: string, model: ModelType) => void;
   disabled?: boolean;
 }
 
+const modelInfo = {
+  [AvailableModels.CLAUDE_3_5_SONNET]: "Claude 3.5 Sonnet",
+  [AvailableModels.CLAUDE_3_HAIKU]: "Claude 3 Haiku",
+  [AvailableModels.GPT_4O]: "GPT-4o",
+  [AvailableModels.GPT_4O_MINI]: "GPT-4o Mini",
+};
+
 export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
   const [message, setMessage] = useState("");
+  const [selectedModel, setSelectedModel] = useState<ModelType>(
+    AvailableModels.CLAUDE_3_5_SONNET
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || disabled) return;
-    
-    onSubmit?.(message);
+
+    onSubmit?.(message, selectedModel);
     setMessage("");
   };
 
@@ -33,8 +44,12 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
       handleSubmit(e);
     }
   };
+
   return (
-    <form onSubmit={handleSubmit} className="flex w-full flex-col sticky bottom-0 pb-6 max-w-lg bg-background rounded-t-lg">
+    <form
+      onSubmit={handleSubmit}
+      className="flex w-full flex-col sticky bottom-0 pb-6 max-w-lg bg-background rounded-t-lg"
+    >
       {/* Wrapper div with textarea styling */}
       <div
         className={cn(
@@ -48,7 +63,11 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          placeholder={disabled ? "Assistant is responding..." : "Build a cool new feature..."}
+          placeholder={
+            disabled
+              ? "Assistant is responding..."
+              : "Build a cool new feature..."
+          }
           className="max-h-48 flex-1 resize-none rounded-lg border-0 bg-transparent! shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/50"
         />
 
@@ -62,37 +81,25 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
                 className="text-muted-foreground hover:bg-accent font-normal"
               >
                 <Layers className="size-4" />
-                <span>Claude 4 Sonnet</span>
+                <span>{modelInfo[selectedModel]}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent
               align="start"
               className="flex flex-col gap-0.5 rounded-lg p-1"
             >
-              <Button
-                size="sm"
-                variant="ghost"
-                className="hover:bg-accent justify-start font-normal"
-              >
-                <Square />
-                Claude 4 Sonnet
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="hover:bg-accent justify-start font-normal"
-              >
-                <Square />
-                Claude 3.7 Sonnet
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="hover:bg-accent justify-start font-normal"
-              >
-                <Square />
-                Claude 3.5 Sonnet
-              </Button>
+              {Object.entries(modelInfo).map(([modelId, modelName]) => (
+                <Button
+                  key={modelId}
+                  size="sm"
+                  variant="ghost"
+                  className="hover:bg-accent justify-start font-normal"
+                  onClick={() => setSelectedModel(modelId as ModelType)}
+                >
+                  <Square className="size-4" />
+                  {modelName}
+                </Button>
+              ))}
             </PopoverContent>
           </Popover>
 

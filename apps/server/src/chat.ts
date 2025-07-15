@@ -1,7 +1,7 @@
+import { LLMMessage, Message, MessageMetadata } from "@repo/types";
 import { prisma } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import {
-  createSocketServer,
   emitStreamChunk,
   endStream,
   handleStreamError,
@@ -15,34 +15,59 @@ export class ChatService {
     this.llmService = new LLMService();
   }
 
-  async saveUserMessage(taskId: string, content: string) {
+  async saveUserMessage(
+    taskId: string,
+    content: string,
+    metadata?: MessageMetadata
+  ) {
     return await prisma.chatMessage.create({
       data: {
         taskId,
         content,
         role: "USER",
+        metadata: (metadata as any) || undefined,
       },
     });
   }
 
-  async saveAssistantMessage(taskId: string, content: string) {
+  async saveAssistantMessage(
+    taskId: string,
+    content: string,
+    llmModel: string,
+    metadata?: MessageMetadata
+  ) {
     return await prisma.chatMessage.create({
       data: {
         taskId,
         content,
         role: "ASSISTANT",
+        llmModel,
+        metadata: (metadata as any) || undefined,
       },
     });
   }
 
-  async getChatHistory(taskId: string) {
-    return await prisma.chatMessage.findMany({
+  async getChatHistory(taskId: string): Promise<Message[]> {
+    const dbMessages = await prisma.chatMessage.findMany({
       where: { taskId },
       orderBy: { createdAt: "asc" },
     });
+
+    return dbMessages.map((msg) => ({
+      id: msg.id,
+      role: msg.role.toLowerCase() as Message["role"],
+      content: msg.content,
+      llmModel: msg.llmModel || undefined,
+      createdAt: msg.createdAt.toISOString(),
+      metadata: msg.metadata ? JSON.parse(msg.metadata as string) : undefined,
+    }));
   }
 
-  async processUserMessage(taskId: string, userMessage: string) {
+  async processUserMessage(
+    taskId: string,
+    userMessage: string,
+    llmModel: string = "claude-3-5-sonnet-20241022"
+  ) {
     // Save user message to database
     await this.saveUserMessage(taskId, userMessage);
 
@@ -50,10 +75,11 @@ export class ChatService {
     const history = await this.getChatHistory(taskId);
 
     // Prepare messages for LLM (exclude the user message we just saved to avoid duplication)
-    const messages = history
+    const messages: LLMMessage[] = history
       .slice(0, -1) // Remove the last message (the one we just saved)
-      .map((msg: any) => ({
-        role: msg.role.toLowerCase() as "user" | "assistant",
+      .filter((msg) => msg.role === "user" || msg.role === "assistant")
+      .map((msg) => ({
+        role: msg.role as "user" | "assistant",
         content: msg.content,
       }))
       .concat([{ role: "user", content: userMessage }]);
@@ -64,48 +90,47 @@ export class ChatService {
     startStream();
 
     let fullAssistantResponse = "";
-    const messageId = `chatcmpl-${Math.random().toString(36).substring(2, 15)}`;
+    let usageMetadata: MessageMetadata["usage"];
 
     try {
       for await (const chunk of this.llmService.createMessageStream(
         systemPrompt,
-        messages
+        messages,
+        llmModel
       )) {
-        if (chunk.type === "text" && chunk.content) {
+        // Emit the chunk directly to clients
+        emitStreamChunk(chunk);
+
+        // Accumulate content for database storage
+        if (chunk.type === "content" && chunk.content) {
           fullAssistantResponse += chunk.content;
-          const formattedChunk = this.llmService.formatAsOpenAIChunk(
-            chunk,
-            messageId
-          );
-          if (formattedChunk) {
-            emitStreamChunk(formattedChunk);
-          }
+        }
+
+        // Track usage information
+        if (chunk.type === "usage" && chunk.usage) {
+          usageMetadata = chunk.usage;
         }
       }
 
-      // Send final chunk
-      const finalChunk = {
-        id: messageId,
-        object: "chat.completion.chunk",
-        created: Math.floor(Date.now() / 1000),
-        model: "claude-3-5-sonnet-20241022",
-        choices: [
-          {
-            index: 0,
-            delta: {},
-            finish_reason: "stop",
-          },
-        ],
-      };
-      emitStreamChunk(`data: ${JSON.stringify(finalChunk)}\n\n`);
-      emitStreamChunk(`data: [DONE]\n\n`);
-
-      // Save assistant response to database
-      await this.saveAssistantMessage(taskId, fullAssistantResponse);
+      // Save assistant response to database with metadata
+      await this.saveAssistantMessage(
+        taskId,
+        fullAssistantResponse,
+        llmModel,
+        usageMetadata ? { usage: usageMetadata } : undefined
+      );
 
       endStream();
     } catch (error) {
       console.error("Error processing user message:", error);
+
+      // Emit error chunk
+      emitStreamChunk({
+        type: "error",
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      });
+
       handleStreamError(error);
       throw error;
     }

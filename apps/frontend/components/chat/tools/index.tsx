@@ -1,29 +1,29 @@
-import React from "react";
-
-type ToolMessage = {
-  id: string;
-  role: "TOOL";
-  content: string;
-  createdAt: string;
-  metadata?: any;
-};
+import type { Message } from "@repo/types";
+import { CheckIcon, Clock, X } from "lucide-react";
 
 function StatusComponent({
   status,
 }: {
-  status: "success" | "error" | "running";
+  status: "running" | "success" | "error";
 }) {
-  if (status === "success") {
-    return <div className="text-green-500">✓</div>;
-  } else if (status === "error") {
-    return <div className="text-red-500">✗</div>;
-  } else {
-    return <div className="text-yellow-500">⏳</div>;
+  switch (status) {
+    case "running":
+      return <Clock className="h-4 w-4 text-blue-500 animate-spin" />;
+    case "success":
+      return <CheckIcon className="h-4 w-4 text-green-500" />;
+    case "error":
+      return <X className="h-4 w-4 text-red-500" />;
+    default:
+      return null;
   }
 }
 
-function formatToolContent(message: ToolMessage): React.ReactElement {
-  const { tool, args, changes } = message.metadata;
+function formatToolContent(message: Message): React.ReactElement {
+  if (!message.metadata?.tool) {
+    return <span>{message.content}</span>;
+  }
+
+  const { name: tool, args, changes } = message.metadata.tool;
 
   if (tool === "read_file") {
     const path = args.target_file;
@@ -49,13 +49,17 @@ function formatToolContent(message: ToolMessage): React.ReactElement {
   }
 }
 
-export function ToolMessage({ message }: { message: ToolMessage }) {
+export function ToolMessage({ message }: { message: Message }) {
+  if (!message.metadata?.tool) {
+    return <div>{message.content}</div>;
+  }
+
   return (
     <div className="px-3 py-2 flex justify-between items-center">
       <div className="flex gap-1.5 items-center">
         {formatToolContent(message)}
       </div>
-      <StatusComponent status={message.metadata.status} />
+      <StatusComponent status={message.metadata.tool.status} />
     </div>
   );
 }

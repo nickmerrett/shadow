@@ -1,11 +1,5 @@
-type UserMessage = {
-  id: string;
-  role: "USER";
-  content: string;
-  createdAt: string;
-  metadata?: any;
-};
+import type { Message } from "@repo/types";
 
-export function UserMessage({ message }: { message: UserMessage }) {
+export function UserMessage({ message }: { message: Message }) {
   return <div>{message.content}</div>;
 }

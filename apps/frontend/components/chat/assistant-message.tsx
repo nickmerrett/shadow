@@ -1,16 +1,9 @@
 import { cn } from "@/lib/utils";
+import type { Message } from "@repo/types";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
-type AssistantMessage = {
-  id: string;
-  role: "ASSISTANT";
-  content: string;
-  createdAt: string;
-  metadata?: any;
-};
-
-export function AssistantMessage({ message }: { message: AssistantMessage }) {
+export function AssistantMessage({ message }: { message: Message }) {
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
 
   // Handle streaming message
@@ -23,7 +16,7 @@ export function AssistantMessage({ message }: { message: AssistantMessage }) {
     );
   }
 
-  if (message.metadata?.type === "thinking") {
+  if (message.metadata?.thinking) {
     return (
       <div>
         <div
@@ -39,12 +32,12 @@ export function AssistantMessage({ message }: { message: AssistantMessage }) {
             />
           </span>
           <span className="text-muted-foreground">
-            Thought for {message.metadata.duration}s
+            Thought for {message.metadata.thinking.duration}s
           </span>
         </div>
         {isThinkingExpanded && (
           <div className="text-muted-foreground">
-            {message.metadata.content}
+            {message.metadata.thinking.content}
           </div>
         )}
       </div>

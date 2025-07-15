@@ -3,16 +3,8 @@
 import { Messages } from "@/components/chat/messages";
 import { PromptForm } from "@/components/chat/prompt-form";
 import { socket } from "@/lib/socket";
+import type { Message, StreamChunk } from "@repo/types";
 import { useEffect, useState } from "react";
-
-// Define types to match our database schema
-type Message = {
-  id: string;
-  role: "USER" | "ASSISTANT" | "SYSTEM" | "TOOL";
-  content: string;
-  createdAt: string;
-  metadata?: any;
-};
 
 type Task = {
   id: string;
@@ -21,7 +13,6 @@ type Task = {
   status: string;
   repoUrl: string;
   branch: string;
-  llmModel: string;
   mode: string;
   createdAt: string;
   updatedAt: string;
@@ -41,23 +32,27 @@ export default function TaskPage({ params }: { params: { taskId: string } }) {
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const taskId = params.taskId;
+  const { taskId } = params;
 
   // Fetch task details and messages
   useEffect(() => {
     const fetchTaskData = async () => {
       try {
         setLoading(true);
-        
+
         // Fetch task details
-        const taskResponse = await fetch(`http://localhost:4000/api/tasks/${taskId}`);
+        const taskResponse = await fetch(
+          `http://localhost:4000/api/tasks/${taskId}`
+        );
         if (taskResponse.ok) {
           const taskData = await taskResponse.json();
           setTask(taskData);
         }
 
         // Fetch chat messages
-        const messagesResponse = await fetch(`http://localhost:4000/api/tasks/${taskId}/messages`);
+        const messagesResponse = await fetch(
+          `http://localhost:4000/api/tasks/${taskId}/messages`
+        );
         if (messagesResponse.ok) {
           const messagesData = await messagesResponse.json();
           setMessages(messagesData.messages || []);
@@ -106,34 +101,40 @@ export default function TaskPage({ params }: { params: { taskId: string } }) {
       setIsStreaming(state.isStreaming);
     }
 
-    function onStreamChunk(chunk: string) {
+    function onStreamChunk(chunk: StreamChunk) {
       setIsStreaming(true);
 
-      // Parse OpenAI streaming format
-      if (chunk.startsWith("data: ")) {
-        try {
-          const jsonStr = chunk.slice(6); // Remove 'data: ' prefix
-          if (jsonStr.trim() === "[DONE]") {
-            setIsStreaming(false);
-            // Refresh messages when stream is complete
-            socket.emit("get-chat-history", { taskId });
-            setAccumulatedContent("");
-            return;
+      // Handle different types of stream chunks
+      switch (chunk.type) {
+        case "content":
+          if (chunk.content) {
+            setAccumulatedContent((prev) => prev + chunk.content);
           }
+          break;
 
-          const parsed = JSON.parse(jsonStr);
-          const content = parsed.choices?.[0]?.delta?.content;
+        case "complete":
+          setIsStreaming(false);
+          console.log("Stream completed");
+          // Refresh messages when stream is complete
+          socket.emit("get-chat-history", { taskId });
+          setAccumulatedContent("");
+          break;
 
-          if (content) {
-            setAccumulatedContent((prev) => prev + content);
-          }
-        } catch (error) {
-          // If parsing fails, just append the raw chunk
-          setAccumulatedContent((prev) => prev + chunk);
-        }
-      } else {
-        // Handle non-data chunks
-        setAccumulatedContent((prev) => prev + chunk);
+        case "error":
+          setIsStreaming(false);
+          console.error("Stream error:", chunk.error);
+          setAccumulatedContent((prev) => prev + `\n\nError: ${chunk.error}`);
+          break;
+
+        case "usage":
+          // Handle usage information (could be used for displaying token counts)
+          console.log("Usage:", chunk.usage);
+          break;
+
+        case "thinking":
+          // Handle thinking chunks if needed
+          console.log("Thinking:", chunk.thinking);
+          break;
       }
     }
 
@@ -183,11 +184,15 @@ export default function TaskPage({ params }: { params: { taskId: string } }) {
     };
   }, [taskId]);
 
-  const handleSendMessage = (message: string) => {
+  const handleSendMessage = (message: string, model: string) => {
     if (!taskId || !message.trim()) return;
-    
-    console.log("Sending message:", { taskId, message });
-    socket.emit("user-message", { taskId, message: message.trim() });
+
+    console.log("Sending message:", { taskId, message, model });
+    socket.emit("user-message", {
+      taskId,
+      message: message.trim(),
+      llmModel: model,
+    });
   };
 
   if (loading) {
@@ -208,11 +213,11 @@ export default function TaskPage({ params }: { params: { taskId: string } }) {
 
   // Combine real messages with current streaming content
   const displayMessages = [...messages];
-  
+
   if (isStreaming && accumulatedContent) {
     displayMessages.push({
       id: "streaming",
-      role: "ASSISTANT",
+      role: "assistant",
       content: accumulatedContent,
       createdAt: new Date().toISOString(),
       metadata: { isStreaming: true },
@@ -222,21 +227,25 @@ export default function TaskPage({ params }: { params: { taskId: string } }) {
   return (
     <div className="mx-auto flex w-full grow max-w-lg flex-col items-center">
       <div className="mb-4 w-full">
-        <h1 className="text-xl font-semibold">{task.title || "Untitled Task"}</h1>
+        <h1 className="text-xl font-semibold">
+          {task.title || "Untitled Task"}
+        </h1>
         {task.description && (
-          <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {task.description}
+          </p>
         )}
         <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
           <span className="capitalize">{task.status.toLowerCase()}</span>
           <span>•</span>
-          <span>{task.llmModel}</span>
-          <span>•</span>
-          <span className={`${isConnected ? "text-green-500" : "text-red-500"}`}>
+          <span
+            className={`${isConnected ? "text-green-500" : "text-red-500"}`}
+          >
             {isConnected ? "Connected" : "Disconnected"}
           </span>
         </div>
       </div>
-      
+
       <Messages messages={displayMessages} />
       <PromptForm onSubmit={handleSendMessage} disabled={isStreaming} />
     </div>
