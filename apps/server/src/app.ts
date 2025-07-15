@@ -4,7 +4,7 @@ import http from "http";
 import { errorHandler } from "./middleware/error-handler";
 import { simulateOpenAIStream } from "./simulator";
 import { ChatService } from "./chat";
-import { prisma } from "@repo/db";
+import { prisma } from "../../../packages/db/src/client";
 import {
   createSocketServer,
   emitStreamChunk,

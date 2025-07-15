@@ -1,4 +1,4 @@
-import { prisma } from "@repo/db";
+import { prisma } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import {
   createSocketServer,
@@ -52,7 +52,7 @@ export class ChatService {
     // Prepare messages for LLM (exclude the user message we just saved to avoid duplication)
     const messages = history
       .slice(0, -1) // Remove the last message (the one we just saved)
-      .map((msg) => ({
+      .map((msg: any) => ({
         role: msg.role.toLowerCase() as "user" | "assistant",
         content: msg.content,
       }))
