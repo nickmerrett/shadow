@@ -110,8 +110,4 @@ io.on("disconnect", (socket) => {
 
 app.use(errorHandler);
 
-socketIOServer.listen(4001, () => {
-  console.log(`Socket.IO server running on port 4001`);
-});
-
-export { app };
+export { app, socketIOServer };

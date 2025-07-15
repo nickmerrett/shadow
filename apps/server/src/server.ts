@@ -1,7 +1,10 @@
-import { app } from "./app";
+import { app, socketIOServer } from "./app";
+import config from "./config";
 
-const API_PORT = 4000;
+app.listen(config.apiPort, () => {
+  console.log(`Server running on port ${config.apiPort}`);
+});
 
-app.listen(API_PORT, () => {
-  console.log(`Server running on port ${API_PORT}`);
+socketIOServer.listen(config.socketPort, () => {
+  console.log(`Socket.IO server running on port ${config.socketPort}`);
 });
