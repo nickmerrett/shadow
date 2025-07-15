@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+After completing a task, do not run `npm run dev` or `npm run start` to run the application, assume the user already has it running in their terminal.
