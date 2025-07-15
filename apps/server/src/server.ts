@@ -1,7 +1,7 @@
-import app from "./app";
+import { app } from "./app";
 
-export const PORT = process.env.PORT || 4000;
+const API_PORT = 4000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(API_PORT, () => {
+  console.log(`Server running on port ${API_PORT}`);
 });
