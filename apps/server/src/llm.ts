@@ -8,6 +8,7 @@ import {
   toCoreMessage,
 } from "@repo/types";
 import { CoreMessage, LanguageModel, streamText } from "ai";
+import { DEFAULT_MODEL } from "./chat";
 import config from "./config";
 
 export class LLMService {
@@ -35,7 +36,7 @@ export class LLMService {
   async *createMessageStream(
     systemPrompt: string,
     messages: Message[],
-    model: ModelType = "claude-3-5-sonnet-20241022"
+    model: ModelType = DEFAULT_MODEL
   ): AsyncGenerator<StreamChunk> {
     try {
       const modelInstance = this.getModel(model);
@@ -43,7 +44,9 @@ export class LLMService {
       // Convert our messages to AI SDK CoreMessage format
       const coreMessages: CoreMessage[] = messages.map(toCoreMessage);
 
-      const result = await streamText({
+      console.log("coreMessages", coreMessages);
+
+      const result = streamText({
         model: modelInstance,
         system: systemPrompt,
         messages: coreMessages,
@@ -51,31 +54,15 @@ export class LLMService {
         temperature: 0.7,
       });
 
-      let hasEmittedInitialUsage = false;
-
+      // Stream content chunks - keep this simple and non-blocking
       for await (const chunk of result.textStream) {
-        // Emit usage info at the start if we haven't yet
-        if (!hasEmittedInitialUsage && result.usage) {
-          const usage = await result.usage;
-          yield {
-            type: "usage",
-            usage: {
-              promptTokens: usage.promptTokens,
-              completionTokens: usage.completionTokens,
-              totalTokens: usage.totalTokens,
-            },
-          };
-          hasEmittedInitialUsage = true;
-        }
-
-        // Emit content chunk
         yield {
           type: "content",
           content: chunk,
         };
       }
 
-      // Wait for final results
+      // Wait for final results after streaming completes
       const finalResult = await result;
       const finalUsage = await finalResult.usage;
       const finalFinishReason = await finalResult.finishReason;
@@ -119,11 +106,7 @@ export class LLMService {
     const models: ModelType[] = [];
 
     if (config.anthropicApiKey) {
-      models.push(
-        "claude-3-5-sonnet-20241022",
-        "claude-3-5-haiku-20241022",
-        "claude-3-haiku-20240307"
-      );
+      models.push("claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022");
     }
 
     if (config.openaiApiKey) {

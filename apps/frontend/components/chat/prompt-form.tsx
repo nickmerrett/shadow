@@ -17,17 +17,10 @@ interface PromptFormProps {
   disabled?: boolean;
 }
 
-const modelInfo = {
-  [AvailableModels.CLAUDE_3_5_SONNET]: "Claude 3.5 Sonnet",
-  [AvailableModels.CLAUDE_3_HAIKU]: "Claude 3 Haiku",
-  [AvailableModels.GPT_4O]: "GPT-4o",
-  [AvailableModels.GPT_4O_MINI]: "GPT-4o Mini",
-};
-
 export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
   const [message, setMessage] = useState("");
   const [selectedModel, setSelectedModel] = useState<ModelType>(
-    AvailableModels.CLAUDE_3_5_SONNET
+    AvailableModels.GPT_4O
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -83,14 +76,14 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
                 className="text-muted-foreground hover:bg-accent font-normal"
               >
                 <Layers className="size-4" />
-                <span>{modelInfo[selectedModel]}</span>
+                <span>{selectedModel}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent
               align="start"
               className="flex flex-col gap-0.5 rounded-lg p-1"
             >
-              {Object.entries(modelInfo).map(([modelId, modelName]) => (
+              {Object.entries(AvailableModels).map(([modelId, modelName]) => (
                 <Button
                   key={modelId}
                   size="sm"

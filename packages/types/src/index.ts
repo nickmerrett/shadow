@@ -1,6 +1,7 @@
 // === Chat Message Types ===
 
-import type { CoreMessage, TextStreamPart, ToolCallPart, ToolResultPart } from 'ai';
+import type { CoreMessage } from "ai";
+import { randomUUID } from "crypto";
 
 export interface BaseMessage {
   id: string;
@@ -46,7 +47,12 @@ export interface MessageMetadata {
   };
 
   // Finish reason
-  finishReason?: 'stop' | 'length' | 'content-filter' | 'function_call' | 'tool_calls';
+  finishReason?:
+    | "stop"
+    | "length"
+    | "content-filter"
+    | "function_call"
+    | "tool_calls";
 }
 
 export type Message = BaseMessage;
@@ -76,31 +82,48 @@ export function toCoreMessage(message: Message): CoreMessage {
   } as CoreMessage;
 }
 
-export function fromCoreMessage(coreMessage: CoreMessage, id?: string): Omit<Message, 'createdAt'> {
+export function fromCoreMessage(
+  coreMessage: CoreMessage,
+  id?: string
+): Omit<Message, "createdAt"> {
   return {
-    id: id || crypto.randomUUID(),
+    id: id || randomUUID(),
     role: coreMessage.role,
-    content: typeof coreMessage.content === 'string' ? coreMessage.content : 
-             Array.isArray(coreMessage.content) ? 
-             coreMessage.content.map(part => 
-               typeof part === 'string' ? part : 
-               'text' in part ? part.text : 
-               'image' in part ? '[image]' : 
-               JSON.stringify(part)
-             ).join('') : 
-             JSON.stringify(coreMessage.content),
+    content:
+      typeof coreMessage.content === "string"
+        ? coreMessage.content
+        : Array.isArray(coreMessage.content)
+          ? coreMessage.content
+              .map((part) =>
+                typeof part === "string"
+                  ? part
+                  : "text" in part
+                    ? part.text
+                    : "image" in part
+                      ? "[image]"
+                      : JSON.stringify(part)
+              )
+              .join("")
+          : JSON.stringify(coreMessage.content),
   };
 }
 
 // === Streaming Types ===
 
 export interface StreamChunk {
-  type: "content" | "thinking" | "usage" | "complete" | "error" | "tool-call" | "tool-result";
+  type:
+    | "content"
+    | "thinking"
+    | "usage"
+    | "complete"
+    | "error"
+    | "tool-call"
+    | "tool-result";
 
   // For content chunks
   content?: string;
 
-  // For thinking/reasoning chunks  
+  // For thinking/reasoning chunks
   thinking?: string;
 
   // For usage tracking
@@ -114,7 +137,13 @@ export interface StreamChunk {
   };
 
   // For completion/error
-  finishReason?: 'stop' | 'length' | 'content-filter' | 'function_call' | 'tool_calls' | 'error';
+  finishReason?:
+    | "stop"
+    | "length"
+    | "content-filter"
+    | "function_call"
+    | "tool_calls"
+    | "error";
   error?: string;
 
   // For tool calls
@@ -157,8 +186,7 @@ export interface LLMConfig {
 export const AvailableModels = {
   // Anthropic models
   CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20241022",
-  CLAUDE_3_5_HAIKU: "claude-3-5-haiku-20241022", 
-  CLAUDE_3_HAIKU: "claude-3-haiku-20240307",
+  CLAUDE_3_5_HAIKU: "claude-3-5-haiku-20241022",
   // OpenAI models
   GPT_4O: "gpt-4o",
   GPT_4O_MINI: "gpt-4o-mini",
@@ -194,22 +222,11 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
   [AvailableModels.CLAUDE_3_5_HAIKU]: {
     id: AvailableModels.CLAUDE_3_5_HAIKU,
     name: "Claude 3.5 Haiku",
-    provider: "anthropic", 
+    provider: "anthropic",
     description: "Fastest and most cost-effective model",
     maxTokens: 200000,
     costPer1mTokensInput: 1,
     costPer1mTokensOutput: 5,
-    supportsStreaming: true,
-    supportsTools: true,
-  },
-  [AvailableModels.CLAUDE_3_HAIKU]: {
-    id: AvailableModels.CLAUDE_3_HAIKU,
-    name: "Claude 3 Haiku",
-    provider: "anthropic",
-    description: "Fast and cost-effective model (legacy)",
-    maxTokens: 200000,
-    costPer1mTokensInput: 0.25,
-    costPer1mTokensOutput: 1.25,
     supportsStreaming: true,
     supportsTools: true,
   },
@@ -226,7 +243,7 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
   },
   [AvailableModels.GPT_4O_MINI]: {
     id: AvailableModels.GPT_4O_MINI,
-    name: "GPT-4o Mini", 
+    name: "GPT-4o Mini",
     provider: "openai",
     description: "Cost-efficient small model for simple tasks",
     maxTokens: 128000,

@@ -1,7 +1,7 @@
-import { StreamChunk, ModelType } from "@repo/types";
+import { ModelType, StreamChunk } from "@repo/types";
 import http from "http";
 import { Server } from "socket.io";
-import { ChatService } from "./chat";
+import { ChatService, DEFAULT_MODEL } from "./chat";
 import config from "./config";
 
 // In-memory stream state
@@ -41,13 +41,17 @@ export function createSocketServer(server: http.Server): Server {
     // Handle user message
     socket.on(
       "user-message",
-      async (data: { taskId: string; message: string; llmModel?: ModelType }) => {
+      async (data: {
+        taskId: string;
+        message: string;
+        llmModel?: ModelType;
+      }) => {
         try {
           console.log("Received user message:", data);
           await chatService.processUserMessage(
             data.taskId,
             data.message,
-            data.llmModel || "claude-3-5-sonnet-20241022"
+            data.llmModel || DEFAULT_MODEL
           );
         } catch (error) {
           console.error("Error processing user message:", error);

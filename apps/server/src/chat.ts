@@ -9,6 +9,8 @@ import {
   startStream,
 } from "./socket";
 
+export const DEFAULT_MODEL: ModelType = "gpt-4o";
+
 export class ChatService {
   private llmService: LLMService;
 
@@ -75,7 +77,7 @@ export class ChatService {
   async processUserMessage(
     taskId: string,
     userMessage: string,
-    llmModel: ModelType = "claude-3-5-sonnet-20241022"
+    llmModel: ModelType = DEFAULT_MODEL
   ) {
     // Save user message to database
     await this.saveUserMessage(taskId, userMessage);

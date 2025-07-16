@@ -3,27 +3,27 @@ import { z } from "zod";
 
 dotenv.config();
 
-const configSchema = z.object({
-  API_PORT: z.coerce.number().default(4000),
-  SOCKET_PORT: z.coerce.number().default(4001),
-  CLIENT_URL: z.string().default("http://localhost:3000"),
-  NODE_ENV: z
-    .enum(["development", "production", "test"])
-    .default("development"),
-  ANTHROPIC_API_KEY: z.string().optional(),
-  OPENAI_API_KEY: z.string().optional(),
-}).refine(
-  (data) => data.ANTHROPIC_API_KEY || data.OPENAI_API_KEY,
-  {
-    message: "At least one API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) must be provided",
+const configSchema = z
+  .object({
+    API_PORT: z.coerce.number().default(4000),
+    SOCKET_PORT: z.coerce.number().default(4001),
+    CLIENT_URL: z.string().default("http://localhost:3000"),
+    NODE_ENV: z
+      .enum(["development", "production", "test"])
+      .default("development"),
+    ANTHROPIC_API_KEY: z.string().optional(),
+    OPENAI_API_KEY: z.string().optional(),
+  })
+  .refine((data) => data.ANTHROPIC_API_KEY || data.OPENAI_API_KEY, {
+    message:
+      "At least one API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) must be provided",
     path: ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
-  }
-);
+  });
 
 const parsed = configSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error("Invalid environment variables:", z.treeifyError(parsed.error));
+  console.error("Invalid environment variables:", parsed.error.format());
   process.exit(1);
 }
 
