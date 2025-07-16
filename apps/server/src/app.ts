@@ -3,7 +3,6 @@ import cors from "cors";
 import express from "express";
 import http from "http";
 import { prisma } from "../../../packages/db/src/client";
-import { auth } from "./auth";
 import { ChatService } from "./chat";
 import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";
@@ -21,11 +20,6 @@ app.use(
   })
 );
 app.use(express.json());
-
-/* AUTH ROUTES */
-app.all("/api/auth/*", (req, res) => {
-  return auth.handler(req, res);
-});
 
 /* ROUTES */
 app.get("/", (req, res) => {

@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { URL } from "url";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow access to auth page and static files
-  if (pathname.startsWith("/auth")) {
+  // Allow access to auth page, API routes, and static files
+  if (
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon")
+  ) {
     return NextResponse.next();
   }
 
-  // Check for session token in cookies
+  // Check for better-auth session token in cookies
   const sessionToken = request.cookies.get("better-auth.session_token");
 
   // If no session token, redirect to auth page
   if (!sessionToken) {
-    const authUrl = new URL("/auth", request.url);
+    const authUrl = request.nextUrl.clone();
+    authUrl.pathname = "/auth";
     return NextResponse.redirect(authUrl);
   }
 
