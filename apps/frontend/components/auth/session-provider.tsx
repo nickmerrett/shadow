@@ -1,14 +1,14 @@
 "use client";
 
 import { useSession } from "@/lib/auth-client";
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, ReactNode, useContext } from "react";
 
 type Session = {
   user: {
     id: string;
     name?: string;
     email: string;
-    image?: string;
+    image?: string | null;
   };
 } | null;
 

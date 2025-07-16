@@ -1,7 +1,7 @@
 "use client";
 
-import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { authClient } from "@/lib/auth-client";
 import { Github } from "lucide-react";
 
 export default function AuthPage() {
@@ -27,7 +27,7 @@ export default function AuthPage() {
             Continue with your Github account
           </p>
         </div>
-        
+
         <div className="mt-8">
           <Button
             onClick={handleGithubSignIn}
