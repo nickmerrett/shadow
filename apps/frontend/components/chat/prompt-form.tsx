@@ -8,16 +8,20 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { ModelType, ModelInfo } from "@repo/types";
-import { ArrowUp, Folder, GitBranch, Layers, Square } from "lucide-react";
-import { useState, useEffect } from "react";
+import { ModelInfos, type ModelInfo, type ModelType } from "@repo/types";
+import { ArrowUp, Layers, Square } from "lucide-react";
+import { useEffect, useState } from "react";
+import { GithubConnection } from "./github-connection";
 
-interface PromptFormProps {
+export function PromptForm({
+  onSubmit,
+  disabled = false,
+  isHome = false,
+}: {
   onSubmit?: (message: string, model: ModelType) => void;
   disabled?: boolean;
-}
-
-export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
+  isHome?: boolean;
+}) {
   const [message, setMessage] = useState("");
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelType>();
@@ -58,7 +62,10 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex w-full flex-col sticky bottom-0 pb-6 max-w-lg bg-background"
+      className={cn(
+        "flex w-full flex-col max-w-lg bg-background",
+        isHome && "sticky bottom-0 pb-6"
+      )}
     >
       {/* Wrapper div with textarea styling */}
       <div
@@ -67,7 +74,9 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
           disabled && "opacity-50"
         )}
       >
-        <div className="absolute -left-px w-[calc(100%+2px)] -top-16 h-16 bg-gradient-to-t from-background via-background/60 to-transparent -translate-y-px z-10 pointer-events-none" />
+        {!isHome && (
+          <div className="absolute -left-px w-[calc(100%+2px)] -top-16 h-16 bg-gradient-to-t from-background via-background/60 to-transparent -translate-y-px z-10 pointer-events-none" />
+        )}
 
         {/* Textarea without border/background since wrapper handles it */}
         <Textarea
@@ -94,7 +103,11 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
                 className="text-muted-foreground hover:bg-accent font-normal"
               >
                 <Layers className="size-4" />
-                <span>{selectedModel ?? "Select model"}</span>
+                <span>
+                  {selectedModel
+                    ? ModelInfos[selectedModel].name
+                    : "Select model"}
+                </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent
@@ -117,16 +130,7 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
           </Popover>
 
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-muted-foreground hover:bg-accent font-normal"
-            >
-              <Folder className="size-4" />
-              <span>ishaan1013/shadow</span>
-              <GitBranch className="size-4" />
-              <span>main</span>
-            </Button>
+            {isHome && <GithubConnection />}
             <Button
               type="submit"
               size="iconSm"
