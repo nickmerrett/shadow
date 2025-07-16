@@ -191,6 +191,8 @@ export const AvailableModels = {
   GPT_4O: "gpt-4o",
   GPT_4O_MINI: "gpt-4o-mini",
   GPT_4_TURBO: "gpt-4-turbo",
+  O3: "o3",
+  O4_MINI_HIGH: "o4-mini-high"
 } as const;
 
 export type ModelType = (typeof AvailableModels)[keyof typeof AvailableModels];
@@ -260,6 +262,28 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     maxTokens: 128000,
     costPer1mTokensInput: 10,
     costPer1mTokensOutput: 30,
+    supportsStreaming: true,
+    supportsTools: true,
+  },
+  [AvailableModels.O3]: {
+    id: AvailableModels.O3,
+    name: "o3",
+    provider: "openai",
+    description: "Most advanced model",
+    maxTokens: 128000,
+    costPer1mTokensInput: 2.5,
+    costPer1mTokensOutput: 10,
+    supportsStreaming: true,
+    supportsTools: true,
+  },
+  [AvailableModels.O4_MINI_HIGH]: {
+    id: AvailableModels.O4_MINI_HIGH,
+    name: "o4 Mini High",
+    provider: "openai",
+    description: "Advanced Reasoning",
+    maxTokens: 128000,
+    costPer1mTokensInput: 2.5,
+    costPer1mTokensOutput: 10,
     supportsStreaming: true,
     supportsTools: true,
   },

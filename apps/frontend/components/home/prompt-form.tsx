@@ -8,9 +8,35 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import type { ModelType, ModelInfo } from "@repo/types";
+import { useState, useEffect } from "react";
 import { ArrowUp, Folder, GitBranch, Layers, Square } from "lucide-react";
 
 export function HomePromptForm() {
+  const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
+  const [selectedModel, setSelectedModel] = useState<ModelType>();
+
+  useEffect(() => {
+    async function fetchModels() {
+      try {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
+        const res = await fetch(`${baseUrl}/api/models`);
+        if (!res.ok) throw new Error(await res.text());
+        const data = (await res.json()) as { models: ModelInfo[] };
+        setAvailableModels(data.models);
+
+        if (data.models.length > 0 && !selectedModel) {
+          setSelectedModel(data.models[0]!.id as ModelType);
+        }
+      } catch (err) {
+        console.error("Failed to fetch available models", err);
+      }
+    }
+
+    fetchModels();
+  }, []);
+
   return (
     <div className="flex w-full flex-col">
       {/* Wrapper div with textarea styling */}
@@ -36,37 +62,30 @@ export function HomePromptForm() {
                 className="text-muted-foreground hover:bg-accent font-normal"
               >
                 <Layers className="size-4" />
-                <span>Claude 4 Sonnet</span>
+                <span>
+                  {selectedModel
+                    ? availableModels.find((m) => m.id === selectedModel)?.name ??
+                      selectedModel
+                    : "Select model"}
+                </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent
               align="start"
               className="flex flex-col gap-0.5 rounded-lg p-1"
             >
-              <Button
-                size="sm"
-                variant="ghost"
-                className="hover:bg-accent justify-start font-normal"
-              >
-                <Square />
-                Claude 4 Sonnet
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="hover:bg-accent justify-start font-normal"
-              >
-                <Square />
-                Claude 3.7 Sonnet
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="hover:bg-accent justify-start font-normal"
-              >
-                <Square />
-                Claude 3.5 Sonnet
-              </Button>
+              {availableModels.map((model) => (
+                <Button
+                  key={model.id}
+                  size="sm"
+                  variant="ghost"
+                  className="hover:bg-accent justify-start font-normal"
+                  onClick={() => setSelectedModel(model.id as ModelType)}
+                >
+                  <Square className="size-4" />
+                  {model.name}
+                </Button>
+              ))}
             </PopoverContent>
           </Popover>
 
