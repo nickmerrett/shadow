@@ -21,6 +21,7 @@ export function HomePromptForm() {
       >
         {/* Textarea without border/background since wrapper handles it */}
         <Textarea
+          autoFocus
           placeholder="Build a cool new feature..."
           className="max-h-48 flex-1 resize-none rounded-lg border-0 bg-transparent! shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/50"
         />

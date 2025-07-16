@@ -54,6 +54,7 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
 
         {/* Textarea without border/background since wrapper handles it */}
         <Textarea
+          autoFocus
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
