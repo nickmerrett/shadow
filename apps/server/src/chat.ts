@@ -53,13 +53,15 @@ export class ChatService {
       orderBy: { createdAt: "asc" },
     });
 
+    console.log("dbMessages", dbMessages);
+
     return dbMessages.map((msg) => ({
       id: msg.id,
       role: msg.role.toLowerCase() as Message["role"],
       content: msg.content,
       llmModel: msg.llmModel || undefined,
       createdAt: msg.createdAt.toISOString(),
-      metadata: msg.metadata ? JSON.parse(msg.metadata as string) : undefined,
+      metadata: msg.metadata as MessageMetadata | undefined,
     }));
   }
 
