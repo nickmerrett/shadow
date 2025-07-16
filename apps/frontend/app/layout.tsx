@@ -1,3 +1,5 @@
+import { SessionProvider } from "@/components/auth/session-provider";
+import { UserMenu } from "@/components/auth/user-menu";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { SidebarComponent } from "@/components/sidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -40,17 +42,19 @@ export default async function RootLayout({
           forcedTheme="dark"
           disableTransitionOnChange
         >
-          <SidebarProvider defaultOpen={defaultOpen}>
-            <SidebarComponent />
-            <div className="flex size-full min-h-svh flex-col relative">
-              <div className="flex w-full items-center justify-between p-3 sticky top-0">
-                <SidebarTrigger />
-                <div className="bg-muted-foreground size-8 rounded-full"></div>
+          <SessionProvider>
+            <SidebarProvider defaultOpen={defaultOpen}>
+              <SidebarComponent />
+              <div className="flex size-full min-h-svh flex-col relative">
+                <div className="flex w-full items-center justify-between p-3 sticky top-0">
+                  <SidebarTrigger />
+                  <UserMenu />
+                </div>
+                {children}
               </div>
-              {children}
-            </div>
-            <Toaster />
-          </SidebarProvider>
+              <Toaster />
+            </SidebarProvider>
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>
