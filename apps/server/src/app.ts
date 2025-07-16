@@ -1,3 +1,4 @@
+import { ModelInfos } from "@repo/types";
 import cors from "cors";
 import express from "express";
 import http from "http";
@@ -5,13 +6,12 @@ import { prisma } from "../../../packages/db/src/client";
 import { ChatService } from "./chat";
 import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";
-import { ModelInfos } from "@repo/types";
 
 const app = express();
 const chatService = new ChatService();
 
 const socketIOServer = http.createServer(app);
-const io = createSocketServer(socketIOServer);
+createSocketServer(socketIOServer);
 
 app.use(
   cors({
@@ -54,11 +54,11 @@ app.get("/api/tasks/:taskId", async (req, res) => {
 app.get("/api/models", async (req, res) => {
   try {
     const availableModels = chatService.getAvailableModels();
-    const modelsWithInfo = availableModels.map(modelId => ({
-      id: modelId,
+    const modelsWithInfo = availableModels.map((modelId) => ({
       ...ModelInfos[modelId],
+      id: modelId,
     }));
-    
+
     res.json({ models: modelsWithInfo });
   } catch (error) {
     console.error("Error fetching models:", error);

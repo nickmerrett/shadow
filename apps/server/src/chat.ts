@@ -1,4 +1,5 @@
 import { Message, MessageMetadata, ModelType } from "@repo/types";
+import { randomUUID } from "crypto";
 import { prisma } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import {
@@ -38,7 +39,7 @@ export class ChatService {
   ) {
     // Extract usage info for denormalized storage
     const usage = metadata?.usage;
-    
+
     return await prisma.chatMessage.create({
       data: {
         taskId,
@@ -86,12 +87,14 @@ export class ChatService {
     const messages: Message[] = history
       .slice(0, -1) // Remove the last message (the one we just saved)
       .filter((msg) => msg.role === "user" || msg.role === "assistant")
-      .concat([{
-        id: crypto.randomUUID(),
-        role: "user",
-        content: userMessage,
-        createdAt: new Date().toISOString(),
-      }]);
+      .concat([
+        {
+          id: randomUUID(),
+          role: "user",
+          content: userMessage,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
 
     const systemPrompt = `You are a helpful coding assistant. You help users with their programming tasks by providing clear, accurate, and helpful responses.`;
 
@@ -129,21 +132,20 @@ export class ChatService {
         }
 
         // Track finish reason
-        if (chunk.type === "complete" && chunk.finishReason) {
+        if (
+          chunk.type === "complete" &&
+          chunk.finishReason &&
+          chunk.finishReason !== "error"
+        ) {
           finishReason = chunk.finishReason;
         }
       }
 
       // Save assistant response to database with metadata
-      await this.saveAssistantMessage(
-        taskId,
-        fullAssistantResponse,
-        llmModel,
-        {
-          usage: usageMetadata,
-          finishReason,
-        }
-      );
+      await this.saveAssistantMessage(taskId, fullAssistantResponse, llmModel, {
+        usage: usageMetadata,
+        finishReason,
+      });
 
       endStream();
     } catch (error) {

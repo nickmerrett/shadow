@@ -1,30 +1,32 @@
-import { anthropic } from '@ai-sdk/anthropic';
-import { openai } from '@ai-sdk/openai';
-import { streamText, LanguageModel, CoreMessage } from 'ai';
-import { StreamChunk, ModelType, getModelProvider, toCoreMessage, Message } from "@repo/types";
+import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
+import {
+  Message,
+  ModelType,
+  StreamChunk,
+  getModelProvider,
+  toCoreMessage,
+} from "@repo/types";
+import { CoreMessage, LanguageModel, streamText } from "ai";
 import config from "./config";
 
 export class LLMService {
   private getModel(modelId: ModelType): LanguageModel {
     const provider = getModelProvider(modelId);
-    
+
     switch (provider) {
-      case 'anthropic':
+      case "anthropic":
         if (!config.anthropicApiKey) {
-          throw new Error('Anthropic API key not configured');
+          throw new Error("Anthropic API key not configured");
         }
-        return anthropic(modelId, {
-          apiKey: config.anthropicApiKey,
-        });
-        
-      case 'openai':
+        return anthropic(modelId);
+
+      case "openai":
         if (!config.openaiApiKey) {
-          throw new Error('OpenAI API key not configured');
+          throw new Error("OpenAI API key not configured");
         }
-        return openai(modelId, {
-          apiKey: config.openaiApiKey,
-        });
-        
+        return openai(modelId);
+
       default:
         throw new Error(`Unsupported provider: ${provider}`);
     }
@@ -37,7 +39,7 @@ export class LLMService {
   ): AsyncGenerator<StreamChunk> {
     try {
       const modelInstance = this.getModel(model);
-      
+
       // Convert our messages to AI SDK CoreMessage format
       const coreMessages: CoreMessage[] = messages.map(toCoreMessage);
 
@@ -75,32 +77,39 @@ export class LLMService {
 
       // Wait for final results
       const finalResult = await result;
-      
+      const finalUsage = await finalResult.usage;
+      const finalFinishReason = await finalResult.finishReason;
+
       // Emit final usage and completion
       yield {
-        type: "usage", 
+        type: "usage",
         usage: {
-          promptTokens: finalResult.usage.promptTokens,
-          completionTokens: finalResult.usage.completionTokens,
-          totalTokens: finalResult.usage.totalTokens,
+          promptTokens: finalUsage.promptTokens,
+          completionTokens: finalUsage.completionTokens,
+          totalTokens: finalUsage.totalTokens,
         },
       };
 
       yield {
         type: "complete",
-        finishReason: finalResult.finishReason === 'stop' ? 'stop' :
-                     finalResult.finishReason === 'length' ? 'length' :
-                     finalResult.finishReason === 'content-filter' ? 'content-filter' :
-                     finalResult.finishReason === 'tool-calls' ? 'tool_calls' :
-                     'stop',
+        finishReason:
+          finalFinishReason === "stop"
+            ? "stop"
+            : finalFinishReason === "length"
+              ? "length"
+              : finalFinishReason === "content-filter"
+                ? "content-filter"
+                : finalFinishReason === "tool-calls"
+                  ? "tool_calls"
+                  : "stop",
       };
-
     } catch (error) {
-      console.error('LLM Service Error:', error);
+      console.error("LLM Service Error:", error);
       yield {
         type: "error",
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-        finishReason: 'error',
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+        finishReason: "error",
       };
     }
   }
@@ -108,7 +117,7 @@ export class LLMService {
   // Helper method to get available models based on configured API keys
   getAvailableModels(): ModelType[] {
     const models: ModelType[] = [];
-    
+
     if (config.anthropicApiKey) {
       models.push(
         "claude-3-5-sonnet-20241022",
@@ -116,15 +125,11 @@ export class LLMService {
         "claude-3-haiku-20240307"
       );
     }
-    
+
     if (config.openaiApiKey) {
-      models.push(
-        "gpt-4o",
-        "gpt-4o-mini", 
-        "gpt-4-turbo"
-      );
+      models.push("gpt-4o", "gpt-4o-mini", "gpt-4-turbo");
     }
-    
+
     return models;
   }
 }
