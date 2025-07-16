@@ -1,4 +1,5 @@
-import { LLMMessage, Message, MessageMetadata } from "@repo/types";
+import { Message, MessageMetadata, ModelType } from "@repo/types";
+import { randomUUID } from "crypto";
 import { prisma } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import {
@@ -36,6 +37,9 @@ export class ChatService {
     llmModel: string,
     metadata?: MessageMetadata
   ) {
+    // Extract usage info for denormalized storage
+    const usage = metadata?.usage;
+
     return await prisma.chatMessage.create({
       data: {
         taskId,
@@ -43,6 +47,11 @@ export class ChatService {
         role: "ASSISTANT",
         llmModel,
         metadata: (metadata as any) || undefined,
+        // Denormalized usage fields for easier querying
+        promptTokens: usage?.promptTokens,
+        completionTokens: usage?.completionTokens,
+        totalTokens: usage?.totalTokens,
+        finishReason: metadata?.finishReason,
       },
     });
   }
@@ -52,8 +61,6 @@ export class ChatService {
       where: { taskId },
       orderBy: { createdAt: "asc" },
     });
-
-    console.log("dbMessages", dbMessages);
 
     return dbMessages.map((msg) => ({
       id: msg.id,
@@ -68,7 +75,7 @@ export class ChatService {
   async processUserMessage(
     taskId: string,
     userMessage: string,
-    llmModel: string = "claude-3-5-sonnet-20241022"
+    llmModel: ModelType = "claude-3-5-sonnet-20241022"
   ) {
     // Save user message to database
     await this.saveUserMessage(taskId, userMessage);
@@ -77,14 +84,17 @@ export class ChatService {
     const history = await this.getChatHistory(taskId);
 
     // Prepare messages for LLM (exclude the user message we just saved to avoid duplication)
-    const messages: LLMMessage[] = history
+    const messages: Message[] = history
       .slice(0, -1) // Remove the last message (the one we just saved)
       .filter((msg) => msg.role === "user" || msg.role === "assistant")
-      .map((msg) => ({
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-      }))
-      .concat([{ role: "user", content: userMessage }]);
+      .concat([
+        {
+          id: randomUUID(),
+          role: "user",
+          content: userMessage,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
 
     const systemPrompt = `You are a helpful coding assistant. You help users with their programming tasks by providing clear, accurate, and helpful responses.`;
 
@@ -93,6 +103,7 @@ export class ChatService {
 
     let fullAssistantResponse = "";
     let usageMetadata: MessageMetadata["usage"];
+    let finishReason: MessageMetadata["finishReason"];
 
     try {
       for await (const chunk of this.llmService.createMessageStream(
@@ -110,17 +121,31 @@ export class ChatService {
 
         // Track usage information
         if (chunk.type === "usage" && chunk.usage) {
-          usageMetadata = chunk.usage;
+          usageMetadata = {
+            promptTokens: chunk.usage.promptTokens,
+            completionTokens: chunk.usage.completionTokens,
+            totalTokens: chunk.usage.totalTokens,
+            // Include provider-specific tokens if available
+            cacheCreationInputTokens: chunk.usage.cacheCreationInputTokens,
+            cacheReadInputTokens: chunk.usage.cacheReadInputTokens,
+          };
+        }
+
+        // Track finish reason
+        if (
+          chunk.type === "complete" &&
+          chunk.finishReason &&
+          chunk.finishReason !== "error"
+        ) {
+          finishReason = chunk.finishReason;
         }
       }
 
       // Save assistant response to database with metadata
-      await this.saveAssistantMessage(
-        taskId,
-        fullAssistantResponse,
-        llmModel,
-        usageMetadata ? { usage: usageMetadata } : undefined
-      );
+      await this.saveAssistantMessage(taskId, fullAssistantResponse, llmModel, {
+        usage: usageMetadata,
+        finishReason,
+      });
 
       endStream();
     } catch (error) {
@@ -131,10 +156,16 @@ export class ChatService {
         type: "error",
         error:
           error instanceof Error ? error.message : "Unknown error occurred",
+        finishReason: "error",
       });
 
       handleStreamError(error);
       throw error;
     }
+  }
+
+  // Get available models from LLM service
+  getAvailableModels(): ModelType[] {
+    return this.llmService.getAvailableModels();
   }
 }

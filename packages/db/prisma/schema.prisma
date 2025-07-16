@@ -52,7 +52,13 @@ model ChatMessage {
   content  String
   role     MessageRole
   llmModel String? // Model used for this message (only for ASSISTANT messages)
-  metadata Json? // For streaming tokens, model info, etc
+  metadata Json? // Enhanced metadata with usage, finish reason, etc
+  
+  // Usage tracking (denormalized for easier querying)
+  promptTokens      Int? // Input tokens
+  completionTokens  Int? // Output tokens  
+  totalTokens       Int? // Total tokens
+  finishReason      String? // stop, length, content-filter, etc
 
   createdAt DateTime @default(now())
 
@@ -60,6 +66,7 @@ model ChatMessage {
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId, createdAt])
+  @@index([llmModel, createdAt]) // For usage analytics
 }
 
 model TerminalCommand {

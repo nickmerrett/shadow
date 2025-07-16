@@ -1,4 +1,4 @@
-import { StreamChunk } from "@repo/types";
+import { StreamChunk, ModelType } from "@repo/types";
 import http from "http";
 import { Server } from "socket.io";
 import { ChatService } from "./chat";
@@ -41,7 +41,7 @@ export function createSocketServer(server: http.Server): Server {
     // Handle user message
     socket.on(
       "user-message",
-      async (data: { taskId: string; message: string; llmModel?: string }) => {
+      async (data: { taskId: string; message: string; llmModel?: ModelType }) => {
         try {
           console.log("Received user message:", data);
           await chatService.processUserMessage(
