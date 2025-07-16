@@ -8,9 +8,9 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { AvailableModels, type ModelType } from "@repo/types";
+import type { ModelType, ModelInfo } from "@repo/types";
 import { ArrowUp, Folder, GitBranch, Layers, Square } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface PromptFormProps {
   onSubmit?: (message: string, model: ModelType) => void;
@@ -19,13 +19,30 @@ interface PromptFormProps {
 
 export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
   const [message, setMessage] = useState("");
-  const [selectedModel, setSelectedModel] = useState<ModelType>(
-    AvailableModels.GPT_4O
-  );
+  const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
+  const [selectedModel, setSelectedModel] = useState<ModelType>();
+
+  // Fetch list of models from backend on mount
+  useEffect(() => {
+    async function fetchModels() {
+      try {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
+        const res = await fetch(`${baseUrl}/api/models`);
+        if (!res.ok) throw new Error(await res.text());
+        const data = (await res.json()) as { models: ModelInfo[] };
+        setAvailableModels(data.models);
+      } catch (err) {
+        console.error("Failed to fetch available models", err);
+      }
+    }
+
+    fetchModels();
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || disabled) return;
+    if (!message.trim() || disabled || !selectedModel) return;
 
     onSubmit?.(message, selectedModel);
     setMessage("");
@@ -54,6 +71,7 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
 
         {/* Textarea without border/background since wrapper handles it */}
         <Textarea
+          autoFocus
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -76,23 +94,23 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
                 className="text-muted-foreground hover:bg-accent font-normal"
               >
                 <Layers className="size-4" />
-                <span>{selectedModel}</span>
+                <span>{selectedModel ?? "Select model"}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent
               align="start"
               className="flex flex-col gap-0.5 rounded-lg p-1"
             >
-              {Object.entries(AvailableModels).map(([modelId, modelName]) => (
+              {availableModels.map((model) => (
                 <Button
-                  key={modelId}
+                  key={model.id}
                   size="sm"
                   variant="ghost"
                   className="hover:bg-accent justify-start font-normal"
-                  onClick={() => setSelectedModel(modelId as ModelType)}
+                  onClick={() => setSelectedModel(model.id as ModelType)}
                 >
                   <Square className="size-4" />
-                  {modelName}
+                  {model.name}
                 </Button>
               ))}
             </PopoverContent>
@@ -112,7 +130,7 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
             <Button
               type="submit"
               size="iconSm"
-              disabled={disabled || !message.trim()}
+              disabled={disabled || !message.trim() || !selectedModel}
               className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
             >
               <ArrowUp className="size-4" />

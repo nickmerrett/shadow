@@ -110,7 +110,7 @@ export class LLMService {
     }
 
     if (config.openaiApiKey) {
-      models.push("gpt-4o", "gpt-4o-mini", "gpt-4-turbo");
+      models.push("gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o3", "o4-mini-high");
     }
 
     return models;
