@@ -1,6 +1,5 @@
 "use client";
 
-import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,6 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { authClient } from "@/lib/auth-client";
 import { LogOut, User } from "lucide-react";
 import { useAuthSession } from "./session-provider";
 
@@ -34,7 +34,7 @@ export function UserMenu() {
   }
 
   if (!session?.user) {
-    return null;
+    return <div className="size-8" />;
   }
 
   return (

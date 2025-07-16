@@ -13,22 +13,25 @@ async function main() {
   await prisma.taskSession.deleteMany();
   await prisma.task.deleteMany();
 
-  // Clear auth-related tables
+  // Clear auth-related tables (updated for new schema)
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
-  await prisma.verificationToken.deleteMany();
+  await prisma.verification.deleteMany();
   await prisma.user.deleteMany();
   console.log("✅ Existing data cleared");
 
-  // Create a test user (compatible with better-auth schema)
+  // Create a test user (compatible with new custom auth schema)
   const user = await prisma.user.upsert({
     where: { email: "demo@shadow.dev" },
     update: {},
     create: {
+      id: "demo-user-1", // Custom ID since it's String @id
       email: "demo@shadow.dev",
       name: "Demo User",
-      emailVerified: new Date(), // Mark email as verified
-      image: "https://github.com/github.png", // Default GitHub avatar
+      emailVerified: true, // Boolean field
+      image: "https://github.com/github.png", // Optional GitHub avatar
+      createdAt: new Date(),
+      updatedAt: new Date(),
     },
   });
 
@@ -344,18 +347,18 @@ async function main() {
     {
       taskId: task3.id,
       role: "TOOL" as const,
-      content: "Updated Prisma schema with better-auth models",
+      content: "Updated Prisma schema with custom auth models",
       metadata: {
         tool: {
           name: "edit_file",
           args: {
             filePath: "packages/db/prisma/schema.prisma",
             content:
-              "Added User, Account, Session, and VerificationToken models",
+              "Added User, Account, Session, and Verification models with custom structure",
           },
           status: "success",
           changes: {
-            linesAdded: 65,
+            linesAdded: 75,
             linesRemoved: 10,
             filePath: "packages/db/prisma/schema.prisma",
           },
