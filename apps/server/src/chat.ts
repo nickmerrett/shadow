@@ -1,6 +1,6 @@
+import { prisma } from "@repo/db";
 import { Message, MessageMetadata, ModelType } from "@repo/types";
 import { randomUUID } from "crypto";
-import { prisma } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import { systemPrompt } from "./prompt/system";
 import {

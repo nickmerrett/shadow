@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
+import { prisma } from "@repo/db";
 import { ModelType } from "@repo/types";
 import { randomUUID } from "crypto";
 import readline from "readline";
-import { prisma } from "../../../packages/db/src/client";
 import { ChatService, DEFAULT_MODEL } from "./chat";
 import config from "./config";
 import {
