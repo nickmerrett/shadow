@@ -1,5 +1,7 @@
 // === Chat Message Types ===
 
+import type { CoreMessage, TextStreamPart, ToolCallPart, ToolResultPart } from 'ai';
+
 export interface BaseMessage {
   id: string;
   role: "user" | "assistant" | "tool" | "system";
@@ -35,13 +37,16 @@ export interface MessageMetadata {
 
   // For usage tracking
   usage?: {
-    inputTokens: number;
-    outputTokens: number;
-    cacheWriteTokens?: number;
-    cacheReadTokens?: number;
-    thoughtsTokenCount?: number;
-    totalCost?: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    // Provider-specific tokens
+    cacheCreationInputTokens?: number;
+    cacheReadInputTokens?: number;
   };
+
+  // Finish reason
+  finishReason?: 'stop' | 'length' | 'content-filter' | 'function_call' | 'tool_calls';
 }
 
 export type Message = BaseMessage;
@@ -63,28 +68,67 @@ export const isSystemMessage = (
   message: Message
 ): message is Message & { role: "system" } => message.role === "system";
 
+// AI SDK compatible message conversion
+export function toCoreMessage(message: Message): CoreMessage {
+  return {
+    role: message.role,
+    content: message.content,
+  } as CoreMessage;
+}
+
+export function fromCoreMessage(coreMessage: CoreMessage, id?: string): Omit<Message, 'createdAt'> {
+  return {
+    id: id || crypto.randomUUID(),
+    role: coreMessage.role,
+    content: typeof coreMessage.content === 'string' ? coreMessage.content : 
+             Array.isArray(coreMessage.content) ? 
+             coreMessage.content.map(part => 
+               typeof part === 'string' ? part : 
+               'text' in part ? part.text : 
+               'image' in part ? '[image]' : 
+               JSON.stringify(part)
+             ).join('') : 
+             JSON.stringify(coreMessage.content),
+  };
+}
+
 // === Streaming Types ===
 
 export interface StreamChunk {
-  type: "content" | "thinking" | "usage" | "complete" | "error";
+  type: "content" | "thinking" | "usage" | "complete" | "error" | "tool-call" | "tool-result";
 
   // For content chunks
   content?: string;
 
-  // For thinking/reasoning chunks
+  // For thinking/reasoning chunks  
   thinking?: string;
 
   // For usage tracking
   usage?: {
-    inputTokens: number;
-    outputTokens: number;
-    cacheWriteTokens?: number;
-    cacheReadTokens?: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    // Provider-specific tokens
+    cacheCreationInputTokens?: number;
+    cacheReadInputTokens?: number;
   };
 
   // For completion/error
-  finishReason?: "stop" | "length" | "error";
+  finishReason?: 'stop' | 'length' | 'content-filter' | 'function_call' | 'tool_calls' | 'error';
   error?: string;
+
+  // For tool calls
+  toolCall?: {
+    id: string;
+    name: string;
+    args: Record<string, any>;
+  };
+
+  // For tool results
+  toolResult?: {
+    id: string;
+    result: string;
+  };
 }
 
 // === Database Enums ===
@@ -100,25 +144,25 @@ export type MessageRoleType = (typeof MessageRole)[keyof typeof MessageRole];
 
 // === LLM Integration Types ===
 
-export interface LLMMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
 export interface LLMConfig {
   model: string;
   maxTokens?: number;
   temperature?: number;
   systemPrompt?: string;
+  provider: "anthropic" | "openai";
 }
 
 // === Model Selection ===
 
 export const AvailableModels = {
+  // Anthropic models
   CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20241022",
+  CLAUDE_3_5_HAIKU: "claude-3-5-haiku-20241022", 
   CLAUDE_3_HAIKU: "claude-3-haiku-20240307",
+  // OpenAI models
   GPT_4O: "gpt-4o",
   GPT_4O_MINI: "gpt-4o-mini",
+  GPT_4_TURBO: "gpt-4-turbo",
 } as const;
 
 export type ModelType = (typeof AvailableModels)[keyof typeof AvailableModels];
@@ -129,5 +173,89 @@ export interface ModelInfo {
   provider: "anthropic" | "openai";
   description: string;
   maxTokens: number;
-  costPer1kTokens: number;
+  costPer1mTokensInput: number;
+  costPer1mTokensOutput: number;
+  supportsStreaming: boolean;
+  supportsTools: boolean;
+}
+
+export const ModelInfos: Record<ModelType, ModelInfo> = {
+  [AvailableModels.CLAUDE_3_5_SONNET]: {
+    id: AvailableModels.CLAUDE_3_5_SONNET,
+    name: "Claude 3.5 Sonnet",
+    provider: "anthropic",
+    description: "Most capable model for complex reasoning and coding",
+    maxTokens: 200000,
+    costPer1mTokensInput: 3,
+    costPer1mTokensOutput: 15,
+    supportsStreaming: true,
+    supportsTools: true,
+  },
+  [AvailableModels.CLAUDE_3_5_HAIKU]: {
+    id: AvailableModels.CLAUDE_3_5_HAIKU,
+    name: "Claude 3.5 Haiku",
+    provider: "anthropic", 
+    description: "Fastest and most cost-effective model",
+    maxTokens: 200000,
+    costPer1mTokensInput: 1,
+    costPer1mTokensOutput: 5,
+    supportsStreaming: true,
+    supportsTools: true,
+  },
+  [AvailableModels.CLAUDE_3_HAIKU]: {
+    id: AvailableModels.CLAUDE_3_HAIKU,
+    name: "Claude 3 Haiku",
+    provider: "anthropic",
+    description: "Fast and cost-effective model (legacy)",
+    maxTokens: 200000,
+    costPer1mTokensInput: 0.25,
+    costPer1mTokensOutput: 1.25,
+    supportsStreaming: true,
+    supportsTools: true,
+  },
+  [AvailableModels.GPT_4O]: {
+    id: AvailableModels.GPT_4O,
+    name: "GPT-4o",
+    provider: "openai",
+    description: "Most advanced multimodal model",
+    maxTokens: 128000,
+    costPer1mTokensInput: 2.5,
+    costPer1mTokensOutput: 10,
+    supportsStreaming: true,
+    supportsTools: true,
+  },
+  [AvailableModels.GPT_4O_MINI]: {
+    id: AvailableModels.GPT_4O_MINI,
+    name: "GPT-4o Mini", 
+    provider: "openai",
+    description: "Cost-efficient small model for simple tasks",
+    maxTokens: 128000,
+    costPer1mTokensInput: 0.15,
+    costPer1mTokensOutput: 0.6,
+    supportsStreaming: true,
+    supportsTools: true,
+  },
+  [AvailableModels.GPT_4_TURBO]: {
+    id: AvailableModels.GPT_4_TURBO,
+    name: "GPT-4 Turbo",
+    provider: "openai",
+    description: "Previous generation model with large context",
+    maxTokens: 128000,
+    costPer1mTokensInput: 10,
+    costPer1mTokensOutput: 30,
+    supportsStreaming: true,
+    supportsTools: true,
+  },
+};
+
+// === AI SDK Integration Types ===
+
+// Helper to get model provider
+export function getModelProvider(model: ModelType): "anthropic" | "openai" {
+  return ModelInfos[model].provider;
+}
+
+// Helper to get model info
+export function getModelInfo(model: ModelType): ModelInfo {
+  return ModelInfos[model];
 }

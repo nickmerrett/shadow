@@ -10,8 +10,15 @@ const configSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
-  ANTHROPIC_API_KEY: z.string().min(1, "ANTHROPIC_API_KEY is required"),
-});
+  ANTHROPIC_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+}).refine(
+  (data) => data.ANTHROPIC_API_KEY || data.OPENAI_API_KEY,
+  {
+    message: "At least one API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) must be provided",
+    path: ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+  }
+);
 
 const parsed = configSchema.safeParse(process.env);
 
@@ -26,6 +33,7 @@ const config = {
   clientUrl: parsed.data.CLIENT_URL,
   nodeEnv: parsed.data.NODE_ENV,
   anthropicApiKey: parsed.data.ANTHROPIC_API_KEY,
+  openaiApiKey: parsed.data.OPENAI_API_KEY,
 };
 
 export default config;

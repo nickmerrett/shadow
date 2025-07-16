@@ -5,6 +5,7 @@ import { prisma } from "../../../packages/db/src/client";
 import { ChatService } from "./chat";
 import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";
+import { ModelInfos } from "@repo/types";
 
 const app = express();
 const chatService = new ChatService();
@@ -46,6 +47,22 @@ app.get("/api/tasks/:taskId", async (req, res) => {
   } catch (error) {
     console.error("Error fetching task:", error);
     res.status(500).json({ error: "Failed to fetch task" });
+  }
+});
+
+// Get available models
+app.get("/api/models", async (req, res) => {
+  try {
+    const availableModels = chatService.getAvailableModels();
+    const modelsWithInfo = availableModels.map(modelId => ({
+      id: modelId,
+      ...ModelInfos[modelId],
+    }));
+    
+    res.json({ models: modelsWithInfo });
+  } catch (error) {
+    console.error("Error fetching models:", error);
+    res.status(500).json({ error: "Failed to fetch models" });
   }
 });
 
