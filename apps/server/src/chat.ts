@@ -2,15 +2,15 @@ import { Message, MessageMetadata, ModelType } from "@repo/types";
 import { randomUUID } from "crypto";
 import { prisma } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
+import { systemPrompt } from "./prompt/system";
 import {
   emitStreamChunk,
   endStream,
   handleStreamError,
   startStream,
 } from "./socket";
-import { systemPrompt } from "./prompt/system";
 
-export const DEFAULT_MODEL: ModelType = "claude-3-5-sonnet-20241022";
+export const DEFAULT_MODEL: ModelType = "gpt-4o";
 
 export class ChatService {
   private llmService: LLMService;
@@ -115,7 +115,10 @@ export class ChatService {
     // Prepare messages for LLM (exclude the user message we just saved to avoid duplication)
     const messages: Message[] = history
       .slice(0, -1) // Remove the last message (the one we just saved)
-      .filter((msg) => msg.role === "user" || msg.role === "assistant" || msg.role === "tool")
+      .filter(
+        (msg) =>
+          msg.role === "user" || msg.role === "assistant" || msg.role === "tool"
+      )
       .concat([
         {
           id: randomUUID(),
@@ -125,8 +128,12 @@ export class ChatService {
         },
       ]);
 
-    console.log(`[CHAT] Processing message for task ${taskId} with ${messages.length} context messages`);
-    console.log(`[CHAT] Using model: ${llmModel}, Tools enabled: ${enableTools}`);
+    console.log(
+      `[CHAT] Processing message for task ${taskId} with ${messages.length} context messages`
+    );
+    console.log(
+      `[CHAT] Using model: ${llmModel}, Tools enabled: ${enableTools}`
+    );
 
     // Start streaming
     startStream();
@@ -134,7 +141,11 @@ export class ChatService {
     let fullAssistantResponse = "";
     let usageMetadata: MessageMetadata["usage"];
     let finishReason: MessageMetadata["finishReason"];
-    const toolCalls: Array<{ id: string; name: string; args: Record<string, any> }> = [];
+    const toolCalls: Array<{
+      id: string;
+      name: string;
+      args: Record<string, any>;
+    }> = [];
     const toolResults: Array<{ id: string; result: string }> = [];
 
     try {
@@ -155,13 +166,19 @@ export class ChatService {
         // Track tool calls
         if (chunk.type === "tool-call" && chunk.toolCall) {
           toolCalls.push(chunk.toolCall);
-          console.log(`[TOOL_CALL] ${chunk.toolCall.name}:`, chunk.toolCall.args);
+          console.log(
+            `[TOOL_CALL] ${chunk.toolCall.name}:`,
+            chunk.toolCall.args
+          );
         }
 
         // Track tool results
         if (chunk.type === "tool-result" && chunk.toolResult) {
           toolResults.push(chunk.toolResult);
-          console.log(`[TOOL_RESULT] ${chunk.toolResult.id}:`, chunk.toolResult.result);
+          console.log(
+            `[TOOL_RESULT] ${chunk.toolResult.id}:`,
+            chunk.toolResult.result
+          );
         }
 
         // Track usage information
@@ -192,13 +209,18 @@ export class ChatService {
         finishReason,
       };
 
-      await this.saveAssistantMessage(taskId, fullAssistantResponse, llmModel, assistantMetadata);
+      await this.saveAssistantMessage(
+        taskId,
+        fullAssistantResponse,
+        llmModel,
+        assistantMetadata
+      );
 
       // Save tool calls and results to database
       for (let i = 0; i < toolCalls.length; i++) {
         const toolCall = toolCalls[i];
-        const toolResult = toolResults.find(r => r.id === toolCall.id);
-        
+        const toolResult = toolResults.find((r) => r.id === toolCall.id);
+
         if (toolResult) {
           await this.saveToolMessage(
             taskId,
@@ -218,9 +240,11 @@ export class ChatService {
       }
 
       console.log(`[CHAT] Completed processing for task ${taskId}`);
-      console.log(`[CHAT] Response length: ${fullAssistantResponse.length} chars`);
+      console.log(
+        `[CHAT] Response length: ${fullAssistantResponse.length} chars`
+      );
       console.log(`[CHAT] Tool calls executed: ${toolCalls.length}`);
-      
+
       endStream();
     } catch (error) {
       console.error("Error processing user message:", error);
@@ -251,7 +275,7 @@ export class ChatService {
   ) {
     console.log(`[CODING_TASK] Starting coding task for ${taskId}`);
     console.log(`[CODING_TASK] Task: ${userMessage.substring(0, 100)}...`);
-    
+
     return this.processUserMessage(taskId, userMessage, llmModel, true);
   }
 }

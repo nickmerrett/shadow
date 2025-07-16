@@ -18,7 +18,7 @@ LIVE EXECUTION ENVIRONMENT:
 - Your progress persists across session interruptions
 - Design your work to be resumable and clearly communicated
 
-Working directory: /workspace contains the code repository
+Working directory: /Users/ishaandey/Documents/Programming/shadow/test-workspace contains the code repository
 </environment>`;
 
 const OPERATION_MODES = `<operation_modes>
