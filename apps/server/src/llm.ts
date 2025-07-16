@@ -7,7 +7,7 @@ import {
   getModelProvider,
   toCoreMessage,
 } from "@repo/types";
-import { CoreMessage, LanguageModel, streamText, generateText } from "ai";
+import { CoreMessage, LanguageModel, generateText, streamText } from "ai";
 import { DEFAULT_MODEL } from "./chat";
 import config from "./config";
 import { tools } from "./tools";
@@ -54,7 +54,8 @@ export class LLMService {
         messages: coreMessages,
         maxTokens: 4096,
         temperature: 0.7,
-        ...(enableTools && { tools })
+        maxSteps: 5, // Enable multi-step tool calls
+        ...(enableTools && { tools }),
       };
 
       const result = streamText(streamConfig);
@@ -152,7 +153,8 @@ export class LLMService {
         messages: coreMessages,
         maxTokens: 4096,
         temperature: 0.7,
-        ...(enableTools && { tools })
+        maxSteps: 5, // Enable multi-step tool calls
+        ...(enableTools && { tools }),
       };
 
       const result = await generateText(config);
