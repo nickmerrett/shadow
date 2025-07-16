@@ -93,21 +93,6 @@ async function main() {
     {
       taskId: task1.id,
       role: "TOOL" as const,
-      content:
-        "Listed 8 items in src/ directory including components/, types/, and App.tsx",
-      metadata: {
-        tool: {
-          name: "list_directory",
-          args: { path: "src/" },
-          status: "success",
-          result:
-            "components/\ntypes/\nApp.tsx\nindex.tsx\nindex.css\nutils/\nhooks/\nstyles/",
-        },
-      },
-    },
-    {
-      taskId: task1.id,
-      role: "TOOL" as const,
       content: "Reading App.tsx to understand current structure",
       metadata: {
         tool: {
@@ -175,34 +160,8 @@ async function main() {
       taskId: task1.id,
       role: "ASSISTANT" as const,
       content:
-        "Absolutely! I'll add Tailwind CSS for a clean, modern design. Let me install it and update the components with beautiful styling.",
+        "Absolutely! I'll add Tailwind CSS for a clean, modern design. Let me update the components with beautiful styling.",
       llmModel: "claude-3-5-sonnet-20241022",
-    },
-    {
-      taskId: task1.id,
-      role: "TOOL" as const,
-      content: "Installing Tailwind CSS and its dependencies",
-      metadata: {
-        tool: {
-          name: "run_terminal",
-          args: { command: "npm install -D tailwindcss postcss autoprefixer" },
-          status: "success",
-          result: "Successfully installed Tailwind CSS packages",
-        },
-      },
-    },
-    {
-      taskId: task1.id,
-      role: "TOOL" as const,
-      content: "Initializing Tailwind configuration",
-      metadata: {
-        tool: {
-          name: "run_terminal",
-          args: { command: "npx tailwindcss init -p" },
-          status: "success",
-          result: "Created tailwind.config.js and postcss.config.js",
-        },
-      },
     },
     {
       taskId: task1.id,
@@ -225,6 +184,13 @@ async function main() {
           },
         },
       },
+    },
+    {
+      taskId: task1.id,
+      role: "ASSISTANT" as const,
+      content:
+        "Perfect! I've successfully created a modern React todo app with TypeScript. The app includes all the requested functionality: add new todos, mark them as complete/incomplete, and delete them. The UI features a clean, responsive design with hover effects and a card-based layout that will look great on any device.",
+      llmModel: "claude-3-5-sonnet-20241022",
     },
   ];
 
@@ -249,24 +215,8 @@ async function main() {
       taskId: task2.id,
       role: "ASSISTANT" as const,
       content:
-        "I'll analyze your API performance by examining the codebase, running benchmarks, and identifying bottlenecks. Let me start by exploring the API structure.",
+        "I'll analyze your API performance by examining the codebase and identifying bottlenecks. Let me start by exploring the API structure.",
       llmModel: "claude-3-5-sonnet-20241022",
-    },
-    {
-      taskId: task2.id,
-      role: "TOOL" as const,
-      content: "Searching for API route definitions and database queries",
-      metadata: {
-        tool: {
-          name: "codebase_search",
-          args: {
-            query: "API routes endpoints database queries",
-            directories: ["src/api", "src/routes"],
-          },
-          status: "success",
-          result: "Found 12 API endpoints with various database query patterns",
-        },
-      },
     },
     {
       taskId: task2.id,
@@ -278,22 +228,6 @@ async function main() {
           args: { filePath: "src/api/server.ts" },
           status: "success",
           result: "Express server with multiple middleware and route handlers",
-        },
-      },
-    },
-    {
-      taskId: task2.id,
-      role: "TOOL" as const,
-      content: "Running performance benchmark to establish baseline",
-      metadata: {
-        tool: {
-          name: "run_terminal",
-          args: {
-            command:
-              "npm run benchmark -- --endpoint=/api/users --requests=1000",
-          },
-          status: "success",
-          result: "Average response time: 450ms, 95th percentile: 1.2s",
         },
       },
     },
@@ -367,25 +301,9 @@ async function main() {
     },
     {
       taskId: task2.id,
-      role: "TOOL" as const,
-      content: "Running post-optimization benchmark",
-      metadata: {
-        tool: {
-          name: "run_terminal",
-          args: {
-            command:
-              "npm run benchmark -- --endpoint=/api/users --requests=1000",
-          },
-          status: "success",
-          result: "Average response time: 180ms, 95th percentile: 420ms",
-        },
-      },
-    },
-    {
-      taskId: task2.id,
       role: "ASSISTANT" as const,
       content:
-        "Excellent! The optimizations were successful. I've achieved a 60% reduction in average response times (450ms → 180ms) and a 65% improvement in 95th percentile latency. The main improvements came from database connection pooling, Redis caching for hot data, and eliminating N+1 query patterns.",
+        "Excellent! The optimizations were successful. I've implemented database connection pooling, Redis caching for frequently accessed data, and eliminated N+1 query patterns. These changes should significantly improve API response times and reduce server load.",
       llmModel: "claude-3-5-sonnet-20241022",
     },
   ];
@@ -411,37 +329,8 @@ async function main() {
       taskId: task3.id,
       role: "ASSISTANT" as const,
       content:
-        "I'll implement a secure JWT authentication system. Let me start by examining the current project structure and installing the necessary dependencies.",
+        "I'll implement a secure JWT authentication system. Let me start by examining the current project structure and create the necessary components.",
       llmModel: "claude-3-5-sonnet-20241022",
-    },
-    {
-      taskId: task3.id,
-      role: "TOOL" as const,
-      content: "Searching for existing authentication code",
-      metadata: {
-        tool: {
-          name: "grep_search",
-          args: { pattern: "auth|jwt|login|password", include: "*.ts,*.js" },
-          status: "success",
-          result: "No existing authentication implementation found",
-        },
-      },
-    },
-    {
-      taskId: task3.id,
-      role: "TOOL" as const,
-      content: "Installing JWT and bcrypt dependencies",
-      metadata: {
-        tool: {
-          name: "run_terminal",
-          args: {
-            command:
-              "npm install jsonwebtoken bcrypt @types/jsonwebtoken @types/bcrypt",
-          },
-          status: "success",
-          result: "Successfully installed authentication packages",
-        },
-      },
     },
     {
       taskId: task3.id,
@@ -521,16 +410,10 @@ async function main() {
     },
     {
       taskId: task3.id,
-      role: "TOOL" as const,
-      content: "Running tests to verify authentication flow",
-      metadata: {
-        tool: {
-          name: "run_terminal",
-          args: { command: "npm test -- auth.test.js" },
-          status: "success",
-          result: "All 8 authentication tests passed",
-        },
-      },
+      role: "ASSISTANT" as const,
+      content:
+        "Perfect! I've successfully implemented a complete JWT authentication system. The implementation includes secure middleware for token verification, enhanced auth routes with proper password hashing using bcrypt, and JWT token generation for login/register endpoints. The system is now ready for secure user authentication.",
+      llmModel: "claude-3-5-sonnet-20241022",
     },
   ];
 
