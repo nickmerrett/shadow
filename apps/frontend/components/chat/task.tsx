@@ -61,6 +61,9 @@ export function TaskPageContent({
 
           return serverMessages;
         });
+
+        // Clear accumulated content only when we have the updated chat history
+        setAccumulatedContent("");
       }
     }
 
@@ -84,9 +87,7 @@ export function TaskPageContent({
         case "complete":
           setIsStreaming(false);
           console.log("Stream completed");
-          // Refresh messages when stream is complete
           socket.emit("get-chat-history", { taskId });
-          setAccumulatedContent("");
           break;
 
         case "error":
@@ -96,12 +97,10 @@ export function TaskPageContent({
           break;
 
         case "usage":
-          // Handle usage information (could be used for displaying token counts)
           console.log("Usage:", chunk.usage);
           break;
 
         case "thinking":
-          // Handle thinking chunks if needed
           console.log("Thinking:", chunk.thinking);
           break;
       }
@@ -112,7 +111,6 @@ export function TaskPageContent({
       console.log("Stream completed");
       // Refresh messages when stream is complete
       socket.emit("get-chat-history", { taskId });
-      setAccumulatedContent("");
     }
 
     function onStreamError(error: any) {
@@ -126,7 +124,6 @@ export function TaskPageContent({
       setIsStreaming(false);
     }
 
-    // Set up all event listeners first
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("chat-history", onChatHistory);
@@ -136,7 +133,6 @@ export function TaskPageContent({
     socket.on("stream-error", onStreamError);
     socket.on("message-error", onMessageError);
 
-    // Now connect the socket - this ensures listeners are ready when stream-state is sent
     if (!socket.connected) {
       socket.connect();
     }
@@ -187,7 +183,7 @@ export function TaskPageContent({
   // Combine real messages with current streaming content
   const displayMessages = [...messages];
 
-  if (isStreaming && accumulatedContent) {
+  if (accumulatedContent) {
     displayMessages.push({
       id: "streaming",
       role: "assistant",
