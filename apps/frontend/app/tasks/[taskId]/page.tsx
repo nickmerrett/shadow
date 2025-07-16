@@ -33,5 +33,7 @@ export default async function TaskPage({
   );
   const { messages } = (await messagesData.json()) as { messages: Message[] };
 
+  console.log("messages", messages);
+
   return <TaskPageContent task={task} initialMessages={messages} />;
 }

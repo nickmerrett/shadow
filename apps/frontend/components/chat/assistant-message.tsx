@@ -44,5 +44,5 @@ export function AssistantMessage({ message }: { message: Message }) {
     );
   }
 
-  return <div>{message.content}</div>;
+  return <div className="text-sm">{message.content}</div>;
 }

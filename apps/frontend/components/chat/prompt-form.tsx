@@ -48,15 +48,17 @@ export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex w-full flex-col sticky bottom-0 pb-6 max-w-lg bg-background rounded-t-lg"
+      className="flex w-full flex-col sticky bottom-0 pb-6 max-w-lg bg-background"
     >
       {/* Wrapper div with textarea styling */}
       <div
         className={cn(
-          "border-border focus-within:ring-ring/5 from-input/25 to-input flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow] focus-within:ring-4",
+          "border-border relative focus-within:ring-ring/10 from-input/25 to-input flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow,border] focus-within:ring-4 focus-within:border-sidebar-border",
           disabled && "opacity-50"
         )}
       >
+        <div className="absolute -left-px w-[calc(100%+2px)] -top-16 h-16 bg-gradient-to-t from-background via-background/60 to-transparent -translate-y-px z-10 pointer-events-none" />
+
         {/* Textarea without border/background since wrapper handles it */}
         <Textarea
           value={message}

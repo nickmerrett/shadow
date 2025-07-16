@@ -172,26 +172,6 @@ export function TaskPageContent({
 
   return (
     <div className="mx-auto flex w-full grow max-w-lg flex-col items-center">
-      <div className="mb-4 w-full">
-        <h1 className="text-xl font-semibold">
-          {task.title || "Untitled Task"}
-        </h1>
-        {task.description && (
-          <p className="text-sm text-muted-foreground mt-1">
-            {task.description}
-          </p>
-        )}
-        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-          <span className="capitalize">{task.status.toLowerCase()}</span>
-          <span>•</span>
-          <span
-            className={`${isConnected ? "text-green-500" : "text-red-500"}`}
-          >
-            {isConnected ? "Connected" : "Disconnected"}
-          </span>
-        </div>
-      </div>
-
       <Messages messages={displayMessages} />
       <PromptForm onSubmit={handleSendMessage} disabled={isStreaming} />
     </div>
