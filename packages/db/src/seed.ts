@@ -4,7 +4,7 @@ async function main() {
   console.log("🌱 Seeding database...");
   console.log("Database URL:", process.env.DATABASE_URL);
 
-  // Clear existing data in dependency order
+  // Clear existing data in dependency order (auth tables first)
   console.log("🗑️ Clearing existing data...");
   await prisma.chatMessage.deleteMany();
   await prisma.terminalCommand.deleteMany();
@@ -12,16 +12,26 @@ async function main() {
   await prisma.artifact.deleteMany();
   await prisma.taskSession.deleteMany();
   await prisma.task.deleteMany();
+
+  // Clear auth-related tables (updated for new schema)
+  await prisma.session.deleteMany();
+  await prisma.account.deleteMany();
+  await prisma.verification.deleteMany();
   await prisma.user.deleteMany();
   console.log("✅ Existing data cleared");
 
-  // Create a test user
+  // Create a test user (compatible with new custom auth schema)
   const user = await prisma.user.upsert({
     where: { email: "demo@shadow.dev" },
     update: {},
     create: {
+      id: "demo-user-1", // Custom ID since it's String @id
       email: "demo@shadow.dev",
       name: "Demo User",
+      emailVerified: true, // Boolean field
+      image: "https://github.com/github.png", // Optional GitHub avatar
+      createdAt: new Date(),
+      updatedAt: new Date(),
     },
   });
 
@@ -64,8 +74,9 @@ async function main() {
     create: {
       id: "demo-task-3",
       title: "Add authentication system",
-      description: "Implement user authentication with JWT tokens",
-      status: "PENDING",
+      description:
+        "Implement user authentication with GitHub OAuth using better-auth",
+      status: "COMPLETED", // Changed to completed since we just implemented it
       repoUrl: "https://github.com/ishaan1013/shadow",
       branch: "feature/auth",
       mode: "MANUAL",
@@ -318,92 +329,136 @@ async function main() {
     `Created ${task2Messages.length} sample messages for task ${task2.id}`
   );
 
-  // Add some messages for task3 (auth system)
+  // Add some messages for task3 (better-auth implementation)
   const task3Messages = [
     {
       taskId: task3.id,
       role: "USER" as const,
-      content: "Implement user authentication with JWT tokens",
+      content:
+        "Implement user authentication with GitHub OAuth using better-auth",
     },
     {
       taskId: task3.id,
       role: "ASSISTANT" as const,
       content:
-        "I'll implement a secure JWT authentication system. Let me start by examining the current project structure and create the necessary components.",
+        "I'll implement GitHub OAuth authentication using better-auth. This will provide a modern, secure authentication system with Next.js API routes.",
       llmModel: "claude-3-5-sonnet-20241022",
     },
     {
       taskId: task3.id,
       role: "TOOL" as const,
-      content: "Creating user authentication middleware",
+      content: "Updated Prisma schema with custom auth models",
       metadata: {
         tool: {
           name: "edit_file",
           args: {
-            filePath: "src/middleware/auth.ts",
-            content: "JWT verification middleware with error handling",
-          },
-          status: "success",
-          changes: {
-            linesAdded: 42,
-            filePath: "src/middleware/auth.ts",
-          },
-        },
-      },
-    },
-    {
-      taskId: task3.id,
-      role: "TOOL" as const,
-      content: "Attempt to create auth routes",
-      metadata: {
-        tool: {
-          name: "edit_file",
-          args: {
-            filePath: "src/routes/auth.ts",
-            content: "Login and register endpoints with JWT token generation",
-          },
-          status: "error",
-          error: "File already exists and has conflicting content",
-        },
-      },
-    },
-    {
-      taskId: task3.id,
-      role: "ASSISTANT" as const,
-      content:
-        "I see there's already an auth routes file. Let me check its current content and merge my changes appropriately.",
-      llmModel: "claude-3-5-sonnet-20241022",
-    },
-    {
-      taskId: task3.id,
-      role: "TOOL" as const,
-      content: "Reading existing auth routes file",
-      metadata: {
-        tool: {
-          name: "read_file",
-          args: { filePath: "src/routes/auth.ts", startLine: 1, endLine: 50 },
-          status: "success",
-          result: "Basic auth routes with placeholder implementations",
-        },
-      },
-    },
-    {
-      taskId: task3.id,
-      role: "TOOL" as const,
-      content: "Updated auth routes with JWT implementation",
-      metadata: {
-        tool: {
-          name: "edit_file",
-          args: {
-            filePath: "src/routes/auth.ts",
+            filePath: "packages/db/prisma/schema.prisma",
             content:
-              "Enhanced with JWT token generation and bcrypt password hashing",
+              "Added User, Account, Session, and Verification models with custom structure",
           },
           status: "success",
           changes: {
-            linesAdded: 35,
-            linesRemoved: 8,
-            filePath: "src/routes/auth.ts",
+            linesAdded: 75,
+            linesRemoved: 10,
+            filePath: "packages/db/prisma/schema.prisma",
+          },
+        },
+      },
+    },
+    {
+      taskId: task3.id,
+      role: "TOOL" as const,
+      content: "Created better-auth API route handler",
+      metadata: {
+        tool: {
+          name: "edit_file",
+          args: {
+            filePath: "apps/frontend/app/api/auth/[...auth]/route.ts",
+            content:
+              "Better-auth configuration with GitHub provider and Prisma adapter",
+          },
+          status: "success",
+          changes: {
+            linesAdded: 25,
+            filePath: "apps/frontend/app/api/auth/[...auth]/route.ts",
+          },
+        },
+      },
+    },
+    {
+      taskId: task3.id,
+      role: "TOOL" as const,
+      content: "Created auth client for frontend",
+      metadata: {
+        tool: {
+          name: "edit_file",
+          args: {
+            filePath: "apps/frontend/lib/auth-client.ts",
+            content: "Client-side auth configuration with TypeScript types",
+          },
+          status: "success",
+          changes: {
+            linesAdded: 15,
+            filePath: "apps/frontend/lib/auth-client.ts",
+          },
+        },
+      },
+    },
+    {
+      taskId: task3.id,
+      role: "TOOL" as const,
+      content: "Implemented route protection middleware",
+      metadata: {
+        tool: {
+          name: "edit_file",
+          args: {
+            filePath: "apps/frontend/middleware.ts",
+            content:
+              "Middleware to protect routes and redirect unauthenticated users",
+          },
+          status: "success",
+          changes: {
+            linesAdded: 25,
+            filePath: "apps/frontend/middleware.ts",
+          },
+        },
+      },
+    },
+    {
+      taskId: task3.id,
+      role: "TOOL" as const,
+      content: "Created authentication page with GitHub sign-in",
+      metadata: {
+        tool: {
+          name: "edit_file",
+          args: {
+            filePath: "apps/frontend/app/auth/page.tsx",
+            content: "Clean auth page with GitHub OAuth button",
+          },
+          status: "success",
+          changes: {
+            linesAdded: 45,
+            filePath: "apps/frontend/app/auth/page.tsx",
+          },
+        },
+      },
+    },
+    {
+      taskId: task3.id,
+      role: "TOOL" as const,
+      content: "Added session provider and user menu components",
+      metadata: {
+        tool: {
+          name: "edit_file",
+          args: {
+            filePath: "apps/frontend/components/auth/",
+            content:
+              "Session context provider and user menu with logout functionality",
+          },
+          status: "success",
+          changes: {
+            linesAdded: 85,
+            filePath: "apps/frontend/components/auth/",
           },
         },
       },
@@ -412,7 +467,7 @@ async function main() {
       taskId: task3.id,
       role: "ASSISTANT" as const,
       content:
-        "Perfect! I've successfully implemented a complete JWT authentication system. The implementation includes secure middleware for token verification, enhanced auth routes with proper password hashing using bcrypt, and JWT token generation for login/register endpoints. The system is now ready for secure user authentication.",
+        "Perfect! I've successfully implemented GitHub OAuth authentication using better-auth. The system includes secure session management, route protection, and a clean user interface. Users can now sign in with their GitHub accounts and access protected features.",
       llmModel: "claude-3-5-sonnet-20241022",
     },
   ];
