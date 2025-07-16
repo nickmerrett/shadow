@@ -18,20 +18,11 @@ export function TaskPageContent({
 
   const [messages, setMessages] = useState(initialMessages);
 
-  const [isConnected, setIsConnected] = useState(false);
-  const [transport, setTransport] = useState("N/A");
   const [accumulatedContent, setAccumulatedContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
 
   useEffect(() => {
     function onConnect() {
-      setIsConnected(true);
-      setTransport(socket.io.engine.transport.name);
-
-      socket.io.engine.on("upgrade", (transport) => {
-        setTransport(transport.name);
-      });
-
       // Request chat history when connected
       if (taskId) {
         socket.emit("get-chat-history", { taskId });
@@ -39,13 +30,37 @@ export function TaskPageContent({
     }
 
     function onDisconnect() {
-      setIsConnected(false);
-      setTransport("N/A");
+      // Connection lost
     }
 
     function onChatHistory(data: { taskId: string; messages: Message[] }) {
       if (data.taskId === taskId) {
-        setMessages(data.messages);
+        // Merge with any optimistic messages that might not be in the server response yet
+        setMessages((prevMessages) => {
+          const serverMessages = data.messages;
+          const optimisticMessages = prevMessages.filter((msg) =>
+            msg.id.startsWith("temp-")
+          );
+
+          // If we have optimistic messages, check if they're now in the server response
+          if (optimisticMessages.length > 0) {
+            const lastServerMessage = serverMessages[serverMessages.length - 1];
+            const lastOptimistic =
+              optimisticMessages[optimisticMessages.length - 1];
+
+            // If the last server message matches our optimistic message content, replace it
+            if (
+              lastServerMessage &&
+              lastOptimistic &&
+              lastServerMessage.role === "user" &&
+              lastServerMessage.content === lastOptimistic.content
+            ) {
+              return serverMessages; // Server has our message, use server version
+            }
+          }
+
+          return serverMessages;
+        });
       }
     }
 
@@ -140,6 +155,18 @@ export function TaskPageContent({
 
   const handleSendMessage = (message: string, model: string) => {
     if (!taskId || !message.trim()) return;
+
+    // Optimistically add user message to UI immediately
+    const optimisticUserMessage: Message = {
+      id: `temp-${Date.now()}`, // Temporary ID for optimistic message
+      role: "user",
+      content: message.trim(),
+      createdAt: new Date().toISOString(),
+      metadata: { isStreaming: false }, // Mark as not streaming
+    };
+
+    // Add the optimistic message to local state immediately
+    setMessages((prev) => [...prev, optimisticUserMessage]);
 
     console.log("Sending message:", { taskId, message, model });
     socket.emit("user-message", {

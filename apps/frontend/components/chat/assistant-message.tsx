@@ -6,16 +6,6 @@ import { useState } from "react";
 export function AssistantMessage({ message }: { message: Message }) {
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
 
-  // Handle streaming message
-  if (message.metadata?.isStreaming) {
-    return (
-      <div className="flex items-start gap-2">
-        <div>{message.content}</div>
-        <span className="animate-pulse text-muted-foreground">█</span>
-      </div>
-    );
-  }
-
   if (message.metadata?.thinking) {
     return (
       <div>
