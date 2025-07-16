@@ -8,20 +8,68 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { AvailableModels, type ModelType } from "@repo/types";
 import { ArrowUp, Folder, GitBranch, Layers, Square } from "lucide-react";
+import { useState } from "react";
 
-export function PromptForm() {
+interface PromptFormProps {
+  onSubmit?: (message: string, model: ModelType) => void;
+  disabled?: boolean;
+}
+
+const modelInfo = {
+  [AvailableModels.CLAUDE_3_5_SONNET]: "Claude 3.5 Sonnet",
+  [AvailableModels.CLAUDE_3_HAIKU]: "Claude 3 Haiku",
+  [AvailableModels.GPT_4O]: "GPT-4o",
+  [AvailableModels.GPT_4O_MINI]: "GPT-4o Mini",
+};
+
+export function PromptForm({ onSubmit, disabled = false }: PromptFormProps) {
+  const [message, setMessage] = useState("");
+  const [selectedModel, setSelectedModel] = useState<ModelType>(
+    AvailableModels.CLAUDE_3_5_SONNET
+  );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim() || disabled) return;
+
+    onSubmit?.(message, selectedModel);
+    setMessage("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
   return (
-    <div className="flex w-full flex-col sticky bottom-0 pb-6 max-w-lg bg-background rounded-t-lg">
+    <form
+      onSubmit={handleSubmit}
+      className="flex w-full flex-col sticky bottom-0 pb-6 max-w-lg bg-background"
+    >
       {/* Wrapper div with textarea styling */}
       <div
         className={cn(
-          "border-border focus-within:ring-ring/5 from-input/25 to-input flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow] focus-within:ring-4"
+          "border-border relative focus-within:ring-ring/10 from-input/25 to-input flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow,border] focus-within:ring-4 focus-within:border-sidebar-border",
+          disabled && "opacity-50"
         )}
       >
+        <div className="absolute -left-px w-[calc(100%+2px)] -top-16 h-16 bg-gradient-to-t from-background via-background/60 to-transparent -translate-y-px z-10 pointer-events-none" />
+
         {/* Textarea without border/background since wrapper handles it */}
         <Textarea
-          placeholder="Build a cool new feature..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          placeholder={
+            disabled
+              ? "Assistant is responding..."
+              : "Build a cool new feature..."
+          }
           className="max-h-48 flex-1 resize-none rounded-lg border-0 bg-transparent! shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/50"
         />
 
@@ -35,37 +83,25 @@ export function PromptForm() {
                 className="text-muted-foreground hover:bg-accent font-normal"
               >
                 <Layers className="size-4" />
-                <span>Claude 4 Sonnet</span>
+                <span>{modelInfo[selectedModel]}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent
               align="start"
               className="flex flex-col gap-0.5 rounded-lg p-1"
             >
-              <Button
-                size="sm"
-                variant="ghost"
-                className="hover:bg-accent justify-start font-normal"
-              >
-                <Square />
-                Claude 4 Sonnet
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="hover:bg-accent justify-start font-normal"
-              >
-                <Square />
-                Claude 3.7 Sonnet
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="hover:bg-accent justify-start font-normal"
-              >
-                <Square />
-                Claude 3.5 Sonnet
-              </Button>
+              {Object.entries(modelInfo).map(([modelId, modelName]) => (
+                <Button
+                  key={modelId}
+                  size="sm"
+                  variant="ghost"
+                  className="hover:bg-accent justify-start font-normal"
+                  onClick={() => setSelectedModel(modelId as ModelType)}
+                >
+                  <Square className="size-4" />
+                  {modelName}
+                </Button>
+              ))}
             </PopoverContent>
           </Popover>
 
@@ -81,7 +117,9 @@ export function PromptForm() {
               <span>main</span>
             </Button>
             <Button
+              type="submit"
               size="iconSm"
+              disabled={disabled || !message.trim()}
               className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
             >
               <ArrowUp className="size-4" />
@@ -89,6 +127,6 @@ export function PromptForm() {
           </div>
         </div>
       </div>
-    </div>
+    </form>
   );
 }

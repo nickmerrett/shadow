@@ -30,8 +30,7 @@ model Task {
   branch  String @default("main")
 
   // Execution config
-  llmModel String
-  mode     TaskMode @default(FULL_AUTO)
+  mode TaskMode @default(FULL_AUTO)
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -52,6 +51,7 @@ model ChatMessage {
   id       String      @id @default(cuid())
   content  String
   role     MessageRole
+  llmModel String? // Model used for this message (only for ASSISTANT messages)
   metadata Json? // For streaming tokens, model info, etc
 
   createdAt DateTime @default(now())

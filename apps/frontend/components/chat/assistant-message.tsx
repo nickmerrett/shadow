@@ -1,12 +1,22 @@
-import type { AssistantMessage as TAssistantMessage } from "@/app/tasks/[taskId]/example-data";
 import { cn } from "@/lib/utils";
+import type { Message } from "@repo/types";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
-export function AssistantMessage({ message }: { message: TAssistantMessage }) {
+export function AssistantMessage({ message }: { message: Message }) {
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
 
-  if (message.metadata?.type === "thinking") {
+  // Handle streaming message
+  if (message.metadata?.isStreaming) {
+    return (
+      <div className="flex items-start gap-2">
+        <div>{message.content}</div>
+        <span className="animate-pulse text-muted-foreground">█</span>
+      </div>
+    );
+  }
+
+  if (message.metadata?.thinking) {
     return (
       <div>
         <div
@@ -22,17 +32,17 @@ export function AssistantMessage({ message }: { message: TAssistantMessage }) {
             />
           </span>
           <span className="text-muted-foreground">
-            Thought for {message.metadata.duration}s
+            Thought for {message.metadata.thinking.duration}s
           </span>
         </div>
         {isThinkingExpanded && (
           <div className="text-muted-foreground">
-            {message.metadata.content}
+            {message.metadata.thinking.content}
           </div>
         )}
       </div>
     );
   }
 
-  return <div>{message.content}</div>;
+  return <div className="text-sm">{message.content}</div>;
 }

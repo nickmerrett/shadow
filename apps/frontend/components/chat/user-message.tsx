@@ -1,5 +1,35 @@
-import type { UserMessage as TUserMessage } from "@/app/tasks/[taskId]/example-data";
+import "@/app/user-message-gradient.css";
+import { cn } from "@/lib/utils";
+import type { Message } from "@repo/types";
 
-export function UserMessage({ message }: { message: TUserMessage }) {
-  return <div>{message.content}</div>;
+export function UserMessage({
+  message,
+  className,
+}: {
+  message: Message;
+  className?: string;
+}) {
+  return (
+    // Outer button acts as a border, with a border-radius 1px larger than the inner div and 1px padding
+    /*     <button
+      className={cn(
+        "p-px text-left relative items-center z-0 bg-gradient-to-b from-border via-border to-muted-foreground/40 w-full rounded-[calc(var(--radius)+1px)] shadow-xs cursor-pointer transition-[color,box-shadow,opacity,background-color]",
+        "focus-visible:ring-ring/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:from-sidebar-border focus-visible:via-sidebar-border focus-visible:to-muted-foreground/60",
+        "hover:from-sidebar-border hover:via-sidebar-border hover:to-muted-foreground/60"
+      )}
+    > */
+    <button
+      className={cn(
+        "p-px text-left relative items-center z-0 bg-gradient-to-b w-full rounded-[calc(var(--radius)+1px)] shadow-lg shadow-highlight/10 cursor-pointer transition-[color,box-shadow,opacity,background-color]",
+        "focus-visible:ring-ring/10 focus-visible:outline-none focus-visible:ring-4",
+        "user-message-border hover:shadow-highlight/20",
+        className
+      )}
+    >
+      <div className="px-3 py-2 w-full text-sm from-card/10 to-card rounded-lg bg-gradient-to-t">
+        {message.content}
+      </div>
+      <div className="absolute inset-px -z-10 bg-background rounded-[calc(var(--radius)+1px)]" />
+    </button>
+  );
 }
