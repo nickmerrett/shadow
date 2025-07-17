@@ -91,3 +91,23 @@ class CodeGraph {
     return g;
   }
 }
+
+function makeId(repoId, path, kind, name, loc) {
+    const h = crypto.createHash("sha1");
+    h.update(
+      repoId +
+        "|" +
+        path +
+        "|" +
+        kind +
+        "|" +
+        name +
+        "|" +
+        (loc
+          ? `${loc.startLine}:${loc.startCol}-${loc.endLine}:${loc.endCol}`
+          : "")
+    );
+    return h.digest("hex");
+  }
+  
+  module.exports = { GraphNode, GraphEdge, CodeGraph, makeId };
