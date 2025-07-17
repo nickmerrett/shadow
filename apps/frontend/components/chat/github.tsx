@@ -68,7 +68,6 @@ export function GithubConnection() {
   const [branchSearch, setBranchSearch] = useState("");
   const [collapsedOrgs, setCollapsedOrgs] = useState<Set<string>>(new Set());
 
-  // Query for repositories
   const {
     data: groupedRepos = { groups: [] },
     isLoading: isLoadingRepos,
@@ -95,8 +94,10 @@ export function GithubConnection() {
     queryKey: ["github", "branches", selectedRepo?.full_name],
     queryFn: async (): Promise<Branch[]> => {
       if (!selectedRepo) return [];
-      
-      const response = await fetch(`/api/github/branches?repo=${selectedRepo.full_name}`);
+
+      const response = await fetch(
+        `/api/github/branches?repo=${selectedRepo.full_name}`
+      );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -110,25 +111,26 @@ export function GithubConnection() {
         if (isMainA && !isMainB) return -1;
         if (!isMainA && isMainB) return 1;
 
-        // For real GitHub data, we need to handle the different structure
-        // GitHub branches don't have commit.committer.date, so we'll sort by name for non-main branches
         return a.name.localeCompare(b.name);
       });
     },
-    enabled: !!selectedRepo && mode === "branches", // Only fetch when repo is selected and in branches mode
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    enabled: !!selectedRepo && mode === "branches",
+    staleTime: 2 * 60 * 1000,
   });
 
-  // Handle query errors with toast notifications
   if (reposError) {
     toast.error("Failed to fetch repositories", {
-      description: reposError instanceof Error ? reposError.message : "Unknown error",
+      description:
+        reposError instanceof Error ? reposError.message : "Unknown error",
     });
   }
 
   if (branchesError) {
     toast.error("Failed to fetch branches", {
-      description: branchesError instanceof Error ? branchesError.message : "Unknown error",
+      description:
+        branchesError instanceof Error
+          ? branchesError.message
+          : "Unknown error",
     });
   }
 
@@ -188,6 +190,116 @@ export function GithubConnection() {
     return "Select Repository";
   };
 
+  const renderRepos = (
+    <div>
+      <div className="relative border-b">
+        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 size-3.5 text-muted-foreground" />
+        <input
+          placeholder="Search repositories..."
+          value={repoSearch}
+          autoFocus
+          onChange={(e) => setRepoSearch(e.target.value)}
+          className="pl-7 pr-3 h-9 text-sm focus:outline-none w-full"
+        />
+      </div>
+
+      <div className="h-64 overflow-y-auto flex flex-col gap-2 py-2">
+        {isLoadingRepos ? (
+          <div className="flex items-center justify-center h-7 mt-1 gap-1.5 text-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin" />
+            <span className="text-[13px]">Loading repositories...</span>
+          </div>
+        ) : (
+          filteredGroups.map((group) => (
+            <Collapsible
+              key={group.name}
+              open={!collapsedOrgs.has(group.name)}
+              onOpenChange={() => toggleOrgCollapse(group.name)}
+            >
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full !px-4.5 text-[13px] font-normal text-muted-foreground hover:bg-transparent gap-2"
+                >
+                  <Folder className="size-3.5" />
+                  {group.name}
+
+                  <ChevronDown
+                    className={cn(
+                      "ml-auto transition-transform",
+                      collapsedOrgs.has(group.name) ? "-rotate-90" : "rotate-0"
+                    )}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="flex flex-col gap-1 py-1 px-2">
+                {group.repositories.map((repo) => (
+                  <Button
+                    key={repo.id}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-between text-sm font-normal hover:bg-accent"
+                    onClick={() => handleRepoSelect(repo)}
+                  >
+                    <span className="truncate">{repo.name}</span>
+                    <span className="text-muted-foreground">
+                      {repo.pushed_at}
+                    </span>
+                  </Button>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  const renderBranches = (
+    <div>
+      <button
+        className="flex cursor-pointer items-center w-full text-sm gap-2 px-2 h-9 border-b hover:bg-sidebar-accent transition-colors"
+        onClick={handleBackToRepos}
+      >
+        <ArrowLeft className="size-3.5" />
+        <span className="truncate">{selectedRepo?.full_name}</span>
+      </button>
+
+      <div className="relative border-b">
+        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 size-3.5 text-muted-foreground" />
+        <input
+          placeholder="Search branches..."
+          value={branchSearch}
+          autoFocus
+          onChange={(e) => setBranchSearch(e.target.value)}
+          className="pl-7 pr-3 h-9 text-sm focus:outline-none w-full"
+        />
+      </div>
+
+      <div className="h-64 overflow-y-auto flex flex-col gap-1 p-2">
+        {isLoadingBranches ? (
+          <div className="flex items-center justify-center h-7 mt-1 gap-1.5 text-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin" />
+            <span className="text-[13px]">Loading branches...</span>
+          </div>
+        ) : (
+          filteredBranches.map((branch) => (
+            <Button
+              key={branch.name}
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-sm font-normal hover:bg-accent"
+              onClick={() => handleBranchSelect(branch.name)}
+            >
+              <span className="truncate">{branch.name}</span>
+            </Button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
@@ -200,115 +312,7 @@ export function GithubConnection() {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
-        {mode === "repos" ? (
-          <div>
-            <div className="relative border-b">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 size-3.5 text-muted-foreground" />
-              <input
-                placeholder="Search repositories..."
-                value={repoSearch}
-                autoFocus
-                onChange={(e) => setRepoSearch(e.target.value)}
-                className="pl-7 pr-3 h-9 text-sm focus:outline-none w-full"
-              />
-            </div>
-
-            <div className="h-64 overflow-y-auto flex flex-col gap-2 py-2">
-              {isLoadingRepos ? (
-                <div className="flex items-center justify-center h-7 mt-1 gap-1.5 text-muted-foreground">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  <span className="text-[13px]">Loading repositories...</span>
-                </div>
-              ) : (
-                filteredGroups.map((group) => (
-                  <Collapsible
-                    key={group.name}
-                    open={!collapsedOrgs.has(group.name)}
-                    onOpenChange={() => toggleOrgCollapse(group.name)}
-                  >
-                    <CollapsibleTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full !px-4.5 text-[13px] font-normal text-muted-foreground hover:bg-transparent gap-2"
-                      >
-                        <Folder className="size-3.5" />
-                        {group.name}
-
-                        <ChevronDown
-                          className={cn(
-                            "ml-auto transition-transform",
-                            collapsedOrgs.has(group.name)
-                              ? "-rotate-90"
-                              : "rotate-0"
-                          )}
-                        />
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="flex flex-col gap-1 py-1 px-2">
-                      {group.repositories.map((repo) => (
-                        <Button
-                          key={repo.id}
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-between text-sm font-normal hover:bg-accent"
-                          onClick={() => handleRepoSelect(repo)}
-                        >
-                          <span className="truncate">{repo.name}</span>
-                          <span className="text-muted-foreground">
-                            {repo.pushed_at}
-                          </span>
-                        </Button>
-                      ))}
-                    </CollapsibleContent>
-                  </Collapsible>
-                ))
-              )}
-            </div>
-          </div>
-        ) : (
-          <div>
-            <button
-              className="flex cursor-pointer items-center w-full text-sm gap-2 px-2 h-9 border-b hover:bg-sidebar-accent transition-colors"
-              onClick={handleBackToRepos}
-            >
-              <ArrowLeft className="size-3.5" />
-              <span className="truncate">{selectedRepo?.full_name}</span>
-            </button>
-
-            <div className="relative border-b">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 size-3.5 text-muted-foreground" />
-              <input
-                placeholder="Search branches..."
-                value={branchSearch}
-                autoFocus
-                onChange={(e) => setBranchSearch(e.target.value)}
-                className="pl-7 pr-3 h-9 text-sm focus:outline-none w-full"
-              />
-            </div>
-
-            <div className="h-64 overflow-y-auto flex flex-col gap-1 p-2">
-              {isLoadingBranches ? (
-                <div className="flex items-center justify-center h-7 mt-1 gap-1.5 text-muted-foreground">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  <span className="text-[13px]">Loading branches...</span>
-                </div>
-              ) : (
-                filteredBranches.map((branch) => (
-                  <Button
-                    key={branch.name}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start text-sm font-normal hover:bg-accent"
-                    onClick={() => handleBranchSelect(branch.name)}
-                  >
-                    <span className="truncate">{branch.name}</span>
-                  </Button>
-                ))
-              )}
-            </div>
-          </div>
-        )}
+        {mode === "repos" ? renderRepos : renderBranches}
       </PopoverContent>
     </Popover>
   );
