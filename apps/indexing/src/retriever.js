@@ -156,6 +156,10 @@ class Retriever {
     });
   }
   displayHits(hits) {
+    if (hits.length === 0) {
+      console.log('No hits found');
+      return;
+    }
     hits.forEach(({ node: n, score, edges }, idx) => {
     const loc = n.loc ? `L${n.loc.startLine + 1}-L${n.loc.endLine + 1}` : '';
     const scoreStr = score.toFixed(4);
