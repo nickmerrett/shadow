@@ -1,8 +1,8 @@
+import { prisma } from "@repo/db";
 import { ModelInfos } from "@repo/types";
 import cors from "cors";
 import express from "express";
 import http from "http";
-import { prisma } from "../../../packages/db/src/client";
 import { ChatService } from "./chat";
 import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";

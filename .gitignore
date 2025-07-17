@@ -30,5 +30,7 @@ prompts/
 # Python virtual environments
 .venv/
 
+test-workspace/
+
 # Indexing stuff (Rajan)
 .shadow/

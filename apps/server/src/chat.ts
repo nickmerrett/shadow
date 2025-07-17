@@ -1,7 +1,9 @@
+import { prisma } from "@repo/db";
 import { Message, MessageMetadata, ModelType } from "@repo/types";
 import { randomUUID } from "crypto";
-import { prisma, type ChatMessage } from "../../../packages/db/src/client";
+import { type ChatMessage } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
+import { systemPrompt } from "./prompt/system";
 import {
   emitStreamChunk,
   endStream,
@@ -58,6 +60,31 @@ export class ChatService {
     });
   }
 
+  async saveToolMessage(
+    taskId: string,
+    toolName: string,
+    toolArgs: Record<string, any>,
+    toolResult: string,
+    metadata?: MessageMetadata
+  ): Promise<ChatMessage> {
+    return await prisma.chatMessage.create({
+      data: {
+        taskId,
+        content: toolResult,
+        role: "TOOL",
+        metadata: {
+          ...(metadata as any),
+          tool: {
+            name: toolName,
+            args: toolArgs,
+            status: "success",
+            result: toolResult,
+          },
+        } as any,
+      },
+    });
+  }
+
   async getChatHistory(taskId: string): Promise<Message[]> {
     const dbMessages = await prisma.chatMessage.findMany({
       where: { taskId },
@@ -77,7 +104,8 @@ export class ChatService {
   async processUserMessage(
     taskId: string,
     userMessage: string,
-    llmModel: ModelType = DEFAULT_MODEL
+    llmModel: ModelType = DEFAULT_MODEL,
+    enableTools: boolean = true
   ) {
     // Save user message to database
     await this.saveUserMessage(taskId, userMessage);
@@ -88,7 +116,10 @@ export class ChatService {
     // Prepare messages for LLM (exclude the user message we just saved to avoid duplication)
     const messages: Message[] = history
       .slice(0, -1) // Remove the last message (the one we just saved)
-      .filter((msg) => msg.role === "user" || msg.role === "assistant")
+      .filter(
+        (msg) =>
+          msg.role === "user" || msg.role === "assistant" || msg.role === "tool"
+      )
       .concat([
         {
           id: randomUUID(),
@@ -98,7 +129,12 @@ export class ChatService {
         },
       ]);
 
-    const systemPrompt = `You are a helpful coding assistant. You help users with their programming tasks by providing clear, accurate, and helpful responses.`;
+    console.log(
+      `[CHAT] Processing message for task ${taskId} with ${messages.length} context messages`
+    );
+    console.log(
+      `[CHAT] Using model: ${llmModel}, Tools enabled: ${enableTools}`
+    );
 
     // Start streaming
     startStream();
@@ -106,12 +142,19 @@ export class ChatService {
     let fullAssistantResponse = "";
     let usageMetadata: MessageMetadata["usage"];
     let finishReason: MessageMetadata["finishReason"];
+    const toolCalls: Array<{
+      id: string;
+      name: string;
+      args: Record<string, any>;
+    }> = [];
+    const toolResults: Array<{ id: string; result: string }> = [];
 
     try {
       for await (const chunk of this.llmService.createMessageStream(
         systemPrompt,
         messages,
-        llmModel
+        llmModel,
+        enableTools
       )) {
         // Emit the chunk directly to clients
         emitStreamChunk(chunk);
@@ -119,6 +162,24 @@ export class ChatService {
         // Accumulate content for database storage
         if (chunk.type === "content" && chunk.content) {
           fullAssistantResponse += chunk.content;
+        }
+
+        // Track tool calls
+        if (chunk.type === "tool-call" && chunk.toolCall) {
+          toolCalls.push(chunk.toolCall);
+          console.log(
+            `[TOOL_CALL] ${chunk.toolCall.name}:`,
+            chunk.toolCall.args
+          );
+        }
+
+        // Track tool results
+        if (chunk.type === "tool-result" && chunk.toolResult) {
+          toolResults.push(chunk.toolResult);
+          console.log(
+            `[TOOL_RESULT] ${chunk.toolResult.id}:`,
+            chunk.toolResult.result
+          );
         }
 
         // Track usage information
@@ -144,10 +205,48 @@ export class ChatService {
       }
 
       // Save assistant response to database with metadata
-      await this.saveAssistantMessage(taskId, fullAssistantResponse, llmModel, {
+      const assistantMetadata: MessageMetadata = {
         usage: usageMetadata,
         finishReason,
-      });
+      };
+
+      await this.saveAssistantMessage(
+        taskId,
+        fullAssistantResponse,
+        llmModel,
+        assistantMetadata
+      );
+
+      // Save tool calls and results to database
+      for (let i = 0; i < toolCalls.length; i++) {
+        const toolCall = toolCalls[i];
+        if (!toolCall) continue;
+
+        const toolResult = toolResults.find((r) => r.id === toolCall.id);
+
+        if (toolResult) {
+          await this.saveToolMessage(
+            taskId,
+            toolCall.name,
+            toolCall.args,
+            toolResult.result,
+            {
+              tool: {
+                name: toolCall.name,
+                args: toolCall.args,
+                status: "success",
+                result: toolResult.result,
+              },
+            }
+          );
+        }
+      }
+
+      console.log(`[CHAT] Completed processing for task ${taskId}`);
+      console.log(
+        `[CHAT] Response length: ${fullAssistantResponse.length} chars`
+      );
+      console.log(`[CHAT] Tool calls executed: ${toolCalls.length}`);
 
       endStream();
     } catch (error) {
@@ -169,5 +268,17 @@ export class ChatService {
   // Get available models from LLM service
   getAvailableModels(): ModelType[] {
     return this.llmService.getAvailableModels();
+  }
+
+  // Method to process coding tasks with specific configuration
+  async processCodingTask(
+    taskId: string,
+    userMessage: string,
+    llmModel: ModelType = DEFAULT_MODEL
+  ) {
+    console.log(`[CODING_TASK] Starting coding task for ${taskId}`);
+    console.log(`[CODING_TASK] Task: ${userMessage.substring(0, 100)}...`);
+
+    return this.processUserMessage(taskId, userMessage, llmModel, true);
   }
 }
