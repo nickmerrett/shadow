@@ -1,15 +1,7 @@
 import { sliceByLoc } from './utils/text';
 import { GraphNode } from './graph';
 import { makeId } from './graph';
-
-interface Location {
-  startLine: number;
-  startCol: number;
-  endLine: number;
-  endCol: number;
-  byteStart: number;
-  byteEnd: number;
-}
+import { Location } from './types/graphTypes';
 
 interface Symbol {
   name: string;

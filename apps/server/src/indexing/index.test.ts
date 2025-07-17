@@ -28,7 +28,8 @@ describe('Indexing API', () => {
         .post('/api/indexing/tree-sitter')
         .send({
           text: 'function hello() { console.log("world"); }',
-          language: 'javascript'
+          language: 'javascript',
+          filePath: 'test.js'
         })
         .expect(200);
       
@@ -41,12 +42,24 @@ describe('Indexing API', () => {
         .post('/api/indexing/tree-sitter')
         .send({
           text: 'def hello():\n    print("world")',
-          language: 'python'
+          language: 'python',
+          filePath: 'test.py'
         })
         .expect(200);
-      
       expect(response.body).toHaveProperty('tree');
       expect(response.body.tree).toBeTruthy();
+    });
+
+    it('should return 400 for unsupported language', async () => {
+        const repsonse = await request(app)
+        .post('/api/indexing/tree-sitter')
+        .send({
+            text: 'def hello():\n    print("world")',
+            filePath: 'test.px'
+        })
+        .expect(400);
+    expect(repsonse.body).toHaveProperty('error');
+      expect(repsonse.body.error).toBe('Unsupported language');
     });
   });
 }); 

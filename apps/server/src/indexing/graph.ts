@@ -1,8 +1,16 @@
-const crypto = require("crypto");
-import type { GraphNode as IGraphNode, GraphEdge as IGraphEdge, CodeGraph as ICodeGraph, Location, CodeGraphJSON, CodeGraph } from "./types/graphTypes";
+import crypto from "crypto";
 import { HashGenerator } from "./utils/hash";
 
-export class GraphNode implements IGraphNode, HashGenerator {
+interface Location {
+    startLine: number;
+    startCol: number;
+    endLine: number;
+    endCol: number;
+    byteStart?: number;
+    byteEnd?: number;
+}
+
+class GraphNode implements HashGenerator {
   public id: string;
   public kind: string;
   public name: string;
@@ -59,7 +67,7 @@ export class GraphNode implements IGraphNode, HashGenerator {
 
 
 
-export class GraphEdge implements IGraphEdge {
+class GraphEdge  {
   public from: string;
   public to: string;
   public kind: string;
@@ -73,7 +81,7 @@ export class GraphEdge implements IGraphEdge {
   }
 }
 
-export class Graph implements ICodeGraph {
+class Graph {
   public repoId: string;
   public nodes: Map<string, GraphNode>;
   public adj: Map<string, GraphEdge[]>;
@@ -128,7 +136,7 @@ export class Graph implements ICodeGraph {
     };
   }
 
-  JSONToGraph(obj: CodeGraphJSON): CodeGraph {
+  JSONToGraph(obj: CodeGraphJSON): Graph {
     const g = new Graph(obj.repoId);
     for (const n of obj.nodes) g.addNode(new GraphNode(n));
     for (const e of obj.edges) g.addEdge(new GraphEdge(e));
@@ -146,5 +154,4 @@ function makeId(repoId: string, path: string, kind: string, name: string, loc: {
   return h.digest("hex");
 }
 
-// For backward compatibility
-module.exports = { GraphNode, GraphEdge, Graph, makeId };
+export { GraphNode, GraphEdge, Graph, Location, makeId };   
