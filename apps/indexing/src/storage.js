@@ -84,8 +84,10 @@ function buildInverted(graph,outDir){
     if(node.name) textParts.push(node.name);
     const toks = tokenize(textParts.join('\n'));
     for(const t of toks){
-      if(!idx[t]) idx[t] = new Set();
-      idx[t].add(node.id);
+      if(typeof t === 'string' && t.length > 0) {
+        if(!idx[t]) idx[t] = new Set();
+        idx[t].add(node.id);
+      }
     }
   }
   const serial = {};

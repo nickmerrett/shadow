@@ -155,6 +155,41 @@ class Retriever {
       return { node, score, edges };
     });
   }
+  displayHits(hits) {
+    hits.forEach(({ node: n, score, edges }, idx) => {
+    const loc = n.loc ? `L${n.loc.startLine + 1}-L${n.loc.endLine + 1}` : '';
+    const scoreStr = score.toFixed(4);
+    console.log(`\n${idx + 1}. [score=${scoreStr}] [${n.kind}] ${n.name} ${n.path ? `(${n.path})` : ''} ${loc}`);
+    if (n.signature) console.log('   sig:', n.signature);
+
+    if (edges.length) {
+      console.log('   edges:');
+      edges.forEach((e) => {
+        if (e.dir === 'out') {
+          console.log(`     - (${e.kind}) -> [${e.to.kind}] ${e.to.name}`);
+          const snippet = e.to.snippet;
+          if (snippet) {
+            const indented = snippet
+              .split('\n')
+              .map((l) => '       | ' + l)
+              .join('\n');
+            console.log(indented);
+          }
+        } else {
+          console.log(`     - (${e.kind}) <- [${e.from.kind}] ${e.from.name}`);
+          const snippet = e.from.snippet;
+          if (snippet) {
+            const indented = snippet
+              .split('\n')
+              .map((l) => '       | ' + l)
+              .join('\n');
+            console.log(indented);
+          }
+        }
+      });
+    }
+    });
+  }
 }
 
 module.exports = { Retriever };
