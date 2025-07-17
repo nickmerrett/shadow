@@ -14,6 +14,11 @@ import {
   Monitor,
   Search,
   Settings,
+  Play,
+  Pause,
+  XCircle,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 
 import {
@@ -34,7 +39,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "../ui/collapsible";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 
 const buttons = [
@@ -50,69 +55,99 @@ const buttons = [
   },
 ];
 
-const taskSections = [
-  {
-    title: "Ready for Review",
-    icon: CheckCircle2,
-    items: [
-      {
-        id: "1",
-        name: "Optimize terminal emulator websocket event handling",
-        repo: "ishaan1013/shadow",
-        branch: "main",
-        status: "Ready for Review",
-      },
-      {
-        id: "2",
-        name: "Optimize filesystem API routing",
-        repo: "ishaan1013/shadow",
-        branch: "main",
-        status: "Ready for Review",
-      },
-    ],
-  },
-  {
-    title: "In Progress",
-    icon: CircleDashed,
-    items: [
-      {
-        id: "3",
-        name: "Optimize terminal emulator websocket event handling",
-        repo: "ishaan1013/shadow",
-        branch: "main",
-        status: "Ready for Review",
-      },
-      {
-        id: "4",
-        name: "Optimize filesystem API routing",
-        repo: "ishaan1013/shadow",
-        branch: "main",
-        status: "Ready for Review",
-      },
-    ],
-  },
-  {
-    title: "Archive",
-    icon: Archive,
-    items: [
-      {
-        id: "5",
-        name: "Optimize terminal emulator websocket event handling",
-        repo: "ishaan1013/shadow",
-        branch: "main",
-        status: "Ready for Review",
-      },
-    ],
-  },
-];
+// Status order for sorting (most important first)
+const statusOrder = {
+  RUNNING: 0,
+  PAUSED: 1,
+  PENDING: 2,
+  INITIALIZING: 3,
+  COMPLETED: 4,
+  FAILED: 5,
+  CANCELLED: 6,
+};
+
+// Status icons and colors
+const statusConfig = {
+  PENDING: { icon: Clock, className: "text-yellow-500" },
+  INITIALIZING: { icon: CircleDashed, className: "text-blue-500" },
+  RUNNING: { icon: Play, className: "text-green-500" },
+  PAUSED: { icon: Pause, className: "text-orange-500" },
+  COMPLETED: { icon: CheckCircle2, className: "text-green-600" },
+  FAILED: { icon: XCircle, className: "text-red-500" },
+  CANCELLED: { icon: AlertTriangle, className: "text-gray-500" },
+};
+
+interface Task {
+  id: string;
+  title: string | null;
+  description: string | null;
+  status: keyof typeof statusConfig;
+  repoUrl: string;
+  branch: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface GroupedTasks {
+  [repoUrl: string]: {
+    repoName: string;
+    tasks: Task[];
+  };
+}
 
 export function SidebarComponent() {
   const pathname = usePathname();
   const isTaskPage = pathname.match(/^\/tasks\/[^/]+$/);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [activeView, setActiveView] = useState<"home" | "task">(
     isTaskPage ? "task" : "home",
   );
+
+  useEffect(() => {
+    async function fetchTasks() {
+      try {
+        const response = await fetch('/api/tasks');
+        if (!response.ok) {
+          throw new Error('Failed to fetch tasks');
+        }
+        const data = await response.json();
+        setTasks(data.tasks || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch tasks');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchTasks();
+  }, []);
+
+  // Group tasks by repository and sort within each group
+  const groupedTasks: GroupedTasks = tasks.reduce((groups, task) => {
+    const repoName = task.repoUrl.split('/').slice(-2).join('/'); // Extract owner/repo from URL
+    
+    if (!groups[task.repoUrl]) {
+      groups[task.repoUrl] = {
+        repoName,
+        tasks: [],
+      };
+    }
+    
+    groups[task.repoUrl].tasks.push(task);
+    return groups;
+  }, {} as GroupedTasks);
+
+  // Sort tasks within each group by status priority, then by updated date
+  Object.values(groupedTasks).forEach(group => {
+    group.tasks.sort((a, b) => {
+      const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+      if (statusDiff !== 0) return statusDiff;
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+  });
 
   return (
     <Sidebar>
@@ -156,45 +191,78 @@ export function SidebarComponent() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-          {taskSections.map((section) => (
+          
+          {loading && (
+            <SidebarGroup>
+              <SidebarGroupLabel>Loading tasks...</SidebarGroupLabel>
+            </SidebarGroup>
+          )}
+          
+          {error && (
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-red-500">
+                Error: {error}
+              </SidebarGroupLabel>
+            </SidebarGroup>
+          )}
+          
+          {!loading && !error && Object.entries(groupedTasks).map(([repoUrl, group]) => (
             <Collapsible
-              key={section.title}
-              defaultOpen={section.title !== "Archive"}
+              key={repoUrl}
+              defaultOpen={true}
               className="group/collapsible"
             >
               <SidebarGroup>
                 <SidebarGroupLabel asChild>
                   <CollapsibleTrigger>
-                    <section.icon className="mr-1.5 !size-3.5" />
-                    {section.title}
+                    <Folder className="mr-1.5 !size-3.5" />
+                    {group.repoName}
                     <ChevronDown className="ml-auto -rotate-90 transition-transform group-data-[state=open]/collapsible:rotate-0" />
                   </CollapsibleTrigger>
                 </SidebarGroupLabel>
                 <CollapsibleContent>
                   <SidebarGroupContent>
-                    {section.items.map((task) => (
-                      <SidebarMenuItem key={task.id}>
-                        <SidebarMenuButton
-                          className="flex h-auto flex-col items-start gap-0"
-                          asChild
-                        >
-                          <a href={`/tasks/${task.id}`}>
-                            <div className="line-clamp-1 w-full">
-                              {task.name}
-                            </div>
-                            <div className="text-muted-foreground flex items-center gap-1 text-xs">
-                              <Folder className="size-3" /> {task.repo}{" "}
-                              <GitBranch className="size-3" /> {task.branch}
-                            </div>
-                          </a>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
+                    {group.tasks.map((task) => {
+                      const StatusIcon = statusConfig[task.status].icon;
+                      return (
+                        <SidebarMenuItem key={task.id}>
+                          <SidebarMenuButton
+                            className="flex h-auto flex-col items-start gap-0"
+                            asChild
+                          >
+                            <a href={`/tasks/${task.id}`}>
+                              <div className="flex w-full items-center gap-2">
+                                <StatusIcon 
+                                  className={`!size-3.5 ${statusConfig[task.status].className}`} 
+                                />
+                                <div className="line-clamp-1 flex-1">
+                                  {task.title || task.description || 'Untitled Task'}
+                                </div>
+                              </div>
+                              <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                                <GitBranch className="size-3" /> {task.branch}
+                                <span className="capitalize text-xs">
+                                  {task.status.toLowerCase().replace('_', ' ')}
+                                </span>
+                              </div>
+                            </a>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
                   </SidebarGroupContent>
                 </CollapsibleContent>
               </SidebarGroup>
             </Collapsible>
           ))}
+          
+          {!loading && !error && Object.keys(groupedTasks).length === 0 && (
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-muted-foreground">
+                No tasks found
+              </SidebarGroupLabel>
+            </SidebarGroup>
+          )}
         </div>
       </SidebarContent>
     </Sidebar>
