@@ -11,13 +11,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   ChevronDown,
   Folder,
   GitBranch,
+  Loader2,
   Search,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -221,15 +221,11 @@ export function GithubConnection() {
               />
             </div>
 
-            <div className="max-h-64 overflow-y-auto flex flex-col gap-2 py-2">
+            <div className="h-64 overflow-y-auto flex flex-col gap-2 py-2">
               {isLoadingRepos ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="space-y-2">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-8 w-full" />
-                    </div>
-                  ))}
+                <div className="flex items-center justify-center h-7 mt-1 gap-1.5 text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span className="text-[13px]">Loading repositories...</span>
                 </div>
               ) : (
                 filteredGroups.map((group) => (
@@ -299,12 +295,11 @@ export function GithubConnection() {
               />
             </div>
 
-            <div className="max-h-64 overflow-y-auto flex flex-col gap-1 p-2">
+            <div className="h-64 overflow-y-auto flex flex-col gap-1 p-2">
               {isLoadingBranches ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-8 w-full" />
-                  ))}
+                <div className="flex items-center justify-center h-7 mt-1 gap-1.5 text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span className="text-[13px]">Loading branches...</span>
                 </div>
               ) : (
                 filteredBranches.map((branch) => (
