@@ -10,6 +10,13 @@ interface Location {
     byteEnd?: number;
 }
 
+interface GraphJSON {
+    repoId: string;
+    nodes: GraphNode[];
+    edges: GraphEdge[];
+}
+  
+
 class GraphNode implements HashGenerator {
   public id: string;
   public kind: string;
@@ -128,7 +135,7 @@ class Graph {
     return this.nodes.get(id)!;
   }
 
-  graphToJSON(): CodeGraphJSON {
+  graphToJSON(): GraphJSON {
     return {
       repoId: this.repoId,
       nodes: [...this.nodes.values()],
@@ -136,7 +143,7 @@ class Graph {
     };
   }
 
-  JSONToGraph(obj: CodeGraphJSON): Graph {
+  JSONToGraph(obj: GraphJSON): Graph {
     const g = new Graph(obj.repoId);
     for (const n of obj.nodes) g.addNode(new GraphNode(n));
     for (const e of obj.edges) g.addEdge(new GraphEdge(e));
@@ -154,4 +161,4 @@ function makeId(repoId: string, path: string, kind: string, name: string, loc: {
   return h.digest("hex");
 }
 
-export { GraphNode, GraphEdge, Graph, Location, makeId };   
+export { GraphNode, GraphEdge, Graph, GraphJSON, Location, makeId };   
