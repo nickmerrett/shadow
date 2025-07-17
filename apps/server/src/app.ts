@@ -4,8 +4,9 @@ import express from "express";
 import http from "http";
 import { prisma } from "../../../packages/db/src/client";
 import { ChatService } from "./chat";
-import { errorHandler } from "./middleware/error-handler";
+import { errorHandler } from "./prompt/middleware/error-handler";
 import { createSocketServer } from "./socket";
+import { router as IndexingRouter } from "./indexing";
 
 const app = express();
 const chatService = new ChatService();
@@ -25,6 +26,9 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.send("<h1>Hello world</h1>");
 });
+
+// Indexing routes
+app.use("/api/indexing", IndexingRouter);
 
 // Get task details
 app.get("/api/tasks/:taskId", async (req, res) => {
