@@ -1,17 +1,3 @@
-/**
- * CodeGraph Indexer (no-embed version)
- *
- * Programmatic usage:
- *   const { indexRepo } = require('./src/indexer');
- *   const graph = await indexRepo('/path/to/repo');
- *
- * Options:
- *   {
- *     maxLines: 200,     // chunking threshold
- *     embed: false,      // (ignored; kept for API compat) always false here
- *     outDir: root/.codegraph, // storage dir
- *   }
- */
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -25,7 +11,7 @@ const { GraphNode, GraphEdge, CodeGraph, makeId } = require('./graph');
 const { extractGeneric } = require('./extractors/generic');
 const { chunkSymbol } = require('./chunker');
 const { sliceByLoc } = require('./utils/text');
-const { saveGraph, buildInverted, saveEmbeddings } = require('./storage');
+const { saveGraph, buildInverted, saveEmbeddings, loadGraph, loadEmbeddings } = require('./storage');
 const { embedGraphChunks } = require('./embedder');
 
 function computeRepoId(root){
@@ -48,18 +34,34 @@ function loadIgnore(root){
 async function indexRepo(
   root,
   {
-    maxLines=200,
-    embed=false,                // ignored (always false in this build)
-    outDir=path.join(root,'.codegraph')
-  }={}
-){
-  logger.info(`Indexing ${root} (embedding disabled)`);
+    maxLines = 200,
+    embed = false,
+    outDir = path.join(root, '.shadow'),
+    force = false,
+    paths = null,        // optional array of glob patterns (relative to root)
+  } = {}
+) {
+  // If graph already exists and re-indexing is not forced → just load & return
+  const graphJsonPath = path.join(outDir, 'graph.json');
+  if (!force && fs.existsSync(graphJsonPath)) {
+    logger.info(`Existing index found at ${outDir}; loading (set force=true to re-index)`);
+    const graph = loadGraph(outDir);
+    // loadEmbeddings is a no-op if embedding files are absent
+    loadEmbeddings(graph, outDir);
+    return graph;
+  }
+
+  logger.info(`Indexing ${root}${paths ? ' (filtered)' : ''}${embed ? ' + embeddings' : ''}`);
 
   const repoId = computeRepoId(root);
   const graph = new CodeGraph(repoId);
+  // Track symbols across all files for cross-file call resolution
+  const globalSym = new Map(); // name -> [nodeId]
   const ig = loadIgnore(root);
 
-  const entries = await fg(['**/*.*'],{cwd:root,dot:true,onlyFiles:true,absolute:true});
+  // Resolve file list (honours .gitignore & user-supplied patterns)
+  const patterns = Array.isArray(paths) && paths.length ? paths : ['**/*.*'];
+  const entries = await fg(patterns, { cwd: root, dot: true, onlyFiles: true, absolute: true });
   const relPaths = entries.map(p=>path.relative(root,p)).filter(p=>!ig.ignores(p));
 
   // REPO node
@@ -78,9 +80,18 @@ async function indexRepo(
     const tree = parser.parse(sourceText);
     const rootNode = tree.rootNode;
 
-    // FILE node
+    // FILE node (record content hash + mtime for future incremental checks)
+    const stat = fs.statSync(abs);
+    const hash = crypto.createHash('sha1').update(sourceText).digest('hex');
     const fileId = makeId(repoId, rel, 'FILE', rel, null);
-    const fileNode = new GraphNode({id:fileId,kind:'FILE',name:rel,path:rel,lang:spec.id});
+    const fileNode = new GraphNode({
+      id: fileId,
+      kind: 'FILE',
+      name: rel,
+      path: rel,
+      lang: spec.id,
+      meta: { hash, mtime: stat.mtimeMs },
+    });
     graph.addNode(fileNode);
     graph.addEdge(new GraphEdge({from:repoId,to:fileId,kind:'CONTAINS'}));
 
@@ -92,11 +103,21 @@ async function indexRepo(
     for(const d of defs){
       const sig = buildSignatureFromNode(d.node,spec,sourceText);
       const id = makeId(repoId,rel,'SYMBOL',d.name,d.loc);
-      const code = sliceByLoc(sourceText,d.loc);
-      const symNode = new GraphNode({id,kind:'SYMBOL',name:d.name,path:rel,lang:spec.id,loc:d.loc,signature:sig,code});
+      const symNode = new GraphNode({
+        id,
+        kind: 'SYMBOL',
+        name: d.name,
+        path: rel,
+        lang: spec.id,
+        loc: d.loc,
+        signature: sig,
+      }); // omit full code to avoid redundancy; chunks will hold code
       graph.addNode(symNode);
       graph.addEdge(new GraphEdge({from:fileId,to:symNode.id,kind:'CONTAINS'}));
       symNodes.push(symNode);
+      // record in global symbol registry
+      if (!globalSym.has(d.name)) globalSym.set(d.name, []);
+      globalSym.get(d.name).push(symNode.id);
     }
 
     // COMMENT / DOC nodes
@@ -141,23 +162,41 @@ async function indexRepo(
       }
     }
 
-    // naive same-file CALL edges
-    const symMap = new Map(symNodes.map(s=>[s.name,s.id]));
-    for(const c of calls){
+    // CALL edges (intra-file first, then cross-file if symbol unique)
+    const symMap = new Map(symNodes.map((s) => [s.name, s.id]));
+    for (const c of calls) {
       const callText = sourceText.slice(c.loc.byteStart, c.loc.byteEnd);
       const m = callText.match(/([A-Za-z_][A-Za-z0-9_]*)/);
-      if(!m) continue;
+      if (!m) continue;
       const callee = m[1];
-      if(symMap.has(callee)){
-        graph.addEdge(new GraphEdge({
-          from:fileId,to:symMap.get(callee),kind:'CALLS',meta:{callSiteLine:c.loc.startLine}
-        }));
+
+      // identify caller symbol enclosing the call site (if any)
+      const callerSym = symNodes.find(
+        (s) => s.loc.startLine <= c.loc.startLine && s.loc.endLine >= c.loc.endLine
+      );
+
+      let targetId = null;
+      if (symMap.has(callee)) {
+        targetId = symMap.get(callee);
+      } else if (globalSym.has(callee) && globalSym.get(callee).length === 1) {
+        targetId = globalSym.get(callee)[0]; // unique symbol across repo
+      }
+
+      if (callerSym && targetId) {
+        graph.addEdge(
+          new GraphEdge({
+            from: callerSym.id,
+            to: targetId,
+            kind: 'CALLS',
+            meta: { callSiteLine: c.loc.startLine },
+          })
+        );
       }
     }
   }
 
   // Embed chunks if requested
-  if(embed){
+  if (embed) {
     logger.info('Computing embeddings...');
     const chunks = [...graph.nodes.values()].filter(n => n.kind === 'CHUNK');
     logger.info(`Found ${chunks.length} chunks to embed`);

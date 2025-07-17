@@ -21,27 +21,38 @@ function loadGraph(outDir){
 }
 
 // ---------------- Embeddings (optional) ----------------
-function saveEmbeddings(graph,outDir){
-  const chunks = [...graph.nodes.values()].filter(n => n.kind === 'CHUNK' && n.embedding);
-  if(chunks.length === 0) return;
-  
+function saveEmbeddings(graph, outDir) {
+  const chunks = [...graph.nodes.values()].filter(
+    (n) => n.kind === 'CHUNK' && n.embedding
+  );
+  if (chunks.length === 0) return;
+
+  // Ensure output directory exists before writing any files
+  if (!fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: true });
+  }
+
   const idx = {};
   const allVecs = [];
   let offset = 0;
-  
-  for(const chunk of chunks){
+
+  for (const chunk of chunks) {
     const vec = chunk.embedding;
-    idx[chunk.id] = {offset, length: vec.length};
+    idx[chunk.id] = { offset, length: vec.length };
     allVecs.push(...vec);
     offset += vec.length;
   }
-  
+
   const dim = chunks[0].embedding.length;
   const f32 = new Float32Array(allVecs);
   const buf = Buffer.from(f32.buffer);
-  
-  fs.writeFileSync(path.join(outDir,'embeddings.idx.json'), JSON.stringify({dim,idx}),'utf8');
-  fs.writeFileSync(path.join(outDir,'embeddings.f32'), buf);
+
+  fs.writeFileSync(
+    path.join(outDir, 'embeddings.idx.json'),
+    JSON.stringify({ dim, idx }),
+    'utf8'
+  );
+  fs.writeFileSync(path.join(outDir, 'embeddings.f32'), buf);
 }
 
 function loadEmbeddings(graph,outDir){

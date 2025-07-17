@@ -42,4 +42,4 @@ prompts/
 # python virtual environments
 .venv/
 
-.codegraph/
+.shadow/

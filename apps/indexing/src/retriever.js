@@ -1,11 +1,3 @@
-/**
- * Retriever (lexical + structural; no semantic unless embeddings present)
- *
- * Usage:
- *   const { Retriever } = require('./src/retriever');
- *   const retr = Retriever.load('/path/to/repo/.codegraph');
- *   const results = retr.retrieve('foo bar', {k:20, expandHops:1});
- */
 const { loadGraph, loadInverted, loadEmbeddings, tokenize } = require('./storage');
 const { embedTexts } = require('./embedder');
 function cosineSim(a, b) {
@@ -35,30 +27,43 @@ class Retriever {
     return r;
   }
 
-  async retrieve(query,{k=20,expandHops=1,provider='local-transformers'}={}){
-    if(this._hasEmbeddings){
+  /**
+   * Retrieve relevant graph nodes for a query.
+   *
+   * Options
+   * -------
+   * k            : Max primary hits to return before hop-expansion.
+   * expandHops   : How many neighborhood hops to append.
+   * provider     : Embedding provider when semantic search is available.
+   * returnMeta   : When true, returns objects {node, score, edges} instead of bare nodes.
+   */
+  async retrieve(
+    query,
+    { k = 20, expandHops = 1, provider = 'local-transformers', returnMeta = false } = {}
+  ) {
+    if (this._hasEmbeddings) {
       // Semantic search
       const chunks = [...this.graph.nodes.values()].filter(n=>n.kind==='CHUNK' && n.embedding);
       const {embeddings: [qvec]} = await embedTexts([query], {provider});
       const scored = chunks.map(n => ({node: n, score: cosineSim(qvec, n.embedding)}));
       scored.sort((a,b)=>b.score-a.score);
-      let results = scored.slice(0,k).map(s=>s.node);
+      let results = scored.slice(0, k);
       // Expand graph neighborhood
-      if(expandHops>0){
-        const seen = new Set(results.map(r=>r.id));
-        for(let hop=0;hop<expandHops;hop++){
+      if (expandHops > 0) {
+        const seen = new Set(results.map(r => r.node.id));
+        for (let hop = 0; hop < expandHops; hop++) {
           const layer=[];
-          for(const n of results){
-            const neigh = this.graph.neighbors(n.id,null);
+          for (const { node: n } of results) {
+            const neigh = this.graph.neighbors(n.id, null);
             for(const nn of neigh){
-              if(seen.has(nn.id)) continue;
-              seen.add(nn.id); layer.push(nn);
+              if (seen.has(nn.id)) continue;
+              seen.add(nn.id); layer.push({ node: nn, score: 0 });
             }
           }
           results = results.concat(layer);
         }
       }
-      return results;
+      return returnMeta ? results : results.map((r) => r.node);
     } else {
       // lexical fallback
       const toks = tokenize(query);
@@ -82,24 +87,73 @@ class Retriever {
         scored.push({node,score});
       }
       scored.sort((a,b)=>b.score-a.score);
-      let results = scored.slice(0,k).map(s=>s.node);
+      let results = scored.slice(0, k);
       // Expand graph neighborhood
-      if(expandHops>0){
-        const seen = new Set(results.map(r=>r.id));
-        for(let hop=0;hop<expandHops;hop++){
+      if (expandHops > 0) {
+        const seen = new Set(results.map(r => r.node.id));
+        for (let hop = 0; hop < expandHops; hop++) {
           const layer=[];
-          for(const n of results){
-            const neigh = this.graph.neighbors(n.id,null);
+          for (const { node: n } of results) {
+            const neigh = this.graph.neighbors(n.id, null);
             for(const nn of neigh){
-              if(seen.has(nn.id)) continue;
-              seen.add(nn.id); layer.push(nn);
+              if (seen.has(nn.id)) continue;
+              seen.add(nn.id); layer.push({ node: nn, score: 0 });
             }
           }
           results = results.concat(layer);
         }
       }
-      return results;
+      return returnMeta ? results : results.map((r) => r.node);
     }
+  }
+
+  /**
+   * Convert a list returned with returnMeta=true into richer objects that also
+   * include direct outgoing edges for easier inspection.
+   */
+  withEdges(items) {
+    return items.map(({ node, score }) => {
+      const outEdges = (this.graph.adj.get(node.id) || []).map((e) => {
+        const target = this.graph.get(e.to);
+        const snippet = target?.code
+          ? target.code.split('\n').slice(0, 5).join('\n').trim()
+          : target?.signature || '';
+        return {
+          kind: e.kind,
+          dir: 'out',
+          to: target
+            ? {
+                id: target.id,
+                name: target.name,
+                kind: target.kind,
+                snippet,
+              }
+            : { id: e.to },
+        };
+      });
+
+      const inEdges = (this.graph.rev.get(node.id) || []).map((e) => {
+        const source = this.graph.get(e.from);
+        const snippet = source?.code
+          ? source.code.split('\n').slice(0, 5).join('\n').trim()
+          : source?.signature || '';
+        return {
+          kind: e.kind,
+          dir: 'in',
+          from: source
+            ? {
+                id: source.id,
+                name: source.name,
+                kind: source.kind,
+                snippet,
+              }
+            : { id: e.from },
+        };
+      });
+
+      const edges = outEdges.concat(inEdges);
+      return { node, score, edges };
+    });
   }
 }
 
