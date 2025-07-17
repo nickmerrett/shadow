@@ -1,3 +1,17 @@
+/**
+ * CodeGraph Indexer (no-embed version)
+ *
+ * Programmatic usage:
+ *   const { indexRepo } = require('./src/indexer');
+ *   const graph = await indexRepo('/path/to/repo');
+ *
+ * Options:
+ *   {
+ *     maxLines: 200,     // chunking threshold
+ *     embed: false,      // (ignored; kept for API compat) always false here
+ *     outDir: root/.codegraph, // storage dir
+ *   }
+ */
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -10,9 +24,9 @@ const { getLanguageForPath } = require('./languages');
 const { GraphNode, GraphEdge, CodeGraph, makeId } = require('./graph');
 const { extractGeneric } = require('./extractors/generic');
 const { chunkSymbol } = require('./chunker');
-const { embedGraphChunks } = require('./embedder');
 const { sliceByLoc } = require('./utils/text');
 const { saveGraph, buildInverted, saveEmbeddings } = require('./storage');
+const { embedGraphChunks } = require('./embedder');
 
 function computeRepoId(root){
   const h = crypto.createHash('sha1');
@@ -35,15 +49,12 @@ async function indexRepo(
   root,
   {
     maxLines=200,
-    embed=true,
-    embedProvider='cheap-hash',
-    embedModel='jinaai/jina-embeddings-v2-base-code',
-    embedBatch=64,
-    embedQuantized=true,
+    embed=false,                // ignored (always false in this build)
     outDir=path.join(root,'.codegraph')
   }={}
 ){
-  logger.info(`Indexing ${root}`);
+  logger.info(`Indexing ${root} (embedding disabled)`);
+
   const repoId = computeRepoId(root);
   const graph = new CodeGraph(repoId);
   const ig = loadIgnore(root);
@@ -73,10 +84,11 @@ async function indexRepo(
     graph.addNode(fileNode);
     graph.addEdge(new GraphEdge({from:repoId,to:fileId,kind:'CONTAINS'}));
 
+    // Extract
     const {defs,imports,calls,docs} = extractGeneric(rootNode,spec,sourceText);
     const symNodes=[];
 
-    // defs -> SYMBOL nodes
+    // SYMBOL defs
     for(const d of defs){
       const sig = buildSignatureFromNode(d.node,spec,sourceText);
       const id = makeId(repoId,rel,'SYMBOL',d.name,d.loc);
@@ -87,35 +99,37 @@ async function indexRepo(
       symNodes.push(symNode);
     }
 
-    // docs
+    // COMMENT / DOC nodes
     for(const ds of docs){
       const docCode = sliceByLoc(sourceText,ds.loc).trim();
       if(!docCode) continue;
       const docId = makeId(repoId,rel,'DOC',`doc@${ds.loc.startLine}`,ds.loc);
-      const docNode = new GraphNode({id:docId,kind:'COMMENT',name:`doc@${rel}:${ds.loc.startLine}`,path:rel,lang:spec.id,loc:ds.loc,code:docCode,doc:docCode});
+      const docNode = new GraphNode({
+        id:docId,kind:'COMMENT',name:`doc@${rel}:${ds.loc.startLine}`,path:rel,lang:spec.id,loc:ds.loc,code:docCode,doc:docCode
+      });
       graph.addNode(docNode);
-      graph.addEdge(new GraphEdge({from:fileId,to:docId,kind:'CONTAINS'}));
+      graph.addEdge(new GraphEdge({from:fileId,to:docNode.id,kind:'CONTAINS'}));
       const near = symNodes.find(s=>s.loc.startLine >= ds.loc.endLine);
       if(near){
-        graph.addEdge(new GraphEdge({from:docId,to:near.id,kind:'DOCS_FOR'}));
+        graph.addEdge(new GraphEdge({from:docNode.id,to:near.id,kind:'DOCS_FOR'}));
       }
     }
 
-    // imports
+    // IMPORT nodes
     for(const im of imports){
       const imText = sliceByLoc(sourceText,im.loc).trim();
       const name = imText.slice(0,64);
       const imId = makeId(repoId,rel,'IMPORT',name,im.loc);
       const imNode = new GraphNode({id:imId,kind:'IMPORT',name,path:rel,lang:spec.id,loc:im.loc,code:imText});
       graph.addNode(imNode);
-      graph.addEdge(new GraphEdge({from:fileId,to:imId,kind:'CONTAINS'}));
+      graph.addEdge(new GraphEdge({from:fileId,to:imNode.id,kind:'CONTAINS'}));
     }
 
-    // chunk each symbol
+    // CHUNK nodes per symbol
     for(const symNode of symNodes){
       const d = defs.find(x=>x.name===symNode.name && x.loc.startLine===symNode.loc.startLine);
       if(!d) continue;
-      const chunks = require('./chunker').chunkSymbol({
+      const chunks = chunkSymbol({
         repoId,fileNode:symNode,sym:d,lang:spec.id,sourceText,maxLines
       });
       let prev=null;
@@ -127,7 +141,7 @@ async function indexRepo(
       }
     }
 
-    // naive CALL edges (same-file)
+    // naive same-file CALL edges
     const symMap = new Map(symNodes.map(s=>[s.name,s.id]));
     for(const c of calls){
       const callText = sourceText.slice(c.loc.byteStart, c.loc.byteEnd);
@@ -136,32 +150,32 @@ async function indexRepo(
       const callee = m[1];
       if(symMap.has(callee)){
         graph.addEdge(new GraphEdge({
-          from:fileId, to:symMap.get(callee), kind:'CALLS', meta:{callSiteLine:c.loc.startLine}
+          from:fileId,to:symMap.get(callee),kind:'CALLS',meta:{callSiteLine:c.loc.startLine}
         }));
       }
     }
   }
 
-  // embeddings
+  // Embed chunks if requested
   if(embed){
-    const chunks = [...graph.nodes.values()].filter(n=>n.kind==='CHUNK');
-    const dim = await embedGraphChunks(chunks,{
-      provider:embedProvider,
-      model:embedModel,
-      batchSize:embedBatch,
-      quantized:embedQuantized,
-    });
-    logger.info(`Embedded ${chunks.length} chunks (dim=${dim}) using provider=${embedProvider}`);
-  }else{
-    logger.info('Skipping embeddings (--no-embed)');
+    logger.info('Computing embeddings...');
+    const chunks = [...graph.nodes.values()].filter(n => n.kind === 'CHUNK');
+    logger.info(`Found ${chunks.length} chunks to embed`);
+    if(chunks.length > 0){
+      await embedGraphChunks(chunks, {provider: 'local-transformers'});
+      logger.info(`Embedded ${chunks.length} chunks`);
+      // Debug: check if embeddings were actually added
+      const withEmbeddings = chunks.filter(ch => ch.embedding);
+      logger.info(`${withEmbeddings.length} chunks have embeddings`);
+    }
+  } else {
+    logger.info('Embedding skipped (embed=false).');
   }
 
-  // persist
-  saveGraph(graph,outDir);
-  const { buildInverted:buildInv } = require('./storage');
-  buildInv(graph,outDir);
-  const { saveEmbeddings:saveEmb } = require('./storage');
-  saveEmb(graph,outDir);
+  // Persist
+  if(embed) saveEmbeddings(graph,outDir); // save binary embeddings first
+  saveGraph(graph,outDir); // then write graph (strips inlined embeddings)
+  buildInverted(graph,outDir);
   logger.info(`Indexed ${graph.nodes.size} nodes. Output -> ${outDir}`);
   return graph;
 }
