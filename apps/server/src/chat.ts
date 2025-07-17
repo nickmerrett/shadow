@@ -1,6 +1,6 @@
 import { Message, MessageMetadata, ModelType } from "@repo/types";
 import { randomUUID } from "crypto";
-import { prisma } from "../../../packages/db/src/client";
+import { prisma, type ChatMessage } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import {
   emitStreamChunk,
@@ -22,7 +22,7 @@ export class ChatService {
     taskId: string,
     content: string,
     metadata?: MessageMetadata
-  ) {
+  ): Promise<ChatMessage> {
     return await prisma.chatMessage.create({
       data: {
         taskId,
@@ -38,7 +38,7 @@ export class ChatService {
     content: string,
     llmModel: string,
     metadata?: MessageMetadata
-  ) {
+  ): Promise<ChatMessage> {
     // Extract usage info for denormalized storage
     const usage = metadata?.usage;
 
