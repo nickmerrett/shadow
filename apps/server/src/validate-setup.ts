@@ -68,7 +68,14 @@ class SetupValidator {
     try {
       const { stdout } = await execAsync("node --version");
       const version = stdout.trim();
-      const majorVersion = parseInt(version.slice(1).split(".")[0]);
+      const versionParts = version.slice(1).split(".");
+      const majorVersionStr = versionParts[0];
+
+      if (!majorVersionStr) {
+        throw new Error("Invalid version format");
+      }
+
+      const majorVersion = parseInt(majorVersionStr, 10);
 
       if (majorVersion >= 18) {
         this.addResult("Node.js Version", "pass", `${version} (✓ >= 18)`);
