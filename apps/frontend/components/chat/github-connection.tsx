@@ -45,7 +45,11 @@ interface Branch {
 }
 
 interface GroupedRepos {
-  [orgName: string]: Repository[];
+  groups: {
+    name: string;
+    type: "user" | "organization";
+    repositories: Repository[];
+  }[];
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -70,7 +74,9 @@ export function GithubConnection() {
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [repoSearch, setRepoSearch] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
-  const [repos, setRepos] = useState<Repository[]>([]);
+  const [groupedRepos, setGroupedRepos] = useState<GroupedRepos>({
+    groups: [],
+  });
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
@@ -78,7 +84,7 @@ export function GithubConnection() {
 
   // Fetch repositories when popover opens
   useEffect(() => {
-    if (isOpen && repos.length === 0) {
+    if (isOpen && groupedRepos.groups.length === 0) {
       fetchRepositories();
     }
   }, [isOpen]);
@@ -98,30 +104,50 @@ export function GithubConnection() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      setRepos(data);
+      setGroupedRepos(data);
     } catch (error) {
       console.error("Failed to fetch repositories:", error);
       // Fallback to mock data if API fails
-      setRepos([
-        {
-          id: 1,
-          name: "shadow",
-          full_name: "ishaan1013/shadow",
-          owner: { login: "ishaan1013", type: "User" },
-        },
-        {
-          id: 2,
-          name: "cursor",
-          full_name: "anysphere/cursor",
-          owner: { login: "anysphere", type: "Organization" },
-        },
-        {
-          id: 3,
-          name: "anthropic-sdk",
-          full_name: "anthropics/anthropic-sdk-typescript",
-          owner: { login: "anthropics", type: "Organization" },
-        },
-      ]);
+      setGroupedRepos({
+        groups: [
+          {
+            name: "ishaan1013",
+            type: "user",
+            repositories: [
+              {
+                id: 1,
+                name: "shadow",
+                full_name: "ishaan1013/shadow",
+                owner: { login: "ishaan1013", type: "User" },
+              },
+            ],
+          },
+          {
+            name: "anysphere",
+            type: "organization",
+            repositories: [
+              {
+                id: 2,
+                name: "cursor",
+                full_name: "anysphere/cursor",
+                owner: { login: "anysphere", type: "Organization" },
+              },
+            ],
+          },
+          {
+            name: "anthropics",
+            type: "organization",
+            repositories: [
+              {
+                id: 3,
+                name: "anthropic-sdk",
+                full_name: "anthropics/anthropic-sdk-typescript",
+                owner: { login: "anthropics", type: "Organization" },
+              },
+            ],
+          },
+        ],
+      });
     } finally {
       setIsLoadingRepos(false);
     }
@@ -181,29 +207,20 @@ export function GithubConnection() {
     }
   };
 
-  const groupReposByOrg = (repositories: Repository[]): GroupedRepos => {
-    return repositories.reduce((groups, repo) => {
-      const orgName = repo.owner.login;
-      if (!groups[orgName]) {
-        groups[orgName] = [];
-      }
-      groups[orgName].push(repo);
-      return groups;
-    }, {} as GroupedRepos);
-  };
-
-  const filteredRepos = repos.filter(
-    (repo) =>
-      repo.name.toLowerCase().includes(repoSearch.toLowerCase()) ||
-      repo.full_name.toLowerCase().includes(repoSearch.toLowerCase())
-  );
+  const filteredGroups = groupedRepos.groups
+    .map((group) => ({
+      ...group,
+      repositories: group.repositories.filter(
+        (repo) =>
+          repo.name.toLowerCase().includes(repoSearch.toLowerCase()) ||
+          repo.full_name.toLowerCase().includes(repoSearch.toLowerCase())
+      ),
+    }))
+    .filter((group) => group.repositories.length > 0);
 
   const filteredBranches = branches.filter((branch) =>
     branch.name.toLowerCase().includes(branchSearch.toLowerCase())
   );
-
-  const groupedRepos = groupReposByOrg(filteredRepos);
-  const sortedOrgNames = Object.keys(groupedRepos).sort();
 
   const toggleOrgCollapse = (orgName: string) => {
     const newCollapsed = new Set(collapsedOrgs);
@@ -282,11 +299,11 @@ export function GithubConnection() {
                   ))}
                 </div>
               ) : (
-                sortedOrgNames.map((orgName) => (
+                filteredGroups.map((group) => (
                   <Collapsible
-                    key={orgName}
-                    open={!collapsedOrgs.has(orgName)}
-                    onOpenChange={() => toggleOrgCollapse(orgName)}
+                    key={group.name}
+                    open={!collapsedOrgs.has(group.name)}
+                    onOpenChange={() => toggleOrgCollapse(group.name)}
                   >
                     <CollapsibleTrigger asChild>
                       <Button
@@ -294,16 +311,16 @@ export function GithubConnection() {
                         size="sm"
                         className="w-full justify-start p-2 h-auto text-xs text-muted-foreground hover:bg-accent"
                       >
-                        {collapsedOrgs.has(orgName) ? (
+                        {collapsedOrgs.has(group.name) ? (
                           <ChevronRight className="size-3 mr-1" />
                         ) : (
                           <ChevronDown className="size-3 mr-1" />
                         )}
-                        {orgName}
+                        {group.name}
                       </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="ml-4 space-y-1">
-                      {groupedRepos[orgName]?.map((repo) => (
+                      {group.repositories.map((repo) => (
                         <Button
                           key={repo.id}
                           variant="ghost"
@@ -311,7 +328,6 @@ export function GithubConnection() {
                           className="w-full justify-start p-2 h-auto text-sm font-normal hover:bg-accent"
                           onClick={() => handleRepoSelect(repo)}
                         >
-                          <Folder className="size-4 mr-2 flex-shrink-0" />
                           <span className="truncate">{repo.name}</span>
                         </Button>
                       ))}
