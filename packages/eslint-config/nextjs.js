@@ -1,4 +1,5 @@
 import baseConfig from "./base.js";
+import globals from "globals";
 
 export default [
   ...baseConfig,
@@ -16,6 +17,8 @@ export default [
         process: "readonly",
         window: "readonly",
         document: "readonly",
+        fetch: "readonly",
+        ...globals.browser,
       },
     },
     rules: {
