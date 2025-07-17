@@ -1,12 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Folder, GitBranch, Search, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  GitBranch,
+  Search,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "../ui/collapsible";
 import { Input } from "../ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Skeleton } from "../ui/skeleton";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 
 interface Repository {
   id: number;
@@ -22,12 +32,16 @@ interface Branch {
   name: string;
   commit: {
     sha: string;
-    commit: {
-      committer: {
-        date: string;
-      };
+    url: string;
+  };
+  protected?: boolean;
+  protection?: {
+    required_status_checks?: {
+      enforcement_level: string;
+      contexts: string[];
     };
   };
+  protection_url?: string;
 }
 
 interface GroupedRepos {
@@ -79,18 +93,34 @@ export function GithubConnection() {
   const fetchRepositories = async () => {
     setIsLoadingRepos(true);
     try {
-      // In a real app, this would use your auth token and GitHub API
-      // For now, using mock data structure
       const response = await fetch("/api/github/repositories");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
       setRepos(data);
     } catch (error) {
       console.error("Failed to fetch repositories:", error);
-      // Mock data for development
+      // Fallback to mock data if API fails
       setRepos([
-        { id: 1, name: "shadow", full_name: "ishaan1013/shadow", owner: { login: "ishaan1013", type: "User" } },
-        { id: 2, name: "cursor", full_name: "anysphere/cursor", owner: { login: "anysphere", type: "Organization" } },
-        { id: 3, name: "anthropic-sdk", full_name: "anthropics/anthropic-sdk-typescript", owner: { login: "anthropics", type: "Organization" } },
+        {
+          id: 1,
+          name: "shadow",
+          full_name: "ishaan1013/shadow",
+          owner: { login: "ishaan1013", type: "User" },
+        },
+        {
+          id: 2,
+          name: "cursor",
+          full_name: "anysphere/cursor",
+          owner: { login: "anysphere", type: "Organization" },
+        },
+        {
+          id: 3,
+          name: "anthropic-sdk",
+          full_name: "anthropics/anthropic-sdk-typescript",
+          owner: { login: "anthropics", type: "Organization" },
+        },
       ]);
     } finally {
       setIsLoadingRepos(false);
@@ -101,28 +131,50 @@ export function GithubConnection() {
     setIsLoadingBranches(true);
     try {
       const response = await fetch(`/api/github/branches?repo=${repoFullName}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
-      
+
       // Sort branches: main/master first, then by last updated
       const sortedBranches = data.sort((a: Branch, b: Branch) => {
         const isMainA = a.name === "main" || a.name === "master";
         const isMainB = b.name === "main" || b.name === "master";
-        
+
         if (isMainA && !isMainB) return -1;
         if (!isMainA && isMainB) return 1;
-        
-        return new Date(b.commit.commit.committer.date).getTime() - 
-               new Date(a.commit.commit.committer.date).getTime();
+
+        // For real GitHub data, we need to handle the different structure
+        // GitHub branches don't have commit.committer.date, so we'll sort by name for non-main branches
+        return a.name.localeCompare(b.name);
       });
-      
+
       setBranches(sortedBranches);
     } catch (error) {
       console.error("Failed to fetch branches:", error);
-      // Mock data for development
+      // Fallback to mock data if API fails
       setBranches([
-        { name: "main", commit: { sha: "abc123", commit: { committer: { date: new Date().toISOString() } } } },
-        { name: "feature/auth", commit: { sha: "def456", commit: { committer: { date: new Date(Date.now() - 3600000).toISOString() } } } },
-        { name: "fix/ui-bugs", commit: { sha: "ghi789", commit: { committer: { date: new Date(Date.now() - 7200000).toISOString() } } } },
+        {
+          name: "main",
+          commit: {
+            sha: "abc123",
+            url: "https://api.github.com/repos/example/repo/commits/abc123",
+          },
+        },
+        {
+          name: "feature/auth",
+          commit: {
+            sha: "def456",
+            url: "https://api.github.com/repos/example/repo/commits/def456",
+          },
+        },
+        {
+          name: "fix/ui-bugs",
+          commit: {
+            sha: "ghi789",
+            url: "https://api.github.com/repos/example/repo/commits/ghi789",
+          },
+        },
       ]);
     } finally {
       setIsLoadingBranches(false);
@@ -140,12 +192,13 @@ export function GithubConnection() {
     }, {} as GroupedRepos);
   };
 
-  const filteredRepos = repos.filter(repo =>
-    repo.name.toLowerCase().includes(repoSearch.toLowerCase()) ||
-    repo.full_name.toLowerCase().includes(repoSearch.toLowerCase())
+  const filteredRepos = repos.filter(
+    (repo) =>
+      repo.name.toLowerCase().includes(repoSearch.toLowerCase()) ||
+      repo.full_name.toLowerCase().includes(repoSearch.toLowerCase())
   );
 
-  const filteredBranches = branches.filter(branch =>
+  const filteredBranches = branches.filter((branch) =>
     branch.name.toLowerCase().includes(branchSearch.toLowerCase())
   );
 
@@ -205,9 +258,9 @@ export function GithubConnection() {
           {getButtonText()}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start">
+      <PopoverContent className="w-80 p-0" align="end">
         {mode === "repos" ? (
-          <div className="p-4 space-y-4">
+          <div className="p-2 space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
@@ -217,7 +270,7 @@ export function GithubConnection() {
                 className="pl-10"
               />
             </div>
-            
+
             <div className="max-h-64 overflow-y-auto space-y-2">
               {isLoadingRepos ? (
                 <div className="space-y-3">
@@ -250,7 +303,7 @@ export function GithubConnection() {
                       </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="ml-4 space-y-1">
-                      {groupedRepos[orgName].map((repo) => (
+                      {groupedRepos[orgName]?.map((repo) => (
                         <Button
                           key={repo.id}
                           variant="ghost"
@@ -269,7 +322,7 @@ export function GithubConnection() {
             </div>
           </div>
         ) : (
-          <div className="p-4 space-y-4">
+          <div className="p-2 space-y-4">
             <div className="flex items-center space-x-2">
               <Button
                 variant="ghost"
@@ -279,9 +332,11 @@ export function GithubConnection() {
               >
                 ←
               </Button>
-              <span className="font-medium text-sm">{selectedRepo?.full_name}</span>
+              <span className="font-medium text-sm">
+                {selectedRepo?.full_name}
+              </span>
             </div>
-            
+
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
@@ -291,7 +346,7 @@ export function GithubConnection() {
                 className="pl-10"
               />
             </div>
-            
+
             <div className="max-h-64 overflow-y-auto space-y-1">
               {isLoadingBranches ? (
                 <div className="space-y-2">
@@ -313,7 +368,7 @@ export function GithubConnection() {
                       <span className="truncate">{branch.name}</span>
                     </div>
                     <span className="text-xs text-muted-foreground flex-shrink-0">
-                      {formatTimeAgo(branch.commit.commit.committer.date)}
+                      {branch.protected && "🔒"}
                     </span>
                   </Button>
                 ))
