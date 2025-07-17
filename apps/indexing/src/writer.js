@@ -101,26 +101,26 @@ class Writer {
     const fullPath = path.join(this.repoPath, relativePath);
     const dir = path.dirname(fullPath);
     
-    // Ensure directory exists
+    // ensure directory exists
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
 
-    // Get old hash before writing
+    // get old hash before writing
     const oldHash = this.getFileHash(fullPath);
     
-    // Write the file
+    // write the file
     fs.writeFileSync(fullPath, content, 'utf8');
     
-    // Get new hash
+    // get new hash
     const newHash = this.getFileHash(fullPath);
     
-    // Track the change
+    // track the change
     this.fileHashes.set(relativePath, newHash);
     
     console.log(`Wrote to file: ${relativePath}`);
     
-    // Return change info for incremental indexing
+    // return change info for incremental indexing
     return {
       path: relativePath,
       changed: oldHash !== newHash,
