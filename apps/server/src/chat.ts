@@ -66,7 +66,7 @@ export class ChatService {
     toolArgs: Record<string, any>,
     toolResult: string,
     metadata?: MessageMetadata
-  ) {
+  ): Promise<ChatMessage> {
     return await prisma.chatMessage.create({
       data: {
         taskId,
@@ -220,6 +220,8 @@ export class ChatService {
       // Save tool calls and results to database
       for (let i = 0; i < toolCalls.length; i++) {
         const toolCall = toolCalls[i];
+        if (!toolCall) continue;
+
         const toolResult = toolResults.find((r) => r.id === toolCall.id);
 
         if (toolResult) {

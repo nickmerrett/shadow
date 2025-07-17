@@ -214,8 +214,13 @@ class LocalCodingAgent {
     const modelIndex = parseInt(answer) - 1;
 
     if (modelIndex >= 0 && modelIndex < availableModels.length) {
-      this.model = availableModels[modelIndex];
-      console.log(`✅ Model changed to: ${this.model}`);
+      const selectedModel = availableModels[modelIndex];
+      if (selectedModel) {
+        this.model = selectedModel;
+        console.log(`✅ Model changed to: ${this.model}`);
+      } else {
+        console.log("❌ Invalid selection");
+      }
     } else {
       console.log("❌ Invalid selection");
     }
