@@ -116,7 +116,7 @@ class SetupValidator {
 
   private async checkDatabase() {
     try {
-      const { prisma } = await import("../../../packages/db/src/client");
+      const { prisma } = await import("@repo/db");
       await prisma.$connect();
       this.addResult("Database", "pass", "Connected successfully");
       await prisma.$disconnect();
