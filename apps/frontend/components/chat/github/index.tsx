@@ -1,22 +1,27 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import {
+  ArrowLeft,
   ChevronDown,
-  ChevronRight,
   Folder,
   GitBranch,
   Search,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button } from "../ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "../ui/collapsible";
-import { Input } from "../ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Skeleton } from "../ui/skeleton";
+import { toast } from "sonner";
 
 interface Repository {
   id: number;
@@ -26,6 +31,7 @@ interface Repository {
     login: string;
     type: string;
   };
+  pushed_at: string | null;
 }
 
 interface Branch {
@@ -50,21 +56,6 @@ interface GroupedRepos {
     type: "user" | "organization";
     repositories: Repository[];
   }[];
-}
-
-function formatTimeAgo(dateString: string): string {
-  const now = new Date();
-  const date = new Date(dateString);
-  const diffMs = now.getTime() - date.getTime();
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffSeconds < 60) return `${diffSeconds}s`;
-  if (diffMinutes < 60) return `${diffMinutes}m`;
-  if (diffHours < 24) return `${diffHours}h`;
-  return `${diffDays}d`;
 }
 
 export function GithubConnection() {
@@ -106,47 +97,9 @@ export function GithubConnection() {
       const data = await response.json();
       setGroupedRepos(data);
     } catch (error) {
-      console.error("Failed to fetch repositories:", error);
-      // Fallback to mock data if API fails
-      setGroupedRepos({
-        groups: [
-          {
-            name: "ishaan1013",
-            type: "user",
-            repositories: [
-              {
-                id: 1,
-                name: "shadow",
-                full_name: "ishaan1013/shadow",
-                owner: { login: "ishaan1013", type: "User" },
-              },
-            ],
-          },
-          {
-            name: "anysphere",
-            type: "organization",
-            repositories: [
-              {
-                id: 2,
-                name: "cursor",
-                full_name: "anysphere/cursor",
-                owner: { login: "anysphere", type: "Organization" },
-              },
-            ],
-          },
-          {
-            name: "anthropics",
-            type: "organization",
-            repositories: [
-              {
-                id: 3,
-                name: "anthropic-sdk",
-                full_name: "anthropics/anthropic-sdk-typescript",
-                owner: { login: "anthropics", type: "Organization" },
-              },
-            ],
-          },
-        ],
+      setGroupedRepos({ groups: [] });
+      toast.error("Failed to fetch repositories", {
+        description: error instanceof Error ? error.message : "Unknown error",
       });
     } finally {
       setIsLoadingRepos(false);
@@ -177,31 +130,10 @@ export function GithubConnection() {
 
       setBranches(sortedBranches);
     } catch (error) {
-      console.error("Failed to fetch branches:", error);
-      // Fallback to mock data if API fails
-      setBranches([
-        {
-          name: "main",
-          commit: {
-            sha: "abc123",
-            url: "https://api.github.com/repos/example/repo/commits/abc123",
-          },
-        },
-        {
-          name: "feature/auth",
-          commit: {
-            sha: "def456",
-            url: "https://api.github.com/repos/example/repo/commits/def456",
-          },
-        },
-        {
-          name: "fix/ui-bugs",
-          commit: {
-            sha: "ghi789",
-            url: "https://api.github.com/repos/example/repo/commits/ghi789",
-          },
-        },
-      ]);
+      setBranches([]);
+      toast.error("Failed to fetch branches", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     } finally {
       setIsLoadingBranches(false);
     }
@@ -277,18 +209,19 @@ export function GithubConnection() {
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
         {mode === "repos" ? (
-          <div className="p-2 space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
-              <Input
+          <div>
+            <div className="relative border-b">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <input
                 placeholder="Search repositories..."
                 value={repoSearch}
+                autoFocus
                 onChange={(e) => setRepoSearch(e.target.value)}
-                className="pl-10"
+                className="pl-7 pr-3 h-9 text-sm focus:outline-none w-full"
               />
             </div>
 
-            <div className="max-h-64 overflow-y-auto space-y-2">
+            <div className="max-h-64 overflow-y-auto flex flex-col gap-2 py-2">
               {isLoadingRepos ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -309,26 +242,34 @@ export function GithubConnection() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="w-full justify-start p-2 h-auto text-xs text-muted-foreground hover:bg-accent"
+                        className="w-full !px-4.5 text-[13px] font-normal text-muted-foreground hover:bg-transparent gap-2"
                       >
-                        {collapsedOrgs.has(group.name) ? (
-                          <ChevronRight className="size-3 mr-1" />
-                        ) : (
-                          <ChevronDown className="size-3 mr-1" />
-                        )}
+                        <Folder className="size-3.5" />
                         {group.name}
+
+                        <ChevronDown
+                          className={cn(
+                            "ml-auto transition-transform",
+                            collapsedOrgs.has(group.name)
+                              ? "-rotate-90"
+                              : "rotate-0"
+                          )}
+                        />
                       </Button>
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="ml-4 space-y-1">
+                    <CollapsibleContent className="flex flex-col gap-1 py-1 px-2">
                       {group.repositories.map((repo) => (
                         <Button
                           key={repo.id}
                           variant="ghost"
                           size="sm"
-                          className="w-full justify-start p-2 h-auto text-sm font-normal hover:bg-accent"
+                          className="w-full justify-between text-sm font-normal hover:bg-accent"
                           onClick={() => handleRepoSelect(repo)}
                         >
                           <span className="truncate">{repo.name}</span>
+                          <span className="text-muted-foreground">
+                            {repo.pushed_at}
+                          </span>
                         </Button>
                       ))}
                     </CollapsibleContent>
@@ -338,32 +279,27 @@ export function GithubConnection() {
             </div>
           </div>
         ) : (
-          <div className="p-2 space-y-4">
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBackToRepos}
-                className="p-1 h-auto"
-              >
-                ←
-              </Button>
-              <span className="font-medium text-sm">
-                {selectedRepo?.full_name}
-              </span>
-            </div>
+          <div>
+            <button
+              className="flex cursor-pointer items-center w-full text-sm gap-2 px-2 h-9 border-b hover:bg-sidebar-accent transition-colors"
+              onClick={handleBackToRepos}
+            >
+              <ArrowLeft className="size-3.5" />
+              <span className="truncate">{selectedRepo?.full_name}</span>
+            </button>
 
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
-              <Input
+            <div className="relative border-b">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <input
                 placeholder="Search branches..."
                 value={branchSearch}
+                autoFocus
                 onChange={(e) => setBranchSearch(e.target.value)}
-                className="pl-10"
+                className="pl-7 pr-3 h-9 text-sm focus:outline-none w-full"
               />
             </div>
 
-            <div className="max-h-64 overflow-y-auto space-y-1">
+            <div className="max-h-64 overflow-y-auto flex flex-col gap-1 p-2">
               {isLoadingBranches ? (
                 <div className="space-y-2">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -376,16 +312,10 @@ export function GithubConnection() {
                     key={branch.name}
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-between p-2 h-auto text-sm font-normal hover:bg-accent"
+                    className="w-full justify-start text-sm font-normal hover:bg-accent"
                     onClick={() => handleBranchSelect(branch.name)}
                   >
-                    <div className="flex items-center space-x-2">
-                      <GitBranch className="size-4 flex-shrink-0" />
-                      <span className="truncate">{branch.name}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground flex-shrink-0">
-                      {branch.protected && "🔒"}
-                    </span>
+                    <span className="truncate">{branch.name}</span>
                   </Button>
                 ))
               )}

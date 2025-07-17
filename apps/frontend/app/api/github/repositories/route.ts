@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { formatTimeAgo } from "@/lib/utils";
 import { Endpoints } from "@octokit/types";
 import { prisma } from "@repo/db";
 import { headers } from "next/headers";
@@ -32,6 +33,7 @@ interface FilteredRepository {
     login: string;
     type: string;
   };
+  pushed_at: string | null;
 }
 
 interface GroupedRepos {
@@ -52,6 +54,7 @@ function filterRepositoryData(repo: UserRepository): FilteredRepository {
       login: repo.owner?.login || "",
       type: repo.owner?.type || "User",
     },
+    pushed_at: repo.pushed_at ? formatTimeAgo(repo.pushed_at) : null,
   };
 }
 

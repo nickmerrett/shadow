@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { ModelInfos, type ModelInfo, type ModelType } from "@repo/types";
 import { ArrowUp, Layers, Square } from "lucide-react";
 import { useEffect, useState } from "react";
-import { GithubConnection } from "./github-connection";
+import { GithubConnection } from "./github";
 
 export function PromptForm({
   onSubmit,
