@@ -1,5 +1,6 @@
 import { SessionProvider } from "@/components/auth/session-provider";
 import { UserMenu } from "@/components/auth/user-menu";
+import { QueryClientProvider } from "@/components/layout/query-client-provider";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { SidebarComponent } from "@/components/sidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -37,25 +38,27 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} overscroll-none antialiased`}
       >
-        <ThemeProvider
-          attribute="class"
-          forcedTheme="dark"
-          disableTransitionOnChange
-        >
-          <SessionProvider>
-            <SidebarProvider defaultOpen={defaultOpen}>
-              <SidebarComponent />
-              <div className="flex size-full min-h-svh flex-col relative">
-                <div className="flex w-full items-center justify-between p-3 sticky top-0">
-                  <SidebarTrigger />
-                  <UserMenu />
+        <QueryClientProvider>
+          <ThemeProvider
+            attribute="class"
+            forcedTheme="dark"
+            disableTransitionOnChange
+          >
+            <SessionProvider>
+              <SidebarProvider defaultOpen={defaultOpen}>
+                <SidebarComponent />
+                <div className="flex size-full min-h-svh flex-col relative">
+                  <div className="flex w-full items-center justify-between p-3 sticky top-0">
+                    <SidebarTrigger />
+                    <UserMenu />
+                  </div>
+                  {children}
                 </div>
-                {children}
-              </div>
-              <Toaster />
-            </SidebarProvider>
-          </SessionProvider>
-        </ThemeProvider>
+                <Toaster />
+              </SidebarProvider>
+            </SessionProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
       </body>
     </html>
   );
