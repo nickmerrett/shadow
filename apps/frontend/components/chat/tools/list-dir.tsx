@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import type { Message } from "@repo/types";
 import { FolderOpen } from "lucide-react";
 
@@ -16,7 +15,9 @@ export function ListDirTool({ message }: { message: Message }) {
         <FolderOpen className="size-4 text-blue-500 flex-shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">List directory:</span>
+            <span className="text-sm text-muted-foreground">
+              List directory:
+            </span>
             <code className="text-sm font-mono text-foreground bg-gray-100 dark:bg-gray-800/50 px-1.5 py-0.5 rounded truncate">
               {path || "./"}
             </code>

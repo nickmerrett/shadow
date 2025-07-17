@@ -4,15 +4,14 @@ import { CheckIcon, Loader, X } from "lucide-react";
 
 // Tool-specific components
 import { CodebaseSearchTool } from "./codebase-search";
+import { DeleteFileTool } from "./delete-file";
+import { EditFileTool } from "./edit-file";
+import { FileSearchTool } from "./file-search";
+import { GrepSearchTool } from "./grep-search";
+import { ListDirTool } from "./list-dir";
 import { ReadFileTool } from "./read-file";
 import { RunTerminalCmdTool } from "./run-terminal-cmd";
-import { ListDirTool } from "./list-dir";
-import { GrepSearchTool } from "./grep-search";
-import { EditFileTool } from "./edit-file";
 import { SearchReplaceTool } from "./search-replace";
-import { FileSearchTool } from "./file-search";
-import { DeleteFileTool } from "./delete-file";
-import { ReapplyTool } from "./reapply";
 
 // Tool component registry
 const TOOL_COMPONENTS = {
@@ -25,7 +24,6 @@ const TOOL_COMPONENTS = {
   search_replace: SearchReplaceTool,
   file_search: FileSearchTool,
   delete_file: DeleteFileTool,
-  reapply: ReapplyTool,
 } as const;
 
 export type ToolName = keyof typeof TOOL_COMPONENTS;
@@ -56,7 +54,7 @@ function ToolContent({ message }: { message: Message }) {
   }
 
   const ToolComponent = TOOL_COMPONENTS[toolMeta.name as ToolName];
-  
+
   if (!ToolComponent) {
     return (
       <div className="text-muted-foreground">
@@ -96,13 +94,12 @@ export function ToolMessage({ message }: { message: Message }) {
 // Export all tool components for potential individual use
 export {
   CodebaseSearchTool,
+  DeleteFileTool,
+  EditFileTool,
+  FileSearchTool,
+  GrepSearchTool,
+  ListDirTool,
   ReadFileTool,
   RunTerminalCmdTool,
-  ListDirTool,
-  GrepSearchTool,
-  EditFileTool,
   SearchReplaceTool,
-  FileSearchTool,
-  DeleteFileTool,
-  ReapplyTool,
 };
