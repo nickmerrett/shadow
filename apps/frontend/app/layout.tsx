@@ -1,5 +1,4 @@
 import { SessionProvider } from "@/components/auth/session-provider";
-import { UserMenu } from "@/components/auth/user-menu";
 import { QueryClientProvider } from "@/components/layout/query-client-provider";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { SidebarComponent } from "@/components/sidebar";
@@ -60,9 +59,9 @@ export default async function RootLayout({
               <SidebarProvider defaultOpen={defaultOpen}>
                 <SidebarComponent initialTasks={initialTasks} />
                 <div className="flex size-full min-h-svh flex-col relative">
-                  <div className="flex w-full items-center justify-between p-3 sticky top-0">
+                  <div className="flex w-full items-center justify-between p-3 sticky top-0 bg-background z-10">
                     <SidebarTrigger />
-                    <UserMenu />
+                    {/* <UserMenu /> */}
                   </div>
                   {children}
                 </div>
