@@ -71,7 +71,7 @@ export default async function RootLayout({
                     <div className="flex w-full items-center justify-between p-3 sticky top-0 bg-background z-10">
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger>
+                          <TooltipTrigger asChild>
                             <SidebarTrigger />
                           </TooltipTrigger>
                           <TooltipContent side="right">
@@ -79,14 +79,14 @@ export default async function RootLayout({
                           </TooltipContent>
                         </Tooltip>
 
-                                                 <Tooltip>
-                           <TooltipTrigger asChild>
-                             <AgentEnvironmentToggle />
-                           </TooltipTrigger>
-                           <TooltipContent side="left">
-                             Toggle Agent Environment
-                           </TooltipContent>
-                         </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <AgentEnvironmentToggle />
+                          </TooltipTrigger>
+                          <TooltipContent side="left">
+                            Toggle Agent Environment
+                          </TooltipContent>
+                        </Tooltip>
                       </TooltipProvider>
                     </div>
                     {children}
