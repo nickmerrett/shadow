@@ -241,7 +241,7 @@ async function indexRepo(
                 (s) => s.loc.startLine <= c.loc.startLine && s.loc.endLine >= c.loc.endLine
             );
 
-            let targetId: string | undefined;
+            let targetId: string | undefined = undefined;
             if (symMap.has(callee)) {
                 targetId = symMap.get(callee);
             } else if (globalSym.has(callee) && globalSym.get(callee)!.length === 1) {
@@ -312,9 +312,9 @@ function buildSignatureFromNode(
   if (!node || !sourceText) return "";
   
   
-  let start = sourceText
+  let start = "";
   if (node.startIndex !== undefined && node.endIndex !== undefined && sourceText !== undefined) {
-    start = sourceText.slice(node.startIndex, node.endIndex)
+    start = sourceText.slice(node.startIndex, node.endIndex);
   }
   if (start) {
     const lines = start.split("\n");
@@ -377,7 +377,7 @@ function buildEmbeddingsInMemory(
     offset += vec.length;
   });
 
-  const dim = chunks[0]?.embedding.length;
+  const dim = chunks[0]?.embedding.length ?? 0;
   const f32 = new Float32Array(allVecs);
   const buf = Buffer.from(f32.buffer);
 
