@@ -43,9 +43,9 @@ async function fetchRepoFiles(owner: string, repo: string, path: string = ''): P
             path: item.path
           });
           // Type assertion to handle the content property
-          const fileData = fileResponse.data as any;
+          const fileData = fileResponse.data as FileContentResponse;
           const content = Buffer.from(fileData.content, 'base64').toString('utf8');
-          files.push({ path: item.path, content, type: 'file' });
+          files.push({ path: fileData.path, content, type: 'file' });
         } else if (item.type === 'dir') {
           const subFiles = await fetchRepoFiles(owner, repo, item.path);
           files.push(...subFiles);
