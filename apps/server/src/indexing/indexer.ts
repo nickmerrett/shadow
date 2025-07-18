@@ -241,7 +241,7 @@ async function indexRepo(
                 (s) => s.loc.startLine <= c.loc.startLine && s.loc.endLine >= c.loc.endLine
             );
 
-            let targetId: string | undefined;
+            let targetId: string | undefined = undefined;
             if (symMap.has(callee)) {
                 targetId = symMap.get(callee);
             } else if (globalSym.has(callee) && globalSym.get(callee)!.length === 1) {
