@@ -3,8 +3,15 @@ import { QueryClientProvider } from "@/components/layout/query-client-provider";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { SidebarComponent } from "@/components/sidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getUser } from "@/lib/auth/get-user";
 import { getTasks } from "@/lib/db-operations/get-tasks";
+import { AppWindowMac } from "lucide-react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
@@ -60,8 +67,27 @@ export default async function RootLayout({
                 <SidebarComponent initialTasks={initialTasks} />
                 <div className="flex size-full min-h-svh flex-col relative">
                   <div className="flex w-full items-center justify-between p-3 sticky top-0 bg-background z-10">
-                    <SidebarTrigger />
-                    {/* <UserMenu /> */}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <SidebarTrigger />
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          Toggle Sidebar
+                        </TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <SidebarTrigger>
+                            <AppWindowMac className="size-4" />
+                          </SidebarTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">
+                          Toggle Agent Environment
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   {children}
                 </div>
