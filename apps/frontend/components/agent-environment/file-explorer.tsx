@@ -59,10 +59,16 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     const isSelected = selectedFile?.path === node.path;
 
     return (
-      <div key={node.path} className="flex flex-col gap-0.5">
+      <div key={node.path} className="flex flex-col gap-0.5 relative">
+        {isExpanded && (
+          <div
+            className="absolute bottom-0 w-px h-[calc(100%-30px)] bg-border hidden group-hover/files:block"
+            style={{ left: `${depth * 12 + 12}px` }}
+          />
+        )}
         <div
-          className={`flex group items-center gap-1.5 py-1 px-2 cursor-pointer hover:bg-sidebar-accent rounded-md ${
-            isSelected ? "bg-sidebar-accent/50" : ""
+          className={`flex group/item items-center gap-1.5 py-1 px-2 cursor-pointer hover:bg-white/10 rounded-md ${
+            isSelected ? "bg-white/5" : ""
           }`}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
           onClick={() => {
@@ -76,13 +82,13 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           {node.type === "folder" ? (
             isExpanded ? (
               <>
-                <FolderOpen className="size-4 text-muted-foreground group-hover:hidden" />
-                <ChevronDown className="size-4 text-muted-foreground group-hover:block hidden" />
+                <FolderOpen className="size-4 text-muted-foreground group/item-hover:hidden" />
+                <ChevronDown className="size-4 text-muted-foreground group/item-hover:block hidden" />
               </>
             ) : (
               <>
-                <Folder className="size-4 text-muted-foreground group-hover:hidden" />
-                <ChevronRight className="size-4 text-muted-foreground group-hover:block hidden" />
+                <Folder className="size-4 text-muted-foreground group/item-hover:hidden" />
+                <ChevronRight className="size-4 text-muted-foreground group/item-hover:block hidden" />
               </>
             )
           ) : (
@@ -91,7 +97,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           <span className="text-sm text-gray-300">{node.name}</span>
         </div>
         {node.type === "folder" && isExpanded && node.children && (
-          <div>
+          <div className="flex flex-col gap-0.5">
             {node.children.map((child) => renderNode(child, depth + 1))}
           </div>
         )}
@@ -124,7 +130,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
             </Tooltip>
           </TooltipProvider>
         </div>
-        <div className="flex-1 overflow-auto p-1 flex flex-col gap-0.5">
+        <div className="flex-1 overflow-auto p-1 flex flex-col gap-0.5 group/files">
           {files.map((file) => renderNode(file))}
         </div>
       </div>
