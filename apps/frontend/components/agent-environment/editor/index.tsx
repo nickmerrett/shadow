@@ -5,14 +5,31 @@ import { shikiToMonaco } from "@shikijs/monaco";
 import { ChevronRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Fragment, useEffect, useState } from "react";
-import { createHighlighter, type Highlighter } from "shiki";
-import type { FileNode } from "./file-explorer";
+import {
+  createHighlighter,
+  createJavaScriptRegexEngine,
+  ThemeInput,
+  type Highlighter,
+} from "shiki";
+import type { FileNode } from "../file-explorer";
+import theme from "./theme.json";
+
+const LANGUAGES = [
+  { id: "typescript" },
+  { id: "javascript" },
+  { id: "tsx" },
+  { id: "jsx" },
+  { id: "json" },
+  { id: "markdown" },
+  { id: "css" },
+  { id: "html" },
+];
 
 // Dynamic import Monaco Editor to avoid SSR issues
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center size-full text-muted-foreground">
+    <div className="flex items-center justify-center size-full bg-background">
       Loading editor...
     </div>
   ),
@@ -22,11 +39,14 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 let highlighterPromise: Promise<Highlighter> | null = null;
 let monacoPatched = false;
 
+const jsEngine = createJavaScriptRegexEngine({ forgiving: true });
+
 async function getHighlighter() {
   if (!highlighterPromise) {
     highlighterPromise = createHighlighter({
-      themes: ["vitesse-dark", "vitesse-light"],
-      langs: ["typescript", "javascript", "json", "markdown", "css", "html"],
+      themes: [theme as unknown as ThemeInput],
+      langs: LANGUAGES.map((lang) => lang.id),
+      engine: jsEngine,
     });
   }
   return highlighterPromise;
@@ -38,18 +58,12 @@ async function patchMonacoWithShiki() {
   try {
     const monaco = await loader.init();
 
-    // Register languages only once
-    const languages = [
-      { id: "typescript" },
-      { id: "javascript" },
-      { id: "json" },
-      { id: "markdown" },
-      { id: "css" },
-      { id: "html" },
-    ];
-
-    languages.forEach((lang) => {
-      if (!monaco.languages.getLanguages().find((l: any) => l.id === lang.id)) {
+    LANGUAGES.forEach((lang) => {
+      if (
+        !monaco.languages
+          .getLanguages()
+          .find((l: { id: string }) => l.id === lang.id)
+      ) {
         monaco.languages.register(lang);
       }
     });
@@ -59,7 +73,6 @@ async function patchMonacoWithShiki() {
     monacoPatched = true;
   } catch (error) {
     console.error("Failed to initialize Shiki with Monaco:", error);
-    // Continue without Shiki - Monaco will use default highlighting
   }
 }
 
@@ -80,11 +93,13 @@ export const Editor: React.FC<EditorProps> = ({ selectedFile }) => {
     const extension = path.split(".").pop()?.toLowerCase();
     switch (extension) {
       case "tsx":
+        return "tsx";
       case "ts":
         return "typescript";
       case "js":
-      case "jsx":
         return "javascript";
+      case "jsx":
+        return "jsx";
       case "json":
         return "json";
       case "md":
@@ -101,7 +116,7 @@ export const Editor: React.FC<EditorProps> = ({ selectedFile }) => {
   return (
     <div className="flex flex-col size-full bg-sidebar">
       <div className="p-2 border-b border-sidebar-border">
-        <div className="text-[13px] text-muted-foreground flex items-center gap-0.5">
+        <div className="text-[13px] text-muted-foreground flex items-center gap-0.5 h-5">
           {selectedFile
             ? selectedFile.path.split("/").map((part, index) => (
                 <Fragment key={index}>
@@ -125,7 +140,7 @@ export const Editor: React.FC<EditorProps> = ({ selectedFile }) => {
           value={
             selectedFile?.content || "// Select a file to view its content"
           }
-          theme={isShikiReady ? "vitesse-dark" : "vs-dark"}
+          theme={isShikiReady ? "vesper" : "vs-dark"}
           options={{
             readOnly: true,
             minimap: { enabled: false },

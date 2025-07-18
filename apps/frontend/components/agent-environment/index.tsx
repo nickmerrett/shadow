@@ -5,11 +5,13 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Editor } from "./editor";
 import { FileExplorer, type FileNode } from "./file-explorer";
 import { mockFileStructure } from "./mock-data";
-import { Terminal } from "./terminal";
+
+const Terminal = dynamic(() => import("./terminal"), { ssr: false });
 
 export const AgentEnvironment: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<FileNode | undefined>(

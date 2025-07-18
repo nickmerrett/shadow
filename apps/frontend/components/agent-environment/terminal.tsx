@@ -5,7 +5,7 @@ import { Terminal as XTerm } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { useEffect, useRef, useState } from "react";
 
-export const Terminal: React.FC = () => {
+export default function Terminal() {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -103,4 +103,4 @@ export const Terminal: React.FC = () => {
       </div>
     </div>
   );
-};
+}
