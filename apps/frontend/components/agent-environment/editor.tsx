@@ -1,15 +1,81 @@
 "use client";
 
-import { Editor as MonacoEditor } from "@monaco-editor/react";
+import { loader } from "@monaco-editor/react";
+import { shikiToMonaco } from "@shikijs/monaco";
 import { ChevronRight } from "lucide-react";
-import { Fragment } from "react";
+import dynamic from "next/dynamic";
+import { Fragment, useEffect, useState } from "react";
+import { createHighlighter, type Highlighter } from "shiki";
 import type { FileNode } from "./file-explorer";
+
+// Dynamic import Monaco Editor to avoid SSR issues
+const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center size-full text-muted-foreground">
+      Loading editor...
+    </div>
+  ),
+});
+
+// Singleton pattern for performance - avoid re-initializing
+let highlighterPromise: Promise<Highlighter> | null = null;
+let monacoPatched = false;
+
+async function getHighlighter() {
+  if (!highlighterPromise) {
+    highlighterPromise = createHighlighter({
+      themes: ["vitesse-dark", "vitesse-light"],
+      langs: ["typescript", "javascript", "json", "markdown", "css", "html"],
+    });
+  }
+  return highlighterPromise;
+}
+
+async function patchMonacoWithShiki() {
+  if (monacoPatched) return;
+
+  try {
+    const monaco = await loader.init();
+
+    // Register languages only once
+    const languages = [
+      { id: "typescript" },
+      { id: "javascript" },
+      { id: "json" },
+      { id: "markdown" },
+      { id: "css" },
+      { id: "html" },
+    ];
+
+    languages.forEach((lang) => {
+      if (!monaco.languages.getLanguages().find((l: any) => l.id === lang.id)) {
+        monaco.languages.register(lang);
+      }
+    });
+
+    const highlighter = await getHighlighter();
+    shikiToMonaco(highlighter, monaco);
+    monacoPatched = true;
+  } catch (error) {
+    console.error("Failed to initialize Shiki with Monaco:", error);
+    // Continue without Shiki - Monaco will use default highlighting
+  }
+}
 
 interface EditorProps {
   selectedFile?: FileNode;
 }
 
 export const Editor: React.FC<EditorProps> = ({ selectedFile }) => {
+  const [isShikiReady, setIsShikiReady] = useState(false);
+
+  useEffect(() => {
+    patchMonacoWithShiki().then(() => {
+      setIsShikiReady(true);
+    });
+  }, []);
+
   const getLanguageFromPath = (path: string): string => {
     const extension = path.split(".").pop()?.toLowerCase();
     switch (extension) {
@@ -59,7 +125,7 @@ export const Editor: React.FC<EditorProps> = ({ selectedFile }) => {
           value={
             selectedFile?.content || "// Select a file to view its content"
           }
-          theme="vs-dark"
+          theme={isShikiReady ? "vitesse-dark" : "vs-dark"}
           options={{
             readOnly: true,
             minimap: { enabled: false },
