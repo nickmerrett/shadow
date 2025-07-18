@@ -1,10 +1,13 @@
 "use client";
 
-import { Task } from "@/app/tasks/[taskId]/page";
 import { Messages } from "@/components/chat/messages";
 import { PromptForm } from "@/components/chat/prompt-form";
+import { useSendMessage } from "@/hooks/use-send-message";
+import { useTaskMessages } from "@/hooks/use-task-messages";
+import type { Task } from "@/lib/db-operations/get-task";
 import { socket } from "@/lib/socket";
 import type { Message, StreamChunk } from "@repo/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 // Types for streaming tool calls
@@ -25,13 +28,20 @@ export function TaskPageContent({
   initialMessages: Message[];
 }) {
   const taskId = task.id;
+  const queryClient = useQueryClient();
 
-  const [messages, setMessages] = useState(initialMessages);
+  const { data: messages = [] } = useTaskMessages(taskId, initialMessages);
+  const sendMessageMutation = useSendMessage();
+
   const [accumulatedContent, setAccumulatedContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingToolCalls, setStreamingToolCalls] = useState<
     StreamingToolCall[]
   >([]);
+
+  useEffect(() => {
+    console.log("messages", messages);
+  }, [messages]);
 
   useEffect(() => {
     function onConnect() {
@@ -47,32 +57,8 @@ export function TaskPageContent({
 
     function onChatHistory(data: { taskId: string; messages: Message[] }) {
       if (data.taskId === taskId) {
-        // Merge with any optimistic messages that might not be in the server response yet
-        setMessages((prevMessages) => {
-          const serverMessages = data.messages;
-          const optimisticMessages = prevMessages.filter((msg) =>
-            msg.id.startsWith("temp-")
-          );
-
-          // If we have optimistic messages, check if they're now in the server response
-          if (optimisticMessages.length > 0) {
-            const lastServerMessage = serverMessages[serverMessages.length - 1];
-            const lastOptimistic =
-              optimisticMessages[optimisticMessages.length - 1];
-
-            // If the last server message matches our optimistic message content, replace it
-            if (
-              lastServerMessage &&
-              lastOptimistic &&
-              lastServerMessage.role === "user" &&
-              lastServerMessage.content === lastOptimistic.content
-            ) {
-              return serverMessages; // Server has our message, use server version
-            }
-          }
-
-          return serverMessages;
-        });
+        // Update the query cache directly with fresh data from server
+        queryClient.setQueryData(["task-messages", taskId], data.messages);
 
         // Clear accumulated content and tool calls when we have the updated chat history
         setAccumulatedContent("");
@@ -100,15 +86,13 @@ export function TaskPageContent({
         case "tool-call":
           if (chunk.toolCall) {
             console.log("Tool call:", chunk.toolCall);
-            setStreamingToolCalls((prev) => [
-              ...prev,
-              {
-                id: chunk.toolCall!.id,
-                name: chunk.toolCall!.name,
-                args: chunk.toolCall!.args,
-                status: "running",
-              },
-            ]);
+            const newToolCall: StreamingToolCall = {
+              id: chunk.toolCall.id,
+              name: chunk.toolCall.name,
+              args: chunk.toolCall.args,
+              status: "running",
+            };
+            setStreamingToolCalls((prev) => [...prev, newToolCall]);
           }
           break;
 
@@ -197,17 +181,8 @@ export function TaskPageContent({
   const handleSendMessage = (message: string, model: string) => {
     if (!taskId || !message.trim()) return;
 
-    // Optimistically add user message to UI immediately
-    const optimisticUserMessage: Message = {
-      id: `temp-${Date.now()}`, // Temporary ID for optimistic message
-      role: "user",
-      content: message.trim(),
-      createdAt: new Date().toISOString(),
-      metadata: { isStreaming: false }, // Mark as not streaming
-    };
-
-    // Add the optimistic message to local state immediately
-    setMessages((prev) => [...prev, optimisticUserMessage]);
+    // Use the mutation for optimistic updates
+    sendMessageMutation.mutate({ taskId, message, model });
 
     console.log("Sending message:", { taskId, message, model });
     socket.emit("user-message", {
@@ -263,7 +238,10 @@ export function TaskPageContent({
   return (
     <div className="mx-auto flex w-full grow max-w-lg flex-col items-center">
       <Messages messages={displayMessages} />
-      <PromptForm onSubmit={handleSendMessage} isStreaming={isStreaming} />
+      <PromptForm
+        onSubmit={handleSendMessage}
+        isStreaming={isStreaming || sendMessageMutation.isPending}
+      />
     </div>
   );
 }

@@ -1,22 +1,7 @@
 import { TaskPageContent } from "@/components/chat/task";
-import { Message } from "@repo/types";
-
-export type Task = {
-  id: string;
-  title: string | null;
-  description: string | null;
-  status: string;
-  repoUrl: string;
-  branch: string;
-  mode: string;
-  createdAt: string;
-  updatedAt: string;
-  user?: {
-    id: string;
-    name: string | null;
-    email: string;
-  };
-};
+import { getTask } from "@/lib/db-operations/get-task";
+import { getTaskMessages } from "@/lib/db-operations/get-task-messages";
+import { notFound } from "next/navigation";
 
 export default async function TaskPage({
   params,
@@ -25,15 +10,12 @@ export default async function TaskPage({
 }) {
   const { taskId } = await params;
 
-  const taskData = await fetch(`http://localhost:4000/api/tasks/${taskId}`);
-  const task = (await taskData.json()) as Task;
+  const task = await getTask(taskId);
+  if (!task) {
+    notFound();
+  }
 
-  const messagesData = await fetch(
-    `http://localhost:4000/api/tasks/${taskId}/messages`
-  );
-  const { messages } = (await messagesData.json()) as { messages: Message[] };
-
-  console.log("messages", messages);
+  const messages = await getTaskMessages(taskId);
 
   return <TaskPageContent task={task} initialMessages={messages} />;
 }
