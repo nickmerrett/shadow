@@ -7,7 +7,6 @@ import logger from "@/indexing/logger";
 import { getHash, getNodeHash } from "@/indexing/utils/hash";
 import { sliceByLoc } from "@/indexing/utils/text";
 import { tokenize } from "@/indexing/utils/tokenize";
-import { Octokit } from "@octokit/rest";
 import TreeSitter from "tree-sitter";
 
 export interface FileContentResponse {
@@ -36,6 +35,7 @@ async function fetchRepoFiles(
   repo: string,
   path: string = ""
 ): Promise<Array<{ path: string; content: string; type: string }>> {
+  const { Octokit } = await import("@octokit/rest");
   const octokit = new Octokit({
     auth: process.env.GITHUB_TOKEN,
   });
@@ -94,7 +94,6 @@ async function indexRepo(
 }> {
   const { maxLines = 200, embed = false, paths = null } = options || {};
 
-  // eslint-disable-next-line no-console
   logger.info(
     `Indexing ${repoName}${paths ? " (filtered)" : ""}${embed ? " + embeddings" : ""}`
   );
@@ -359,15 +358,12 @@ async function indexRepo(
       logger.info(`Found ${chunks.length} chunks to embed`);
       if (chunks.length > 0) {
         await embedGraphChunks(chunks, { provider: "local-transformers" });
-        // eslint-disable-next-line no-console
         logger.info(`Embedded ${chunks.length} chunks`);
         // Debug: check if embeddings were actually added
         const withEmbeddings = chunks.filter((ch) => ch.embedding);
-        // eslint-disable-next-line no-console
         logger.info(`${withEmbeddings.length} chunks have embeddings`);
       }
     } else {
-      // eslint-disable-next-line no-console
       logger.info("Embedding skipped (embed=false).");
     }
 
@@ -375,7 +371,6 @@ async function indexRepo(
     // if (embed) saveEmbeddings(graph, repoName); // save binary embeddings first
     // saveGraph(graph, repoName); // then write graph (strips inlined embeddings)
     // buildInverted(graph, outDir); // This line is removed as per the new_code
-    // eslint-disable-next-line no-console
     logger.info(`Indexed ${graph.nodes.size} nodes.`);
     return {
       graph,
