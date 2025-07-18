@@ -1,10 +1,14 @@
 "use client";
 
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { useState } from "react";
 import { Editor } from "./editor";
 import { FileExplorer, type FileNode } from "./file-explorer";
 import { mockFileStructure } from "./mock-data";
-import { ResizableSplit } from "./resizable-split";
 import { Terminal } from "./terminal";
 
 export const AgentEnvironment: React.FC = () => {
@@ -14,7 +18,7 @@ export const AgentEnvironment: React.FC = () => {
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
 
   return (
-    <div className="h-full flex bg-white dark:bg-gray-800">
+    <div className="size-full max-h-svh overflow-hidden flex">
       <FileExplorer
         files={mockFileStructure}
         onFileSelect={setSelectedFile}
@@ -22,12 +26,16 @@ export const AgentEnvironment: React.FC = () => {
         isCollapsed={isExplorerCollapsed}
         onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
       />
-      
       <div className="flex-1">
-        <ResizableSplit direction="vertical" initialSplit={60} minSize={10}>
-          <Editor selectedFile={selectedFile} />
-          <Terminal />
-        </ResizableSplit>
+        <ResizablePanelGroup direction="vertical" className="h-full">
+          <ResizablePanel minSize={10} defaultSize={60}>
+            <Editor selectedFile={selectedFile} />
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel minSize={10} defaultSize={40}>
+            <Terminal />
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
     </div>
   );
