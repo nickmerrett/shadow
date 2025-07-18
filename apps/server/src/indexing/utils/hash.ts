@@ -20,4 +20,5 @@ function getNodeHash(repoId: string, path: string, kind: string, name: string, l
     return h.digest("hex");
 }
 
-export { HashGenerator, getHash, getNodeHash }
+export { getHash, getNodeHash };
+export type { HashGenerator };

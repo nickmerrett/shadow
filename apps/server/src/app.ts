@@ -6,6 +6,7 @@ import http from "http";
 import { ChatService } from "./chat";
 import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";
+import { router as IndexingRouter } from "@/indexing/index";
 
 const app = express();
 const chatService = new ChatService();

@@ -17,6 +17,19 @@ interface GraphJSON {
 }
   
 
+interface GraphNodeConstructorParams {
+  id: string;
+  kind: string;
+  name: string;
+  path?: string;
+  lang?: string;
+  loc?: Location;
+  signature?: string;
+  code?: string;
+  doc?: string;
+  meta?: Record<string, any>;
+}
+
 class GraphNode implements HashGenerator {
   public id: string;
   public kind: string;
@@ -161,4 +174,5 @@ function makeId(repoId: string, path: string, kind: string, name: string, loc: {
   return h.digest("hex");
 }
 
-export { GraphNode, GraphEdge, Graph, GraphJSON, Location, makeId };   
+export { GraphNode, GraphEdge, Graph, makeId };
+export type { GraphJSON, Location };   

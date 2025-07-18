@@ -38,7 +38,7 @@ router.post("/tree-sitter", (req: express.Request<{}, {}, CodeBody>, res) => {
     return;
   }
   const tree = parser.parse(text);
-  res.json({ tree: tree.rootNode, language: language });
+  res.json({ tree: tree.rootNode, language: detectedLanguage });
 });
 
 router.post("/index", async (req: express.Request<{}, {}, {repo: string, options: IndexRepoOptions | null}>, res) => {

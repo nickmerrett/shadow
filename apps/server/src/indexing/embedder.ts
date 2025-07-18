@@ -61,13 +61,14 @@ function cheapHashEmbedding(text: string, dim: number = 256): Float32Array {
   const buf = Buffer.from(text);
   const vec = new Float32Array(dim);
   for (let i = 0; i < buf.length; i++) {
-    vec[buf[i] % dim] += 1;
+    const index = buf[i]! % dim;
+    vec[index] = (vec[index] || 0) + 1;
   }
   // L2 normalize
   let norm = 0;
-  for (let i = 0; i < dim; i++) norm += vec[i] * vec[i];
+  for (let i = 0; i < dim; i++) norm += (vec[i] || 0) * (vec[i] || 0);
   norm = Math.sqrt(norm) || 1;
-  for (let i = 0; i < dim; i++) vec[i] /= norm;
+  for (let i = 0; i < dim; i++) vec[i] = (vec[i] || 0) / norm;
   return vec;
 }
 
@@ -216,10 +217,16 @@ async function embedGraphChunks(
   const texts = chunks.map(ch => ch.code || '');
   const { embeddings, dim } = await embedTexts(texts, opts);
   for (let i = 0; i < chunks.length; i++) {
-    chunks[i].embedding = embeddings[i];
-    // record dim in meta for persistence
-    if (chunks[i].meta) chunks[i].meta.embedding_dim = dim;
-    else chunks[i].meta = { embedding_dim: dim };
+    const chunk = chunks[i];
+    if (chunk) {
+      chunk.embedding = embeddings[i];
+      // record dim in meta for persistence
+      if (chunk.meta) {
+        chunk.meta.embedding_dim = dim;
+      } else {
+        chunk.meta = { embedding_dim: dim };
+      }
+    }
   }
   return dim;
 }

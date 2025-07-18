@@ -13,7 +13,7 @@ export function computeLineOffsets(text: string): number[] {
   export function posToByte(offsets: number[], line: number, column: number): number {
     if (line < 0) line = 0;
     if (line >= offsets.length) line = offsets.length - 1;
-    return offsets[line] + column;
+    return (offsets[line] ?? 0) + column;
   }
   
   export function sliceByLoc(text: string, loc: { startLine: number; startCol: number; endLine: number; endCol: number }): string {

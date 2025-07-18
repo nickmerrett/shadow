@@ -10,7 +10,18 @@ import { getHash, getNodeHash } from '@/indexing/utils/hash';
 import { embedGraphChunks, ChunkNode } from '@/indexing/embedder';
 import logger from '@/indexing/logger';
 
-
+export interface FileContentResponse {
+    content: string;
+    path: string;
+    type: string;
+  }
+  
+  export interface GitHubFileResponse {
+    content: string;
+    path: string;
+    type: string;
+  }
+  
 export interface IndexRepoOptions {
   maxLines?: number;
   embed?: boolean;
@@ -60,7 +71,7 @@ async function fetchRepoFiles(owner: string, repo: string, path: string = ''): P
       return [{ path: fileData.path, content, type: 'file' }];
     }
   } catch (error) {
-    logger.error(`Error fetching ${owner}/${repo}:`, error);
+    logger.error(`Error fetching ${owner}/${repo}: ${error}`);
     return [];
   }
 }
@@ -84,8 +95,15 @@ async function indexRepo(
   let repoId: string;
 
   // Check if it's a GitHub repo (format: "owner/repo")
-  if (repoName.includes('/') && !repoName.startsWith('/') && !repoName.startsWith('./')) {
+  if (
+    repoName.includes('/') &&
+    !repoName.startsWith('/') &&
+    !repoName.startsWith('./')
+  ) {
     const [owner, repo] = repoName.split('/');
+    if (!owner || !repo) {
+      throw new Error(`Invalid repo name: ${repoName}`);
+    }
     logger.info(`Fetching GitHub repo: ${owner}/${repo}`);
     
     files = await fetchRepoFiles(owner, repo);
@@ -215,7 +233,7 @@ async function indexRepo(
         for (const c of calls) {
             const callText = file.content.slice(c.loc.byteStart, c.loc.byteEnd);
             const m = callText.match(/([A-Za-z_][A-Za-z0-9_]*)/);
-            if (!m) continue;
+            if (!m || !m[1]) continue;
             const callee = m[1];
 
             // identify caller symbol enclosing the call site (if any)
@@ -223,9 +241,9 @@ async function indexRepo(
                 (s) => s.loc.startLine <= c.loc.startLine && s.loc.endLine >= c.loc.endLine
             );
 
-            let targetId: string | null = null;
+            let targetId: string | undefined;
             if (symMap.has(callee)) {
-                targetId = symMap.get(callee)!;
+                targetId = symMap.get(callee);
             } else if (globalSym.has(callee) && globalSym.get(callee)!.length === 1) {
                 targetId = globalSym.get(callee)![0]; // unique symbol across repo
             }
@@ -286,9 +304,26 @@ async function indexRepo(
 }
 
 // Quick signature to see what a function does
-function buildSignatureFromNode(node: any, spec: any, sourceText: string): string {
-  const start = sourceText.slice(node.startIndex, node.endIndex).split('\n')[0].trim();
-  return start.length > 200 ? start.slice(0, 200) + '…' : start;
+function buildSignatureFromNode(
+  node: { startIndex: number; endIndex: number } | undefined,
+  spec: any,
+  sourceText: string | undefined
+): string {
+  if (!node || !sourceText) return "";
+  
+  
+  let start = sourceText
+  if (node.startIndex !== undefined && node.endIndex !== undefined && sourceText !== undefined) {
+    start = sourceText.slice(node.startIndex, node.endIndex)
+  }
+  if (start) {
+    const lines = start.split("\n");
+    if (lines[0]) {
+      start = lines[0].trim();
+    }
+  }
+
+  return start.length > 200 ? start.slice(0, 200) + "…" : start;
 }
 
 // Helper functions that work in memory instead of writing files
@@ -319,12 +354,16 @@ function buildInvertedInMemory(graph: Graph): Record<string, string[]> {
   return serial;
 }
 
-function buildEmbeddingsInMemory(graph: Graph): { index: any; binary: Buffer } | undefined {
+function buildEmbeddingsInMemory(
+  graph: Graph
+): { index: any; binary: Buffer } | undefined {
   const chunks = Array.from(graph.nodes.values()).filter(
-    (node): node is GraphNode & { embedding: Float32Array } => 
-      node.kind === 'CHUNK' && Array.isArray(node.embedding) && node.embedding.length > 0
+    (node): node is GraphNode & { embedding: Float32Array } =>
+      node.kind === "CHUNK" &&
+      Array.isArray(node.embedding) &&
+      node.embedding.length > 0
   );
-  
+
   if (chunks.length === 0) return undefined;
 
   const idx: Record<string, { offset: number; length: number }> = {};
@@ -338,7 +377,7 @@ function buildEmbeddingsInMemory(graph: Graph): { index: any; binary: Buffer } |
     offset += vec.length;
   });
 
-  const dim = chunks[0].embedding.length;
+  const dim = chunks[0]?.embedding.length;
   const f32 = new Float32Array(allVecs);
   const buf = Buffer.from(f32.buffer);
 
