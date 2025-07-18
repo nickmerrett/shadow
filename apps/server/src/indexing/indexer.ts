@@ -103,7 +103,7 @@ async function indexRepo(
       lang: '' 
     });
     graph.addNode(repoNode);
-    console.log(`Number of nodes in the graph: ${graph.nodes.size}`);
+    logger.info(`Number of nodes in the graph: ${graph.nodes.size}`);
 
     for (const file of files) {
         const spec = getLanguageForPath(file.path);
