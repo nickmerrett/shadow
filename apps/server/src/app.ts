@@ -3,10 +3,10 @@ import cors from "cors";
 import express from "express";
 import http from "http";
 import { prisma } from "../../../packages/db/src/client";
-import { ChatService } from "./chat";
-import { errorHandler } from "./prompt/middleware/error-handler";
+import { ChatService } from "./chat"; 
+import { router as IndexingRouter } from "@/indexing/index";
+import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";
-import { router as IndexingRouter } from "./indexing";
 
 const app = express();
 const chatService = new ChatService();
