@@ -57,7 +57,7 @@ function TooltipContent({
       >
         {children}
         {shortcut && (
-          <span className="py-0.5 px-1 rounded border border-b-2 border-sidebar-border bg-sidebar-accent">
+          <span className="py-0.5 px-1 rounded border border-b-2 border-sidebar-border bg-gradient-to-t from-transparent to-sidebar-accent">
             {shortcut}
           </span>
         )}

@@ -31,9 +31,13 @@ export const AgentEnvironment: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="vertical" className="h-full">
           <ResizablePanel minSize={10} defaultSize={60}>
-            <Editor selectedFile={selectedFile} />
+            <Editor
+              selectedFile={selectedFile}
+              isExplorerCollapsed={isExplorerCollapsed}
+              onToggleCollapse={() => setIsExplorerCollapsed((prev) => !prev)}
+            />
           </ResizablePanel>
-          <ResizableHandle />
+          <ResizableHandle className="bg-sidebar-border" />
           <ResizablePanel minSize={10} defaultSize={40}>
             <Terminal />
           </ResizablePanel>

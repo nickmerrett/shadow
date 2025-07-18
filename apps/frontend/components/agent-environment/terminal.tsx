@@ -95,8 +95,8 @@ export default function Terminal() {
 
   return (
     <div className="flex flex-col h-full bg-sidebar">
-      <div className="p-2 border-b border-sidebar-border">
-        <h2 className="text-[13px] text-muted-foreground">Terminal</h2>
+      <div className="p-2 border-b border-sidebar-border select-none">
+        <div className="text-sm">Terminal</div>
       </div>
       <div className="flex-1 p-2 overflow-hidden bg-background">
         <div ref={terminalRef} className="h-full" />

@@ -1,7 +1,21 @@
 "use client";
 
-import { ChevronDown, ChevronRight, File, Folder, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronsLeft,
+  File,
+  Folder,
+  FolderOpen,
+} from "lucide-react";
 import { useState } from "react";
+import { Button } from "../ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
 
 export interface FileNode {
   name: string;
@@ -45,9 +59,9 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     const isSelected = selectedFile?.path === node.path;
 
     return (
-      <div key={node.path}>
+      <div key={node.path} className="flex flex-col gap-0.5">
         <div
-          className={`flex items-center gap-1 py-1 px-2 cursor-pointer hover:bg-sidebar-accent ${
+          className={`flex group items-center gap-1.5 py-1 px-2 cursor-pointer hover:bg-sidebar-accent rounded-md ${
             isSelected ? "bg-sidebar-accent/50" : ""
           }`}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
@@ -60,19 +74,19 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           }}
         >
           {node.type === "folder" ? (
-            <>
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              )}
-              <Folder className="h-4 w-4 text-muted-foreground" />
-            </>
+            isExpanded ? (
+              <>
+                <FolderOpen className="size-4 text-muted-foreground group-hover:hidden" />
+                <ChevronDown className="size-4 text-muted-foreground group-hover:block hidden" />
+              </>
+            ) : (
+              <>
+                <Folder className="size-4 text-muted-foreground group-hover:hidden" />
+                <ChevronRight className="size-4 text-muted-foreground group-hover:block hidden" />
+              </>
+            )
           ) : (
-            <>
-              <div className="w-4" />
-              <File className="h-4 w-4 text-muted-foreground" />
-            </>
+            <File className="size-4 text-muted-foreground" />
           )}
           <span className="text-sm text-gray-300">{node.name}</span>
         </div>
@@ -85,33 +99,36 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     );
   };
 
-  if (isCollapsed) {
+  if (!isCollapsed)
     return (
-      <div className="w-12 bg-sidebar border-r border-sidebar-border flex flex-col">
-        <button
-          onClick={onToggleCollapse}
-          className="p-3 hover:bg-sidebar-accent border-b border-sidebar-border"
-        >
-          <Folder className="h-4 w-4 text-muted-foreground" />
-        </button>
+      <div className="w-52 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col select-none">
+        <div className="px-2 h-13 border-b border-sidebar-border flex items-center justify-between">
+          <h3 className="text-sm">Agent Environment</h3>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 cursor-pointer hover:bg-sidebar-accent"
+                  onClick={onToggleCollapse}
+                >
+                  <ChevronsLeft className="size-4" />
+                  <span className="sr-only">Close File Explorer</span>
+                </Button>
+              </TooltipTrigger>
+
+              <TooltipContent side="bottom" align="end">
+                Close File Explorer
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <div className="flex-1 overflow-auto p-1 flex flex-col gap-0.5">
+          {files.map((file) => renderNode(file))}
+        </div>
       </div>
     );
-  }
 
-  return (
-    <div className="w-52 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col select-none">
-      <div className="p-2 border-b border-sidebar-border flex items-center justify-between">
-        <h3 className="text-[13px] text-muted-foreground">File Explorer</h3>
-        <button
-          onClick={onToggleCollapse}
-          className="p-1 hover:bg-sidebar-accent rounded"
-        >
-          <X className="h-3 w-3 text-muted-foreground" />
-        </button>
-      </div>
-      <div className="flex-1 overflow-auto py-2">
-        {files.map((file) => renderNode(file))}
-      </div>
-    </div>
-  );
+  return null;
 };

@@ -57,11 +57,11 @@ export function TaskLayoutContent({ children }: { children: React.ReactNode }) {
                   >
                     <AppWindowMac className="size-4" />
                     <span className="sr-only">
-                      Toggle Agent Environment (⌘⇧\)
+                      Toggle Agent Environment (⌘⌥\)
                     </span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left" shortcut="⌘⇧B">
+                <TooltipContent side="left" shortcut="⌘⌥B">
                   Toggle Agent Environment
                 </TooltipContent>
               </Tooltip>

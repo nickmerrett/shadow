@@ -1,9 +1,16 @@
 "use client";
 
 import { patchMonacoWithShiki } from "@/lib/editor/highlighter";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChevronsRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Fragment, useEffect, useState } from "react";
+import { Button } from "../ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
 import type { FileNode } from "./file-explorer";
 
 // Dynamic import Monaco Editor to avoid SSR issues
@@ -16,7 +23,15 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ),
 });
 
-export function Editor({ selectedFile }: { selectedFile?: FileNode }) {
+export function Editor({
+  selectedFile,
+  isExplorerCollapsed,
+  onToggleCollapse,
+}: {
+  selectedFile?: FileNode;
+  isExplorerCollapsed: boolean;
+  onToggleCollapse: () => void;
+}) {
   const [isShikiReady, setIsShikiReady] = useState(false);
 
   useEffect(() => {
@@ -50,24 +65,50 @@ export function Editor({ selectedFile }: { selectedFile?: FileNode }) {
   };
 
   return (
-    <div className="flex flex-col size-full bg-sidebar">
-      <div className="p-2 border-b border-sidebar-border">
-        <div className="text-[13px] text-muted-foreground flex items-center gap-0.5 h-5">
-          {selectedFile
-            ? selectedFile.path.split("/").map((part, index) => (
-                <Fragment key={index}>
-                  {index > 1 && (
-                    <span className="text-muted-foreground">
-                      <ChevronRight className="size-3" />
+    <div className="flex flex-col size-full bg-background">
+      <div className="px-2 h-13 border-b border-sidebar-border bg-card flex items-center gap-2">
+        {isExplorerCollapsed && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 cursor-pointer hover:bg-sidebar-accent"
+                  onClick={onToggleCollapse}
+                >
+                  <ChevronsRight className="size-4" />
+                  <span className="sr-only">Open File Explorer</span>
+                </Button>
+              </TooltipTrigger>
+
+              <TooltipContent side="bottom" align="start">
+                Open File Explorer
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        <div className="flex flex-col items-start justify-center">
+          <div className="text-sm select-none">Code Editor</div>
+          <div className="text-[13px] text-muted-foreground flex items-center gap-0.5">
+            {selectedFile
+              ? selectedFile.path.split("/").map((part, index) => (
+                  <Fragment key={index}>
+                    {index > 1 && (
+                      <span className="text-muted-foreground">
+                        <ChevronRight className="size-3" />
+                      </span>
+                    )}
+                    <span className="text-muted-foreground leading-tight">
+                      {part}
                     </span>
-                  )}
-                  <span className="text-muted-foreground">{part}</span>
-                </Fragment>
-              ))
-            : "No file selected"}
+                  </Fragment>
+                ))
+              : "No file selected"}
+          </div>
         </div>
       </div>
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden pl-2 code-editor">
         <MonacoEditor
           height="100%"
           language={
@@ -83,6 +124,11 @@ export function Editor({ selectedFile }: { selectedFile?: FileNode }) {
             fontSize: 14,
             wordWrap: "on",
             scrollBeyondLastLine: false,
+            lineNumbersMinChars: 2,
+            padding: {
+              top: 8,
+              bottom: 8,
+            },
           }}
         />
       </div>
