@@ -19,7 +19,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
 import { logger } from './logger';
-import fetch from 'node-fetch';
+// Using the global fetch API available in Node.js 18+
 
 
 type EmbeddingProvider = 'jina-api' | 'local-transformers' | 'cheap-hash';
