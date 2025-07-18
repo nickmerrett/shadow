@@ -41,10 +41,10 @@ class GraphNode implements HashGenerator {
     code = '',
     doc = '',
     meta = {},
-  }: Partial<GraphNode>) {
-    this.id = id!;
-    this.kind = kind!;
-    this.name = name!;
+  }: GraphNodeConstructorParams) {
+    this.id = id;
+    this.kind = kind;
+    this.name = name;
     this.path = path;
     this.lang = lang;
     this.loc = loc;
