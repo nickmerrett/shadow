@@ -34,3 +34,4 @@ test-workspace/
 
 # Indexing stuff (Rajan)
 .shadow/
+bun.lock

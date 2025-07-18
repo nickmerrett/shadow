@@ -11,7 +11,9 @@
     "validate": "tsx src/validate-setup.ts",
     "lint": "eslint 'src/**/*.ts'",
     "check-types": "tsc --noEmit",
-    "format": "prettier --write 'src/**/*.ts'"
+    "format": "prettier --write 'src/**/*.ts'",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "author": "",
   "license": "ISC",
@@ -24,7 +26,11 @@
     "ai": "^4.3.19",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
+    "node-fetch": "^3.3.2",
     "socket.io": "^4.8.1",
+    "tree-sitter": "^0.22.4",
+    "tree-sitter-javascript": "^0.23.1",
+    "tree-sitter-python": "^0.23.6",
     "zod": "^3.23.8"
   },
   "devDependencies": {

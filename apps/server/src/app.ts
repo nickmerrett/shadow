@@ -26,6 +26,9 @@ app.get("/", (req, res) => {
   res.send("<h1>Hello world</h1>");
 });
 
+// Indexing routes
+app.use("/api/indexing", IndexingRouter);
+
 // Get task details
 app.get("/api/tasks/:taskId", async (req, res) => {
   try {
