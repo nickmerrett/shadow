@@ -48,11 +48,11 @@ export function createSocketServer(server: http.Server): Server {
       }) => {
         try {
           console.log("Received user message:", data);
-          await chatService.processUserMessage(
-            data.taskId,
-            data.message,
-            data.llmModel || DEFAULT_MODEL
-          );
+          await chatService.processUserMessage({
+            taskId: data.taskId,
+            userMessage: data.message,
+            llmModel: data.llmModel || DEFAULT_MODEL,
+          });
         } catch (error) {
           console.error("Error processing user message:", error);
           socket.emit("message-error", { error: "Failed to process message" });
@@ -88,12 +88,18 @@ export function startStream() {
 
 export function endStream() {
   isStreaming = false;
-  io.emit("stream-complete");
+  // Only emit if socket server is initialized (not in terminal mode)
+  if (io) {
+    io.emit("stream-complete");
+  }
 }
 
 export function handleStreamError(error: any) {
   isStreaming = false;
-  io.emit("stream-error", error);
+  // Only emit if socket server is initialized (not in terminal mode)
+  if (io) {
+    io.emit("stream-error", error);
+  }
 }
 
 export function emitStreamChunk(chunk: StreamChunk) {
@@ -103,7 +109,33 @@ export function emitStreamChunk(chunk: StreamChunk) {
   }
 
   // Broadcast the chunk directly to all connected Socket.IO clients
-  io.emit("stream-chunk", chunk);
+  // Only emit if socket server is initialized (not in terminal mode)
+  if (io) {
+    io.emit("stream-chunk", chunk);
+  } else {
+    // In terminal mode, just log the content
+    if (chunk.type === "content" && chunk.content) {
+      process.stdout.write(chunk.content);
+    } else if (chunk.type === "tool-call" && chunk.toolCall) {
+      console.log(`\n🔧 [TOOL_CALL] ${chunk.toolCall.name}`);
+      if (Object.keys(chunk.toolCall.args).length > 0) {
+        console.log(`   Args:`, JSON.stringify(chunk.toolCall.args, null, 2));
+      }
+    } else if (chunk.type === "tool-result" && chunk.toolResult) {
+      console.log(`\n✅ [TOOL_RESULT] ${chunk.toolResult.id}:`);
+      console.log(`   ${chunk.toolResult.result}`);
+    } else if (chunk.type === "usage" && chunk.usage) {
+      console.log(
+        `\n📊 [USAGE] Tokens: ${chunk.usage.totalTokens} (${chunk.usage.promptTokens} prompt + ${chunk.usage.completionTokens} completion)`
+      );
+    } else if (chunk.type === "complete") {
+      console.log(
+        `\n\n✅ [COMPLETE] Finished with reason: ${chunk.finishReason}`
+      );
+    } else if (chunk.type === "error") {
+      console.log(`\n❌ [ERROR] ${chunk.error}`);
+    }
+  }
 
   // Handle completion
   if (chunk.type === "complete") {

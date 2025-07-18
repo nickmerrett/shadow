@@ -7,9 +7,10 @@ import {
   getModelProvider,
   toCoreMessage,
 } from "@repo/types";
-import { CoreMessage, LanguageModel, streamText } from "ai";
+import { CoreMessage, LanguageModel, generateText, streamText } from "ai";
 import { DEFAULT_MODEL } from "./chat";
 import config from "./config";
+import { tools } from "./tools";
 
 export class LLMService {
   private getModel(modelId: ModelType): LanguageModel {
@@ -36,7 +37,8 @@ export class LLMService {
   async *createMessageStream(
     systemPrompt: string,
     messages: Message[],
-    model: ModelType = DEFAULT_MODEL
+    model: ModelType = DEFAULT_MODEL,
+    enableTools: boolean = true
   ): AsyncGenerator<StreamChunk> {
     try {
       const modelInstance = this.getModel(model);
@@ -46,13 +48,17 @@ export class LLMService {
 
       console.log("coreMessages", coreMessages);
 
-      const result = streamText({
+      const streamConfig = {
         model: modelInstance,
         system: systemPrompt,
         messages: coreMessages,
         maxTokens: 4096,
         temperature: 0.7,
-      });
+        maxSteps: 5, // Enable multi-step tool calls
+        ...(enableTools && { tools }),
+      };
+
+      const result = streamText(streamConfig);
 
       // Stream content chunks - keep this simple and non-blocking
       for await (const chunk of result.textStream) {
@@ -66,6 +72,35 @@ export class LLMService {
       const finalResult = await result;
       const finalUsage = await finalResult.usage;
       const finalFinishReason = await finalResult.finishReason;
+      const toolCalls = await finalResult.toolCalls;
+      const toolResults = await finalResult.toolResults;
+
+      // Handle tool calls if they exist
+      if (toolCalls && toolCalls.length > 0) {
+        for (const toolCall of toolCalls) {
+          yield {
+            type: "tool-call",
+            toolCall: {
+              id: toolCall.toolCallId,
+              name: toolCall.toolName,
+              args: toolCall.args,
+            },
+          };
+        }
+      }
+
+      // Handle tool results if they exist
+      if (toolResults && toolResults.length > 0) {
+        for (const toolResult of toolResults) {
+          yield {
+            type: "tool-result",
+            toolResult: {
+              id: toolResult.toolCallId,
+              result: JSON.stringify(toolResult.result),
+            },
+          };
+        }
+      }
 
       // Emit final usage and completion
       yield {
@@ -98,6 +133,46 @@ export class LLMService {
           error instanceof Error ? error.message : "Unknown error occurred",
         finishReason: "error",
       };
+    }
+  }
+
+  // Non-streaming method for simple tool usage
+  async generateWithTools(
+    systemPrompt: string,
+    messages: Message[],
+    model: ModelType = DEFAULT_MODEL,
+    enableTools: boolean = true
+  ) {
+    try {
+      const modelInstance = this.getModel(model);
+      const coreMessages: CoreMessage[] = messages.map(toCoreMessage);
+
+      const config = {
+        model: modelInstance,
+        system: systemPrompt,
+        messages: coreMessages,
+        maxTokens: 4096,
+        temperature: 0.7,
+        maxSteps: 5, // Enable multi-step tool calls
+        ...(enableTools && { tools }),
+      };
+
+      const result = await generateText(config);
+
+      return {
+        text: result.text,
+        usage: {
+          promptTokens: result.usage.promptTokens,
+          completionTokens: result.usage.completionTokens,
+          totalTokens: result.usage.totalTokens,
+        },
+        finishReason: result.finishReason,
+        toolCalls: result.toolCalls || [],
+        toolResults: result.toolResults || [],
+      };
+    } catch (error) {
+      console.error("LLM Service Error:", error);
+      throw error;
     }
   }
 

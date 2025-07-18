@@ -1,135 +1,152 @@
-# Turborepo starter
+# Shadow Monorepo
 
-This Turborepo starter is maintained by the Turborepo core team.
+This project uses [Turborepo](https://turborepo.com/docs) to manage its dependencies.
 
-## Using this example
+## Apps and Packages
 
-Run the following command:
+**Apps:**
 
-```sh
-npx create-turbo@latest
+- `frontend`: Next.js app (UI, chat, terminal, task flows)
+- `server`: Node.js backend (orchestrator, API, LLM, sockets)
+- `indexing`: Code embedding/indexing tools (Pinecone, chunking, retrieval)
+
+**Packages:**
+
+- `db`: Prisma/Postgres client & schema
+- `types`: Shared TypeScript types
+- `eslint-config`: Shared lint rules
+- `typescript-config`: Shared tsconfig
+
+```
+.
+├── apps/
+│   ├── frontend/
+│   └── server/
+├── packages/
+│   ├── db/
+│   ├── eslint-config/
+│   ├── types/
+│   └── typescript-config/
+└── research/
 ```
 
-## What's inside?
+## Development
 
-This Turborepo includes the following packages/apps:
+Install dependencies:
 
-### Apps and Packages
+```
+npm install
+```
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+Fill out environment variables:
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+**apps/frontend/.env.local**
 
-### Utilities
+```
+NEXT_PUBLIC_API_URL=localhost:4000
+NEXT_PUBLIC_SOCKET_URL=localhost:4001
 
-This Turborepo has some additional tools already setup for you:
+BETTER_AUTH_SECRET=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+```
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+**apps/server/.env**
+Note: The database and direct URL are only needed here if you want to run the terminal agent for local workspace testing. Use the same values as the DB package, see the next section for more details.
 
-### Build
+```
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
 
-To build all apps and packages, run the following command:
+WORKSPACE_DIR=
+DEBUG=
+
+DATABASE_URL=
+DIRECT_URL=
+```
+
+**packages/db/.env**
+Note: the direct URL is for non-pooling connections like when running migrate or studio.
+
+```
+DATABASE_URL=
+DIRECT_URL=
+```
+
+To develop all apps and packages, ensure you have [turbo installed globally](<(https://turborepo.com/docs/getting-started/installation#global-installation)>).
+
+Then run the following command:
 
 ```
 cd my-turborepo
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
-```
-
-You can build a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
-
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
 turbo dev
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
 ```
 
 You can develop a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
 
 ```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+turbo dev --filter=frontend
 ```
 
-### Remote Caching
+### Linting and formatting
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+Ensure you have ESLint and Prettier installed for linting and formatting (and also format on save in VSCode settings). You can run these scripts from the project root:
 
 ```
-cd my-turborepo
+npm run lint
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
+npm run format
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+### Database
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+Our database is PostgreSQL hosted on [Neon](https://neon.tech/) (for now), might move elsewhere later. We're using [Prisma](https://www.prisma.io/) as our ORM.
+
+To generate types from the schema, run:
 
 ```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
+npm run generate
 ```
 
-## Useful Links
+Since we're constantly making schema changes, you can just directly push to the database:
 
-Learn more about the power of Turborepo:
+```
+npm run db:push
+```
 
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+We have a seed script at `packages/db/src/seed.ts`. It may be out of date since our app is now mostly integrated and you don't really need synthetic data. If you still do, just check with AI that the data is the correct shape then run:
+
+```
+npm run db:seed
+```
+
+To run the Prisma Studio GUI, you can run:
+
+```
+npm run db:studio
+```
+
+### Local Workspace Terminal Agent
+
+The coding agent can be run locally in the terminal for testing on a local workspace.
+
+First, create a local workspace directory, we have a script to make one for you:
+
+```
+./create-local-workspace.sh
+```
+
+Ensure you set the absolute path of the workspace in the server's .env file:
+
+```
+WORKSPACE_DIR=...
+```
+
+Then, run the terminal agent:
+
+```
+cd apps/server
+npm run validate
+npm run agent
+```
