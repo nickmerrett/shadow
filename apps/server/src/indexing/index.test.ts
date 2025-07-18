@@ -51,15 +51,15 @@ describe('Indexing API', () => {
     });
 
     it('should return 400 for unsupported language', async () => {
-        const repsonse = await request(app)
+        const response = await request(app)
         .post('/api/indexing/tree-sitter')
         .send({
             text: 'def hello():\n    print("world")',
             filePath: 'test.px'
         })
         .expect(400);
-    expect(repsonse.body).toHaveProperty('error');
-      expect(repsonse.body.error).toBe('Unsupported language');
+    expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toBe('Unsupported language');
     });
   });
 }); 
