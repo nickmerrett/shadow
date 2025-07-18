@@ -377,7 +377,7 @@ function buildEmbeddingsInMemory(
     offset += vec.length;
   });
 
-  const dim = chunks[0]?.embedding.length;
+  const dim = chunks[0]?.embedding.length ?? 0;
   const f32 = new Float32Array(allVecs);
   const buf = Buffer.from(f32.buffer);
 
