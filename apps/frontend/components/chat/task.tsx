@@ -7,6 +7,16 @@ import { socket } from "@/lib/socket";
 import type { Message, StreamChunk } from "@repo/types";
 import { useEffect, useState } from "react";
 
+// Types for streaming tool calls
+interface StreamingToolCall {
+  id: string;
+  name: string;
+  args: Record<string, any>;
+  status: "running" | "complete" | "error";
+  result?: string;
+  error?: string;
+}
+
 export function TaskPageContent({
   task,
   initialMessages,
@@ -17,9 +27,11 @@ export function TaskPageContent({
   const taskId = task.id;
 
   const [messages, setMessages] = useState(initialMessages);
-
   const [accumulatedContent, setAccumulatedContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingToolCalls, setStreamingToolCalls] = useState<
+    StreamingToolCall[]
+  >([]);
 
   useEffect(() => {
     function onConnect() {
@@ -62,8 +74,9 @@ export function TaskPageContent({
           return serverMessages;
         });
 
-        // Clear accumulated content only when we have the updated chat history
+        // Clear accumulated content and tool calls when we have the updated chat history
         setAccumulatedContent("");
+        setStreamingToolCalls([]);
       }
     }
 
@@ -81,6 +94,38 @@ export function TaskPageContent({
         case "content":
           if (chunk.content) {
             setAccumulatedContent((prev) => prev + chunk.content);
+          }
+          break;
+
+        case "tool-call":
+          if (chunk.toolCall) {
+            console.log("Tool call:", chunk.toolCall);
+            setStreamingToolCalls((prev) => [
+              ...prev,
+              {
+                id: chunk.toolCall!.id,
+                name: chunk.toolCall!.name,
+                args: chunk.toolCall!.args,
+                status: "running",
+              },
+            ]);
+          }
+          break;
+
+        case "tool-result":
+          if (chunk.toolResult) {
+            console.log("Tool result:", chunk.toolResult);
+            setStreamingToolCalls((prev) =>
+              prev.map((toolCall) =>
+                toolCall.id === chunk.toolResult!.id
+                  ? {
+                      ...toolCall,
+                      status: "complete" as const,
+                      result: chunk.toolResult!.result,
+                    }
+                  : toolCall
+              )
+            );
           }
           break;
 
@@ -180,10 +225,32 @@ export function TaskPageContent({
     );
   }
 
-  // Combine real messages with current streaming content
+  // Combine real messages with current streaming content and tool calls
   const displayMessages = [...messages];
 
-  if (accumulatedContent) {
+  // Add streaming tool calls as individual messages
+  streamingToolCalls.forEach((toolCall) => {
+    displayMessages.push({
+      id: `tool-${toolCall.id}`,
+      role: "tool",
+      content:
+        toolCall.result || (toolCall.status === "running" ? "Running..." : ""),
+      createdAt: new Date().toISOString(),
+      metadata: {
+        tool: {
+          name: toolCall.name,
+          args: toolCall.args,
+          status: toolCall.status === "complete" ? "success" : toolCall.status,
+          result: toolCall.result,
+          error: toolCall.error,
+        },
+        isStreaming: toolCall.status === "running",
+      },
+    });
+  });
+
+  // Add streaming assistant content if present
+  if (accumulatedContent || isStreaming) {
     displayMessages.push({
       id: "streaming",
       role: "assistant",
