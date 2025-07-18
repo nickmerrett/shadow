@@ -210,10 +210,7 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
                               asChild
                             >
                               <a href={`/tasks/${task.id}`}>
-                                <div className="flex w-full items-center gap-2">
-                                  <StatusIcon
-                                    className={`!size-3.5 ${statusConfig[task.status].className}`}
-                                  />
+                                <div className="flex w-full items-center gap-1.5">
                                   <div className="line-clamp-1 flex-1">
                                     {task.title ||
                                       task.description ||
@@ -221,12 +218,15 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
                                   </div>
                                 </div>
                                 <div className="text-muted-foreground flex items-center gap-1 text-xs">
-                                  <GitBranch className="size-3" /> {task.branch}
+                                  <StatusIcon
+                                    className={`ml-1 !size-3 ${statusConfig[task.status].className}`}
+                                  />
                                   <span className="capitalize text-xs">
                                     {task.status
                                       .toLowerCase()
                                       .replace("_", " ")}
                                   </span>
+                                  <GitBranch className="size-3" /> {task.branch}
                                 </div>
                               </a>
                             </SidebarMenuButton>

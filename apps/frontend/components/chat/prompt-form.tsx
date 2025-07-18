@@ -9,7 +9,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { createTask } from "@/lib/actions/create-task";
 import { cn } from "@/lib/utils";
-import { ModelInfos, type ModelInfo, type ModelType } from "@repo/types";
+import {
+  AvailableModels,
+  ModelInfos,
+  type ModelInfo,
+  type ModelType,
+} from "@repo/types";
 import { ArrowUp, Layers, Loader2, Square } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -26,7 +31,9 @@ export function PromptForm({
 }) {
   const [message, setMessage] = useState("");
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
-  const [selectedModel, setSelectedModel] = useState<ModelType>();
+  const [selectedModel, setSelectedModel] = useState<ModelType>(
+    AvailableModels.GPT_4O
+  );
   const [isPending, startTransition] = useTransition();
 
   // Fetch list of models from backend on mount
