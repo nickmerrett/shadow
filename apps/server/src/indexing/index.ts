@@ -21,16 +21,16 @@ router.get("/test", (req, res) => {
 router.post("/tree-sitter", (req: express.Request<{}, {}, CodeBody>, res) => {
   const { text, filePath } = req.body;
   const parser = new TreeSitter();
-  const language = getLanguageForPath(filePath)?.id;
-  if (!language) {
+  const detectedLanguage = getLanguageForPath(filePath)?.id;
+  if (!detectedLanguage) {
     res.status(400).json({ error: "Unsupported language" });
     return;
   }
   // Set language based on input
-  if (language === "py") {
+  if (detectedLanguage === "py") {
     const Python = require("tree-sitter-python");
     parser.setLanguage(Python);
-  } else if (language === "js") {
+  } else if (detectedLanguage === "js") {
     const JavaScript = require("tree-sitter-javascript");
     parser.setLanguage(JavaScript);
   } else {
