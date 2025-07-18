@@ -1,5 +1,4 @@
 import { SessionProvider } from "@/components/auth/session-provider";
-import { AgentEnvironmentProvider } from "@/components/layout/agent-environment-provider";
 import { QueryClientProvider } from "@/components/layout/query-client-provider";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { SidebarComponent } from "@/components/sidebar";
@@ -57,13 +56,11 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <SessionProvider>
-              <AgentEnvironmentProvider>
-                <SidebarProvider defaultOpen={defaultOpen}>
-                  <SidebarComponent initialTasks={initialTasks} />
-                  {children}
-                  <Toaster />
-                </SidebarProvider>
-              </AgentEnvironmentProvider>
+              <SidebarProvider defaultOpen={defaultOpen}>
+                <SidebarComponent initialTasks={initialTasks} />
+                {children}
+                <Toaster />
+              </SidebarProvider>
             </SessionProvider>
           </ThemeProvider>
         </QueryClientProvider>

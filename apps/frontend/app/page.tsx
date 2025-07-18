@@ -1,5 +1,5 @@
 import { PromptForm } from "@/components/chat/prompt-form";
-import { HomeLayoutWrapper } from "@/components/layout/home";
+import { HomeLayoutWrapper } from "@/components/layout/home-layout";
 
 export default function Home() {
   return (

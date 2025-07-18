@@ -1,9 +1,9 @@
-import { LayoutContent } from "@/components/layout/content";
+import { TaskLayoutContent } from "@/components/layout/task-layout";
 
 export default function TaskLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <LayoutContent>{children}</LayoutContent>;
+  return <TaskLayoutContent>{children}</TaskLayoutContent>;
 }

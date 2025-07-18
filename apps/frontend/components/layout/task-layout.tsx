@@ -19,7 +19,7 @@ import { useRef } from "react";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { AgentEnvironment } from "../agent-environment";
 
-export function LayoutContent({ children }: { children: React.ReactNode }) {
+export function TaskLayoutContent({ children }: { children: React.ReactNode }) {
   const rightPanelRef = useRef<ImperativePanelHandle>(null);
 
   const handleToggleRightPanel = () => {
@@ -42,7 +42,9 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
                 <TooltipTrigger asChild>
                   <SidebarTrigger />
                 </TooltipTrigger>
-                <TooltipContent side="right">Toggle Sidebar</TooltipContent>
+                <TooltipContent side="right" shortcut="⌘B">
+                  Toggle Sidebar
+                </TooltipContent>
               </Tooltip>
 
               <Tooltip>
@@ -54,10 +56,12 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
                     onClick={handleToggleRightPanel}
                   >
                     <AppWindowMac className="size-4" />
-                    <span className="sr-only">Toggle Agent Environment</span>
+                    <span className="sr-only">
+                      Toggle Agent Environment (⌘⇧\)
+                    </span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left">
+                <TooltipContent side="left" shortcut="⌘⇧B">
                   Toggle Agent Environment
                 </TooltipContent>
               </Tooltip>

@@ -17,7 +17,9 @@ export function HomeLayoutWrapper({ children }: { children: React.ReactNode }) {
             <TooltipTrigger asChild>
               <SidebarTrigger />
             </TooltipTrigger>
-            <TooltipContent side="right">Toggle Sidebar</TooltipContent>
+            <TooltipContent side="right" shortcut="⌘B">
+              Toggle Sidebar
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
