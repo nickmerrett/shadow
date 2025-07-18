@@ -1,27 +1,39 @@
-import crypto from "crypto";
 import { HashGenerator } from "@/indexing/utils/hash";
+import crypto from "crypto";
 
 interface Location {
-    startLine: number;
-    startCol: number;
-    endLine: number;
-    endCol: number;
-    byteStart?: number;
-    byteEnd?: number;
+  startLine: number;
+  startCol: number;
+  endLine: number;
+  endCol: number;
+  byteStart?: number;
+  byteEnd?: number;
 }
 
 interface GraphJSON {
-    repoId: string;
-    nodes: GraphNode[];
-    edges: GraphEdge[];
+  repoId: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
 }
-  
+
+interface GraphNodeConstructorParams {
+  id: string;
+  kind: string;
+  name: string;
+  path?: string;
+  lang?: string;
+  loc?: Location;
+  signature?: string;
+  code?: string;
+  doc?: string;
+  meta?: Record<string, any>;
+}
 
 class GraphNode implements HashGenerator {
   public id: string;
   public kind: string;
   public name: string;
-  public path: string;  
+  public path: string;
   public lang: string;
   public loc: Location;
   public signature: string;
@@ -34,12 +46,19 @@ class GraphNode implements HashGenerator {
     id,
     kind,
     name,
-    path = '',  
-    lang = '',
-    loc = { startLine: 0, startCol: 0, endLine: 0, endCol: 0, byteStart: 0, byteEnd: 0 },
-    signature = '',
-    code = '',
-    doc = '',
+    path = "",
+    lang = "",
+    loc = {
+      startLine: 0,
+      startCol: 0,
+      endLine: 0,
+      endCol: 0,
+      byteStart: 0,
+      byteEnd: 0,
+    },
+    signature = "",
+    code = "",
+    doc = "",
     meta = {},
   }: GraphNodeConstructorParams) {
     this.id = id;
@@ -72,9 +91,7 @@ class GraphNode implements HashGenerator {
   }
 }
 
-
-
-class GraphEdge  {
+class GraphEdge {
   public from: string;
   public to: string;
   public kind: string;
@@ -152,13 +169,34 @@ class Graph {
 }
 
 // DEPRECATED: use GraphNode.generateHash() instead
-function makeId(repoId: string, path: string, kind: string, name: string, loc: { startLine: number; startCol: number; endLine: number; endCol: number } | null) {
+function makeId(
+  repoId: string,
+  path: string,
+  kind: string,
+  name: string,
+  loc: {
+    startLine: number;
+    startCol: number;
+    endLine: number;
+    endCol: number;
+  } | null
+) {
   const h = crypto.createHash("sha1");
   h.update(
-    repoId +"|" + path + "|" + kind + "|" + name + "|" +
-      (loc ? `${loc.startLine}:${loc.startCol}-${loc.endLine}:${loc.endCol}` : "")
+    repoId +
+      "|" +
+      path +
+      "|" +
+      kind +
+      "|" +
+      name +
+      "|" +
+      (loc
+        ? `${loc.startLine}:${loc.startCol}-${loc.endLine}:${loc.endCol}`
+        : "")
   );
   return h.digest("hex");
 }
 
-export { GraphNode, GraphEdge, Graph, GraphJSON, Location, makeId };   
+export { Graph, GraphEdge, GraphNode, makeId };
+export type { GraphJSON, Location };
