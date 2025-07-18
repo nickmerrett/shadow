@@ -11,7 +11,6 @@ import { GraphNode, GraphEdge, Graph, makeId } from '@/indexing/graph';
 import { extractGeneric } from '@/indexing/extractors/generic';
 import { chunkSymbol } from '@/indexing/chunker';
 import { sliceByLoc } from '@/indexing/utils/text';
-import { saveGraph, buildInverted, saveEmbeddings, loadGraph, loadEmbeddings } from '@/indexing/storage';
 import { getHash } from '@/indexing/utils/hash';
 import { embedGraphChunks } from '@/indexing/embedder';
 
@@ -288,8 +287,8 @@ async function indexRepo(
   }
 
   // Persist
-  if (embed) saveEmbeddings(graph, repoArg); // save binary embeddings first
-  saveGraph(graph, repoArg); // then write graph (strips inlined embeddings)
+  // if (embed) saveEmbeddings(graph, repoArg); // save binary embeddings first
+  // saveGraph(graph, repoArg); // then write graph (strips inlined embeddings)
   // buildInverted(graph, outDir); // This line is removed as per the new_code
   // eslint-disable-next-line no-console
   console.info(`Indexed ${graph.nodes.size} nodes.`);
