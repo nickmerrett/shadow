@@ -1,9 +1,8 @@
 import { SessionProvider } from "@/components/auth/session-provider";
-import { UserMenu } from "@/components/auth/user-menu";
 import { QueryClientProvider } from "@/components/layout/query-client-provider";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { SidebarComponent } from "@/components/sidebar";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { getUser } from "@/lib/auth/get-user";
 import { getTasks } from "@/lib/db-operations/get-tasks";
 import type { Metadata } from "next";
@@ -59,13 +58,7 @@ export default async function RootLayout({
             <SessionProvider>
               <SidebarProvider defaultOpen={defaultOpen}>
                 <SidebarComponent initialTasks={initialTasks} />
-                <div className="flex size-full min-h-svh flex-col relative">
-                  <div className="flex w-full items-center justify-between p-3 sticky top-0">
-                    <SidebarTrigger />
-                    <UserMenu />
-                  </div>
-                  {children}
-                </div>
+                {children}
                 <Toaster />
               </SidebarProvider>
             </SessionProvider>

@@ -1,4 +1,4 @@
-import { nodeLoc } from './base';
+import { nodeLoc } from "./base";
 
 interface Definition {
   node: any;
@@ -56,7 +56,11 @@ interface LanguageSpec {
   docs?: string[];
 }
 
-export function extractGeneric(root: any, spec: LanguageSpec, sourceText: string): {
+export function extractGeneric(
+  root: any,
+  spec: LanguageSpec,
+  sourceText: string
+): {
   defs: Definition[];
   imports: Import[];
   calls: Call[];
@@ -81,7 +85,9 @@ export function extractGeneric(root: any, spec: LanguageSpec, sourceText: string
       }
       if (!name) {
         // fallback to text slice limited
-        name = sourceText.slice(node.startIndex, Math.min(node.startIndex + 32, node.endIndex)).trim();
+        name = sourceText
+          .slice(node.startIndex, Math.min(node.startIndex + 32, node.endIndex))
+          .trim();
       }
       defs.push({ node, name, loc: nodeLoc(node) });
     }
@@ -106,4 +112,4 @@ export function extractGeneric(root: any, spec: LanguageSpec, sourceText: string
   }
 
   return { defs, imports, calls, docs };
-} 
+}

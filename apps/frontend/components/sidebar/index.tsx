@@ -19,6 +19,7 @@ import {
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -32,6 +33,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { UserMenu } from "../auth/user-menu";
 import { Button } from "../ui/button";
 import {
   Collapsible,
@@ -248,6 +250,13 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
           )}
         </div>
       </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <UserMenu />
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }

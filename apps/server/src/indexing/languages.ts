@@ -1,5 +1,5 @@
-import path from "path";
 import logger from "@/indexing/logger";
+import path from "path";
 interface LanguageSpec {
   id: string;
   pkg: string;
@@ -14,9 +14,10 @@ interface ExtendedLanguageSpec extends LanguageSpec {
   language: any;
 }
 
-function safeRequire(name: string): any {
+async function safeRequire(name: string): Promise<any> {
   try {
-    return require(name);
+    const mod = await import(name);
+    return mod.default || mod;
   } catch (err) {
     logger.warn(`Language grammar not installed: ${name}`);
     return null;
@@ -95,23 +96,42 @@ const EXT_MAP: Record<string, LanguageSpec> = {
 
 // load all unique grammar packages lazily
 const cache = new Map<string, ExtendedLanguageSpec | null>();
+const loadingPromises = new Map<string, Promise<ExtendedLanguageSpec | null>>();
 
-export function getLanguageForPath(fpath: string): ExtendedLanguageSpec | null {
+export async function getLanguageForPath(
+  fpath: string
+): Promise<ExtendedLanguageSpec | null> {
   const ext = path.extname(fpath).toLowerCase();
   const spec = EXT_MAP[ext];
   if (!spec) return null;
-  if (!cache.has(spec.pkg)) {
-    const mod = safeRequire(spec.pkg);
+
+  if (cache.has(spec.pkg)) {
+    return cache.get(spec.pkg) || null;
+  }
+
+  if (loadingPromises.has(spec.pkg)) {
+    return await loadingPromises.get(spec.pkg)!;
+  }
+
+  const loadPromise = (async () => {
+    const mod = await safeRequire(spec.pkg);
     if (mod) {
-      cache.set(spec.pkg, {
+      const result = {
         ...spec,
         language: mod,
-      });
+      };
+      cache.set(spec.pkg, result);
+      return result;
     } else {
       cache.set(spec.pkg, null);
+      return null;
     }
-  }
-  return cache.get(spec.pkg) || null;
+  })();
+
+  loadingPromises.set(spec.pkg, loadPromise);
+  const result = await loadPromise;
+  loadingPromises.delete(spec.pkg);
+  return result;
 }
 
-export { EXT_MAP }; 
+export { EXT_MAP };

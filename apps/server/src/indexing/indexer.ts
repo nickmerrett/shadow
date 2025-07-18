@@ -7,8 +7,19 @@ import logger from "@/indexing/logger";
 import { getHash, getNodeHash } from "@/indexing/utils/hash";
 import { sliceByLoc } from "@/indexing/utils/text";
 import { tokenize } from "@/indexing/utils/tokenize";
-import { Octokit } from "@octokit/rest";
 import TreeSitter from "tree-sitter";
+
+export interface FileContentResponse {
+  content: string;
+  path: string;
+  type: string;
+}
+
+export interface GitHubFileResponse {
+  content: string;
+  path: string;
+  type: string;
+}
 
 export interface IndexRepoOptions {
   maxLines?: number;
@@ -24,6 +35,7 @@ async function fetchRepoFiles(
   repo: string,
   path: string = ""
 ): Promise<Array<{ path: string; content: string; type: string }>> {
+  const { Octokit } = await import("@octokit/rest");
   const octokit = new Octokit({
     auth: process.env.GITHUB_TOKEN,
   });
@@ -65,7 +77,7 @@ async function fetchRepoFiles(
       return [{ path: fileData.path, content, type: "file" }];
     }
   } catch (error) {
-    logger.error(`Error fetching ${owner}/${repo}:`, error);
+    logger.error(`Error fetching ${owner}/${repo}: ${error}`);
     return [];
   }
 }
@@ -82,7 +94,6 @@ async function indexRepo(
 }> {
   const { maxLines = 200, embed = false, paths = null } = options || {};
 
-  // eslint-disable-next-line no-console
   logger.info(
     `Indexing ${repoName}${paths ? " (filtered)" : ""}${embed ? " + embeddings" : ""}`
   );
@@ -97,6 +108,9 @@ async function indexRepo(
     !repoName.startsWith("./")
   ) {
     const [owner, repo] = repoName.split("/");
+    if (!owner || !repo) {
+      throw new Error(`Invalid repo name: ${repoName}`);
+    }
     logger.info(`Fetching GitHub repo: ${owner}/${repo}`);
 
     files = await fetchRepoFiles(owner, repo);
@@ -118,7 +132,7 @@ async function indexRepo(
     logger.info(`Number of nodes in the graph: ${graph.nodes.size}`);
 
     for (const file of files) {
-      const spec = getLanguageForPath(file.path);
+      const spec = await getLanguageForPath(file.path);
       if (!spec || !spec.language) {
         logger.warn(`Skipping unsupported: ${file.path}`);
         continue;
@@ -303,7 +317,7 @@ async function indexRepo(
       for (const c of calls) {
         const callText = file.content.slice(c.loc.byteStart, c.loc.byteEnd);
         const m = callText.match(/([A-Za-z_][A-Za-z0-9_]*)/);
-        if (!m) continue;
+        if (!m || !m[1]) continue;
         const callee = m[1];
 
         // identify caller symbol enclosing the call site (if any)
@@ -312,9 +326,9 @@ async function indexRepo(
             s.loc.startLine <= c.loc.startLine && s.loc.endLine >= c.loc.endLine
         );
 
-        let targetId: string | null = null;
+        let targetId: string | undefined = undefined;
         if (symMap.has(callee)) {
-          targetId = symMap.get(callee)!;
+          targetId = symMap.get(callee);
         } else if (
           globalSym.has(callee) &&
           globalSym.get(callee)!.length === 1
@@ -344,15 +358,12 @@ async function indexRepo(
       logger.info(`Found ${chunks.length} chunks to embed`);
       if (chunks.length > 0) {
         await embedGraphChunks(chunks, { provider: "local-transformers" });
-        // eslint-disable-next-line no-console
         logger.info(`Embedded ${chunks.length} chunks`);
         // Debug: check if embeddings were actually added
         const withEmbeddings = chunks.filter((ch) => ch.embedding);
-        // eslint-disable-next-line no-console
         logger.info(`${withEmbeddings.length} chunks have embeddings`);
       }
     } else {
-      // eslint-disable-next-line no-console
       logger.info("Embedding skipped (embed=false).");
     }
 
@@ -360,7 +371,6 @@ async function indexRepo(
     // if (embed) saveEmbeddings(graph, repoName); // save binary embeddings first
     // saveGraph(graph, repoName); // then write graph (strips inlined embeddings)
     // buildInverted(graph, outDir); // This line is removed as per the new_code
-    // eslint-disable-next-line no-console
     logger.info(`Indexed ${graph.nodes.size} nodes.`);
     return {
       graph,
@@ -379,14 +389,27 @@ async function indexRepo(
 
 // Quick signature to see what a function does
 function buildSignatureFromNode(
-  node: any,
+  node: { startIndex: number; endIndex: number } | undefined,
   spec: any,
-  sourceText: string
+  sourceText: string | undefined
 ): string {
-  const start = sourceText
-    .slice(node.startIndex, node.endIndex)
-    .split("\n")[0]
-    .trim();
+  if (!node || !sourceText) return "";
+
+  let start = "";
+  if (
+    node.startIndex !== undefined &&
+    node.endIndex !== undefined &&
+    sourceText !== undefined
+  ) {
+    start = sourceText.slice(node.startIndex, node.endIndex);
+  }
+  if (start) {
+    const lines = start.split("\n");
+    if (lines[0]) {
+      start = lines[0].trim();
+    }
+  }
+
   return start.length > 200 ? start.slice(0, 200) + "…" : start;
 }
 
@@ -441,7 +464,7 @@ function buildEmbeddingsInMemory(
     offset += vec.length;
   });
 
-  const dim = chunks[0].embedding.length;
+  const dim = chunks[0]?.embedding.length ?? 0;
   const f32 = new Float32Array(allVecs);
   const buf = Buffer.from(f32.buffer);
 
