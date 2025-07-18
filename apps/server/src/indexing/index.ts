@@ -44,7 +44,12 @@ router.post(
     >,
     res
   ) => {
+    if (!req.body) {
+      res.status(400).json({ error: "Request body is missing" });
+      return;
+    }
     const { repo, options = {} } = req.body;
+
     const { graph, graphJSON, invertedIndex, embeddings } = await indexRepo(
       repo,
       options
