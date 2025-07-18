@@ -1,9 +1,4 @@
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
 import TreeSitter from 'tree-sitter';
-import ignore from 'ignore';
-import fg from 'fast-glob';
 import { Octokit } from '@octokit/rest';
 import { tokenize } from '@/indexing/utils/tokenize';
 import { getLanguageForPath } from '@/indexing/languages';
@@ -11,21 +6,9 @@ import { GraphNode, GraphEdge, Graph, makeId } from '@/indexing/graph';
 import { extractGeneric } from '@/indexing/extractors/generic';
 import { chunkSymbol } from '@/indexing/chunker';
 import { sliceByLoc } from '@/indexing/utils/text';
-import { saveGraph, saveEmbeddings } from '@/indexing/storage';
 import { getHash, getNodeHash } from '@/indexing/utils/hash';
 import { embedGraphChunks, ChunkNode } from '@/indexing/embedder';
 
-
-function loadIgnore(root: string) {
-  const ig = ignore();
-  const gitIgnore = path.join(root, '.gitignore');
-  if (fs.existsSync(gitIgnore)) ig.add(fs.readFileSync(gitIgnore, 'utf8'));
-  const codeiumIgnore = path.join(root, '.codeiumignore');
-  if (fs.existsSync(codeiumIgnore)) ig.add(fs.readFileSync(codeiumIgnore, 'utf8'));
-  ig.add('node_modules');
-  ig.add('.*');
-  return ig;
-}
 
 export interface IndexRepoOptions {
   maxLines?: number;
@@ -289,10 +272,10 @@ async function indexRepo(
     // eslint-disable-next-line no-console
     console.info(`Indexed ${graph.nodes.size} nodes.`);
     return {
-    graph,
-    graphJSON: graph.graphToJSON(),
-    invertedIndex: buildInvertedInMemory(graph),
-    embeddings: buildEmbeddingsInMemory(graph)
+        graph,
+        graphJSON: graph.graphToJSON(),
+        invertedIndex: buildInvertedInMemory(graph),
+        embeddings: buildEmbeddingsInMemory(graph)
     };
   } 
   return {
@@ -310,7 +293,7 @@ function buildSignatureFromNode(node: any, spec: any, sourceText: string): strin
 }
 
 // Helper functions that work in memory instead of writing files
-function buildInvertedInMemory(graph: Graph): any {
+function buildInvertedInMemory(graph: Graph): Record<string, string[]> {
   const idx: Record<string, Set<string>> = {};
   
   graph.nodes.forEach(node => {

@@ -49,6 +49,12 @@ interface EmbeddingResult {
   dim: number;
 }
 
+export type ChunkNode = {
+    code?: string;
+    embedding?: Float32Array;
+    meta?: { [k: string]: any };
+  };
+
 // ------------------------------
 // Cheap hash fallback
 // ------------------------------
@@ -202,11 +208,6 @@ async function embedTexts(
 // ------------------------------
 // Graph wiring helper
 // ------------------------------
-export type ChunkNode = {
-  code?: string;
-  embedding?: Float32Array;
-  meta?: { [k: string]: any };
-};
 
 async function embedGraphChunks(
   chunks: ChunkNode[],
