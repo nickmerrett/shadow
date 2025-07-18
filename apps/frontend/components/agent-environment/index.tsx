@@ -18,7 +18,7 @@ export const AgentEnvironment: React.FC = () => {
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
 
   return (
-    <div className="size-full max-h-svh overflow-hidden flex">
+    <div className="size-full max-h-svh overflow-y flex">
       <FileExplorer
         files={mockFileStructure}
         onFileSelect={setSelectedFile}
@@ -26,7 +26,7 @@ export const AgentEnvironment: React.FC = () => {
         isCollapsed={isExplorerCollapsed}
         onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
       />
-      <div className="flex-1">
+      <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="vertical" className="h-full">
           <ResizablePanel minSize={10} defaultSize={60}>
             <Editor selectedFile={selectedFile} />

@@ -75,7 +75,7 @@ export function TaskLayoutContent({ children }: { children: React.ReactNode }) {
         minSize={30}
         collapsible
         collapsedSize={0}
-        defaultSize={0}
+        defaultSize={50}
         ref={rightPanelRef}
       >
         <AgentEnvironment />

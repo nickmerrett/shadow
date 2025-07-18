@@ -47,8 +47,8 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     return (
       <div key={node.path}>
         <div
-          className={`flex items-center gap-1 py-1 px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${
-            isSelected ? "bg-blue-100 dark:bg-blue-900" : ""
+          className={`flex items-center gap-1 py-1 px-2 cursor-pointer hover:bg-sidebar-accent ${
+            isSelected ? "bg-sidebar-accent/50" : ""
           }`}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
           onClick={() => {
@@ -62,21 +62,19 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           {node.type === "folder" ? (
             <>
               {isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-gray-500" />
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-gray-500" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
               )}
-              <Folder className="h-4 w-4 text-blue-500" />
+              <Folder className="h-4 w-4 text-muted-foreground" />
             </>
           ) : (
             <>
               <div className="w-4" />
-              <File className="h-4 w-4 text-gray-500" />
+              <File className="h-4 w-4 text-muted-foreground" />
             </>
           )}
-          <span className="text-sm text-gray-700 dark:text-gray-300">
-            {node.name}
-          </span>
+          <span className="text-sm text-gray-300">{node.name}</span>
         </div>
         {node.type === "folder" && isExpanded && node.children && (
           <div>
@@ -89,28 +87,26 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
 
   if (isCollapsed) {
     return (
-      <div className="w-12 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+      <div className="w-12 bg-sidebar border-r border-sidebar-border flex flex-col">
         <button
           onClick={onToggleCollapse}
-          className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+          className="p-3 hover:bg-sidebar-accent border-b border-sidebar-border"
         >
-          <Folder className="h-4 w-4 text-gray-500" />
+          <Folder className="h-4 w-4 text-muted-foreground" />
         </button>
       </div>
     );
   }
 
   return (
-    <div className="w-64 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-      <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          File Explorer
-        </h3>
+    <div className="w-52 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col select-none">
+      <div className="p-2 border-b border-sidebar-border flex items-center justify-between">
+        <h3 className="text-[13px] text-muted-foreground">File Explorer</h3>
         <button
           onClick={onToggleCollapse}
-          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+          className="p-1 hover:bg-sidebar-accent rounded"
         >
-          <X className="h-3 w-3 text-gray-500" />
+          <X className="h-3 w-3 text-muted-foreground" />
         </button>
       </div>
       <div className="flex-1 overflow-auto py-2">

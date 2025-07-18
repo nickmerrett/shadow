@@ -20,7 +20,7 @@ export const Terminal: React.FC = () => {
       fontSize: 14,
       fontFamily: '"Cascadia Code", "Fira Code", "JetBrains Mono", monospace',
       theme: {
-        background: "#1e1e1e",
+        background: "#151515",
         foreground: "#d4d4d4",
         cursor: "#ffffff",
         cursorAccent: "#000000",
@@ -94,11 +94,11 @@ export const Terminal: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
-      <div className="p-3 border-b border-gray-700 bg-gray-800">
-        <h2 className="text-sm font-medium text-gray-300">Terminal</h2>
+    <div className="flex flex-col h-full bg-sidebar">
+      <div className="p-2 border-b border-sidebar-border">
+        <h2 className="text-[13px] text-muted-foreground">Terminal</h2>
       </div>
-      <div className="flex-1 p-2">
+      <div className="flex-1 p-2 overflow-hidden bg-background">
         <div ref={terminalRef} className="h-full" />
       </div>
     </div>
