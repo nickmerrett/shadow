@@ -196,7 +196,7 @@ export function TaskPageContent({
   return (
     <div className="mx-auto flex w-full grow max-w-lg flex-col items-center">
       <Messages messages={displayMessages} />
-      <PromptForm onSubmit={handleSendMessage} disabled={isStreaming} />
+      <PromptForm onSubmit={handleSendMessage} isStreaming={isStreaming} />
     </div>
   );
 }

@@ -48,11 +48,11 @@ export function createSocketServer(server: http.Server): Server {
       }) => {
         try {
           console.log("Received user message:", data);
-          await chatService.processUserMessage(
-            data.taskId,
-            data.message,
-            data.llmModel || DEFAULT_MODEL
-          );
+          await chatService.processUserMessage({
+            taskId: data.taskId,
+            userMessage: data.message,
+            llmModel: data.llmModel || DEFAULT_MODEL,
+          });
         } catch (error) {
           console.error("Error processing user message:", error);
           socket.emit("message-error", { error: "Failed to process message" });

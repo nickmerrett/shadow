@@ -101,14 +101,23 @@ export class ChatService {
     }));
   }
 
-  async processUserMessage(
-    taskId: string,
-    userMessage: string,
-    llmModel: ModelType = DEFAULT_MODEL,
-    enableTools: boolean = true
-  ) {
-    // Save user message to database
-    await this.saveUserMessage(taskId, userMessage);
+  async processUserMessage({
+    taskId,
+    userMessage,
+    llmModel = DEFAULT_MODEL,
+    enableTools = true,
+    skipUserMessageSave = false,
+  }: {
+    taskId: string;
+    userMessage: string;
+    llmModel?: ModelType;
+    enableTools?: boolean;
+    skipUserMessageSave?: boolean;
+  }) {
+    // Save user message to database (unless skipped)
+    if (!skipUserMessageSave) {
+      await this.saveUserMessage(taskId, userMessage);
+    }
 
     // Get chat history for context
     const history = await this.getChatHistory(taskId);
@@ -279,6 +288,11 @@ export class ChatService {
     console.log(`[CODING_TASK] Starting coding task for ${taskId}`);
     console.log(`[CODING_TASK] Task: ${userMessage.substring(0, 100)}...`);
 
-    return this.processUserMessage(taskId, userMessage, llmModel, true);
+    return this.processUserMessage({
+      taskId,
+      userMessage,
+      llmModel,
+      enableTools: true,
+    });
   }
 }

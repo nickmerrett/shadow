@@ -50,6 +50,42 @@ app.get("/api/tasks/:taskId", async (req, res) => {
   }
 });
 
+// Initiate task with agent
+app.post("/api/tasks/:taskId/initiate", async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { message, model } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    // Verify task exists
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+    });
+
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    // Process the message with the agent (this will start the LLM processing)
+    // Skip saving user message since it's already saved in the server action
+    await chatService.processUserMessage({
+      taskId,
+      userMessage: message,
+      llmModel: model || "gpt-4o",
+      enableTools: true,
+      skipUserMessageSave: true,
+    });
+
+    res.json({ status: "initiated" });
+  } catch (error) {
+    console.error("Error initiating task:", error);
+    res.status(500).json({ error: "Failed to initiate task" });
+  }
+});
+
 // Get available models
 app.get("/api/models", async (req, res) => {
   try {
