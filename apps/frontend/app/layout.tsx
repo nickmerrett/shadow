@@ -10,7 +10,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -59,9 +58,7 @@ export default async function RootLayout({
           >
             <SessionProvider>
               <SidebarProvider defaultOpen={defaultOpen}>
-                <Suspense fallback={<div>Loading sidebar...</div>}>
-                  <SidebarComponent initialTasks={initialTasks} />
-                </Suspense>
+                <SidebarComponent initialTasks={initialTasks} />
                 <div className="flex size-full min-h-svh flex-col relative">
                   <div className="flex w-full items-center justify-between p-3 sticky top-0">
                     <SidebarTrigger />
