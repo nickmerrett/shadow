@@ -20,16 +20,27 @@ export class ChatService {
     this.llmService = new LLMService();
   }
 
+  private async getNextSequence(taskId: string): Promise<number> {
+    const lastMessage = await prisma.chatMessage.findFirst({
+      where: { taskId },
+      orderBy: { sequence: "desc" },
+      select: { sequence: true },
+    });
+    return (lastMessage?.sequence || 0) + 1;
+  }
+
   async saveUserMessage(
     taskId: string,
     content: string,
     metadata?: MessageMetadata
   ): Promise<ChatMessage> {
+    const sequence = await this.getNextSequence(taskId);
     return await prisma.chatMessage.create({
       data: {
         taskId,
         content,
         role: "USER",
+        sequence,
         metadata: (metadata as any) || undefined,
       },
     });
@@ -39,6 +50,7 @@ export class ChatService {
     taskId: string,
     content: string,
     llmModel: string,
+    sequence: number,
     metadata?: MessageMetadata
   ): Promise<ChatMessage> {
     // Extract usage info for denormalized storage
@@ -50,6 +62,7 @@ export class ChatService {
         content,
         role: "ASSISTANT",
         llmModel,
+        sequence,
         metadata: (metadata as any) || undefined,
         // Denormalized usage fields for easier querying
         promptTokens: usage?.promptTokens,
@@ -65,6 +78,7 @@ export class ChatService {
     toolName: string,
     toolArgs: Record<string, any>,
     toolResult: string,
+    sequence: number,
     metadata?: MessageMetadata
   ): Promise<ChatMessage> {
     return await prisma.chatMessage.create({
@@ -72,6 +86,7 @@ export class ChatService {
         taskId,
         content: toolResult,
         role: "TOOL",
+        sequence,
         metadata: {
           ...(metadata as any),
           tool: {
@@ -88,7 +103,10 @@ export class ChatService {
   async getChatHistory(taskId: string): Promise<Message[]> {
     const dbMessages = await prisma.chatMessage.findMany({
       where: { taskId },
-      orderBy: { createdAt: "asc" },
+      orderBy: [
+        { sequence: "asc" }, // Primary ordering by sequence
+        { createdAt: "asc" }, // Fallback ordering by timestamp
+      ],
     });
 
     return dbMessages.map((msg) => ({
@@ -148,15 +166,15 @@ export class ChatService {
     // Start streaming
     startStream();
 
+    // Track streaming state for immediate database persistence
+    let assistantSequence: number | null = null;
+    let assistantMessageId: string | null = null;
     let fullAssistantResponse = "";
     let usageMetadata: MessageMetadata["usage"];
     let finishReason: MessageMetadata["finishReason"];
-    const toolCalls: Array<{
-      id: string;
-      name: string;
-      args: Record<string, any>;
-    }> = [];
-    const toolResults: Array<{ id: string; result: string }> = [];
+
+    // Map to track tool call sequences as they're created
+    const toolCallSequences = new Map<string, number>();
 
     try {
       for await (const chunk of this.llmService.createMessageStream(
@@ -168,23 +186,93 @@ export class ChatService {
         // Emit the chunk directly to clients
         emitStreamChunk(chunk);
 
-        // Accumulate content for database storage
+        // Save messages to database as they stream to preserve order
         if (chunk.type === "content" && chunk.content) {
           fullAssistantResponse += chunk.content;
+          
+          // Create assistant message on first content chunk
+          if (assistantSequence === null) {
+            assistantSequence = await this.getNextSequence(taskId);
+            const assistantMsg = await this.saveAssistantMessage(
+              taskId,
+              chunk.content,
+              llmModel,
+              assistantSequence,
+              { isStreaming: true }
+            );
+            assistantMessageId = assistantMsg.id;
+          } else {
+            // Update existing assistant message with accumulated content
+            if (assistantMessageId) {
+              await prisma.chatMessage.update({
+                where: { id: assistantMessageId },
+                data: { content: fullAssistantResponse },
+              });
+            }
+          }
         }
 
-        // Track tool calls
+        // Save tool calls immediately when they start
         if (chunk.type === "tool-call" && chunk.toolCall) {
-          toolCalls.push(chunk.toolCall);
+          const toolSequence = await this.getNextSequence(taskId);
+          toolCallSequences.set(chunk.toolCall.id, toolSequence);
+          
+          // Save tool message with placeholder content (will be updated with result)
+          await this.saveToolMessage(
+            taskId,
+            chunk.toolCall.name,
+            chunk.toolCall.args,
+            "Running...", // Placeholder content
+            toolSequence,
+            {
+              tool: {
+                name: chunk.toolCall.name,
+                args: chunk.toolCall.args,
+                status: "running",
+                result: null,
+              },
+              isStreaming: true,
+            }
+          );
+
           console.log(
             `[TOOL_CALL] ${chunk.toolCall.name}:`,
             chunk.toolCall.args
           );
         }
 
-        // Track tool results
+        // Update tool results when they complete
         if (chunk.type === "tool-result" && chunk.toolResult) {
-          toolResults.push(chunk.toolResult);
+          const toolSequence = toolCallSequences.get(chunk.toolResult.id);
+          if (toolSequence !== undefined) {
+            // Find and update the tool message with the result
+            const toolMessage = await prisma.chatMessage.findFirst({
+              where: { 
+                taskId,
+                sequence: toolSequence,
+                role: "TOOL"
+              },
+            });
+
+            if (toolMessage) {
+              await prisma.chatMessage.update({
+                where: { id: toolMessage.id },
+                data: {
+                  content: chunk.toolResult.result,
+                  metadata: {
+                    ...(toolMessage.metadata as any),
+                    tool: {
+                      ...(toolMessage.metadata as any)?.tool,
+                      status: "success",
+                      result: chunk.toolResult.result,
+                    },
+                    isStreaming: false,
+                  },
+                },
+              });
+            }
+          }
+
           console.log(
             `[TOOL_RESULT] ${chunk.toolResult.id}:`,
             chunk.toolResult.result
@@ -213,49 +301,32 @@ export class ChatService {
         }
       }
 
-      // Save assistant response to database with metadata
-      const assistantMetadata: MessageMetadata = {
-        usage: usageMetadata,
-        finishReason,
-      };
+      // Update final assistant message with complete metadata
+      if (assistantMessageId && usageMetadata) {
+        const finalMetadata: MessageMetadata = {
+          usage: usageMetadata,
+          finishReason,
+          isStreaming: false,
+        };
 
-      await this.saveAssistantMessage(
-        taskId,
-        fullAssistantResponse,
-        llmModel,
-        assistantMetadata
-      );
-
-      // Save tool calls and results to database
-      for (let i = 0; i < toolCalls.length; i++) {
-        const toolCall = toolCalls[i];
-        if (!toolCall) continue;
-
-        const toolResult = toolResults.find((r) => r.id === toolCall.id);
-
-        if (toolResult) {
-          await this.saveToolMessage(
-            taskId,
-            toolCall.name,
-            toolCall.args,
-            toolResult.result,
-            {
-              tool: {
-                name: toolCall.name,
-                args: toolCall.args,
-                status: "success",
-                result: toolResult.result,
-              },
-            }
-          );
-        }
+        await prisma.chatMessage.update({
+          where: { id: assistantMessageId },
+          data: {
+            content: fullAssistantResponse,
+            metadata: finalMetadata as any,
+            promptTokens: usageMetadata.promptTokens,
+            completionTokens: usageMetadata.completionTokens,
+            totalTokens: usageMetadata.totalTokens,
+            finishReason: finishReason,
+          },
+        });
       }
 
       console.log(`[CHAT] Completed processing for task ${taskId}`);
       console.log(
         `[CHAT] Response length: ${fullAssistantResponse.length} chars`
       );
-      console.log(`[CHAT] Tool calls executed: ${toolCalls.length}`);
+      console.log(`[CHAT] Tool calls executed: ${toolCallSequences.size}`);
 
       endStream();
     } catch (error) {
