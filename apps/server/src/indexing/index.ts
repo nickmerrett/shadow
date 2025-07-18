@@ -1,11 +1,7 @@
 import express from "express";
-import { GraphNode, GraphEdge, Graph } from "./graph";
-import { extractGeneric } from "./extractors/generic";
 import { getLanguageForPath } from "./languages";
-import { chunkSymbol } from "./chunker";
-import { sliceByLoc } from "./utils/text";
 import TreeSitter from "tree-sitter";
-import crypto from "crypto";
+import indexRepo, { IndexRepoOptions } from "@/indexing/indexer";
 
 const router = express.Router();
 interface CodeBody {
@@ -43,6 +39,12 @@ router.post("/tree-sitter", (req: express.Request<{}, {}, CodeBody>, res) => {
   }
   const tree = parser.parse(text);
   res.json({ tree: tree.rootNode, language: language });
+});
+
+router.post("/index", async (req: express.Request<{}, {}, {repo: string, options: IndexRepoOptions | null}>, res) => {
+  const { repo, options = {} } = req.body;
+  const { graph, graphJSON, invertedIndex, embeddings } = await indexRepo(repo, options);
+  res.json({ graph, graphJSON, invertedIndex, embeddings });
 });
 
 

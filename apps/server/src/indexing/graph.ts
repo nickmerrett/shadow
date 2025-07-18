@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { HashGenerator } from "./utils/hash";
+import { HashGenerator } from "@/indexing/utils/hash";
 
 interface Location {
     startLine: number;
@@ -55,10 +55,10 @@ class GraphNode implements HashGenerator {
     this.embedding = [];
   }
 
-  generateHash(): string {
+  generateHash(repoId: string): string {
     const h = crypto.createHash("sha1");
     h.update(
-      this.id +
+      repoId +
         "|" +
         this.path +
         "|" +

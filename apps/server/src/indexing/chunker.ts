@@ -1,7 +1,5 @@
-import { sliceByLoc } from './utils/text';
-import { GraphNode } from './graph';
-import { makeId } from './graph';
-import { Location } from './types/graphTypes';
+import { sliceByLoc } from '@/indexing/utils/text';
+import { GraphNode, makeId, Location } from '@/indexing/graph';
 
 interface Symbol {
   name: string;

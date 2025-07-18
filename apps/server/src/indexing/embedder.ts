@@ -106,7 +106,15 @@ async function embedViaJinaAPI(
       const tx = await resp.text();
       throw new Error(`Jina API error ${resp.status}: ${tx}`);
     }
-    const json = await resp.json();
+    const json = await resp.json() as {
+      data: Array<{
+        embedding: number[];
+        index: number;
+        object: string;
+      }>;
+      model: string;
+      usage: any;
+    };
     // Response: {data:[{embedding:[...],index:n,object:'embedding'}],model:'...',usage:{...}}
     for (const item of json.data) {
       out[i + item.index] = Float32Array.from(item.embedding);
@@ -194,7 +202,7 @@ async function embedTexts(
 // ------------------------------
 // Graph wiring helper
 // ------------------------------
-type ChunkNode = {
+export type ChunkNode = {
   code?: string;
   embedding?: Float32Array;
   meta?: { [k: string]: any };

@@ -1,5 +1,4 @@
 import path from "path";
-import { logger } from "./logger";
 
 interface LanguageSpec {
   id: string;
@@ -19,7 +18,7 @@ function safeRequire(name: string): any {
   try {
     return require(name);
   } catch (err) {
-    logger.warn(`Language grammar not installed: ${name}`);
+    console.warn(`Language grammar not installed: ${name}`);
     return null;
   }
 }

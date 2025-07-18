@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Graph, GraphNode, GraphJSON } from './graph';
+import { Graph, GraphNode, GraphJSON } from '@/indexing/graph';
 
 // Types
 interface EmbeddingIndex {
