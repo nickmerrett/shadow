@@ -28,7 +28,7 @@ app.get("/", (req, res) => {
 });
 
 // Indexing routes
-// app.use("/api/indexing", IndexingRouter);
+app.use("/api/indexing", IndexingRouter);
 
 // Get task details
 app.get("/api/tasks/:taskId", async (req, res) => {
