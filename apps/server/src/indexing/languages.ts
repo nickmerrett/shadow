@@ -18,7 +18,7 @@ function safeRequire(name: string): any {
   try {
     return require(name);
   } catch (err) {
-    console.warn(`Language grammar not installed: ${name}`);
+    logger.warn(`Language grammar not installed: ${name}`);
     return null;
   }
 }
