@@ -1,4 +1,6 @@
 import { SessionProvider } from "@/components/auth/session-provider";
+import { AgentEnvironmentProvider } from "@/components/layout/agent-environment-provider";
+import { AgentEnvironmentToggle } from "@/components/layout/agent-environment-toggle";
 import { QueryClientProvider } from "@/components/layout/query-client-provider";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { SidebarComponent } from "@/components/sidebar";
@@ -11,7 +13,6 @@ import {
 } from "@/components/ui/tooltip";
 import { getUser } from "@/lib/auth/get-user";
 import { getTasks } from "@/lib/db-operations/get-tasks";
-import { AppWindowMac } from "lucide-react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
@@ -63,36 +64,36 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <SessionProvider>
-              <SidebarProvider defaultOpen={defaultOpen}>
-                <SidebarComponent initialTasks={initialTasks} />
-                <div className="flex size-full min-h-svh flex-col relative">
-                  <div className="flex w-full items-center justify-between p-3 sticky top-0 bg-background z-10">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <SidebarTrigger />
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          Toggle Sidebar
-                        </TooltipContent>
-                      </Tooltip>
+              <AgentEnvironmentProvider>
+                <SidebarProvider defaultOpen={defaultOpen}>
+                  <SidebarComponent initialTasks={initialTasks} />
+                  <div className="flex size-full min-h-svh flex-col relative">
+                    <div className="flex w-full items-center justify-between p-3 sticky top-0 bg-background z-10">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <SidebarTrigger />
+                          </TooltipTrigger>
+                          <TooltipContent side="right">
+                            Toggle Sidebar
+                          </TooltipContent>
+                        </Tooltip>
 
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <SidebarTrigger>
-                            <AppWindowMac className="size-4" />
-                          </SidebarTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent side="left">
-                          Toggle Agent Environment
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                                                 <Tooltip>
+                           <TooltipTrigger asChild>
+                             <AgentEnvironmentToggle />
+                           </TooltipTrigger>
+                           <TooltipContent side="left">
+                             Toggle Agent Environment
+                           </TooltipContent>
+                         </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    {children}
                   </div>
-                  {children}
-                </div>
-                <Toaster />
-              </SidebarProvider>
+                  <Toaster />
+                </SidebarProvider>
+              </AgentEnvironmentProvider>
             </SessionProvider>
           </ThemeProvider>
         </QueryClientProvider>

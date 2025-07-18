@@ -235,7 +235,7 @@ export function TaskPageContent({
     });
   }
 
-  return (
+  const chatContent = (
     <div className="mx-auto flex w-full grow max-w-lg flex-col items-center relative z-0">
       {/* Todo: only show if not scrolled to the very top  */}
       <div className="sticky -left-px w-[calc(100%+2px)] top-14 h-16 bg-gradient-to-b from-background via-background/60 to-transparent -translate-y-px pointer-events-none z-10" />
@@ -247,4 +247,6 @@ export function TaskPageContent({
       />
     </div>
   );
+
+  return chatContent;
 }

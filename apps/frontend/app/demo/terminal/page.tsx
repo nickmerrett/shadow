@@ -1,5 +1,9 @@
-import { Terminal } from "@/components/demo/terminal";
+import { Terminal } from "@/components/agent-environment/terminal";
 
 export default function TerminalDemoPage() {
-  return <Terminal />;
+  return (
+    <div className="h-screen">
+      <Terminal />
+    </div>
+  );
 }
