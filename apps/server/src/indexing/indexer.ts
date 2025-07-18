@@ -55,7 +55,7 @@ async function fetchRepoFiles(owner: string, repo: string, path: string = ''): P
       return files;
     } else {
       // Single file
-      const fileData = response.data as any;
+      const fileData = response.data as GitHubFileResponse;
       const content = Buffer.from(fileData.content, 'base64').toString('utf8');
       return [{ path: fileData.path, content, type: 'file' }];
     }
