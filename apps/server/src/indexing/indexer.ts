@@ -65,7 +65,7 @@ async function fetchRepoFiles(
       return [{ path: fileData.path, content, type: "file" }];
     }
   } catch (error) {
-    logger.error(`Error fetching ${owner}/${repo}:`, error);
+    logger.error(`Error fetching ${owner}/${repo}: ${error}`);
     return [];
   }
 }
@@ -96,7 +96,10 @@ async function indexRepo(
     !repoName.startsWith("/") &&
     !repoName.startsWith("./")
   ) {
-    const [owner, repo] = repoName.split("/");
+    const [owner, repo]: string[] = repoName.split("/");
+    if (!owner || !repo) {
+      throw new Error(`Invalid repo name: ${repoName}`);
+    }
     logger.info(`Fetching GitHub repo: ${owner}/${repo}`);
 
     files = await fetchRepoFiles(owner, repo);

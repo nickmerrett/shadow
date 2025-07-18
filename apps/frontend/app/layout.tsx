@@ -1,16 +1,9 @@
 import { SessionProvider } from "@/components/auth/session-provider";
 import { AgentEnvironmentProvider } from "@/components/layout/agent-environment-provider";
-import { AgentEnvironmentToggle } from "@/components/layout/agent-environment-toggle";
 import { QueryClientProvider } from "@/components/layout/query-client-provider";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { SidebarComponent } from "@/components/sidebar";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { getUser } from "@/lib/auth/get-user";
 import { getTasks } from "@/lib/db-operations/get-tasks";
 import type { Metadata } from "next";
@@ -67,30 +60,7 @@ export default async function RootLayout({
               <AgentEnvironmentProvider>
                 <SidebarProvider defaultOpen={defaultOpen}>
                   <SidebarComponent initialTasks={initialTasks} />
-                  <div className="flex size-full min-h-svh flex-col relative">
-                    <div className="flex w-full items-center justify-between p-3 sticky top-0 bg-background z-10">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <SidebarTrigger />
-                          </TooltipTrigger>
-                          <TooltipContent side="right">
-                            Toggle Sidebar
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <AgentEnvironmentToggle />
-                          </TooltipTrigger>
-                          <TooltipContent side="left">
-                            Toggle Agent Environment
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    {children}
-                  </div>
+                  {children}
                   <Toaster />
                 </SidebarProvider>
               </AgentEnvironmentProvider>
