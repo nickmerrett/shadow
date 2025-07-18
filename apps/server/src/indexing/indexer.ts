@@ -89,7 +89,7 @@ async function indexRepo(
     
     files = await fetchRepoFiles(owner, repo);
     repoId = getHash(`${owner}/${repo}`, 12);
-    console.log(files.length);
+    logger.info(`Number of files fetched: ${files.length}`);
     const graph = new Graph(repoId);
     // Track symbols across all files for cross-file call resolution
     const globalSym = new Map<string, string[]>(); // name -> [nodeId]
