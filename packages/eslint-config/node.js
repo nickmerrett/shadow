@@ -12,6 +12,7 @@ export default [
         __dirname: "readonly",
         __filename: "readonly",
         global: "readonly",
+        fetch: "false",
       },
     },
     rules: {
