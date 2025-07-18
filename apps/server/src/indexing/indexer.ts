@@ -8,6 +8,7 @@ import { chunkSymbol } from '@/indexing/chunker';
 import { sliceByLoc } from '@/indexing/utils/text';
 import { getHash, getNodeHash } from '@/indexing/utils/hash';
 import { embedGraphChunks, ChunkNode } from '@/indexing/embedder';
+import logger from '@/indexing/logger';
 
 
 export interface IndexRepoOptions {
@@ -59,7 +60,7 @@ async function fetchRepoFiles(owner: string, repo: string, path: string = ''): P
       return [{ path: fileData.path, content, type: 'file' }];
     }
   } catch (error) {
-    console.error(`Error fetching ${owner}/${repo}:`, error);
+    logger.error(`Error fetching ${owner}/${repo}:`, error);
     return [];
   }
 }
@@ -77,7 +78,7 @@ async function indexRepo(
   const { maxLines = 200, embed = false, paths = null } = options || {};
 
   // eslint-disable-next-line no-console
-  console.info(`Indexing ${repoName}${paths ? ' (filtered)' : ''}${embed ? ' + embeddings' : ''}`);
+  logger.info(`Indexing ${repoName}${paths ? ' (filtered)' : ''}${embed ? ' + embeddings' : ''}`);
 
   let files: Array<{ path: string; content: string; type: string }> = [];
   let repoId: string;
@@ -85,11 +86,11 @@ async function indexRepo(
   // Check if it's a GitHub repo (format: "owner/repo")
   if (repoName.includes('/') && !repoName.startsWith('/') && !repoName.startsWith('./')) {
     const [owner, repo] = repoName.split('/');
-    console.info(`Fetching GitHub repo: ${owner}/${repo}`);
+    logger.info(`Fetching GitHub repo: ${owner}/${repo}`);
     
     files = await fetchRepoFiles(owner, repo);
     repoId = getHash(`${owner}/${repo}`, 12);
-    console.log(files.length);
+    logger.info(`Fetched ${files.length} files from ${owner}/${repo}`);
     const graph = new Graph(repoId);
     // Track symbols across all files for cross-file call resolution
     const globalSym = new Map<string, string[]>(); // name -> [nodeId]
@@ -103,12 +104,12 @@ async function indexRepo(
       lang: '' 
     });
     graph.addNode(repoNode);
-    console.log(`Number of nodes in the graph: ${graph.nodes.size}`);
+    logger.info(`Number of nodes in the graph: ${graph.nodes.size}`);
 
     for (const file of files) {
         const spec = getLanguageForPath(file.path);
         if (!spec || !spec.language) {
-            console.debug(`Skipping unsupported: ${file.path}`);
+            logger.warn(`Skipping unsupported: ${file.path}`);  
             continue;
         }
         const parser = new TreeSitter();
@@ -246,23 +247,21 @@ async function indexRepo(
     } // END OF FILE LOOP
     // Embed chunks if requested
     if (embed) {
-    // eslint-disable-next-line no-console
-    console.info('Computing embeddings...');
+    logger.info('Computing embeddings...');
     const chunks = [...graph.nodes.values()].filter(n => n.kind === 'CHUNK') as unknown as ChunkNode[];
-    // eslint-disable-next-line no-console
-    console.info(`Found ${chunks.length} chunks to embed`);
+    logger.info(`Found ${chunks.length} chunks to embed`);
     if (chunks.length > 0) {
         await embedGraphChunks(chunks, { provider: 'local-transformers' });
         // eslint-disable-next-line no-console
-        console.info(`Embedded ${chunks.length} chunks`);
+        logger.info(`Embedded ${chunks.length} chunks`);
         // Debug: check if embeddings were actually added
         const withEmbeddings = chunks.filter(ch => ch.embedding);
         // eslint-disable-next-line no-console
-        console.info(`${withEmbeddings.length} chunks have embeddings`);
+        logger.info(`${withEmbeddings.length} chunks have embeddings`);
     }
     } else {
     // eslint-disable-next-line no-console
-    console.info('Embedding skipped (embed=false).');
+    logger.info('Embedding skipped (embed=false).');
     }
 
     // Persist
@@ -270,7 +269,7 @@ async function indexRepo(
     // saveGraph(graph, repoName); // then write graph (strips inlined embeddings)
     // buildInverted(graph, outDir); // This line is removed as per the new_code
     // eslint-disable-next-line no-console
-    console.info(`Indexed ${graph.nodes.size} nodes.`);
+    logger.info(`Indexed ${graph.nodes.size} nodes.`);
     return {
         graph,
         graphJSON: graph.graphToJSON(),
