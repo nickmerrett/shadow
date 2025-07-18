@@ -23,7 +23,6 @@ interface EmbedViaJinaAPIOptions {
   batchSize?: number;
   apiKey?: string;
   endpoint?: string;
-  signal?: AbortSignal;
 }
 
 interface EmbedViaLocalTransformersOptions {
@@ -79,7 +78,6 @@ async function embedViaJinaAPI(
     batchSize = 256,
     apiKey = process.env.JINA_API_KEY,
     endpoint = "https://api.jina.ai/v1/embeddings",
-    signal,
   }: EmbedViaJinaAPIOptions = {}
 ): Promise<EmbeddingResult> {
   if (!apiKey) {
@@ -103,7 +101,6 @@ async function embedViaJinaAPI(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(body),
-      signal,
     });
     if (!resp.ok) {
       const tx = await resp.text();
