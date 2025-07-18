@@ -21,8 +21,9 @@ export default [
         "warn",
         { argsIgnorePattern: "^_" },
       ],
-      "no-unused-vars": "warn",
+      "no-unused-vars": "off", // Turn off base rule as it can report incorrect errors
       "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-non-null-assertion": "warn",
       "prefer-const": "error",
       "no-var": "error",
     },
