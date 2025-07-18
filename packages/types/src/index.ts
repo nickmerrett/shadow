@@ -60,19 +60,23 @@ export type Message = BaseMessage;
 // Type guards for runtime type checking
 export const isUserMessage = (
   message: Message
-): message is Message & { role: "user" } => message.role === "user";
+): message is Message & { role: "user" } =>
+  message.role.toLowerCase() === "user";
 
 export const isAssistantMessage = (
   message: Message
-): message is Message & { role: "assistant" } => message.role === "assistant";
+): message is Message & { role: "assistant" } =>
+  message.role.toLowerCase() === "assistant";
 
 export const isToolMessage = (
   message: Message
-): message is Message & { role: "tool" } => message.role === "tool";
+): message is Message & { role: "tool" } =>
+  message.role.toLowerCase() === "tool";
 
 export const isSystemMessage = (
   message: Message
-): message is Message & { role: "system" } => message.role === "system";
+): message is Message & { role: "system" } =>
+  message.role.toLowerCase() === "system";
 
 // AI SDK compatible message conversion
 export function toCoreMessage(message: Message): CoreMessage {
@@ -192,7 +196,7 @@ export const AvailableModels = {
   GPT_4O_MINI: "gpt-4o-mini",
   GPT_4_TURBO: "gpt-4-turbo",
   O3: "o3",
-  O4_MINI_HIGH: "o4-mini-high"
+  O4_MINI_HIGH: "o4-mini-high",
 } as const;
 
 export type ModelType = (typeof AvailableModels)[keyof typeof AvailableModels];

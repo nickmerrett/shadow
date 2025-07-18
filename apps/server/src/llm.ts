@@ -60,71 +60,79 @@ export class LLMService {
 
       const result = streamText(streamConfig);
 
-      // Stream content chunks - keep this simple and non-blocking
-      for await (const chunk of result.textStream) {
-        yield {
-          type: "content",
-          content: chunk,
-        };
-      }
+      // Use fullStream to get real-time tool calls and results
+      for await (const chunk of result.fullStream) {
+        switch (chunk.type) {
+          case "text-delta":
+            if (chunk.textDelta) {
+              yield {
+                type: "content",
+                content: chunk.textDelta,
+              };
+            }
+            break;
 
-      // Wait for final results after streaming completes
-      const finalResult = await result;
-      const finalUsage = await finalResult.usage;
-      const finalFinishReason = await finalResult.finishReason;
-      const toolCalls = await finalResult.toolCalls;
-      const toolResults = await finalResult.toolResults;
+          case "tool-call":
+            yield {
+              type: "tool-call",
+              toolCall: {
+                id: chunk.toolCallId,
+                name: chunk.toolName,
+                args: chunk.args,
+              },
+            };
+            break;
 
-      // Handle tool calls if they exist
-      if (toolCalls && toolCalls.length > 0) {
-        for (const toolCall of toolCalls) {
-          yield {
-            type: "tool-call",
-            toolCall: {
-              id: toolCall.toolCallId,
-              name: toolCall.toolName,
-              args: toolCall.args,
-            },
-          };
+          case "tool-result":
+            yield {
+              type: "tool-result",
+              toolResult: {
+                id: chunk.toolCallId,
+                result: JSON.stringify(chunk.result),
+              },
+            };
+            break;
+
+          case "finish":
+            // Emit final usage and completion
+            if (chunk.usage) {
+              yield {
+                type: "usage",
+                usage: {
+                  promptTokens: chunk.usage.promptTokens,
+                  completionTokens: chunk.usage.completionTokens,
+                  totalTokens: chunk.usage.totalTokens,
+                },
+              };
+            }
+
+            yield {
+              type: "complete",
+              finishReason:
+                chunk.finishReason === "stop"
+                  ? "stop"
+                  : chunk.finishReason === "length"
+                    ? "length"
+                    : chunk.finishReason === "content-filter"
+                      ? "content-filter"
+                      : chunk.finishReason === "tool-calls"
+                        ? "tool_calls"
+                        : "stop",
+            };
+            break;
+
+          case "error":
+            yield {
+              type: "error",
+              error:
+                chunk.error instanceof Error
+                  ? chunk.error.message
+                  : "Unknown error occurred",
+              finishReason: "error",
+            };
+            break;
         }
       }
-
-      // Handle tool results if they exist
-      if (toolResults && toolResults.length > 0) {
-        for (const toolResult of toolResults) {
-          yield {
-            type: "tool-result",
-            toolResult: {
-              id: toolResult.toolCallId,
-              result: JSON.stringify(toolResult.result),
-            },
-          };
-        }
-      }
-
-      // Emit final usage and completion
-      yield {
-        type: "usage",
-        usage: {
-          promptTokens: finalUsage.promptTokens,
-          completionTokens: finalUsage.completionTokens,
-          totalTokens: finalUsage.totalTokens,
-        },
-      };
-
-      yield {
-        type: "complete",
-        finishReason:
-          finalFinishReason === "stop"
-            ? "stop"
-            : finalFinishReason === "length"
-              ? "length"
-              : finalFinishReason === "content-filter"
-                ? "content-filter"
-                : finalFinishReason === "tool-calls"
-                  ? "tool_calls"
-                  : "stop",
-      };
     } catch (error) {
       console.error("LLM Service Error:", error);
       yield {

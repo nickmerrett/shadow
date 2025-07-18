@@ -6,6 +6,8 @@ import { ToolMessage } from "./tools";
 import { UserMessage } from "./user-message";
 
 export function Messages({ messages }: { messages: Message[] }) {
+  console.log("displayMessages", messages);
+
   return (
     <div className="w-full flex grow flex-col gap-3 mb-24">
       {messages.map((message, index) => {

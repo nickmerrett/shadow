@@ -1,8 +1,7 @@
-import { auth } from "@/lib/auth";
+import { getUser } from "@/lib/auth/get-user";
 import { formatTimeAgo } from "@/lib/utils";
 import { Endpoints } from "@octokit/types";
 import { prisma } from "@repo/db";
-import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 // Type definitions for GitHub API responses
@@ -116,17 +115,14 @@ function groupReposByOrg(
 
 export async function GET(_request: NextRequest) {
   try {
-    // Get the current session
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const user = await getUser();
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get the GitHub access token from the Account table
-    const account = await getGitHubAccount(session.user.id);
+    const account = await getGitHubAccount(user.id);
 
     // Fetch repositories from GitHub API sorted by most recently pushed
     const response = await fetch(

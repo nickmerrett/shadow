@@ -46,26 +46,111 @@ function formatToolContent(message: Message): React.ReactElement {
 
   const { name: tool, args, changes } = message.metadata.tool;
 
-  if (tool === "read_file") {
-    const path = args.filePath;
-    return (
-      <>
-        <span className="opacity-60">Read</span> {path}
-      </>
-    );
-  } else if (tool === "edit_file") {
-    const path = changes?.filePath || args.filePath;
-    const linesAdded = changes?.linesAdded || 0;
-    const linesRemoved = changes?.linesRemoved || 0;
-    return (
-      <div>
-        <span className="opacity-60">Edited</span> {path}{" "}
-        <span className="text-green-500">+{linesAdded}</span>{" "}
-        <span className="text-red-500">-{linesRemoved}</span>
-      </div>
-    );
-  } else {
-    return <span>{message.content}</span>;
+  switch (tool) {
+    case "read_file": {
+      const readPath = args.target_file || args.filePath;
+      return (
+        <>
+          <span className="opacity-60">Read</span> {readPath}
+        </>
+      );
+    }
+
+    case "edit_file": {
+      const editPath = changes?.filePath || args.target_file || args.filePath;
+      const linesAdded = changes?.linesAdded || 0;
+      const linesRemoved = changes?.linesRemoved || 0;
+      return (
+        <div>
+          <span className="opacity-60">Edited</span> {editPath}{" "}
+          <span className="text-green-500">+{linesAdded}</span>{" "}
+          <span className="text-red-500">-{linesRemoved}</span>
+        </div>
+      );
+    }
+
+    case "list_dir": {
+      const dirPath = args.relative_workspace_path || args.path || "workspace";
+      return (
+        <>
+          <span className="opacity-60">Listed</span> {dirPath}
+        </>
+      );
+    }
+
+    case "run_terminal_cmd": {
+      const command = args.command;
+      const shortCommand =
+        command.length > 30 ? command.substring(0, 30) + "..." : command;
+      return (
+        <>
+          <span className="opacity-60">Ran</span>{" "}
+          <code className="text-xs bg-muted px-1 rounded">{shortCommand}</code>
+        </>
+      );
+    }
+
+    case "grep_search": {
+      const searchQuery = args.query;
+      const shortQuery =
+        searchQuery.length > 20
+          ? searchQuery.substring(0, 20) + "..."
+          : searchQuery;
+      return (
+        <>
+          <span className="opacity-60">Searched</span> {shortQuery}
+        </>
+      );
+    }
+
+    case "codebase_search": {
+      const semanticQuery = args.query;
+      const shortSemanticQuery =
+        semanticQuery.length > 25
+          ? semanticQuery.substring(0, 25) + "..."
+          : semanticQuery;
+      return (
+        <>
+          <span className="opacity-60">Semantic search</span>{" "}
+          {shortSemanticQuery}
+        </>
+      );
+    }
+
+    case "file_search": {
+      const fileQuery = args.query;
+      return (
+        <>
+          <span className="opacity-60">Found files</span> {fileQuery}
+        </>
+      );
+    }
+
+    case "search_replace": {
+      const filePath = args.file_path;
+      return (
+        <>
+          <span className="opacity-60">Replaced text in</span> {filePath}
+        </>
+      );
+    }
+
+    case "delete_file": {
+      const deletePath = args.target_file;
+      return (
+        <>
+          <span className="opacity-60">Deleted</span> {deletePath}
+        </>
+      );
+    }
+
+    default:
+      return (
+        <>
+          <span className="opacity-60">{tool}</span>{" "}
+          {message.content || "Running..."}
+        </>
+      );
   }
 }
 
