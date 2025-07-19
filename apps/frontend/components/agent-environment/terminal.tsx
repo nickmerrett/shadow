@@ -51,7 +51,6 @@ export default function Terminal() {
 
     // Open terminal
     xterm.open(terminalRef.current);
-    fitAddon.fit();
 
     // Store references
     xtermRef.current = xterm;
