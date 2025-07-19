@@ -189,7 +189,7 @@ export class ChatService {
         // Save messages to database as they stream to preserve order
         if (chunk.type === "content" && chunk.content) {
           fullAssistantResponse += chunk.content;
-          
+
           // Create assistant message on first content chunk
           if (assistantSequence === null) {
             assistantSequence = await this.getNextSequence(taskId);
@@ -216,7 +216,7 @@ export class ChatService {
         if (chunk.type === "tool-call" && chunk.toolCall) {
           const toolSequence = await this.getNextSequence(taskId);
           toolCallSequences.set(chunk.toolCall.id, toolSequence);
-          
+
           // Save tool message with placeholder content (will be updated with result)
           await this.saveToolMessage(
             taskId,
@@ -229,7 +229,7 @@ export class ChatService {
                 name: chunk.toolCall.name,
                 args: chunk.toolCall.args,
                 status: "running",
-                result: null,
+                result: undefined,
               },
               isStreaming: true,
             }
@@ -247,10 +247,10 @@ export class ChatService {
           if (toolSequence !== undefined) {
             // Find and update the tool message with the result
             const toolMessage = await prisma.chatMessage.findFirst({
-              where: { 
+              where: {
                 taskId,
                 sequence: toolSequence,
-                role: "TOOL"
+                role: "TOOL",
               },
             });
 

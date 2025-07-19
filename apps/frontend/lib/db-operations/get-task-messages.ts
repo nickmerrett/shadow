@@ -5,7 +5,10 @@ export async function getTaskMessages(taskId: string): Promise<Message[]> {
   try {
     const messages = await db.chatMessage.findMany({
       where: { taskId },
-      orderBy: { createdAt: "asc" },
+      orderBy: [
+        { sequence: "asc" }, // Primary ordering by sequence for correct conversation flow
+        { createdAt: "asc" }, // Fallback ordering by timestamp
+      ],
     });
 
     return messages.map((msg) => ({
