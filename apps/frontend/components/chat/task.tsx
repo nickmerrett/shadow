@@ -40,10 +40,6 @@ export function TaskPageContent({
   >([]);
 
   useEffect(() => {
-    console.log("messages", messages);
-  }, [messages]);
-
-  useEffect(() => {
     function onConnect() {
       // Request chat history when connected
       if (taskId) {
