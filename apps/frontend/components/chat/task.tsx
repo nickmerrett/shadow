@@ -9,6 +9,8 @@ import { queryClient } from "@/lib/query-client";
 import { socket } from "@/lib/socket";
 import type { Message, StreamChunk, ToolStatusType } from "@repo/types";
 import { useEffect, useState } from "react";
+import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
+import { ArrowDown } from "lucide-react";
 
 // Types for streaming tool calls
 interface StreamingToolCall {
@@ -18,6 +20,21 @@ interface StreamingToolCall {
   status: ToolStatusType;
   result?: string;
   error?: string;
+}
+
+function ScrollToBottom() {
+  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
+
+  return (
+    !isAtBottom && (
+      <button
+        className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-background border border-border rounded-full p-2 shadow-lg hover:bg-accent z-20"
+        onClick={() => scrollToBottom()}
+      >
+        <ArrowDown className="h-4 w-4" />
+      </button>
+    )
+  );
 }
 
 export function TaskPageContent({
@@ -231,18 +248,29 @@ export function TaskPageContent({
     });
   }
 
-  const chatContent = (
-    <div className="mx-auto flex w-full grow max-w-lg flex-col items-center px-4 sm:px-6 relative z-0">
+  return (
+    <StickToBottom 
+      className="mx-auto flex w-full grow max-w-lg flex-col items-center px-4 sm:px-6 relative z-0 h-full"
+      resize="smooth"
+      initial="smooth"
+    >
       {/* Todo: only show if not scrolled to the very top  */}
       <div className="sticky -left-px w-[calc(100%+2px)] top-[calc(3rem+1px)] h-16 bg-gradient-to-b from-background via-background/60 to-transparent -translate-y-px pointer-events-none z-10" />
 
-      <Messages messages={displayMessages} />
-      <PromptForm
-        onSubmit={handleSendMessage}
-        isStreaming={isStreaming || sendMessageMutation.isPending}
-      />
-    </div>
+      <StickToBottom.Content className="w-full flex flex-col gap-3 pb-24">
+        <Messages messages={displayMessages} />
+      </StickToBottom.Content>
+      
+      <ScrollToBottom />
+      
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 z-20">
+        <div className="mx-auto max-w-lg">
+          <PromptForm
+            onSubmit={handleSendMessage}
+            isStreaming={isStreaming || sendMessageMutation.isPending}
+          />
+        </div>
+      </div>
+    </StickToBottom>
   );
-
-  return chatContent;
 }

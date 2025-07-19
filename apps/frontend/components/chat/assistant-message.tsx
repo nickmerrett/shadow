@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import type { Message } from "@repo/types";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { MemoizedMarkdown } from "./memoized-markdown";
 
 export function AssistantMessage({ message }: { message: Message }) {
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
@@ -34,5 +35,9 @@ export function AssistantMessage({ message }: { message: Message }) {
     );
   }
 
-  return <div className="text-sm">{message.content}</div>;
+  return (
+    <div className="text-sm">
+      <MemoizedMarkdown content={message.content} id={message.id} />
+    </div>
+  );
 }
