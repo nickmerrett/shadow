@@ -30,6 +30,10 @@ export function TaskPageContent({
   const taskId = task.id;
   const queryClient = useQueryClient();
 
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+  }, [queryClient]);
+
   const { data: messages = [] } = useTaskMessages(taskId, initialMessages);
   const sendMessageMutation = useSendMessage();
 
