@@ -2,6 +2,7 @@
 
 import { Messages } from "@/components/chat/messages";
 import { PromptForm } from "@/components/chat/prompt-form";
+import { ScrollToBottom } from "@/hooks/use-is-at-top";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
 import type { Task } from "@/lib/db-operations/get-task";
@@ -9,9 +10,8 @@ import { queryClient } from "@/lib/query-client";
 import { socket } from "@/lib/socket";
 import { cn } from "@/lib/utils";
 import type { Message, StreamChunk, ToolStatusType } from "@repo/types";
-import { ArrowDown } from "lucide-react";
 import { useEffect, useState } from "react";
-import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
+import { StickToBottom } from "use-stick-to-bottom";
 
 // Types for streaming tool calls
 interface StreamingToolCall {
@@ -21,21 +21,6 @@ interface StreamingToolCall {
   status: ToolStatusType;
   result?: string;
   error?: string;
-}
-
-function ScrollToBottom() {
-  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
-  return (
-    <button
-      className={cn(
-        "sticky cursor-pointer bottom-36 bg-background border border-border rounded-full p-1.5 hover:bg-accent z-20 text-muted-foreground hover:text-foreground transition-[colors,opacity]",
-        isAtBottom ? "opacity-0" : "opacity-100"
-      )}
-      onClick={() => scrollToBottom()}
-    >
-      <ArrowDown className="size-4" />
-    </button>
-  );
 }
 
 export function TaskPageContent({
