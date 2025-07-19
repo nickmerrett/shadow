@@ -34,6 +34,8 @@ export function PromptForm({
   const [selectedModel, setSelectedModel] = useState<ModelType>(
     AvailableModels.GPT_4O
   );
+  const [repoUrl, setRepoUrl] = useState<string | null>(null);
+  const [branch, setBranch] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Fetch list of models from backend on mount
@@ -62,6 +64,12 @@ export function PromptForm({
       const formData = new FormData();
       formData.append("message", message);
       formData.append("model", selectedModel);
+      if (repoUrl) {
+        formData.append("repoUrl", repoUrl);
+      }
+      if (branch) {
+        formData.append("branch", branch);
+      }
 
       startTransition(async () => {
         try {
@@ -152,7 +160,14 @@ export function PromptForm({
           </Popover>
 
           <div className="flex items-center gap-2">
-            {isHome && <GithubConnection />}
+            {isHome && (
+              <GithubConnection
+                onSelect={(repo, br) => {
+                  setRepoUrl(repo);
+                  setBranch(br);
+                }}
+              />
+            )}
             <Button
               type="submit"
               size="iconSm"
