@@ -14,7 +14,7 @@ class PineconeHandler {
     private embeddingModel: string;
     private indexName: string;
     // Hardcoded to shadow index for now
-    constructor(indexName: string = "shadow") {
+    constructor(indexName: string = process.env.PINECONE_INDEX_NAME || "shadow") {
         this.pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY || '' });
         this.indexName = indexName;
         this.client = this.pc.Index(this.indexName);
@@ -52,7 +52,7 @@ class PineconeHandler {
                 .filter(record => {
                     const text = record.metadata.code || record.metadata.text || "";
                     if (!text.trim()) {
-                        console.log(`Skipping record ${record.id} - no text to embed`);
+                        logger.info(`Skipping record ${record.id} - no text to embed`);
                         return false;
                     }
                     return true;
@@ -115,7 +115,7 @@ class PineconeHandler {
     async searchRecords(query: string, namespace: string, topK: number = 3, fields: string[]) {
         const response = await this.client.namespace(namespace).searchRecords({
             query: {
-            topK: 3,
+            topK: topK,
             inputs: { text: query },
             },
             fields: fields
