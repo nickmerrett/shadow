@@ -1,6 +1,4 @@
-import { cn } from "@/lib/utils";
-import type { Message, ToolStatusType } from "@repo/types";
-import { CheckIcon, Loader, X } from "lucide-react";
+import type { Message } from "@repo/types";
 
 // Tool-specific components
 import { CodebaseSearchTool } from "./codebase-search";
@@ -28,26 +26,31 @@ const TOOL_COMPONENTS = {
 
 export type ToolName = keyof typeof TOOL_COMPONENTS;
 
-function StatusIcon({
-  status,
-  tool,
-}: {
-  status: ToolStatusType;
-  tool: string;
-}) {
-  switch (status) {
-    case "RUNNING":
-      return <Loader className="size-3.5 text-blue-500 animate-spin" />;
-    case "COMPLETED":
-      return <CheckIcon className="size-3.5 text-green-500 opacity-60" />;
-    case "FAILED":
-      return <X className="size-3.5 text-red-500" />;
-    default:
-      return <div>Status: {status}</div>;
-  }
-}
+// function StatusIcon({
+//   status,
+//   tool,
+// }: {
+//   status: ToolStatusType;
+//   tool: string;
+// }) {
+//   switch (status) {
+//     case "RUNNING":
+//       return <Loader className="size-3.5 text-blue-500 animate-spin" />;
+//     case "COMPLETED":
+//       return <CheckIcon className="size-3.5 text-green-500 opacity-60" />;
+//     case "FAILED":
+//       return <X className="size-3.5 text-red-500" />;
+//     default:
+//       return <div>Status: {status}</div>;
+//   }
+// }
 
-function ToolContent({ message }: { message: Message }) {
+export function ToolMessage({ message }: { message: Message }) {
+  if (!message.metadata?.tool) {
+    return <div className="text-muted-foreground">{message.content}</div>;
+  }
+
+  // const { status } = message.metadata.tool;
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) {
     return <span className="text-muted-foreground">{message.content}</span>;
@@ -63,28 +66,8 @@ function ToolContent({ message }: { message: Message }) {
     );
   }
 
+  // Todo: pass in status
   return <ToolComponent message={message} />;
-}
-
-export function ToolMessage({ message }: { message: Message }) {
-  if (!message.metadata?.tool) {
-    return <div className="text-muted-foreground">{message.content}</div>;
-  }
-
-  const { status, name } = message.metadata.tool;
-
-  return (
-    <div
-      className={cn(
-        "group px-3 py-2 flex text-muted-foreground text-[13px] justify-between w-full hover:text-foreground transition-[color,opacity]",
-        status === "FAILED" && "text-destructive"
-      )}
-    >
-      <div className="flex-1 min-w-0">
-        <ToolContent message={message} />
-      </div>
-    </div>
-  );
 }
 
 // Export all tool components for potential individual use
