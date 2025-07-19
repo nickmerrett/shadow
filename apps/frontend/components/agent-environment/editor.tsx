@@ -5,12 +5,7 @@ import { ChevronRight, ChevronsRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Fragment, useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import type { FileNode } from "./file-explorer";
 
 // Dynamic import Monaco Editor to avoid SSR issues
@@ -68,25 +63,22 @@ export function Editor({
     <div className="flex flex-col size-full bg-background">
       <div className="px-2 h-13 border-b border-sidebar-border bg-card flex items-center gap-2">
         {isExplorerCollapsed && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 cursor-pointer hover:bg-sidebar-accent"
-                  onClick={onToggleCollapse}
-                >
-                  <ChevronsRight className="size-4" />
-                  <span className="sr-only">Open File Explorer</span>
-                </Button>
-              </TooltipTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 cursor-pointer hover:bg-sidebar-accent"
+                onClick={onToggleCollapse}
+              >
+                <ChevronsRight className="size-4" />
+              </Button>
+            </TooltipTrigger>
 
-              <TooltipContent side="bottom" align="start">
-                Open File Explorer
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+            <TooltipContent side="bottom" align="start">
+              Open File Explorer
+            </TooltipContent>
+          </Tooltip>
         )}
         <div className="flex flex-col items-start justify-center">
           <div className="text-sm select-none">Code Editor</div>

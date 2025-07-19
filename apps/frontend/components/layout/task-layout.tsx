@@ -10,7 +10,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { saveLayoutCookie } from "@/lib/actions/save-sidebar-cookie";
@@ -84,35 +83,33 @@ export function TaskLayoutContent({
       <ResizablePanel minSize={30} defaultSize={leftSize}>
         <div className="flex size-full overflow-y-auto max-h-svh flex-col relative">
           <div className="flex w-full items-center justify-between p-3 sticky top-0 bg-background z-10">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <SidebarTrigger />
-                </TooltipTrigger>
-                <TooltipContent side="right" shortcut="⌘B">
-                  Toggle Sidebar
-                </TooltipContent>
-              </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SidebarTrigger />
+              </TooltipTrigger>
+              <TooltipContent side="right" shortcut="⌘B">
+                Toggle Sidebar
+              </TooltipContent>
+            </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn("size-7 cursor-pointer")}
-                    onClick={handleToggleRightPanel}
-                  >
-                    <AppWindowMac className="size-4" />
-                    <span className="sr-only">
-                      Toggle Agent Environment (⌘⌥\)
-                    </span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left" shortcut="⌘⌥B">
-                  Toggle Agent Environment
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("size-7 cursor-pointer")}
+                  onClick={handleToggleRightPanel}
+                >
+                  <AppWindowMac className="size-4" />
+                  <span className="sr-only">
+                    Toggle Agent Environment (⌘⌥\)
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left" shortcut="⌘⌥B">
+                Toggle Agent Environment
+              </TooltipContent>
+            </Tooltip>
           </div>
           {children}
         </div>
