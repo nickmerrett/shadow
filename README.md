@@ -110,6 +110,12 @@ Then update your `packages/db/.env` with:
 DATABASE_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
 ```
 
+To re-set up the database, run:
+
+```
+psql "DROP DATABASE shadow_dev; CREATE DATABASE shadow_dev;"
+```
+
 We're using [Prisma](https://www.prisma.io/) as our ORM.
 
 To generate types from the schema, run:
