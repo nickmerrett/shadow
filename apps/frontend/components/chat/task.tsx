@@ -5,9 +5,9 @@ import { PromptForm } from "@/components/chat/prompt-form";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
 import type { Task } from "@/lib/db-operations/get-task";
+import { queryClient } from "@/lib/query-client";
 import { socket } from "@/lib/socket";
 import type { Message, StreamChunk } from "@repo/types";
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 // Types for streaming tool calls
@@ -28,7 +28,6 @@ export function TaskPageContent({
   initialMessages: Message[];
 }) {
   const taskId = task.id;
-  const queryClient = useQueryClient();
 
   const { data: messages = [] } = useTaskMessages(taskId, initialMessages);
   const sendMessageMutation = useSendMessage();
@@ -232,7 +231,7 @@ export function TaskPageContent({
   }
 
   const chatContent = (
-    <div className="mx-auto flex w-full grow max-w-lg flex-col items-center relative z-0">
+    <div className="mx-auto flex w-full grow max-w-lg flex-col items-center px-4 sm:px-6 relative z-0">
       {/* Todo: only show if not scrolled to the very top  */}
       <div className="sticky -left-px w-[calc(100%+2px)] top-[calc(3rem+1px)] h-16 bg-gradient-to-b from-background via-background/60 to-transparent -translate-y-px pointer-events-none z-10" />
 
