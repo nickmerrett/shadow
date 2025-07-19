@@ -20,6 +20,7 @@ import type {
   ImperativePanelGroupHandle,
   ImperativePanelHandle,
 } from "react-resizable-panels";
+import { StickToBottom } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
 
 export function TaskLayoutContent({
@@ -96,7 +97,11 @@ export function TaskLayoutContent({
       onLayout={handleLayout}
     >
       <ResizablePanel minSize={30} defaultSize={leftSize}>
-        <div className="flex size-full overflow-y-auto max-h-svh flex-col relative">
+        <StickToBottom
+          className="flex size-full overflow-y-auto max-h-svh flex-col relative"
+          resize="smooth"
+          initial="smooth"
+        >
           <div className="flex w-full items-center justify-between p-3 sticky top-0 bg-background z-10">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -124,7 +129,7 @@ export function TaskLayoutContent({
             </Tooltip>
           </div>
           {children}
-        </div>
+        </StickToBottom>
       </ResizablePanel>
       <ResizableHandle />
       <ResizablePanel

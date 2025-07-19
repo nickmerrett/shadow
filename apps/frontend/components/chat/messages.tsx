@@ -7,7 +7,7 @@ import { UserMessage } from "./user-message";
 
 export function Messages({ messages }: { messages: Message[] }) {
   return (
-    <div className="w-full flex grow flex-col gap-3">
+    <div className="w-full flex grow flex-col gap-3 mb-24">
       {messages.map((message, index) => {
         if (isUserMessage(message)) {
           return (
