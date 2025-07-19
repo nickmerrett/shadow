@@ -12,10 +12,7 @@ export function SearchReplaceTool({ message }: { message: Message }) {
   const newString = args.new_string as string;
 
   return (
-    <CollapsibleTool
-      icon={<Replace className="size-4 text-orange-500" />}
-      title={`Replace in ${filePath}`}
-    >
+    <CollapsibleTool icon={<Replace />} title={`Replace in ${filePath}`}>
       {status !== "RUNNING" && (
         <div className="space-y-2">
           <div>

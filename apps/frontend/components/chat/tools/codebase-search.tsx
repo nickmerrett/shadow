@@ -9,13 +9,9 @@ export function CodebaseSearchTool({ message }: { message: Message }) {
   const { args, status, result } = toolMeta;
   const query = args.query as string;
   const targetDirectories = (args.target_directories as string[]) || [];
-  const explanation = args.explanation as string;
 
   return (
-    <CollapsibleTool
-      icon={<Search className="size-4 text-purple-500" />}
-      title={`Semantic search: "${query}"`}
-    >
+    <CollapsibleTool icon={<Search />} title={`Semantic search: "${query}"`}>
       {targetDirectories.length > 0 && (
         <div className="flex items-center gap-1">
           <Folder className="size-3 text-muted-foreground" />
@@ -31,10 +27,6 @@ export function CodebaseSearchTool({ message }: { message: Message }) {
             ))}
           </div>
         </div>
-      )}
-
-      {explanation && (
-        <div className="text-xs text-muted-foreground">{explanation}</div>
       )}
 
       {result && status === "COMPLETED" && (

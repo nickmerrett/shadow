@@ -8,17 +8,9 @@ export function FileSearchTool({ message }: { message: Message }) {
 
   const { args, status, result } = toolMeta;
   const query = args.query as string;
-  const explanation = args.explanation as string;
 
   return (
-    <CollapsibleTool
-      icon={<FileSearch className="size-4 text-teal-500" />}
-      title={`File search: "${query}"`}
-    >
-      {explanation && (
-        <div className="text-xs text-muted-foreground">{explanation}</div>
-      )}
-
+    <CollapsibleTool icon={<FileSearch />} title={`File search: "${query}"`}>
       {result && status === "COMPLETED" && (
         <div>
           <div className="text-xs text-muted-foreground mb-1">Found files:</div>

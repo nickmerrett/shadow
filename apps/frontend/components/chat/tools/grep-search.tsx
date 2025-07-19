@@ -11,15 +11,11 @@ export function GrepSearchTool({ message }: { message: Message }) {
   const includePattern = args.include_pattern as string;
   const excludePattern = args.exclude_pattern as string;
   const caseSensitive = args.case_sensitive as boolean;
-  const explanation = args.explanation as string;
 
   const title = `Regex search: ${query}${caseSensitive ? " (case sensitive)" : ""}`;
 
   return (
-    <CollapsibleTool
-      icon={<Hash className="size-4 text-orange-500" />}
-      title={title}
-    >
+    <CollapsibleTool icon={<Hash />} title={title}>
       {(includePattern || excludePattern) && (
         <div className="flex items-center gap-1">
           <Filter className="size-3 text-muted-foreground" />
@@ -43,10 +39,6 @@ export function GrepSearchTool({ message }: { message: Message }) {
             )}
           </div>
         </div>
-      )}
-
-      {explanation && (
-        <div className="text-xs text-muted-foreground">{explanation}</div>
       )}
 
       {result && status === "COMPLETED" && (

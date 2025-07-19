@@ -11,7 +11,6 @@ export function ReadFileTool({ message }: { message: Message }) {
   const startLine = args.start_line_one_indexed as number;
   const endLine = args.end_line_one_indexed_inclusive as number;
   const readEntireFile = args.should_read_entire_file as boolean;
-  const explanation = args.explanation as string;
 
   const lineRange = readEntireFile
     ? "entire file"
@@ -20,14 +19,7 @@ export function ReadFileTool({ message }: { message: Message }) {
       : "partial read";
 
   return (
-    <CollapsibleTool
-      icon={<Eye className="size-4 text-blue-500" />}
-      title={`Read ${filePath} (${lineRange})`}
-    >
-      {explanation && (
-        <div className="text-xs text-muted-foreground">{explanation}</div>
-      )}
-
+    <CollapsibleTool icon={<Eye />} title={`Read ${filePath} (${lineRange})`}>
       {result && status === "COMPLETED" && (
         <div>
           <div className="text-xs text-muted-foreground mb-1">Preview:</div>

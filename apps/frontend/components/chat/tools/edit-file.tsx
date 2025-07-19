@@ -19,7 +19,7 @@ export function EditFileTool({ message }: { message: Message }) {
 
   return (
     <CollapsibleTool
-      icon={<Edit3 className="size-4 text-green-500" />}
+      icon={<Edit3 />}
       title={`Edited ${filePath}${changeSummary}`}
     >
       {instructions && (

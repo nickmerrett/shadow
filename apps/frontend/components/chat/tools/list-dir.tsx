@@ -8,17 +8,12 @@ export function ListDirTool({ message }: { message: Message }) {
 
   const { args, status, result } = toolMeta;
   const path = args.relative_workspace_path as string;
-  const explanation = args.explanation as string;
 
   return (
     <CollapsibleTool
-      icon={<FolderOpen className="size-4 text-blue-500" />}
+      icon={<FolderOpen />}
       title={`List directory: ${path || "./"}`}
     >
-      {explanation && (
-        <div className="text-xs text-muted-foreground">{explanation}</div>
-      )}
-
       {result && status === "COMPLETED" && (
         <div>
           <div className="text-xs text-muted-foreground mb-1">Contents:</div>

@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 interface CollapsibleToolProps {
@@ -18,24 +17,21 @@ export function CollapsibleTool({
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("flex flex-col gap-2", className)}>
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className={cn(
-          "flex items-center gap-2 w-full text-left transition-colors",
-          isExpanded ? "text-foreground" : "text-muted-foreground"
-        )}
+        className="flex items-center cursor-pointer gap-2 w-full text-left transition-colors text-muted-foreground hover:text-foreground text-[13px] [&_svg:not([class*='size-'])]:size-3.5"
       >
         {icon}
-        <span className="text-sm font-medium">{title}</span>
-        {isExpanded ? (
+        <span>{title}</span>
+        {/* {isExpanded ? (
           <ChevronDown className="size-3 ml-auto" />
         ) : (
           <ChevronRight className="size-3 ml-auto" />
-        )}
+        )} */}
       </button>
 
-      {isExpanded && <div className="pl-6 space-y-2">{children}</div>}
+      {isExpanded && <div className="pl-6 flex flex-col gap-2">{children}</div>}
     </div>
   );
 }
