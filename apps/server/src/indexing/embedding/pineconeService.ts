@@ -115,7 +115,7 @@ class PineconeHandler {
     async searchRecords(query: string, namespace: string, topK: number = 3, fields: string[]) {
         const response = await this.client.namespace(namespace).searchRecords({
             query: {
-            topK: 3,
+            topK: topK,
             inputs: { text: query },
             },
             fields: fields
