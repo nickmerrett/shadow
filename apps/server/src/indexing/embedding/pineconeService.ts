@@ -14,7 +14,7 @@ class PineconeHandler {
     private embeddingModel: string;
     private indexName: string;
     // Hardcoded to shadow index for now
-    constructor(indexName: string = "shadow") {
+    constructor(indexName: string = process.env.PINECONE_INDEX_NAME || "shadow") {
         this.pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY || '' });
         this.indexName = indexName;
         this.client = this.pc.Index(this.indexName);
