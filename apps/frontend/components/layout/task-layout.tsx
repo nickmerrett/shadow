@@ -13,14 +13,28 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { saveLayoutCookie } from "@/lib/actions/save-sidebar-cookie";
 import { cn } from "@/lib/utils";
 import { AppWindowMac } from "lucide-react";
-import { useRef } from "react";
-import type { ImperativePanelHandle } from "react-resizable-panels";
+import { useCallback, useRef } from "react";
+import type {
+  ImperativePanelGroupHandle,
+  ImperativePanelHandle,
+} from "react-resizable-panels";
 import { AgentEnvironment } from "../agent-environment";
 
-export function TaskLayoutContent({ children }: { children: React.ReactNode }) {
+export function TaskLayoutContent({
+  children,
+  initialLayout,
+}: {
+  children: React.ReactNode;
+  initialLayout?: number[];
+}) {
   const rightPanelRef = useRef<ImperativePanelHandle>(null);
+  const resizablePanelGroupRef = useRef<ImperativePanelGroupHandle>(null);
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
 
   const handleToggleRightPanel = () => {
     const panel = rightPanelRef.current;
@@ -32,9 +46,42 @@ export function TaskLayoutContent({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const handleLayout = useCallback((layout: number[]) => {
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced save
+    debounceTimeoutRef.current = setTimeout(() => {
+      saveLayoutCookie("taskLayout", layout);
+    }, 100);
+  }, []);
+
+  // Calculate initial sizes based on saved layout or defaults
+  const getInitialSizes = () => {
+    if (initialLayout && initialLayout.length >= 2) {
+      return {
+        leftSize: initialLayout[0],
+        rightSize: initialLayout[1],
+      };
+    }
+    return {
+      leftSize: 100,
+      rightSize: 0,
+    };
+  };
+
+  const { leftSize, rightSize } = getInitialSizes();
+
   return (
-    <ResizablePanelGroup direction="horizontal" className="min-h-svh">
-      <ResizablePanel minSize={30} defaultSize={100}>
+    <ResizablePanelGroup
+      ref={resizablePanelGroupRef}
+      direction="horizontal"
+      className="min-h-svh"
+      onLayout={handleLayout}
+    >
+      <ResizablePanel minSize={30} defaultSize={leftSize}>
         <div className="flex size-full overflow-y-auto max-h-svh flex-col relative">
           <div className="flex w-full items-center justify-between p-3 sticky top-0 bg-background z-10">
             <TooltipProvider>
@@ -75,7 +122,7 @@ export function TaskLayoutContent({ children }: { children: React.ReactNode }) {
         minSize={30}
         collapsible
         collapsedSize={0}
-        defaultSize={50}
+        defaultSize={rightSize}
         ref={rightPanelRef}
       >
         <AgentEnvironment />

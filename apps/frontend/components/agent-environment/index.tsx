@@ -15,7 +15,7 @@ const Terminal = dynamic(() => import("./terminal"), { ssr: false });
 
 export const AgentEnvironment: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<FileNode | undefined>(
-    mockFileStructure[0]?.children?.[0]?.children?.[0] // Default to Button.tsx
+    mockFileStructure[0]?.children?.[0]?.children?.[0]
   );
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
 
