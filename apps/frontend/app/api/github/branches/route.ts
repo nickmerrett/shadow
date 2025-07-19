@@ -1,6 +1,5 @@
-import { auth } from "@/lib/auth";
+import { getUser } from "@/lib/auth/get-user";
 import { prisma } from "@repo/db";
-import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 async function getGitHubAccount(userId: string) {
@@ -20,12 +19,9 @@ async function getGitHubAccount(userId: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the current session
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const user = await getUser();
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -50,7 +46,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the GitHub access token
-    const account = await getGitHubAccount(session.user.id);
+    const account = await getGitHubAccount(user.id);
 
     // Fetch branches from GitHub API
     const response = await fetch(

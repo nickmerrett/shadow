@@ -7,9 +7,10 @@ import {
   getModelProvider,
   toCoreMessage,
 } from "@repo/types";
-import { CoreMessage, LanguageModel, streamText } from "ai";
+import { CoreMessage, LanguageModel, generateText, streamText } from "ai";
 import { DEFAULT_MODEL } from "./chat";
 import config from "./config";
+import { tools } from "./tools";
 
 export class LLMService {
   private getModel(modelId: ModelType): LanguageModel {
@@ -36,7 +37,8 @@ export class LLMService {
   async *createMessageStream(
     systemPrompt: string,
     messages: Message[],
-    model: ModelType = DEFAULT_MODEL
+    model: ModelType = DEFAULT_MODEL,
+    enableTools: boolean = true
   ): AsyncGenerator<StreamChunk> {
     try {
       const modelInstance = this.getModel(model);
@@ -46,50 +48,91 @@ export class LLMService {
 
       console.log("coreMessages", coreMessages);
 
-      const result = streamText({
+      const streamConfig = {
         model: modelInstance,
         system: systemPrompt,
         messages: coreMessages,
         maxTokens: 4096,
         temperature: 0.7,
-      });
+        maxSteps: 5, // Enable multi-step tool calls
+        ...(enableTools && { tools }),
+      };
 
-      // Stream content chunks - keep this simple and non-blocking
-      for await (const chunk of result.textStream) {
-        yield {
-          type: "content",
-          content: chunk,
-        };
+      const result = streamText(streamConfig);
+
+      // Use fullStream to get real-time tool calls and results
+      for await (const chunk of result.fullStream) {
+        switch (chunk.type) {
+          case "text-delta":
+            if (chunk.textDelta) {
+              yield {
+                type: "content",
+                content: chunk.textDelta,
+              };
+            }
+            break;
+
+          case "tool-call":
+            yield {
+              type: "tool-call",
+              toolCall: {
+                id: chunk.toolCallId,
+                name: chunk.toolName,
+                args: chunk.args,
+              },
+            };
+            break;
+
+          case "tool-result":
+            yield {
+              type: "tool-result",
+              toolResult: {
+                id: chunk.toolCallId,
+                result: JSON.stringify(chunk.result),
+              },
+            };
+            break;
+
+          case "finish":
+            // Emit final usage and completion
+            if (chunk.usage) {
+              yield {
+                type: "usage",
+                usage: {
+                  promptTokens: chunk.usage.promptTokens,
+                  completionTokens: chunk.usage.completionTokens,
+                  totalTokens: chunk.usage.totalTokens,
+                },
+              };
+            }
+
+            yield {
+              type: "complete",
+              finishReason:
+                chunk.finishReason === "stop"
+                  ? "stop"
+                  : chunk.finishReason === "length"
+                    ? "length"
+                    : chunk.finishReason === "content-filter"
+                      ? "content-filter"
+                      : chunk.finishReason === "tool-calls"
+                        ? "tool_calls"
+                        : "stop",
+            };
+            break;
+
+          case "error":
+            yield {
+              type: "error",
+              error:
+                chunk.error instanceof Error
+                  ? chunk.error.message
+                  : "Unknown error occurred",
+              finishReason: "error",
+            };
+            break;
+        }
       }
-
-      // Wait for final results after streaming completes
-      const finalResult = await result;
-      const finalUsage = await finalResult.usage;
-      const finalFinishReason = await finalResult.finishReason;
-
-      // Emit final usage and completion
-      yield {
-        type: "usage",
-        usage: {
-          promptTokens: finalUsage.promptTokens,
-          completionTokens: finalUsage.completionTokens,
-          totalTokens: finalUsage.totalTokens,
-        },
-      };
-
-      yield {
-        type: "complete",
-        finishReason:
-          finalFinishReason === "stop"
-            ? "stop"
-            : finalFinishReason === "length"
-              ? "length"
-              : finalFinishReason === "content-filter"
-                ? "content-filter"
-                : finalFinishReason === "tool-calls"
-                  ? "tool_calls"
-                  : "stop",
-      };
     } catch (error) {
       console.error("LLM Service Error:", error);
       yield {
@@ -98,6 +141,46 @@ export class LLMService {
           error instanceof Error ? error.message : "Unknown error occurred",
         finishReason: "error",
       };
+    }
+  }
+
+  // Non-streaming method for simple tool usage
+  async generateWithTools(
+    systemPrompt: string,
+    messages: Message[],
+    model: ModelType = DEFAULT_MODEL,
+    enableTools: boolean = true
+  ) {
+    try {
+      const modelInstance = this.getModel(model);
+      const coreMessages: CoreMessage[] = messages.map(toCoreMessage);
+
+      const config = {
+        model: modelInstance,
+        system: systemPrompt,
+        messages: coreMessages,
+        maxTokens: 4096,
+        temperature: 0.7,
+        maxSteps: 5, // Enable multi-step tool calls
+        ...(enableTools && { tools }),
+      };
+
+      const result = await generateText(config);
+
+      return {
+        text: result.text,
+        usage: {
+          promptTokens: result.usage.promptTokens,
+          completionTokens: result.usage.completionTokens,
+          totalTokens: result.usage.totalTokens,
+        },
+        finishReason: result.finishReason,
+        toolCalls: result.toolCalls || [],
+        toolResults: result.toolResults || [],
+      };
+    } catch (error) {
+      console.error("LLM Service Error:", error);
+      throw error;
     }
   }
 

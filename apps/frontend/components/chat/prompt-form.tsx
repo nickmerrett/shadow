@@ -7,24 +7,34 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { createTask } from "@/lib/actions/create-task";
 import { cn } from "@/lib/utils";
-import { ModelInfos, type ModelInfo, type ModelType } from "@repo/types";
-import { ArrowUp, Layers, Square } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  AvailableModels,
+  ModelInfos,
+  type ModelInfo,
+  type ModelType,
+} from "@repo/types";
+import { ArrowUp, Layers, Loader2, Square } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { GithubConnection } from "./github";
 
 export function PromptForm({
   onSubmit,
-  disabled = false,
+  isStreaming = false,
   isHome = false,
 }: {
   onSubmit?: (message: string, model: ModelType) => void;
-  disabled?: boolean;
+  isStreaming?: boolean;
   isHome?: boolean;
 }) {
   const [message, setMessage] = useState("");
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
-  const [selectedModel, setSelectedModel] = useState<ModelType>();
+  const [selectedModel, setSelectedModel] = useState<ModelType>(
+    AvailableModels.GPT_4O
+  );
+  const [isPending, startTransition] = useTransition();
 
   // Fetch list of models from backend on mount
   useEffect(() => {
@@ -46,10 +56,27 @@ export function PromptForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || disabled || !selectedModel) return;
+    if (!message.trim() || isStreaming || !selectedModel) return;
 
-    onSubmit?.(message, selectedModel);
-    setMessage("");
+    if (isHome) {
+      const formData = new FormData();
+      formData.append("message", message);
+      formData.append("model", selectedModel);
+
+      startTransition(async () => {
+        try {
+          await createTask(formData);
+        } catch (error) {
+          toast.error("Failed to create task", {
+            description:
+              error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      });
+    } else {
+      onSubmit?.(message, selectedModel);
+      setMessage("");
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -63,19 +90,19 @@ export function PromptForm({
     <form
       onSubmit={handleSubmit}
       className={cn(
-        "flex w-full flex-col max-w-lg bg-background",
-        isHome && "sticky bottom-0 pb-6"
+        "flex w-full flex-col max-w-lg bg-background z-0 relative",
+        !isHome && "sticky bottom-0 pb-6"
       )}
     >
       {/* Wrapper div with textarea styling */}
       <div
         className={cn(
           "border-border relative focus-within:ring-ring/10 from-input/25 to-input flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow,border] focus-within:ring-4 focus-within:border-sidebar-border",
-          disabled && "opacity-50"
+          isPending && "opacity-50"
         )}
       >
         {!isHome && (
-          <div className="absolute -left-px w-[calc(100%+2px)] -top-16 h-16 bg-gradient-to-t from-background via-background/60 to-transparent -translate-y-px z-10 pointer-events-none" />
+          <div className="absolute -left-px w-[calc(100%+2px)] -top-16 h-16 bg-gradient-to-t from-background via-background/60 to-transparent -translate-y-px pointer-events-none -z-10" />
         )}
 
         {/* Textarea without border/background since wrapper handles it */}
@@ -84,12 +111,7 @@ export function PromptForm({
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={disabled}
-          placeholder={
-            disabled
-              ? "Assistant is responding..."
-              : "Build a cool new feature..."
-          }
+          placeholder="Build a cool new feature..."
           className="max-h-48 flex-1 resize-none rounded-lg border-0 bg-transparent! shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/50"
         />
 
@@ -134,10 +156,16 @@ export function PromptForm({
             <Button
               type="submit"
               size="iconSm"
-              disabled={disabled || !message.trim() || !selectedModel}
+              disabled={
+                isStreaming || isPending || !message.trim() || !selectedModel
+              }
               className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
             >
-              <ArrowUp className="size-4" />
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <ArrowUp className="size-4" />
+              )}
             </Button>
           </div>
         </div>

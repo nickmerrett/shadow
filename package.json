@@ -30,8 +30,5 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ],
-  "dependencies": {
-    "@pinecone-database/pinecone": "^6.1.1"
-  }
+  ]
 }

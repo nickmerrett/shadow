@@ -1,5 +1,9 @@
-import { MonacoEditor } from "@/components/demo/monaco-editor";
+import { AgentEnvironment } from "@/components/agent-environment";
 
 export default function MonacoDemoPage() {
-  return <MonacoEditor />;
+  return (
+    <div className="h-screen">
+      <AgentEnvironment />
+    </div>
+  );
 }

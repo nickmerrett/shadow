@@ -131,18 +131,10 @@ npm run db:studio
 
 The coding agent can be run locally in the terminal for testing on a local workspace.
 
-First, create a local workspace directory. For example, if my project is at `/Users/ishaandey/shadow`, I could have this at `/Users/ishaandey/shadow/test-workspace`.
+First, create a local workspace directory, we have a script to make one for you:
 
 ```
-# Create a test workspace with some sample code
-mkdir -p /Users/ishaandey/shadow/test-workspace
-cd /Users/ishaandey/shadow/test-workspace
-
-# Add some sample files to test with
-echo "console.log('Hello World');" > index.js
-echo "def hello(): return 'world'" > main.py
-mkdir src
-echo "export const greet = () => 'hello';" > src/utils.ts
+./create-local-workspace.sh
 ```
 
 Ensure you set the absolute path of the workspace in the server's .env file:

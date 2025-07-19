@@ -13,6 +13,8 @@ const configSchema = z
       .default("development"),
     ANTHROPIC_API_KEY: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
+    WORKSPACE_DIR: z.string().default("/workspace"),
+    DEBUG: z.string().optional().transform(val => val === "true"),
   })
   .refine((data) => data.ANTHROPIC_API_KEY || data.OPENAI_API_KEY, {
     message:
@@ -34,6 +36,8 @@ const config = {
   nodeEnv: parsed.data.NODE_ENV,
   anthropicApiKey: parsed.data.ANTHROPIC_API_KEY,
   openaiApiKey: parsed.data.OPENAI_API_KEY,
+  workspaceDir: parsed.data.WORKSPACE_DIR,
+  debug: parsed.data.DEBUG,
 };
 
 export default config;
