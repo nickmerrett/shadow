@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
-    "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/server.ts",
+    "dev": "nodemon --watch 'src/**/*.ts' --exec 'tsx' src/server.ts",
     "agent": "tsx src/agent.ts",
     "validate": "tsx src/validate-setup.ts",
     "lint": "eslint 'src/**/*.ts'",
@@ -55,6 +55,7 @@
     "supertest": "^7.1.3",
     "tree-sitter": "^0.25.0",
     "tree-sitter-python": "^0.23.6",
+    "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3"
