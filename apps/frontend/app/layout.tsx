@@ -8,7 +8,6 @@ import { getTasks } from "@/lib/db-operations/get-tasks";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -37,12 +36,7 @@ export default async function RootLayout({
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
 
   const user = await getUser();
-
-  if (!user) {
-    redirect("/auth");
-  }
-
-  const initialTasks = await getTasks(user.id);
+  const initialTasks = user ? await getTasks(user.id) : [];
 
   return (
     <html lang="en" suppressHydrationWarning>
