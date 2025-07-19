@@ -88,18 +88,13 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
 
   const { args, status, result, error } = toolMeta;
   const command = args.command as string;
-  const explanation = args.explanation as string;
   const isBackground = args.is_background as boolean;
 
   return (
     <CollapsibleTool
-      icon={<Terminal className="size-4 text-blue-500" />}
+      icon={<Terminal />}
       title={`Terminal Command${isBackground ? " (Background)" : ""}`}
     >
-      {explanation && (
-        <div className="text-xs text-muted-foreground">{explanation}</div>
-      )}
-
       <div className="flex items-center gap-2">
         <StatusBadge status={status} />
       </div>
