@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import type { Message, ToolStatusType } from "@repo/types";
 import { CheckIcon, Loader, Terminal, X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { CollapsibleTool } from "./collapsible-tool";
 
 interface TerminalOutputProps {
   output: string;
@@ -91,30 +92,16 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
   const isBackground = args.is_background as boolean;
 
   return (
-    <div className="space-y-3">
-      {/* Header with command and status */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <Terminal className="size-4 text-blue-500 flex-shrink-0" />
-          <div className="min-w-0">
-            <div className="font-medium text-sm text-foreground truncate">
-              Terminal Command
-            </div>
-            {explanation && (
-              <div className="text-xs text-muted-foreground mt-0.5">
-                {explanation}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {isBackground && (
-            <div className="text-xs px-2 py-0.5 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded">
-              Background
-            </div>
-          )}
-          <StatusBadge status={status} />
-        </div>
+    <CollapsibleTool
+      icon={<Terminal className="size-4 text-blue-500" />}
+      title={`Terminal Command${isBackground ? " (Background)" : ""}`}
+    >
+      {explanation && (
+        <div className="text-xs text-muted-foreground">{explanation}</div>
+      )}
+
+      <div className="flex items-center gap-2">
+        <StatusBadge status={status} />
       </div>
 
       {/* Command display */}
@@ -136,6 +123,6 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
           />
         </div>
       )}
-    </div>
+    </CollapsibleTool>
   );
 }

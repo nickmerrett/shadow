@@ -1,5 +1,6 @@
 import type { Message } from "@repo/types";
 import { Replace } from "lucide-react";
+import { CollapsibleTool } from "./collapsible-tool";
 
 export function SearchReplaceTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
@@ -11,21 +12,12 @@ export function SearchReplaceTool({ message }: { message: Message }) {
   const newString = args.new_string as string;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Replace className="size-4 text-orange-500 flex-shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Replace in:</span>
-            <code className="text-sm font-mono text-foreground bg-gray-100 dark:bg-gray-800/50 px-1.5 py-0.5 rounded truncate">
-              {filePath}
-            </code>
-          </div>
-        </div>
-      </div>
-
+    <CollapsibleTool
+      icon={<Replace className="size-4 text-orange-500" />}
+      title={`Replace in ${filePath}`}
+    >
       {status !== "RUNNING" && (
-        <div className="mt-2 space-y-2">
+        <div className="space-y-2">
           <div>
             <div className="text-xs text-muted-foreground mb-1">From:</div>
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/20 rounded-md p-2 max-h-20 overflow-y-auto text-xs font-mono">
@@ -46,6 +38,6 @@ export function SearchReplaceTool({ message }: { message: Message }) {
           </div>
         </div>
       )}
-    </div>
+    </CollapsibleTool>
   );
 }

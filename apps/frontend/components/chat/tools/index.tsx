@@ -43,7 +43,7 @@ function StatusIcon({
     case "FAILED":
       return <X className="size-3.5 text-red-500" />;
     default:
-      return null;
+      return <div>Status: {status}</div>;
   }
 }
 
@@ -76,16 +76,12 @@ export function ToolMessage({ message }: { message: Message }) {
   return (
     <div
       className={cn(
-        "group px-3 py-2 flex text-muted-foreground text-[13px] justify-between border items-start border-border from-transparent to-card/75 w-full rounded-lg bg-gradient-to-t shadow-xs transition-[color,box-shadow,opacity,border]",
-        "hover:border-sidebar-border hover:text-foreground",
-        status === "FAILED" && "border-red-500/20 bg-red-500/5"
+        "group px-3 py-2 flex text-muted-foreground text-[13px] justify-between w-full hover:text-foreground transition-[color,opacity]",
+        status === "FAILED" && "text-destructive"
       )}
     >
       <div className="flex-1 min-w-0">
         <ToolContent message={message} />
-      </div>
-      <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-        <StatusIcon status={status} tool={name} />
       </div>
     </div>
   );
