@@ -33,7 +33,7 @@ export function TaskLayoutContent({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ResizablePanelGroup direction="horizontal">
+    <ResizablePanelGroup direction="horizontal" className="min-h-svh">
       <ResizablePanel minSize={30} defaultSize={100}>
         <div className="flex size-full overflow-y-auto max-h-svh flex-col relative">
           <div className="flex w-full items-center justify-between p-3 sticky top-0 bg-background z-10">

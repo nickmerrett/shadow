@@ -105,6 +105,9 @@ model ChatMessage {
   llmModel String? // Model used for this message (only for ASSISTANT messages)
   metadata Json? // Enhanced metadata with usage, finish reason, etc
 
+  // Message ordering - critical for conversation flow
+  sequence Int // Explicit sequence number within task to guarantee ordering
+
   // Usage tracking (denormalized for easier querying)
   promptTokens     Int? // Input tokens
   completionTokens Int? // Output tokens  
@@ -116,6 +119,7 @@ model ChatMessage {
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
+  @@index([taskId, sequence]) // Order by sequence first for correct conversation flow
   @@index([taskId, createdAt])
   @@index([llmModel, createdAt]) // For usage analytics
 }

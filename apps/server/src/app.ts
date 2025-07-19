@@ -6,6 +6,7 @@ import http from "http";
 import { ChatService } from "./chat";
 import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";
+import { router as IndexingRouter } from "@/indexing/index";
 
 const app = express();
 const chatService = new ChatService();
@@ -27,7 +28,7 @@ app.get("/", (req, res) => {
 });
 
 // Indexing routes
-// app.use("/api/indexing", IndexingRouter);
+app.use("/api/indexing", IndexingRouter);
 
 // Get task details
 app.get("/api/tasks/:taskId", async (req, res) => {
