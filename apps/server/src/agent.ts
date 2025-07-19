@@ -140,7 +140,7 @@ class LocalCodingAgent {
           userId: defaultUser.id,
           mode: "FULL_AUTO",
           status: "RUNNING",
-          cloneStatus: "COMPLETED", // Local mode doesn't need cloning
+          initializationStatus: "COMPLETED", // Local mode doesn't need initialization
           workspacePath: config.workspaceDir,
         },
       });

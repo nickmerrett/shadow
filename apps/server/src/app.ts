@@ -1,17 +1,19 @@
+import { router as IndexingRouter } from "@/indexing/index";
 import { prisma } from "@repo/db";
 import { ModelInfos } from "@repo/types";
 import cors from "cors";
 import express from "express";
 import http from "http";
 import { ChatService } from "./chat";
+import { TaskInitializationEngine } from "./initialization";
 import { errorHandler } from "./middleware/error-handler";
-import { createSocketServer, emitStreamChunk } from "./socket";
-import { router as IndexingRouter } from "@/indexing/index";
+import { createSocketServer } from "./socket";
 import { WorkspaceManager } from "./workspace";
 
 const app = express();
 const chatService = new ChatService();
 const workspaceManager = new WorkspaceManager();
+const initializationEngine = new TaskInitializationEngine();
 
 const socketIOServer = http.createServer(app);
 createSocketServer(socketIOServer);
@@ -56,7 +58,7 @@ app.get("/api/tasks/:taskId", async (req, res) => {
   }
 });
 
-// Initiate task with agent
+// Initiate task with agent using new initialization system
 app.post("/api/tasks/:taskId/initiate", async (req, res) => {
   try {
     const { taskId } = req.params;
@@ -66,7 +68,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    // Verify task exists and get repo info
+    // Verify task exists
     const task = await prisma.task.findUnique({
       where: { id: taskId },
     });
@@ -75,102 +77,34 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       return res.status(404).json({ error: "Task not found" });
     }
 
-    console.log(`[TASK_INITIATE] Starting task ${taskId}: ${task.repoUrl}:${task.branch}`);
+    console.log(
+      `[TASK_INITIATE] Starting task ${taskId}: ${task.repoUrl}:${task.branch}`
+    );
 
     try {
       // Update task status to initializing
       await prisma.task.update({
         where: { id: taskId },
-        data: { 
-          status: "INITIALIZING",
-          cloneStatus: "CLONING"
-        },
+        data: { status: "INITIALIZING" },
       });
 
-      // Emit clone start event
-      emitStreamChunk({
-        type: "clone-progress",
-        cloneProgress: {
-          type: "clone-start",
-          taskId,
-          message: `Cloning repository ${task.repoUrl}:${task.branch}...`,
-        },
+      // Run initialization steps (for now just clone repository)
+      const initSteps = initializationEngine.getDefaultStepsForTask("simple");
+      await initializationEngine.initializeTask(taskId, initSteps);
+
+      // Get updated task with workspace info
+      const updatedTask = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { workspacePath: true, commitSha: true },
       });
 
-      // Prepare workspace (this will clone the repo)
-      const workspaceResult = await workspaceManager.prepareTaskWorkspace(
-        taskId,
-        task.repoUrl,
-        task.branch
-      );
-
-      if (!workspaceResult.success) {
-        // Update task with clone failure
-        await prisma.task.update({
-          where: { id: taskId },
-          data: { 
-            status: "FAILED",
-            cloneStatus: "FAILED"
-          },
-        });
-
-        // Create clone log
-        await prisma.cloneLog.create({
-          data: {
-            taskId,
-            status: "FAILED",
-            error: workspaceResult.error,
-          },
-        });
-
-        // Emit clone error event
-        emitStreamChunk({
-          type: "clone-progress",
-          cloneProgress: {
-            type: "clone-error",
-            taskId,
-            message: `Clone failed: ${workspaceResult.error}`,
-            error: workspaceResult.error,
-          },
-        });
-
-        return res.status(500).json({ 
-          error: "Failed to clone repository",
-          details: workspaceResult.error 
-        });
-      }
-
-      // Update task with successful clone info
+      // Update task status to running
       await prisma.task.update({
         where: { id: taskId },
-        data: { 
-          status: "RUNNING",
-          cloneStatus: "COMPLETED",
-          workspacePath: workspaceResult.workspacePath,
-          commitSha: workspaceResult.cloneResult?.commitSha,
-        },
+        data: { status: "RUNNING" },
       });
 
-      // Create successful clone log
-      await prisma.cloneLog.create({
-        data: {
-          taskId,
-          status: "COMPLETED",
-          message: `Successfully cloned ${task.repoUrl}:${task.branch}`,
-        },
-      });
-
-      // Emit clone complete event
-      emitStreamChunk({
-        type: "clone-progress",
-        cloneProgress: {
-          type: "clone-complete",
-          taskId,
-          message: `Repository cloned successfully. Starting agent...`,
-        },
-      });
-
-      console.log(`[TASK_INITIATE] Successfully cloned repository for task ${taskId}`);
+      console.log(`[TASK_INITIATE] Successfully initialized task ${taskId}`);
 
       // Process the message with the agent using the task workspace
       // Skip saving user message since it's already saved in the server action
@@ -180,50 +114,28 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         llmModel: model || "gpt-4o",
         enableTools: true,
         skipUserMessageSave: true,
-        workspacePath: workspaceResult.workspacePath,
+        workspacePath: updatedTask?.workspacePath || undefined,
       });
 
-      res.json({ 
+      res.json({
         status: "initiated",
-        workspacePath: workspaceResult.workspacePath,
-        commitSha: workspaceResult.cloneResult?.commitSha,
+        workspacePath: updatedTask?.workspacePath,
+        commitSha: updatedTask?.commitSha,
       });
+    } catch (initError) {
+      console.error(
+        `[TASK_INITIATE] Initialization error for task ${taskId}:`,
+        initError
+      );
 
-    } catch (cloneError) {
-      console.error(`[TASK_INITIATE] Clone/setup error for task ${taskId}:`, cloneError);
-      
       // Update task status to failed
       await prisma.task.update({
         where: { id: taskId },
-        data: { 
-          status: "FAILED",
-          cloneStatus: "FAILED"
-        },
+        data: { status: "FAILED" },
       });
 
-      // Create error log
-      await prisma.cloneLog.create({
-        data: {
-          taskId,
-          status: "FAILED",
-          error: cloneError instanceof Error ? cloneError.message : "Unknown error",
-        },
-      });
-
-      // Emit clone error
-      emitStreamChunk({
-        type: "clone-progress", 
-        cloneProgress: {
-          type: "clone-error",
-          taskId,
-          message: "Failed to prepare workspace",
-          error: cloneError instanceof Error ? cloneError.message : "Unknown error",
-        },
-      });
-
-      throw cloneError;
+      throw initError;
     }
-
   } catch (error) {
     console.error("Error initiating task:", error);
     res.status(500).json({ error: "Failed to initiate task" });

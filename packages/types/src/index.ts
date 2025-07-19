@@ -123,7 +123,7 @@ export interface StreamChunk {
     | "error"
     | "tool-call"
     | "tool-result"
-    | "clone-progress";
+    | "init-progress";
 
   // For content chunks
   content?: string;
@@ -164,18 +164,42 @@ export interface StreamChunk {
     result: string;
   };
 
-  // For clone progress
-  cloneProgress?: CloneProgress;
+  // For initialization progress
+  initProgress?: InitializationProgress;
 }
 
-// Clone progress tracking
-export interface CloneProgress {
-  type: 'clone-start' | 'clone-progress' | 'clone-complete' | 'clone-error';
+// Initialization progress tracking
+export interface InitializationProgress {
+  type: "init-start" | "step-start" | "init-complete" | "init-error";
   taskId: string;
-  message: string;
-  progress?: number;
+
+  // Current step info
+  currentStep?: InitStepType;
+  stepName?: string; // Human readable name
+  message?: string;
+
+  // Optional: simple progress
+  stepNumber?: number;
+  totalSteps?: number;
+
   error?: string;
 }
+
+// Initialization step types
+export type InitStepType =
+  | "CLONE_REPOSITORY"
+  | "PROVISION_MICROVM"
+  | "SETUP_ENVIRONMENT"
+  | "INSTALL_DEPENDENCIES"
+  | "CONFIGURE_TOOLS"
+  | "VALIDATE_SETUP";
+
+// Initialization status
+export type InitializationStatus =
+  | "PENDING"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "FAILED";
 
 // === Database Enums ===
 
