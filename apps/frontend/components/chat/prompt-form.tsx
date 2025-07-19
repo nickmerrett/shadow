@@ -61,15 +61,17 @@ export function PromptForm({
     if (!message.trim() || isStreaming || !selectedModel) return;
 
     if (isHome) {
+      // Require repo and branch selection before creating a task
+      if (!repoUrl || !branch) {
+        toast.error("Select a repository and branch first");
+        return;
+      }
+
       const formData = new FormData();
       formData.append("message", message);
       formData.append("model", selectedModel);
-      if (repoUrl) {
-        formData.append("repoUrl", repoUrl);
-      }
-      if (branch) {
-        formData.append("branch", branch);
-      }
+      formData.append("repoUrl", repoUrl);
+      formData.append("branch", branch);
 
       startTransition(async () => {
         try {
@@ -172,7 +174,11 @@ export function PromptForm({
               type="submit"
               size="iconSm"
               disabled={
-                isStreaming || isPending || !message.trim() || !selectedModel
+                isStreaming ||
+                isPending ||
+                !message.trim() ||
+                !selectedModel ||
+                (isHome && (!repoUrl || !branch))
               }
               className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
             >
