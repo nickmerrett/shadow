@@ -2,12 +2,6 @@ import { Pinecone, Index } from '@pinecone-database/pinecone'
 import { GraphNode } from '../graph';
 import logger from '../logger';
 
-interface CodeBlockRecord {
-    id: string;
-    line_start: number;
-    line_end: number;
-    text: string;
-}
 class PineconeHandler {
     public pc: Pinecone;
     private client: Index;
