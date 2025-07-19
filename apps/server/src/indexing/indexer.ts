@@ -58,10 +58,17 @@ async function fetchRepoFiles(
       // Directory
       for (const item of data) {
         if (item.type === "file") {
-          const fileResponse = await fetch(item.url, { headers });
-          const fileData = await fileResponse.json();
-          const content = Buffer.from(fileData.content, "base64").toString("utf8");
-          files.push({ path: fileData.path, content, type: "file" });
+          try {
+            const fileResponse = await fetch(item.url, { headers });
+            if (!fileResponse.ok) {
+              throw new Error(`Failed to fetch file: ${item.path} - ${fileResponse.status} ${fileResponse.statusText}`);
+            }
+            const fileData = await fileResponse.json();
+            const content = Buffer.from(fileData.content, "base64").toString("utf8");
+            files.push({ path: fileData.path, content, type: "file" });
+          } catch (error) {
+            logger.error(`Error fetching file ${item.path}: ${error}`);
+          }
         } else if (item.type === "dir") {
           const subFiles = await fetchRepoFiles(owner, repo, item.path);
           files.push(...subFiles);
