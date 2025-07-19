@@ -12,6 +12,8 @@ import { DEFAULT_MODEL } from "./chat";
 import config from "./config";
 import { createTools } from "./tools";
 
+const MAX_STEPS = 20;
+
 export class LLMService {
   private getModel(modelId: ModelType): LanguageModel {
     const provider = getModelProvider(modelId);
@@ -58,7 +60,7 @@ export class LLMService {
         messages: coreMessages,
         maxTokens: 4096,
         temperature: 0.7,
-        maxSteps: 5, // Enable multi-step tool calls
+        maxSteps: MAX_STEPS,
         ...(enableTools && tools && { tools }),
       };
 
@@ -168,7 +170,7 @@ export class LLMService {
         messages: coreMessages,
         maxTokens: 4096,
         temperature: 0.7,
-        maxSteps: 5, // Enable multi-step tool calls
+        maxSteps: MAX_STEPS,
         ...(enableTools && tools && { tools }),
       };
 
