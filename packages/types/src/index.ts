@@ -122,7 +122,8 @@ export interface StreamChunk {
     | "complete"
     | "error"
     | "tool-call"
-    | "tool-result";
+    | "tool-result"
+    | "clone-progress";
 
   // For content chunks
   content?: string;
@@ -162,6 +163,18 @@ export interface StreamChunk {
     id: string;
     result: string;
   };
+
+  // For clone progress
+  cloneProgress?: CloneProgress;
+}
+
+// Clone progress tracking
+export interface CloneProgress {
+  type: 'clone-start' | 'clone-progress' | 'clone-complete' | 'clone-error';
+  taskId: string;
+  message: string;
+  progress?: number;
+  error?: string;
 }
 
 // === Database Enums ===

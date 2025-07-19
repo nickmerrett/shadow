@@ -41,7 +41,8 @@ export class LLMService {
     messages: Message[],
     model: ModelType = DEFAULT_MODEL,
     enableTools: boolean = true,
-    taskId?: string
+    taskId?: string,
+    workspacePath?: string
   ): AsyncGenerator<StreamChunk> {
     try {
       const modelInstance = this.getModel(model);
@@ -52,7 +53,7 @@ export class LLMService {
       console.log("coreMessages", coreMessages);
 
       // Create tools with task context if taskId is provided
-      const tools = taskId ? createTools(taskId) : undefined;
+      const tools = taskId ? createTools(taskId, workspacePath) : undefined;
 
       const streamConfig = {
         model: modelInstance,
@@ -155,14 +156,15 @@ export class LLMService {
     messages: Message[],
     model: ModelType = DEFAULT_MODEL,
     enableTools: boolean = true,
-    taskId?: string
+    taskId?: string,
+    workspacePath?: string
   ) {
     try {
       const modelInstance = this.getModel(model);
       const coreMessages: CoreMessage[] = messages.map(toCoreMessage);
 
       // Create tools with task context if taskId is provided
-      const tools = taskId ? createTools(taskId) : undefined;
+      const tools = taskId ? createTools(taskId, workspacePath) : undefined;
 
       const config = {
         model: modelInstance,

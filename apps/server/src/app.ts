@@ -5,11 +5,13 @@ import express from "express";
 import http from "http";
 import { ChatService } from "./chat";
 import { errorHandler } from "./middleware/error-handler";
-import { createSocketServer } from "./socket";
+import { createSocketServer, emitStreamChunk } from "./socket";
 import { router as IndexingRouter } from "@/indexing/index";
+import { WorkspaceManager } from "./workspace";
 
 const app = express();
 const chatService = new ChatService();
+const workspaceManager = new WorkspaceManager();
 
 const socketIOServer = http.createServer(app);
 createSocketServer(socketIOServer);
@@ -64,7 +66,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    // Verify task exists
+    // Verify task exists and get repo info
     const task = await prisma.task.findUnique({
       where: { id: taskId },
     });
@@ -73,17 +75,155 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       return res.status(404).json({ error: "Task not found" });
     }
 
-    // Process the message with the agent (this will start the LLM processing)
-    // Skip saving user message since it's already saved in the server action
-    await chatService.processUserMessage({
-      taskId,
-      userMessage: message,
-      llmModel: model || "gpt-4o",
-      enableTools: true,
-      skipUserMessageSave: true,
-    });
+    console.log(`[TASK_INITIATE] Starting task ${taskId}: ${task.repoUrl}:${task.branch}`);
 
-    res.json({ status: "initiated" });
+    try {
+      // Update task status to initializing
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { 
+          status: "INITIALIZING",
+          cloneStatus: "CLONING"
+        },
+      });
+
+      // Emit clone start event
+      emitStreamChunk({
+        type: "clone-progress",
+        cloneProgress: {
+          type: "clone-start",
+          taskId,
+          message: `Cloning repository ${task.repoUrl}:${task.branch}...`,
+        },
+      });
+
+      // Prepare workspace (this will clone the repo)
+      const workspaceResult = await workspaceManager.prepareTaskWorkspace(
+        taskId,
+        task.repoUrl,
+        task.branch
+      );
+
+      if (!workspaceResult.success) {
+        // Update task with clone failure
+        await prisma.task.update({
+          where: { id: taskId },
+          data: { 
+            status: "FAILED",
+            cloneStatus: "FAILED"
+          },
+        });
+
+        // Create clone log
+        await prisma.cloneLog.create({
+          data: {
+            taskId,
+            status: "FAILED",
+            error: workspaceResult.error,
+          },
+        });
+
+        // Emit clone error event
+        emitStreamChunk({
+          type: "clone-progress",
+          cloneProgress: {
+            type: "clone-error",
+            taskId,
+            message: `Clone failed: ${workspaceResult.error}`,
+            error: workspaceResult.error,
+          },
+        });
+
+        return res.status(500).json({ 
+          error: "Failed to clone repository",
+          details: workspaceResult.error 
+        });
+      }
+
+      // Update task with successful clone info
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { 
+          status: "RUNNING",
+          cloneStatus: "COMPLETED",
+          workspacePath: workspaceResult.workspacePath,
+          commitSha: workspaceResult.cloneResult?.commitSha,
+        },
+      });
+
+      // Create successful clone log
+      await prisma.cloneLog.create({
+        data: {
+          taskId,
+          status: "COMPLETED",
+          message: `Successfully cloned ${task.repoUrl}:${task.branch}`,
+        },
+      });
+
+      // Emit clone complete event
+      emitStreamChunk({
+        type: "clone-progress",
+        cloneProgress: {
+          type: "clone-complete",
+          taskId,
+          message: `Repository cloned successfully. Starting agent...`,
+        },
+      });
+
+      console.log(`[TASK_INITIATE] Successfully cloned repository for task ${taskId}`);
+
+      // Process the message with the agent using the task workspace
+      // Skip saving user message since it's already saved in the server action
+      await chatService.processUserMessage({
+        taskId,
+        userMessage: message,
+        llmModel: model || "gpt-4o",
+        enableTools: true,
+        skipUserMessageSave: true,
+        workspacePath: workspaceResult.workspacePath,
+      });
+
+      res.json({ 
+        status: "initiated",
+        workspacePath: workspaceResult.workspacePath,
+        commitSha: workspaceResult.cloneResult?.commitSha,
+      });
+
+    } catch (cloneError) {
+      console.error(`[TASK_INITIATE] Clone/setup error for task ${taskId}:`, cloneError);
+      
+      // Update task status to failed
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { 
+          status: "FAILED",
+          cloneStatus: "FAILED"
+        },
+      });
+
+      // Create error log
+      await prisma.cloneLog.create({
+        data: {
+          taskId,
+          status: "FAILED",
+          error: cloneError instanceof Error ? cloneError.message : "Unknown error",
+        },
+      });
+
+      // Emit clone error
+      emitStreamChunk({
+        type: "clone-progress", 
+        cloneProgress: {
+          type: "clone-error",
+          taskId,
+          message: "Failed to prepare workspace",
+          error: cloneError instanceof Error ? cloneError.message : "Unknown error",
+        },
+      });
+
+      throw cloneError;
+    }
+
   } catch (error) {
     console.error("Error initiating task:", error);
     res.status(500).json({ error: "Failed to initiate task" });
@@ -115,6 +255,38 @@ app.get("/api/tasks/:taskId/messages", async (req, res) => {
   } catch (error) {
     console.error("Error fetching messages:", error);
     res.status(500).json({ error: "Failed to fetch messages" });
+  }
+});
+
+// Cleanup workspace for a task
+app.post("/api/tasks/:taskId/cleanup", async (req, res) => {
+  try {
+    const { taskId } = req.params;
+
+    // Verify task exists
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+    });
+
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    console.log(`[TASK_CLEANUP] Cleaning up workspace for task ${taskId}`);
+
+    // Clean up workspace
+    await workspaceManager.cleanupTaskWorkspace(taskId);
+
+    // Update task to mark workspace as cleaned up
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { workspaceCleanedUp: true },
+    });
+
+    res.json({ status: "cleaned" });
+  } catch (error) {
+    console.error("Error cleaning up task:", error);
+    res.status(500).json({ error: "Failed to cleanup task" });
   }
 });
 

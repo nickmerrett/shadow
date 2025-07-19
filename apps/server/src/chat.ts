@@ -125,12 +125,14 @@ export class ChatService {
     llmModel = DEFAULT_MODEL,
     enableTools = true,
     skipUserMessageSave = false,
+    workspacePath,
   }: {
     taskId: string;
     userMessage: string;
     llmModel?: ModelType;
     enableTools?: boolean;
     skipUserMessageSave?: boolean;
+    workspacePath?: string;
   }) {
     // Save user message to database (unless skipped)
     if (!skipUserMessageSave) {
@@ -182,7 +184,8 @@ export class ChatService {
         messages,
         llmModel,
         enableTools,
-        taskId // Pass taskId to enable todo tool context
+        taskId, // Pass taskId to enable todo tool context
+        workspacePath // Pass workspace path for tool operations
       )) {
         // Emit the chunk directly to clients
         emitStreamChunk(chunk);
@@ -355,7 +358,8 @@ export class ChatService {
   async processCodingTask(
     taskId: string,
     userMessage: string,
-    llmModel: ModelType = DEFAULT_MODEL
+    llmModel: ModelType = DEFAULT_MODEL,
+    workspacePath?: string
   ) {
     console.log(`[CODING_TASK] Starting coding task for ${taskId}`);
     console.log(`[CODING_TASK] Task: ${userMessage.substring(0, 100)}...`);
@@ -365,6 +369,7 @@ export class ChatService {
       userMessage,
       llmModel,
       enableTools: true,
+      workspacePath,
     });
   }
 }

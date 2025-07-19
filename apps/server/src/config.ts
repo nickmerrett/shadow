@@ -14,6 +14,10 @@ const configSchema = z
     ANTHROPIC_API_KEY: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
     WORKSPACE_DIR: z.string().default("/workspace"),
+    WORKSPACE_BASE_DIR: z.string().default("/workspace/tasks"),
+    GITHUB_ACCESS_TOKEN: z.string().optional(),
+    MAX_REPO_SIZE_MB: z.coerce.number().default(500),
+    CLEANUP_WORKSPACES_ON_COMPLETION: z.string().optional().transform(val => val === "true"),
     DEBUG: z.string().optional().transform(val => val === "true"),
   })
   .refine((data) => data.ANTHROPIC_API_KEY || data.OPENAI_API_KEY, {
@@ -37,6 +41,10 @@ const config = {
   anthropicApiKey: parsed.data.ANTHROPIC_API_KEY,
   openaiApiKey: parsed.data.OPENAI_API_KEY,
   workspaceDir: parsed.data.WORKSPACE_DIR,
+  workspaceBaseDir: parsed.data.WORKSPACE_BASE_DIR,
+  githubAccessToken: parsed.data.GITHUB_ACCESS_TOKEN,
+  maxRepoSizeMB: parsed.data.MAX_REPO_SIZE_MB,
+  cleanupWorkspacesOnCompletion: parsed.data.CLEANUP_WORKSPACES_ON_COMPLETION || false,
   debug: parsed.data.DEBUG,
 };
 

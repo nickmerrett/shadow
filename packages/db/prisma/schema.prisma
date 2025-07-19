@@ -76,11 +76,17 @@ model Task {
   status      TaskStatus @default(PENDING)
 
   // Git repo config
-  repoUrl String
-  branch  String @default("main")
+  repoUrl       String
+  branch        String @default("main")
+  commitSha     String? // Track exact commit cloned
+  cloneStatus   CloneStatus @default(PENDING)
+  workspacePath String? // Store task-specific workspace path
 
   // Execution config
   mode TaskMode @default(FULL_AUTO)
+
+  // Cleanup tracking
+  workspaceCleanedUp Boolean @default(false)
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -96,6 +102,7 @@ model Task {
   artifacts   Artifact[]
   sessions    TaskSession[]
   todos       Todo[]
+  cloneLogs   CloneLog[]
 }
 
 model Todo {
@@ -213,9 +220,23 @@ model TaskSession {
   @@index([taskId, isActive])
 }
 
+model CloneLog {
+  id        String      @id @default(cuid())
+  status    CloneStatus
+  message   String?
+  error     String?
+  createdAt DateTime    @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+}
+
 // Enums
 enum TaskStatus {
   PENDING
+  INITIALIZING
   QUEUED
   RUNNING
   COMPLETED
@@ -258,4 +279,11 @@ enum TodoStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum CloneStatus {
+  PENDING
+  CLONING
+  COMPLETED
+  FAILED
 }
