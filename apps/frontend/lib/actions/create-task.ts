@@ -51,6 +51,7 @@ export async function createTask(formData: FormData) {
         content: message,
         role: MessageRole.USER,
         taskId: task.id,
+        sequence: 1,
       },
     });
 
