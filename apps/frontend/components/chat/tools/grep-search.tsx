@@ -1,6 +1,5 @@
-import { cn } from "@/lib/utils";
 import type { Message } from "@repo/types";
-import { Hash, Filter } from "lucide-react";
+import { Filter, Hash } from "lucide-react";
 
 export function GrepSearchTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
@@ -35,13 +34,19 @@ export function GrepSearchTool({ message }: { message: Message }) {
               <div className="text-xs text-muted-foreground">
                 {includePattern && (
                   <span>
-                    include: <code className="bg-gray-100 dark:bg-gray-800/50 px-1 py-0.5 rounded">{includePattern}</code>
+                    include:{" "}
+                    <code className="bg-gray-100 dark:bg-gray-800/50 px-1 py-0.5 rounded">
+                      {includePattern}
+                    </code>
                   </span>
                 )}
                 {includePattern && excludePattern && <span>, </span>}
                 {excludePattern && (
                   <span>
-                    exclude: <code className="bg-gray-100 dark:bg-gray-800/50 px-1 py-0.5 rounded">{excludePattern}</code>
+                    exclude:{" "}
+                    <code className="bg-gray-100 dark:bg-gray-800/50 px-1 py-0.5 rounded">
+                      {excludePattern}
+                    </code>
                   </span>
                 )}
               </div>
@@ -55,7 +60,7 @@ export function GrepSearchTool({ message }: { message: Message }) {
         </div>
       </div>
 
-      {result && status === "success" && (
+      {result && status === "COMPLETED" && (
         <div className="mt-2">
           <div className="text-xs text-muted-foreground mb-1">Matches:</div>
           <div className="bg-gray-50 dark:bg-gray-900/50 border rounded-md p-3 max-h-40 overflow-y-auto text-xs font-mono">

@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import type { Message } from "@repo/types";
 import { Trash2 } from "lucide-react";
 
@@ -6,7 +5,7 @@ export function DeleteFileTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
-  const { args, status } = toolMeta;
+  const { args } = toolMeta;
   const filePath = args.target_file as string;
   const explanation = args.explanation as string;
 

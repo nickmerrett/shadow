@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
-import type { Message } from "@repo/types";
-import { Terminal, Clock, CheckCircle, XCircle } from "lucide-react";
+import type { Message, ToolStatusType } from "@repo/types";
+import { CheckIcon, Loader, Terminal, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 interface TerminalOutputProps {
@@ -19,7 +19,8 @@ function TerminalOutput({ output, isRunning, error }: TerminalOutputProps) {
     }
   }, [output, error]);
 
-  const displayText = error || output || (isRunning ? "Executing command..." : "No output");
+  const displayText =
+    error || output || (isRunning ? "Executing command..." : "No output");
 
   return (
     <div
@@ -31,9 +32,9 @@ function TerminalOutput({ output, isRunning, error }: TerminalOutputProps) {
     >
       <div className="text-gray-300 whitespace-pre-wrap">
         {error && <div className="text-red-400 mb-2">Error: {error}</div>}
-        {displayText.split('\n').map((line, i) => (
+        {displayText.split("\n").map((line, i) => (
           <div key={i} className="min-h-[1rem]">
-            {line || '\u00A0'}
+            {line || "\u00A0"}
           </div>
         ))}
         {isRunning && (
@@ -46,29 +47,34 @@ function TerminalOutput({ output, isRunning, error }: TerminalOutputProps) {
   );
 }
 
-function StatusBadge({ status }: { status: "running" | "success" | "error" }) {
+function StatusBadge({ status }: { status: ToolStatusType }) {
   const config = {
-    running: {
-      icon: Clock,
-      text: "Running",
+    RUNNING: {
+      icon: Loader,
       className: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+      text: "Running",
     },
-    success: {
-      icon: CheckCircle,
-      text: "Success",
+    COMPLETED: {
+      icon: CheckIcon,
       className: "text-green-500 bg-green-500/10 border-green-500/20",
+      text: "Success",
     },
-    error: {
-      icon: XCircle,
-      text: "Error",
+    FAILED: {
+      icon: X,
       className: "text-red-500 bg-red-500/10 border-red-500/20",
+      text: "Error",
     },
   };
 
-  const { icon: Icon, text, className } = config[status];
+  const { icon: Icon, className, text } = config[status];
 
   return (
-    <div className={cn("inline-flex items-center gap-1 px-2 py-1 rounded border text-xs", className)}>
+    <div
+      className={cn(
+        "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border",
+        className
+      )}
+    >
       <Icon className="size-3" />
       {text}
     </div>
@@ -120,12 +126,12 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
       </div>
 
       {/* Terminal output */}
-      {(result || error || status === "running") && (
+      {(result || error || status === "RUNNING") && (
         <div>
           <div className="text-xs text-muted-foreground mb-2">Output:</div>
           <TerminalOutput
             output={result || ""}
-            isRunning={status === "running"}
+            isRunning={status === "RUNNING"}
             error={error}
           />
         </div>

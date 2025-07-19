@@ -30,7 +30,7 @@ export function ListDirTool({ message }: { message: Message }) {
         </div>
       </div>
 
-      {result && status === "success" && (
+      {result && status === "COMPLETED" && (
         <div className="mt-2">
           <div className="text-xs text-muted-foreground mb-1">Contents:</div>
           <div className="bg-gray-50 dark:bg-gray-900/50 border rounded-md p-3 max-h-32 overflow-y-auto text-xs font-mono">

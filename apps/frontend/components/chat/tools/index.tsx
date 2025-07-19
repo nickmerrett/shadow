@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { Message } from "@repo/types";
+import type { Message, ToolStatusType } from "@repo/types";
 import { CheckIcon, Loader, X } from "lucide-react";
 
 // Tool-specific components
@@ -32,15 +32,15 @@ function StatusIcon({
   status,
   tool,
 }: {
-  status: "running" | "success" | "error";
+  status: ToolStatusType;
   tool: string;
 }) {
   switch (status) {
-    case "running":
+    case "RUNNING":
       return <Loader className="size-3.5 text-blue-500 animate-spin" />;
-    case "success":
+    case "COMPLETED":
       return <CheckIcon className="size-3.5 text-green-500 opacity-60" />;
-    case "error":
+    case "FAILED":
       return <X className="size-3.5 text-red-500" />;
     default:
       return null;
@@ -78,7 +78,7 @@ export function ToolMessage({ message }: { message: Message }) {
       className={cn(
         "group px-3 py-2 flex text-muted-foreground text-[13px] justify-between border items-start border-border from-transparent to-card/75 w-full rounded-lg bg-gradient-to-t shadow-xs transition-[color,box-shadow,opacity,border]",
         "hover:border-sidebar-border hover:text-foreground",
-        status === "error" && "border-red-500/20 bg-red-500/5"
+        status === "FAILED" && "border-red-500/20 bg-red-500/5"
       )}
     >
       <div className="flex-1 min-w-0">

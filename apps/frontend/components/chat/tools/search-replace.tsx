@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import type { Message } from "@repo/types";
 import { Replace } from "lucide-react";
 
@@ -25,7 +24,7 @@ export function SearchReplaceTool({ message }: { message: Message }) {
         </div>
       </div>
 
-      {status !== "running" && (
+      {status !== "RUNNING" && (
         <div className="mt-2 space-y-2">
           <div>
             <div className="text-xs text-muted-foreground mb-1">From:</div>
