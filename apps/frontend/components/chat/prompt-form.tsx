@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { createTask } from "@/lib/actions/create-task";
+import { queryClient } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
 import {
   AvailableModels,
@@ -16,6 +17,7 @@ import {
   type ModelType,
 } from "@repo/types";
 import { ArrowUp, Layers, Loader2, Square } from "lucide-react";
+import { redirect } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
@@ -38,7 +40,7 @@ export function PromptForm({
   const [branch, setBranch] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Fetch list of models from backend on mount
+  // TODO: initial fetch on server and use useQuery
   useEffect(() => {
     async function fetchModels() {
       try {
@@ -74,13 +76,18 @@ export function PromptForm({
       formData.append("branch", branch);
 
       startTransition(async () => {
+        let taskId: string | null = null;
         try {
-          await createTask(formData);
+          taskId = await createTask(formData);
         } catch (error) {
           toast.error("Failed to create task", {
             description:
               error instanceof Error ? error.message : "Unknown error",
           });
+        }
+        if (taskId) {
+          queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          redirect(`/tasks/${taskId}`);
         }
       });
     } else {

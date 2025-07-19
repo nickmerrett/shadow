@@ -5,9 +5,9 @@ import { PromptForm } from "@/components/chat/prompt-form";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
 import type { Task } from "@/lib/db-operations/get-task";
+import { queryClient } from "@/lib/query-client";
 import { socket } from "@/lib/socket";
 import type { Message, StreamChunk } from "@repo/types";
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 // Types for streaming tool calls
@@ -28,11 +28,6 @@ export function TaskPageContent({
   initialMessages: Message[];
 }) {
   const taskId = task.id;
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ["tasks"] });
-  }, [queryClient]);
 
   const { data: messages = [] } = useTaskMessages(taskId, initialMessages);
   const sendMessageMutation = useSendMessage();
