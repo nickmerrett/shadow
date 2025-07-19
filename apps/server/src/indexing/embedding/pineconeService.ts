@@ -52,7 +52,7 @@ class PineconeHandler {
                 .filter(record => {
                     const text = record.metadata.code || record.metadata.text || "";
                     if (!text.trim()) {
-                        console.log(`Skipping record ${record.id} - no text to embed`);
+                        logger.info(`Skipping record ${record.id} - no text to embed`);
                         return false;
                     }
                     return true;
