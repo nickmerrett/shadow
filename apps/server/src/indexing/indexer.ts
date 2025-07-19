@@ -358,10 +358,6 @@ async function indexRepo(
       logger.info("Embedding skipped (embed=false).");
     }
 
-    // Persist
-    // if (embed) saveEmbeddings(graph, repoName); // save binary embeddings first
-    // saveGraph(graph, repoName); // then write graph (strips inlined embeddings)
-    // buildInverted(graph, outDir); // This line is removed as per the new_code
     logger.info(`Indexed ${graph.nodes.size} nodes.`);
     return {
       graph,
