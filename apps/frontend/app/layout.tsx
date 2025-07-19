@@ -50,6 +50,7 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <SessionProvider>
+              {/* SidebarProvider also provides a TooltipProvider inside */}
               <SidebarProvider defaultOpen={defaultOpen}>
                 <SidebarComponent initialTasks={initialTasks} />
                 {children}

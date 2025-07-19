@@ -141,3 +141,7 @@ body,
 #__next {
   height: 100%;
 }
+
+.code-editor .line-numbers {
+  user-select: none;
+}
