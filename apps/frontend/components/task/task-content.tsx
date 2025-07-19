@@ -2,13 +2,16 @@
 
 import { Messages } from "@/components/chat/messages";
 import { PromptForm } from "@/components/chat/prompt-form";
+import { ScrollToBottom } from "@/hooks/use-is-at-top";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
 import type { Task } from "@/lib/db-operations/get-task";
 import { queryClient } from "@/lib/query-client";
 import { socket } from "@/lib/socket";
+import { cn } from "@/lib/utils";
 import type { Message, StreamChunk, ToolStatusType } from "@repo/types";
 import { useEffect, useState } from "react";
+import { StickToBottom } from "use-stick-to-bottom";
 
 // Types for streaming tool calls
 interface StreamingToolCall {
@@ -23,9 +26,11 @@ interface StreamingToolCall {
 export function TaskPageContent({
   task,
   initialMessages,
+  isAtTop,
 }: {
   task: Task;
   initialMessages: Message[];
+  isAtTop: boolean;
 }) {
   const taskId = task.id;
 
@@ -231,18 +236,23 @@ export function TaskPageContent({
     });
   }
 
-  const chatContent = (
-    <div className="mx-auto flex w-full grow max-w-lg flex-col items-center px-4 sm:px-6 relative z-0">
-      {/* Todo: only show if not scrolled to the very top  */}
-      <div className="sticky -left-px w-[calc(100%+2px)] top-[calc(3rem+1px)] h-16 bg-gradient-to-b from-background via-background/60 to-transparent -translate-y-px pointer-events-none z-10" />
+  return (
+    <StickToBottom.Content className="mx-auto flex w-full grow max-w-lg flex-col items-center px-4 sm:px-6 relative z-0">
+      <div
+        className={cn(
+          "sticky -left-px w-[calc(100%+2px)] top-0 h-16 bg-gradient-to-b from-background via-background/60 to-transparent -translate-y-px pointer-events-none z-10 transition-opacity",
+          isAtTop ? "opacity-0" : "opacity-100"
+        )}
+      />
 
       <Messages messages={displayMessages} />
+
+      <ScrollToBottom />
+
       <PromptForm
         onSubmit={handleSendMessage}
         isStreaming={isStreaming || sendMessageMutation.isPending}
       />
-    </div>
+    </StickToBottom.Content>
   );
-
-  return chatContent;
 }
