@@ -15,7 +15,7 @@ import {
 import { saveLayoutCookie } from "@/lib/actions/save-sidebar-cookie";
 import { cn } from "@/lib/utils";
 import { AppWindowMac } from "lucide-react";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type {
   ImperativePanelGroupHandle,
   ImperativePanelHandle,
@@ -35,7 +35,7 @@ export function TaskLayoutContent({
     undefined
   );
 
-  const handleToggleRightPanel = () => {
+  const handleToggleRightPanel = useCallback(() => {
     const panel = rightPanelRef.current;
     if (!panel) return;
     if (panel.isCollapsed()) {
@@ -43,7 +43,21 @@ export function TaskLayoutContent({
     } else {
       panel.collapse();
     }
-  };
+  }, [rightPanelRef]);
+
+  // Add keyboard shortcut for toggling agent environment
+  useEffect(() => {
+    console.log("rightPanelRef", rightPanelRef.current);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "j" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        handleToggleRightPanel();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleToggleRightPanel]);
 
   const handleLayout = useCallback((layout: number[]) => {
     // Clear existing timeout
@@ -101,12 +115,9 @@ export function TaskLayoutContent({
                   onClick={handleToggleRightPanel}
                 >
                   <AppWindowMac className="size-4" />
-                  <span className="sr-only">
-                    Toggle Agent Environment (⌘⌥\)
-                  </span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="left" shortcut="⌘⌥B">
+              <TooltipContent side="left" shortcut="⌘J">
                 Toggle Agent Environment
               </TooltipContent>
             </Tooltip>
