@@ -41,9 +41,11 @@ function ScrollToBottom() {
 export function TaskPageContent({
   task,
   initialMessages,
+  isAtTop,
 }: {
   task: Task;
   initialMessages: Message[];
+  isAtTop: boolean;
 }) {
   const taskId = task.id;
 
@@ -251,8 +253,12 @@ export function TaskPageContent({
 
   return (
     <StickToBottom.Content className="mx-auto flex w-full grow max-w-lg flex-col items-center px-4 sm:px-6 relative z-0">
-      {/* Todo: only show if not scrolled to the very top  */}
-      <div className="sticky -left-px w-[calc(100%+2px)] top-0 h-16 bg-gradient-to-b from-background via-background/60 to-transparent -translate-y-px pointer-events-none z-10" />
+      <div
+        className={cn(
+          "sticky -left-px w-[calc(100%+2px)] top-0 h-16 bg-gradient-to-b from-background via-background/60 to-transparent -translate-y-px pointer-events-none z-10 transition-opacity",
+          isAtTop ? "opacity-0" : "opacity-100"
+        )}
+      />
 
       <Messages messages={displayMessages} />
 

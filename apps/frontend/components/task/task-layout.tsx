@@ -12,29 +12,38 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useIsAtTop } from "@/hooks/use-is-at-top";
 import { saveLayoutCookie } from "@/lib/actions/save-sidebar-cookie";
+import type { Task } from "@/lib/db-operations/get-task";
 import { cn } from "@/lib/utils";
+import { Message } from "@repo/types";
 import { AppWindowMac } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import type {
   ImperativePanelGroupHandle,
   ImperativePanelHandle,
 } from "react-resizable-panels";
-import { StickToBottom } from "use-stick-to-bottom";
+import { StickToBottom, type StickToBottomContext } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
+import { TaskPageContent } from "./task-content";
 
-export function TaskLayoutContent({
-  children,
+export function TaskPageLayout({
   initialLayout,
+  task,
+  messages,
 }: {
-  children: React.ReactNode;
   initialLayout?: number[];
+  task: Task;
+  messages: Message[];
 }) {
   const rightPanelRef = useRef<ImperativePanelHandle>(null);
   const resizablePanelGroupRef = useRef<ImperativePanelGroupHandle>(null);
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
   );
+
+  const stickToBottomContextRef = useRef<StickToBottomContext>(null);
+  const { isAtTop } = useIsAtTop(0, stickToBottomContextRef.current?.scrollRef);
 
   const handleToggleRightPanel = useCallback(() => {
     const panel = rightPanelRef.current;
@@ -101,6 +110,7 @@ export function TaskLayoutContent({
           className="flex size-full overflow-y-auto max-h-svh flex-col relative"
           resize="smooth"
           initial="smooth"
+          contextRef={stickToBottomContextRef}
         >
           <div className="flex w-full items-center justify-between p-3 sticky top-0 bg-background z-10">
             <Tooltip>
@@ -128,7 +138,11 @@ export function TaskLayoutContent({
               </TooltipContent>
             </Tooltip>
           </div>
-          {children}
+          <TaskPageContent
+            task={task}
+            initialMessages={messages}
+            isAtTop={isAtTop}
+          />
         </StickToBottom>
       </ResizablePanel>
       <ResizableHandle />
