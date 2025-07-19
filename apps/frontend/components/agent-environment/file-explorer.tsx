@@ -10,12 +10,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export interface FileNode {
   name: string;
@@ -110,25 +105,22 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
       <div className="w-52 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col select-none">
         <div className="px-2 h-13 border-b border-sidebar-border flex items-center justify-between">
           <h3 className="text-sm">Agent Environment</h3>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 cursor-pointer hover:bg-sidebar-accent"
-                  onClick={onToggleCollapse}
-                >
-                  <ChevronsLeft className="size-4" />
-                  <span className="sr-only">Close File Explorer</span>
-                </Button>
-              </TooltipTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 cursor-pointer hover:bg-sidebar-accent"
+                onClick={onToggleCollapse}
+              >
+                <ChevronsLeft className="size-4" />
+              </Button>
+            </TooltipTrigger>
 
-              <TooltipContent side="bottom" align="end">
-                Close File Explorer
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+            <TooltipContent side="bottom" align="end">
+              Close File Explorer
+            </TooltipContent>
+          </Tooltip>
         </div>
         <div className="flex-1 overflow-auto p-1 flex flex-col gap-0.5 group/files">
           {files.map((file) => renderNode(file))}
