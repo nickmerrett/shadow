@@ -11,9 +11,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useGitHubBranches } from "@/hooks/use-github-branches";
+import { useGitHubRepositories } from "@/hooks/use-github-repositories";
 import { useGitHubStatus } from "@/hooks/use-github-status";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ChevronDown,
@@ -25,48 +26,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-interface Repository {
-  id: number;
-  name: string;
-  full_name: string;
-  owner: {
-    login: string;
-    type: string;
-  };
-  pushed_at: string | null;
-}
-
-interface Branch {
-  name: string;
-  commit: {
-    sha: string;
-    url: string;
-  };
-  protected?: boolean;
-  protection?: {
-    required_status_checks?: {
-      enforcement_level: string;
-      contexts: string[];
-    };
-  };
-  protection_url?: string;
-}
-
-interface GroupedRepos {
-  groups: {
-    name: string;
-    type: "user" | "organization";
-    repositories: Repository[];
-  }[];
-}
-
-interface GitHubStatus {
-  isConnected: boolean;
-  isAppInstalled: boolean;
-  installationId?: string;
-  installationUrl?: string;
-  message: string;
-}
+import type { FilteredRepository as Repository } from "@/lib/github-api";
 
 export function GithubConnection({
   onSelect,
@@ -94,52 +54,17 @@ export function GithubConnection({
     data: groupedRepos = { groups: [] },
     isLoading: isLoadingRepos,
     error: reposError,
-  } = useQuery({
-    queryKey: ["github", "repositories"],
-    queryFn: async (): Promise<GroupedRepos> => {
-      const response = await fetch("/api/github/repositories");
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    },
-    enabled: isOpen && !!githubStatus?.isAppInstalled, // Only fetch when popover is open and app is installed
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  } = useGitHubRepositories(isOpen && !!githubStatus?.isAppInstalled);
 
   // Query for branches
   const {
     data: branches = [],
     isLoading: isLoadingBranches,
     error: branchesError,
-  } = useQuery({
-    queryKey: ["github", "branches", selectedRepo?.full_name],
-    queryFn: async (): Promise<Branch[]> => {
-      if (!selectedRepo) return [];
-
-      const response = await fetch(
-        `/api/github/branches?repo=${selectedRepo.full_name}`
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-
-      // Sort branches: main/master first, then by last updated
-      return data.sort((a: Branch, b: Branch) => {
-        const isMainA = a.name === "main" || a.name === "master";
-        const isMainB = b.name === "main" || b.name === "master";
-
-        if (isMainA && !isMainB) return -1;
-        if (!isMainA && isMainB) return 1;
-
-        return a.name.localeCompare(b.name);
-      });
-    },
-    enabled:
-      !!selectedRepo && mode === "branches" && githubStatus?.isAppInstalled,
-    staleTime: 2 * 60 * 1000,
-  });
+  } = useGitHubBranches(
+    selectedRepo?.full_name || null,
+    !!selectedRepo && mode === "branches" && !!githubStatus?.isAppInstalled
+  );
 
   if (statusError) {
     toast.error("Failed to check GitHub status", {
