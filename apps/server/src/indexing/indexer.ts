@@ -1,5 +1,4 @@
 import { chunkSymbol } from "@/indexing/chunker";
-import { embedGraphChunks } from "@/indexing/embedding/embed";
 import { extractGeneric } from "@/indexing/extractors/generic";
 import { Graph, GraphEdge, GraphNode } from "@/indexing/graph";
 import { getLanguageForPath } from "@/indexing/languages";
@@ -7,7 +6,6 @@ import logger from "@/indexing/logger";
 import { getHash, getNodeHash } from "@/indexing/utils/hash";
 import { sliceByLoc } from "@/indexing/utils/text";
 import { tokenize } from "@/indexing/utils/tokenize";
-import PineconeHandler from "@/indexing/embedding/pineconeService";
 import TreeSitter from "tree-sitter";
 import { embedAndUpsertToPinecone } from "./embedder";
 import { getOwnerRepo, isValidRepo } from "./utils/repository";
