@@ -4,7 +4,7 @@ import { ModelInfos } from "@repo/types";
 import cors from "cors";
 import express from "express";
 import http from "http";
-import { ChatService } from "./chat";
+import { ChatService, DEFAULT_MODEL } from "./chat";
 import { TaskInitializationEngine } from "./initialization";
 import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";
@@ -111,7 +111,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       await chatService.processUserMessage({
         taskId,
         userMessage: message,
-        llmModel: model || "gpt-4o",
+        llmModel: model || DEFAULT_MODEL,
         enableTools: true,
         skipUserMessageSave: true,
         workspacePath: updatedTask?.workspacePath || undefined,
