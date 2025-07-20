@@ -39,8 +39,6 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
     useTaskMessages(taskId);
   const sendMessageMutation = useSendMessage();
 
-  console.log("messages", messages);
-
   // Streaming state for structured assistant parts
   const [streamingAssistantParts, setStreamingAssistantParts] = useState<
     AssistantMessagePart[]

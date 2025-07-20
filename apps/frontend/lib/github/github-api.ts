@@ -89,8 +89,6 @@ async function handleStaleInstallation(
   error: any,
   userId: string
 ): Promise<boolean> {
-  console.log("handleStaleInstallation error", error);
-
   // Check if this is a 404 error indicating the installation no longer exists
   if (error?.status === 404 || error?.message?.includes("Not Found")) {
     console.log("Detected stale GitHub installation, clearing from database");
