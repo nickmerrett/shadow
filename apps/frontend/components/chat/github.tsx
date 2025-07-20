@@ -169,15 +169,21 @@ export function GithubConnection({
   };
 
   const renderConnectGitHub = (
-    <div className="p-6 text-center">
-      <div className="mb-4">
-        <Folder className="size-12 mx-auto text-muted-foreground mb-3" />
-        <h3 className="text-lg font-semibold mb-2">Connect GitHub App</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          {statusError
-            ? "Unable to check GitHub connection. Please try connecting your GitHub account."
-            : "To access private repositories and have full functionality, you need to install our GitHub App."}
-        </p>
+    <div className="p-4 flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <img
+          src="/github.svg"
+          alt="GitHub"
+          className="size-4"
+          width={16}
+          height={16}
+        />
+        <div className="font-medium">Connect Github</div>
+      </div>
+      <div className="text-sm text-muted-foreground mb-4">
+        {statusError
+          ? "Unable to check GitHub connection. Try again or report an issue."
+          : "For required access, install the Shadow GitHub App to your organization."}
       </div>
 
       {githubStatus?.installationUrl && (
@@ -191,10 +197,6 @@ export function GithubConnection({
           Install GitHub App
         </Button>
       )}
-
-      <p className="text-xs text-muted-foreground mt-3">
-        This will open GitHub in a new tab to install the app.
-      </p>
     </div>
   );
 
