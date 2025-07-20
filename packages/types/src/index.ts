@@ -38,7 +38,7 @@ export interface MessageMetadata {
   tool?: {
     name: string;
     args: Record<string, any>;
-    status: ToolStatusType;
+    status: ToolExecutionStatusType;
     result?: any;
   };
 
@@ -168,25 +168,16 @@ export interface StreamChunk {
   };
 }
 
-// === Database Enums ===
-
-export const MessageRole = {
-  USER: "USER",
-  ASSISTANT: "ASSISTANT",
-  TOOL: "TOOL",
-  SYSTEM: "SYSTEM",
-} as const;
-
-export type MessageRoleType = (typeof MessageRole)[keyof typeof MessageRole];
-
-// Tool status that aligns with database TaskStatus
-export const ToolStatus = {
+// === Tool Execution Status ===
+// This is specifically for tool execution status, separate from database TaskStatus
+export const ToolExecutionStatus = {
   RUNNING: "RUNNING",
   COMPLETED: "COMPLETED",
   FAILED: "FAILED",
 } as const;
 
-export type ToolStatusType = (typeof ToolStatus)[keyof typeof ToolStatus];
+export type ToolExecutionStatusType =
+  (typeof ToolExecutionStatus)[keyof typeof ToolExecutionStatus];
 
 // === LLM Integration Types ===
 

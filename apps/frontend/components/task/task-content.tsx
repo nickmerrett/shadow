@@ -13,7 +13,7 @@ import type {
   StreamChunk,
   TextPart,
   ToolCallPart,
-  ToolStatusType,
+  ToolExecutionStatusType,
 } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
@@ -25,7 +25,7 @@ interface StreamingToolCall {
   id: string;
   name: string;
   args: Record<string, any>;
-  status: ToolStatusType;
+  status: ToolExecutionStatusType;
   result?: string;
   error?: string;
 }
