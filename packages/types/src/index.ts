@@ -3,6 +3,21 @@
 import type { CoreMessage } from "ai";
 import { randomUUID } from "crypto";
 
+// AI SDK message parts for structured assistant content
+export interface TextPart {
+  type: "text";
+  text: string;
+}
+
+export interface ToolCallPart {
+  type: "tool-call";
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, any>;
+}
+
+export type AssistantMessagePart = TextPart | ToolCallPart;
+
 export interface BaseMessage {
   id: string;
   role: "user" | "assistant" | "tool" | "system";
@@ -19,40 +34,29 @@ export interface MessageMetadata {
     duration: number; // seconds
   };
 
-  // For streaming indication
-  isStreaming?: boolean;
-
-  // For tool messages
+  // For tool call messages
   tool?: {
     name: string;
     args: Record<string, any>;
     status: ToolStatusType;
-    result?: string;
-    error?: string;
-    changes?: {
-      linesAdded?: number;
-      linesRemoved?: number;
-      filePath?: string;
-    };
+    result?: any;
   };
 
-  // For usage tracking
+  // For structured assistant messages - required for chronological tool call ordering
+  parts?: AssistantMessagePart[];
+
+  // Streaming indicator
+  isStreaming?: boolean;
+
+  // LLM usage metadata
   usage?: {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
-    // Provider-specific tokens
-    cacheCreationInputTokens?: number;
-    cacheReadInputTokens?: number;
   };
 
   // Finish reason
-  finishReason?:
-    | "stop"
-    | "length"
-    | "content-filter"
-    | "function_call"
-    | "tool_calls";
+  finishReason?: "stop" | "length" | "tool_calls" | "content_filter" | "other";
 }
 
 export type Message = BaseMessage;

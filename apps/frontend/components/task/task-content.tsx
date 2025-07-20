@@ -9,7 +9,14 @@ import type { Task } from "@/lib/db-operations/get-task";
 import { queryClient } from "@/lib/query-client";
 import { socket } from "@/lib/socket";
 import { cn } from "@/lib/utils";
-import type { Message, StreamChunk, ToolStatusType } from "@repo/types";
+import type {
+  AssistantMessagePart,
+  Message,
+  StreamChunk,
+  TextPart,
+  ToolCallPart,
+  ToolStatusType,
+} from "@repo/types";
 import { useEffect, useState } from "react";
 import { StickToBottom } from "use-stick-to-bottom";
 
@@ -37,7 +44,10 @@ export function TaskPageContent({
   const { data: messages = [] } = useTaskMessages(taskId, initialMessages);
   const sendMessageMutation = useSendMessage();
 
-  const [accumulatedContent, setAccumulatedContent] = useState("");
+  // Streaming state for structured assistant parts
+  const [streamingAssistantParts, setStreamingAssistantParts] = useState<
+    AssistantMessagePart[]
+  >([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingToolCalls, setStreamingToolCalls] = useState<
     StreamingToolCall[]
@@ -60,15 +70,17 @@ export function TaskPageContent({
         // Update the query cache directly with fresh data from server
         queryClient.setQueryData(["task-messages", taskId], data.messages);
 
-        // Clear accumulated content and tool calls when we have the updated chat history
-        setAccumulatedContent("");
+        // Clear streaming state when we have the updated chat history
+        setStreamingAssistantParts([]);
+        setIsStreaming(false);
+
+        // Clear state
         setStreamingToolCalls([]);
       }
     }
 
     function onStreamState(state: { content: string; isStreaming: boolean }) {
       console.log("Received stream state:", state);
-      setAccumulatedContent(state.content);
       setIsStreaming(state.isStreaming);
     }
 
@@ -79,13 +91,29 @@ export function TaskPageContent({
       switch (chunk.type) {
         case "content":
           if (chunk.content) {
-            setAccumulatedContent((prev) => prev + chunk.content);
+            // Add text part to structured assistant parts
+            const textPart: TextPart = {
+              type: "text",
+              text: chunk.content,
+            };
+            setStreamingAssistantParts((prev) => [...prev, textPart]);
           }
           break;
 
         case "tool-call":
           if (chunk.toolCall) {
             console.log("Tool call:", chunk.toolCall);
+
+            // Add tool call part to structured assistant parts
+            const toolCallPart: ToolCallPart = {
+              type: "tool-call",
+              toolCallId: chunk.toolCall.id,
+              toolName: chunk.toolCall.name,
+              args: chunk.toolCall.args,
+            };
+            setStreamingAssistantParts((prev) => [...prev, toolCallPart]);
+
+            // Keep old behavior for now during transition
             const newToolCall: StreamingToolCall = {
               id: chunk.toolCall.id,
               name: chunk.toolCall.name,
@@ -99,6 +127,10 @@ export function TaskPageContent({
         case "tool-result":
           if (chunk.toolResult) {
             console.log("Tool result:", chunk.toolResult);
+            // For structured parts, tool results are handled separately as tool messages
+            // We don't need to update the assistant parts here
+
+            // Keep old behavior for now during transition
             setStreamingToolCalls((prev) =>
               prev.map((toolCall) =>
                 toolCall.id === chunk.toolResult!.id
@@ -119,11 +151,18 @@ export function TaskPageContent({
           socket.emit("get-chat-history", { taskId });
           break;
 
-        case "error":
+        case "error": {
           setIsStreaming(false);
           console.error("Stream error:", chunk.error);
-          setAccumulatedContent((prev) => prev + `\n\nError: ${chunk.error}`);
+
+          // Add error text part to structured assistant parts
+          const errorTextPart: TextPart = {
+            type: "text",
+            text: `\n\nError: ${chunk.error}`,
+          };
+          setStreamingAssistantParts((prev) => [...prev, errorTextPart]);
           break;
+        }
 
         case "usage":
           console.log("Usage:", chunk.usage);
@@ -145,7 +184,13 @@ export function TaskPageContent({
     function onStreamError(error: any) {
       setIsStreaming(false);
       console.error("Stream error:", error);
-      setAccumulatedContent((prev) => prev + "\n\nStream error occurred");
+
+      // Add error to structured parts
+      const errorTextPart: TextPart = {
+        type: "text",
+        text: "\n\nStream error occurred",
+      };
+      setStreamingAssistantParts((prev) => [...prev, errorTextPart]);
     }
 
     function onMessageError(data: { error: string }) {
@@ -200,39 +245,20 @@ export function TaskPageContent({
     );
   }
 
-  // Combine real messages with current streaming content and tool calls
+  // Combine real messages with current streaming content
   const displayMessages = [...messages];
 
-  // Add streaming tool calls as individual messages
-  streamingToolCalls.forEach((toolCall) => {
-    displayMessages.push({
-      id: `tool-${toolCall.id}`,
-      role: "tool",
-      content:
-        toolCall.result || (toolCall.status === "RUNNING" ? "Running..." : ""),
-      createdAt: new Date().toISOString(),
-      metadata: {
-        tool: {
-          name: toolCall.name,
-          args: toolCall.args,
-          status:
-            toolCall.status === "COMPLETED" ? "COMPLETED" : toolCall.status,
-          result: toolCall.result,
-          error: toolCall.error,
-        },
-        isStreaming: toolCall.status === "RUNNING",
-      },
-    });
-  });
-
-  // Add streaming assistant content if present
-  if (accumulatedContent || isStreaming) {
+  // Add streaming assistant message with structured parts if present
+  if (streamingAssistantParts.length > 0 || isStreaming) {
     displayMessages.push({
       id: "streaming",
       role: "assistant",
-      content: accumulatedContent,
+      content: "", // Content will come from parts
       createdAt: new Date().toISOString(),
-      metadata: { isStreaming: true },
+      metadata: {
+        isStreaming: true,
+        parts: streamingAssistantParts,
+      },
     });
   }
 

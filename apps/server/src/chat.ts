@@ -1,5 +1,12 @@
 import { prisma } from "@repo/db";
-import { Message, MessageMetadata, ModelType } from "@repo/types";
+import {
+  AssistantMessagePart,
+  Message,
+  MessageMetadata,
+  ModelType,
+  TextPart,
+  ToolCallPart,
+} from "@repo/types";
 import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
@@ -166,10 +173,10 @@ export class ChatService {
     // Start streaming
     startStream();
 
-    // Track streaming state for immediate database persistence
+    // Track structured assistant message parts in chronological order
     let assistantSequence: number | null = null;
     let assistantMessageId: string | null = null;
-    let fullAssistantResponse = "";
+    const assistantParts: AssistantMessagePart[] = [];
     let usageMetadata: MessageMetadata["usage"];
     let finishReason: MessageMetadata["finishReason"];
 
@@ -187,38 +194,85 @@ export class ChatService {
         // Emit the chunk directly to clients
         emitStreamChunk(chunk);
 
-        // Save messages to database as they stream to preserve order
+        // Handle text content chunks
         if (chunk.type === "content" && chunk.content) {
-          fullAssistantResponse += chunk.content;
+          // Add text part to assistant message
+          const textPart: TextPart = {
+            type: "text",
+            text: chunk.content,
+          };
+          assistantParts.push(textPart);
 
           // Create assistant message on first content chunk
           if (assistantSequence === null) {
             assistantSequence = await this.getNextSequence(taskId);
             const assistantMsg = await this.saveAssistantMessage(
               taskId,
-              chunk.content,
+              chunk.content, // Still store some content for backward compatibility
               llmModel,
               assistantSequence,
-              { isStreaming: true }
+              {
+                isStreaming: true,
+                parts: assistantParts,
+              }
             );
             assistantMessageId = assistantMsg.id;
           } else {
-            // Update existing assistant message with accumulated content
+            // Update existing assistant message with current parts
             if (assistantMessageId) {
+              const fullContent = assistantParts
+                .filter((part) => part.type === "text")
+                .map((part) => (part as TextPart).text)
+                .join("");
+
               await prisma.chatMessage.update({
                 where: { id: assistantMessageId },
-                data: { content: fullAssistantResponse },
+                data: {
+                  content: fullContent,
+                  metadata: {
+                    isStreaming: true,
+                    parts: assistantParts,
+                  } as any,
+                },
               });
             }
           }
         }
 
-        // Save tool calls immediately when they start
+        // Handle tool calls
         if (chunk.type === "tool-call" && chunk.toolCall) {
+          // Add tool call part to assistant message
+          const toolCallPart: ToolCallPart = {
+            type: "tool-call",
+            toolCallId: chunk.toolCall.id,
+            toolName: chunk.toolCall.name,
+            args: chunk.toolCall.args,
+          };
+          assistantParts.push(toolCallPart);
+
+          // Update assistant message with tool call part
+          if (assistantMessageId) {
+            const fullContent = assistantParts
+              .filter((part) => part.type === "text")
+              .map((part) => (part as TextPart).text)
+              .join("");
+
+            await prisma.chatMessage.update({
+              where: { id: assistantMessageId },
+              data: {
+                content: fullContent,
+                metadata: {
+                  isStreaming: true,
+                  parts: assistantParts,
+                } as any,
+              },
+            });
+          }
+
+          // ALSO save separate tool message for backward compatibility and separate tool results
           const toolSequence = await this.getNextSequence(taskId);
           toolCallSequences.set(chunk.toolCall.id, toolSequence);
 
-          // Save tool message with placeholder content (will be updated with result)
           await this.saveToolMessage(
             taskId,
             chunk.toolCall.name,
@@ -286,9 +340,6 @@ export class ChatService {
             promptTokens: chunk.usage.promptTokens,
             completionTokens: chunk.usage.completionTokens,
             totalTokens: chunk.usage.totalTokens,
-            // Include provider-specific tokens if available
-            cacheCreationInputTokens: chunk.usage.cacheCreationInputTokens,
-            cacheReadInputTokens: chunk.usage.cacheReadInputTokens,
           };
         }
 
@@ -298,22 +349,34 @@ export class ChatService {
           chunk.finishReason &&
           chunk.finishReason !== "error"
         ) {
-          finishReason = chunk.finishReason;
+          // Map finish reason to our type system
+          finishReason =
+            chunk.finishReason === "content-filter"
+              ? "content_filter"
+              : chunk.finishReason === "function_call"
+                ? "tool_calls"
+                : chunk.finishReason;
         }
       }
 
       // Update final assistant message with complete metadata
       if (assistantMessageId && usageMetadata) {
+        const fullContent = assistantParts
+          .filter((part) => part.type === "text")
+          .map((part) => (part as TextPart).text)
+          .join("");
+
         const finalMetadata: MessageMetadata = {
           usage: usageMetadata,
           finishReason,
           isStreaming: false,
+          parts: assistantParts,
         };
 
         await prisma.chatMessage.update({
           where: { id: assistantMessageId },
           data: {
-            content: fullAssistantResponse,
+            content: fullContent,
             metadata: finalMetadata as any,
             promptTokens: usageMetadata.promptTokens,
             completionTokens: usageMetadata.completionTokens,
@@ -324,9 +387,7 @@ export class ChatService {
       }
 
       console.log(`[CHAT] Completed processing for task ${taskId}`);
-      console.log(
-        `[CHAT] Response length: ${fullAssistantResponse.length} chars`
-      );
+      console.log(`[CHAT] Assistant parts: ${assistantParts.length}`);
       console.log(`[CHAT] Tool calls executed: ${toolCallSequences.size}`);
 
       endStream();
