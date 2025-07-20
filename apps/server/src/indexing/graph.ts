@@ -35,36 +35,29 @@ export enum GraphNodeKind {
 
 interface GraphNodeConstructorParams {
   id: string;
-  kind: GraphNodeKind;
-  name: string;
-  path?: string;
-  lang?: string;
-  loc?: Location;
-  signature?: string;
-  code?: string;
-  doc?: string;
-  meta?: Record<string, any>;
+  kind: GraphNodeKind; // CHUNK / FILE / REPO / SYMBOL / COMMENT / IMPORT
+  name: string; // Symbol name
+  path?: string; // File path
+  lang?: string; // Language
+  loc?: Location; // Start, end, byte
+  signature?: string; // First line of code
+  code?: string; // Code
+  doc?: string; // Doc string
+  meta?: Record<string, any>; // Additional Metadata
 }
-/* id,
-kind: "CHUNK",
-name: sym.name,
-path: fileNode.path,
-lang,
-loc: sym.loc,
-code,
-}) */
+
 class GraphNode implements HashGenerator {
   public id: string; // repoId
   public kind: GraphNodeKind; // CHUNK / FILE / REPO
-  public name: string;
-  public path: string;
-  public lang: string;
-  public loc: Location;
-  public signature: string;
-  public code: string;
-  public doc: string;
-  public meta: Record<string, any>;
-  public embedding: number[];
+  public name: string; // Symbol name
+  public path: string; // File path
+  public lang: string; // Language
+  public loc: Location; // Start, end, byte
+  public signature: string; // First line of code
+  public code: string; // Code
+  public doc: string; // Doc string
+  public meta: Record<string, any>; // Additional Metadata
+  public embedding: number[]; // Embedding – defaults to empty
 
   constructor({
     id,
