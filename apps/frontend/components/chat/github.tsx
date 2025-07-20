@@ -11,9 +11,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useGitHubStatus } from "@/hooks/use-github-status";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { useGitHubStatus } from "@/hooks/use-github-status";
 import {
   ArrowLeft,
   ChevronDown,
@@ -88,6 +88,8 @@ export function GithubConnection({
     error: statusError,
   } = useGitHubStatus(isOpen);
 
+  console.log("githubStatus", githubStatus);
+
   const {
     data: groupedRepos = { groups: [] },
     isLoading: isLoadingRepos,
@@ -101,7 +103,7 @@ export function GithubConnection({
       }
       return response.json();
     },
-    enabled: isOpen && githubStatus?.isAppInstalled, // Only fetch when popover is open and app is installed
+    enabled: isOpen && !!githubStatus?.isAppInstalled, // Only fetch when popover is open and app is installed
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
@@ -134,7 +136,8 @@ export function GithubConnection({
         return a.name.localeCompare(b.name);
       });
     },
-    enabled: !!selectedRepo && mode === "branches" && githubStatus?.isAppInstalled,
+    enabled:
+      !!selectedRepo && mode === "branches" && githubStatus?.isAppInstalled,
     staleTime: 2 * 60 * 1000,
   });
 
@@ -233,14 +236,15 @@ export function GithubConnection({
         <Folder className="size-12 mx-auto text-muted-foreground mb-3" />
         <h3 className="text-lg font-semibold mb-2">Connect GitHub App</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          To access private repositories and have full functionality, you need to install our GitHub App.
+          To access private repositories and have full functionality, you need
+          to install our GitHub App.
         </p>
       </div>
-      
+
       {githubStatus?.installationUrl && (
         <Button
           onClick={() => {
-            window.open(githubStatus.installationUrl, '_blank');
+            window.open(githubStatus.installationUrl, "_blank");
             setIsOpen(false);
           }}
           className="w-full"
@@ -248,7 +252,7 @@ export function GithubConnection({
           Install GitHub App
         </Button>
       )}
-      
+
       <p className="text-xs text-muted-foreground mt-3">
         This will open GitHub in a new tab to install the app.
       </p>
