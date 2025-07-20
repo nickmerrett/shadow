@@ -13,6 +13,8 @@ import { Endpoints } from "@octokit/types";
 type ListUserReposResponse = Endpoints["GET /user/repos"]["response"];
 type UserRepository = ListUserReposResponse["data"][0];
 
+const BASE_URL = process.env.VERCEL_URL || "http://localhost:3000";
+
 export interface FilteredRepository {
   id: number;
   name: string;
@@ -265,7 +267,7 @@ export async function getGitHubBranches(
 
 // Client-side API functions (for use in hooks)
 export async function fetchGitHubStatus(): Promise<GitHubStatus> {
-  const response = await fetch("/api/github/status");
+  const response = await fetch(`${BASE_URL}/api/github/status`);
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
@@ -273,7 +275,7 @@ export async function fetchGitHubStatus(): Promise<GitHubStatus> {
 }
 
 export async function fetchGitHubRepositories(): Promise<GroupedRepos> {
-  const response = await fetch("/api/github/repositories");
+  const response = await fetch(`${BASE_URL}/api/github/repositories`);
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
@@ -283,7 +285,9 @@ export async function fetchGitHubRepositories(): Promise<GroupedRepos> {
 export async function fetchGitHubBranches(
   repoFullName: string
 ): Promise<Branch[]> {
-  const response = await fetch(`/api/github/branches?repo=${repoFullName}`);
+  const response = await fetch(
+    `${BASE_URL}/api/github/branches?repo=${repoFullName}`
+  );
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
