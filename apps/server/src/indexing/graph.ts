@@ -16,9 +16,26 @@ interface GraphJSON {
   edges: GraphEdge[];
 }
 
+export enum GraphEdgeKind {
+  CONTAINS = "CONTAINS",
+  DOCS_FOR = "DOCS_FOR",
+  PART_OF = "PART_OF",
+  NEXT_CHUNK = "NEXT_CHUNK",
+  CALLS = "CALLS",
+}
+
+export enum GraphNodeKind {
+  REPO = "REPO",
+  FILE = "FILE",
+  SYMBOL = "SYMBOL",
+  COMMENT = "COMMENT",
+  IMPORT = "IMPORT",
+  CHUNK = "CHUNK",
+}
+
 interface GraphNodeConstructorParams {
   id: string;
-  kind: string;
+  kind: GraphNodeKind;
   name: string;
   path?: string;
   lang?: string;
@@ -28,10 +45,17 @@ interface GraphNodeConstructorParams {
   doc?: string;
   meta?: Record<string, any>;
 }
-
+/* id,
+kind: "CHUNK",
+name: sym.name,
+path: fileNode.path,
+lang,
+loc: sym.loc,
+code,
+}) */
 class GraphNode implements HashGenerator {
-  public id: string;
-  public kind: string;
+  public id: string; // repoId
+  public kind: GraphNodeKind; // CHUNK / FILE / REPO
   public name: string;
   public path: string;
   public lang: string;
@@ -94,7 +118,7 @@ class GraphNode implements HashGenerator {
 class GraphEdge {
   public from: string;
   public to: string;
-  public kind: string;
+  public kind: GraphEdgeKind;
   public meta: Record<string, any>;
 
   constructor({ from, to, kind, meta = {} }: GraphEdge) {
@@ -172,7 +196,7 @@ class Graph {
 function makeId(
   repoId: string,
   path: string,
-  kind: string,
+  kind: GraphNodeKind | GraphEdgeKind,
   name: string,
   loc: {
     startLine: number;
@@ -187,7 +211,7 @@ function makeId(
       "|" +
       path +
       "|" +
-      kind +
+      kind.toString() +
       "|" +
       name +
       "|" +

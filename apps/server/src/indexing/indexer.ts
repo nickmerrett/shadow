@@ -1,6 +1,6 @@
 import { chunkSymbol } from "@/indexing/chunker";
 import { extractGeneric } from "@/indexing/extractors/generic";
-import { Graph, GraphEdge, GraphNode } from "@/indexing/graph";
+import { Graph, GraphEdge, GraphNode, GraphNodeKind, GraphEdgeKind } from "@/indexing/graph";
 import { getLanguageForPath } from "@/indexing/languages";
 import logger from "@/indexing/logger";
 import { getHash, getNodeHash } from "@/indexing/utils/hash";
@@ -126,7 +126,7 @@ async function indexRepo(
     // REPO node
     const repoNode = new GraphNode({
       id: repoId,
-      kind: "REPO",
+      kind: GraphNodeKind.REPO,
       name: repo,
       path: "",
       lang: "",
@@ -152,7 +152,7 @@ async function indexRepo(
       const nodeHash = getNodeHash(repoId, file.path, "FILE", file.path);
       const fileNode = new GraphNode({
         id: nodeHash,
-        kind: "FILE",
+        kind: GraphNodeKind.FILE,
         name: file.path,
         path: file.path,
         lang: spec.id,
@@ -163,7 +163,7 @@ async function indexRepo(
         new GraphEdge({
           from: repoId,
           to: nodeHash,
-          kind: "CONTAINS",
+          kind: GraphEdgeKind.CONTAINS,
           meta: {},
         })
       );
@@ -183,7 +183,7 @@ async function indexRepo(
         const id = getNodeHash(repoId, file.path, "SYMBOL", d.name, d.loc);
         const symNode = new GraphNode({
           id,
-          kind: "SYMBOL",
+          kind: GraphNodeKind.SYMBOL,
           name: d.name,
           path: file.path,
           lang: spec.id,
@@ -195,7 +195,7 @@ async function indexRepo(
           new GraphEdge({
             from: nodeHash,
             to: symNode.id,
-            kind: "CONTAINS",
+            kind: GraphEdgeKind.CONTAINS,
             meta: {},
           })
         );
@@ -218,7 +218,7 @@ async function indexRepo(
         );
         const docNode = new GraphNode({
           id: docId,
-          kind: "COMMENT",
+          kind: GraphNodeKind.COMMENT,
           name: `doc@${file.path}:${ds.loc.startLine}`,
           path: file.path,
           lang: spec.id,
@@ -232,7 +232,7 @@ async function indexRepo(
           new GraphEdge({
             from: nodeHash,
             to: docNode.id,
-            kind: "CONTAINS",
+            kind: GraphEdgeKind.CONTAINS,
             meta: {},
           })
         );
@@ -242,7 +242,7 @@ async function indexRepo(
             new GraphEdge({
               from: docNode.id,
               to: near.id,
-              kind: "DOCS_FOR",
+              kind: GraphEdgeKind.DOCS_FOR,
               meta: {},
             })
           );
@@ -256,7 +256,7 @@ async function indexRepo(
         const imId = getNodeHash(repoId, file.path, "IMPORT", name, im.loc);
         const imNode = new GraphNode({
           id: imId,
-          kind: "IMPORT",
+          kind: GraphNodeKind.IMPORT,
           name,
           path: file.path,
           lang: spec.id,
@@ -268,7 +268,7 @@ async function indexRepo(
           new GraphEdge({
             from: nodeHash,
             to: imNode.id,
-            kind: "CONTAINS",
+            kind: GraphEdgeKind.CONTAINS,
             meta: {},
           })
         );
@@ -296,7 +296,7 @@ async function indexRepo(
             new GraphEdge({
               from: symNode.id,
               to: ch.id,
-              kind: "PART_OF",
+              kind: GraphEdgeKind.PART_OF,
               meta: {},
             })
           );
@@ -305,7 +305,7 @@ async function indexRepo(
               new GraphEdge({
                 from: prev.id,
                 to: ch.id,
-                kind: "NEXT_CHUNK",
+                kind: GraphEdgeKind.NEXT_CHUNK,
                 meta: {},
               })
             );
@@ -344,7 +344,7 @@ async function indexRepo(
             new GraphEdge({
               from: callerSym.id,
               to: targetId,
-              kind: "CALLS",
+              kind: GraphEdgeKind.CALLS,
               meta: { callSiteLine: c.loc.startLine },
             })
           );
@@ -438,7 +438,7 @@ function buildEmbeddingsInMemory(
 ): { index: any; binary: Buffer } | undefined {
   const chunks = Array.from(graph.nodes.values()).filter(
     (node): node is GraphNode & { embedding: Float32Array } =>
-      node.kind === "CHUNK" &&
+      node.kind === GraphNodeKind.CHUNK &&
       Array.isArray(node.embedding) &&
       node.embedding.length > 0
   );

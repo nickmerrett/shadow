@@ -13,7 +13,9 @@
     },
     "lib": ["ES2020", "DOM"],
     "outDir": "./dist",
-    "module": "NodeNext"
+    "module": "NodeNext",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],

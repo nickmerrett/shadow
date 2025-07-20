@@ -19,10 +19,6 @@ router.get("/", (req, res) => {
   res.json({ message: "Hello from indexing API!" });
 });
 
-router.get("/test", (req, res) => {
-  res.json({ message: "Hello from indexing API!" });
-});
-
 router.post(
   "/tree-sitter",
   async (req: express.Request<{}, {}, CodeBody>, res) => {
