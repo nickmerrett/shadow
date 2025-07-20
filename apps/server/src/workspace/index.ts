@@ -1,7 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import { GitHubService, CloneResult } from "../github";
 import config from "../config";
+import { CloneResult, GitHubService } from "../github";
 import { execAsync } from "../utils/exec";
 
 export interface WorkspaceSetupResult {
@@ -52,7 +52,7 @@ export class WorkspaceManager {
         entries.map(async (entry) => {
           const fullPath = path.join(dirPath, entry);
           const stat = await fs.stat(fullPath);
-          
+
           if (stat.isDirectory()) {
             await fs.rm(fullPath, { recursive: true, force: true });
           } else {
@@ -76,7 +76,9 @@ export class WorkspaceManager {
     const workspacePath = this.getTaskWorkspaceDir(taskId);
 
     try {
-      console.log(`[WORKSPACE] Preparing workspace for task ${taskId} at ${workspacePath}`);
+      console.log(
+        `[WORKSPACE] Preparing workspace for task ${taskId} at ${workspacePath}`
+      );
 
       // Ensure workspace directory exists and is clean
       await this.ensureWorkspaceExists(workspacePath);
@@ -99,32 +101,37 @@ export class WorkspaceManager {
 
       // Verify the clone was successful by checking for .git directory
       try {
-        const gitDir = path.join(workspacePath, '.git');
+        const gitDir = path.join(workspacePath, ".git");
         await fs.access(gitDir);
       } catch (error) {
         return {
           success: false,
           workspacePath,
           cloneResult,
-          error: 'Clone completed but .git directory not found',
+          error: "Clone completed but .git directory not found",
         };
       }
 
-      console.log(`[WORKSPACE] Successfully prepared workspace for task ${taskId}`);
+      console.log(
+        `[WORKSPACE] Successfully prepared workspace for task ${taskId}`
+      );
 
       return {
         success: true,
         workspacePath,
         cloneResult,
       };
-
     } catch (error) {
-      console.error(`[WORKSPACE] Failed to prepare workspace for task ${taskId}:`, error);
-      
+      console.error(
+        `[WORKSPACE] Failed to prepare workspace for task ${taskId}:`,
+        error
+      );
+
       return {
         success: false,
         workspacePath,
-        error: error instanceof Error ? error.message : 'Unknown workspace error',
+        error:
+          error instanceof Error ? error.message : "Unknown workspace error",
       };
     }
   }
@@ -137,22 +144,29 @@ export class WorkspaceManager {
 
     try {
       console.log(`[WORKSPACE] Cleaning up workspace for task ${taskId}`);
-      
+
       // Check if workspace exists
       try {
         await fs.access(workspacePath);
       } catch (error) {
         // Workspace doesn't exist, nothing to clean
-        console.log(`[WORKSPACE] Workspace ${workspacePath} doesn't exist, nothing to clean`);
+        console.log(
+          `[WORKSPACE] Workspace ${workspacePath} doesn't exist, nothing to clean`
+        );
         return;
       }
 
       // Remove the entire workspace directory
       await fs.rm(workspacePath, { recursive: true, force: true });
-      
-      console.log(`[WORKSPACE] Successfully cleaned up workspace for task ${taskId}`);
+
+      console.log(
+        `[WORKSPACE] Successfully cleaned up workspace for task ${taskId}`
+      );
     } catch (error) {
-      console.error(`[WORKSPACE] Failed to cleanup workspace for task ${taskId}:`, error);
+      console.error(
+        `[WORKSPACE] Failed to cleanup workspace for task ${taskId}:`,
+        error
+      );
       // Don't throw error for cleanup failures, just log them
     }
   }
@@ -169,7 +183,7 @@ export class WorkspaceManager {
    */
   async workspaceExists(taskId: string): Promise<boolean> {
     const workspacePath = this.getTaskWorkspaceDir(taskId);
-    
+
     try {
       const stat = await fs.stat(workspacePath);
       return stat.isDirectory();
@@ -183,7 +197,7 @@ export class WorkspaceManager {
    */
   async getWorkspaceSize(taskId: string): Promise<number> {
     const workspacePath = this.getTaskWorkspaceDir(taskId);
-    
+
     try {
       const { stdout } = await execAsync(`du -sb "${workspacePath}"`);
       const sizeMatch = stdout.match(/^(\d+)/);
