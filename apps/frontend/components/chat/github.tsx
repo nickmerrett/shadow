@@ -11,9 +11,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useGitHubBranches } from "@/hooks/use-github-branches";
+import { useGitHubRepositories } from "@/hooks/use-github-repositories";
 import { useGitHubStatus } from "@/hooks/use-github-status";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ChevronDown,
@@ -25,48 +26,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-interface Repository {
-  id: number;
-  name: string;
-  full_name: string;
-  owner: {
-    login: string;
-    type: string;
-  };
-  pushed_at: string | null;
-}
-
-interface Branch {
-  name: string;
-  commit: {
-    sha: string;
-    url: string;
-  };
-  protected?: boolean;
-  protection?: {
-    required_status_checks?: {
-      enforcement_level: string;
-      contexts: string[];
-    };
-  };
-  protection_url?: string;
-}
-
-interface GroupedRepos {
-  groups: {
-    name: string;
-    type: "user" | "organization";
-    repositories: Repository[];
-  }[];
-}
-
-interface GitHubStatus {
-  isConnected: boolean;
-  isAppInstalled: boolean;
-  installationId?: string;
-  installationUrl?: string;
-  message: string;
-}
+import type { FilteredRepository as Repository } from "@/lib/github/types";
 
 export function GithubConnection({
   onSelect,
@@ -88,80 +48,52 @@ export function GithubConnection({
     error: statusError,
   } = useGitHubStatus(isOpen);
 
-  console.log("githubStatus", githubStatus);
-
   const {
     data: groupedRepos = { groups: [] },
     isLoading: isLoadingRepos,
     error: reposError,
-  } = useQuery({
-    queryKey: ["github", "repositories"],
-    queryFn: async (): Promise<GroupedRepos> => {
-      const response = await fetch("/api/github/repositories");
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    },
-    enabled: isOpen && !!githubStatus?.isAppInstalled, // Only fetch when popover is open and app is installed
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  } = useGitHubRepositories(isOpen && !!githubStatus?.isAppInstalled);
 
   // Query for branches
   const {
     data: branches = [],
     isLoading: isLoadingBranches,
     error: branchesError,
-  } = useQuery({
-    queryKey: ["github", "branches", selectedRepo?.full_name],
-    queryFn: async (): Promise<Branch[]> => {
-      if (!selectedRepo) return [];
+  } = useGitHubBranches(
+    selectedRepo?.full_name || null,
+    !!selectedRepo && mode === "branches" && !!githubStatus?.isAppInstalled
+  );
 
-      const response = await fetch(
-        `/api/github/branches?repo=${selectedRepo.full_name}`
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-
-      // Sort branches: main/master first, then by last updated
-      return data.sort((a: Branch, b: Branch) => {
-        const isMainA = a.name === "main" || a.name === "master";
-        const isMainB = b.name === "main" || b.name === "master";
-
-        if (isMainA && !isMainB) return -1;
-        if (!isMainA && isMainB) return 1;
-
-        return a.name.localeCompare(b.name);
-      });
-    },
-    enabled:
-      !!selectedRepo && mode === "branches" && githubStatus?.isAppInstalled,
-    staleTime: 2 * 60 * 1000,
-  });
-
+  // Handle errors with toast notifications, but don't break UI
   if (statusError) {
-    toast.error("Failed to check GitHub status", {
-      description:
-        statusError instanceof Error ? statusError.message : "Unknown error",
-    });
+    console.error("GitHub status error:", statusError);
+    // Don't show toast for status errors - these are handled by the UI states
   }
 
   if (reposError) {
-    toast.error("Failed to fetch repositories", {
-      description:
-        reposError instanceof Error ? reposError.message : "Unknown error",
-    });
+    console.error("GitHub repositories error:", reposError);
+    // Only show toast for unexpected errors, not auth errors
+    if (!(reposError instanceof Error && reposError.message.includes("401"))) {
+      toast.error("Failed to fetch repositories", {
+        description:
+          reposError instanceof Error ? reposError.message : "Unknown error",
+      });
+    }
   }
 
   if (branchesError) {
-    toast.error("Failed to fetch branches", {
-      description:
-        branchesError instanceof Error
-          ? branchesError.message
-          : "Unknown error",
-    });
+    console.error("GitHub branches error:", branchesError);
+    // Only show toast for unexpected errors, not auth errors
+    if (
+      !(branchesError instanceof Error && branchesError.message.includes("401"))
+    ) {
+      toast.error("Failed to fetch branches", {
+        description:
+          branchesError instanceof Error
+            ? branchesError.message
+            : "Unknown error",
+      });
+    }
   }
 
   const filteredGroups = groupedRepos.groups
@@ -227,18 +159,29 @@ export function GithubConnection({
       return "Connect GitHub";
     }
 
+    if (statusError || !githubStatus) {
+      return "Connect GitHub";
+    }
+
     return "Select Repository";
   };
 
   const renderConnectGitHub = (
-    <div className="p-6 text-center">
-      <div className="mb-4">
-        <Folder className="size-12 mx-auto text-muted-foreground mb-3" />
-        <h3 className="text-lg font-semibold mb-2">Connect GitHub App</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          To access private repositories and have full functionality, you need
-          to install our GitHub App.
-        </p>
+    <div className="p-4 flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <img
+          src="/github.svg"
+          alt="GitHub"
+          className="size-4"
+          width={16}
+          height={16}
+        />
+        <div className="font-medium">Connect Github</div>
+      </div>
+      <div className="text-sm text-muted-foreground mb-4">
+        {statusError
+          ? "Unable to check GitHub connection. Try again or report an issue."
+          : "For required access, install the Shadow GitHub App to your organization."}
       </div>
 
       {githubStatus?.installationUrl && (
@@ -252,10 +195,6 @@ export function GithubConnection({
           Install GitHub App
         </Button>
       )}
-
-      <p className="text-xs text-muted-foreground mt-3">
-        This will open GitHub in a new tab to install the app.
-      </p>
     </div>
   );
 
@@ -386,7 +325,7 @@ export function GithubConnection({
             <Loader2 className="size-4 animate-spin" />
             <span className="text-sm">Checking GitHub status...</span>
           </div>
-        ) : githubStatus && !githubStatus.isAppInstalled ? (
+        ) : statusError || !githubStatus || !githubStatus.isAppInstalled ? (
           renderConnectGitHub
         ) : mode === "repos" ? (
           renderRepos

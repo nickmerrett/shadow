@@ -2,7 +2,7 @@ import { createAuthClient } from "better-auth/react";
 
 export const authClient: ReturnType<typeof createAuthClient> = createAuthClient(
   {
-    baseURL: "http://localhost:3000", // Use frontend URL since auth is now local
+    baseURL: "http://localhost:3000",
     basePath: "/api/auth",
   }
 );

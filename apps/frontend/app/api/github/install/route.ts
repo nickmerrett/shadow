@@ -1,4 +1,5 @@
 import { getUser } from "@/lib/auth/get-user";
+import { getGitHubAccount } from "@/lib/db-operations/get-github-account";
 import { prisma } from "@repo/db";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -21,13 +22,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Update the user's GitHub account with the installation ID
-    const account = await prisma.account.findFirst({
-      where: {
-        userId: user.id,
-        providerId: "github",
-      },
-    });
+    const account = await getGitHubAccount(user.id);
 
     if (!account) {
       return NextResponse.json(

@@ -14,9 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useIsAtTop } from "@/hooks/use-is-at-top";
 import { saveLayoutCookie } from "@/lib/actions/save-sidebar-cookie";
-import type { Task } from "@/lib/db-operations/get-task";
 import { cn } from "@/lib/utils";
-import { Message } from "@repo/types";
 import { AppWindowMac } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import type {
@@ -29,12 +27,8 @@ import { TaskPageContent } from "./task-content";
 
 export function TaskPageLayout({
   initialLayout,
-  task,
-  messages,
 }: {
   initialLayout?: number[];
-  task: Task;
-  messages: Message[];
 }) {
   const rightPanelRef = useRef<ImperativePanelHandle>(null);
   const resizablePanelGroupRef = useRef<ImperativePanelGroupHandle>(null);
@@ -138,11 +132,7 @@ export function TaskPageLayout({
               </TooltipContent>
             </Tooltip>
           </div>
-          <TaskPageContent
-            task={task}
-            initialMessages={messages}
-            isAtTop={isAtTop}
-          />
+          <TaskPageContent isAtTop={isAtTop} />
         </StickToBottom>
       </ResizablePanel>
       <ResizableHandle />
