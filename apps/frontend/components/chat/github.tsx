@@ -11,6 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useGitHubStatus } from "@/hooks/use-github-status";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -59,6 +60,14 @@ interface GroupedRepos {
   }[];
 }
 
+interface GitHubStatus {
+  isConnected: boolean;
+  isAppInstalled: boolean;
+  installationId?: string;
+  installationUrl?: string;
+  message: string;
+}
+
 export function GithubConnection({
   onSelect,
 }: {
@@ -71,6 +80,15 @@ export function GithubConnection({
   const [repoSearch, setRepoSearch] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
   const [collapsedOrgs, setCollapsedOrgs] = useState<Set<string>>(new Set());
+
+  // Query for GitHub status
+  const {
+    data: githubStatus,
+    isLoading: isLoadingStatus,
+    error: statusError,
+  } = useGitHubStatus(isOpen);
+
+  console.log("githubStatus", githubStatus);
 
   const {
     data: groupedRepos = { groups: [] },
@@ -85,7 +103,7 @@ export function GithubConnection({
       }
       return response.json();
     },
-    enabled: isOpen, // Only fetch when popover is open
+    enabled: isOpen && !!githubStatus?.isAppInstalled, // Only fetch when popover is open and app is installed
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
@@ -118,9 +136,17 @@ export function GithubConnection({
         return a.name.localeCompare(b.name);
       });
     },
-    enabled: !!selectedRepo && mode === "branches",
+    enabled:
+      !!selectedRepo && mode === "branches" && githubStatus?.isAppInstalled,
     staleTime: 2 * 60 * 1000,
   });
+
+  if (statusError) {
+    toast.error("Failed to check GitHub status", {
+      description:
+        statusError instanceof Error ? statusError.message : "Unknown error",
+    });
+  }
 
   if (reposError) {
     toast.error("Failed to fetch repositories", {
@@ -196,8 +222,42 @@ export function GithubConnection({
         </>
       );
     }
+
+    if (githubStatus && !githubStatus.isAppInstalled) {
+      return "Connect GitHub";
+    }
+
     return "Select Repository";
   };
+
+  const renderConnectGitHub = (
+    <div className="p-6 text-center">
+      <div className="mb-4">
+        <Folder className="size-12 mx-auto text-muted-foreground mb-3" />
+        <h3 className="text-lg font-semibold mb-2">Connect GitHub App</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          To access private repositories and have full functionality, you need
+          to install our GitHub App.
+        </p>
+      </div>
+
+      {githubStatus?.installationUrl && (
+        <Button
+          onClick={() => {
+            window.open(githubStatus.installationUrl, "_blank");
+            setIsOpen(false);
+          }}
+          className="w-full"
+        >
+          Install GitHub App
+        </Button>
+      )}
+
+      <p className="text-xs text-muted-foreground mt-3">
+        This will open GitHub in a new tab to install the app.
+      </p>
+    </div>
+  );
 
   const renderRepos = (
     <div>
@@ -321,7 +381,18 @@ export function GithubConnection({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
-        {mode === "repos" ? renderRepos : renderBranches}
+        {isLoadingStatus ? (
+          <div className="flex items-center justify-center h-20 gap-2 text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            <span className="text-sm">Checking GitHub status...</span>
+          </div>
+        ) : githubStatus && !githubStatus.isAppInstalled ? (
+          renderConnectGitHub
+        ) : mode === "repos" ? (
+          renderRepos
+        ) : (
+          renderBranches
+        )}
       </PopoverContent>
     </Popover>
   );

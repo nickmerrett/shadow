@@ -1,4 +1,5 @@
 import { getUser } from "@/lib/auth/get-user";
+import { createInstallationOctokit } from "@/lib/github-app";
 import { prisma } from "@repo/db";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -10,8 +11,12 @@ async function getGitHubAccount(userId: string) {
     },
   });
 
-  if (!account?.accessToken) {
+  if (!account) {
     throw new Error("GitHub account not connected");
+  }
+
+  if (!account.githubAppConnected || !account.githubInstallationId) {
+    throw new Error("GitHub App not installed");
   }
 
   return account;
@@ -45,30 +50,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get the GitHub access token
+    // Get the GitHub account and create authenticated Octokit instance
     const account = await getGitHubAccount(user.id);
+    const octokit = await createInstallationOctokit(account.githubInstallationId!);
 
     // Fetch branches from GitHub API
-    const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repoName}/branches?per_page=100`,
-      {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      console.error("GitHub API error:", await response.text());
-      return NextResponse.json(
-        { error: "Failed to fetch branches" },
-        { status: response.status }
-      );
-    }
-
-    const branches = await response.json();
+    const { data: branches } = await octokit.rest.repos.listBranches({
+      owner,
+      repo: repoName,
+      per_page: 100,
+    });
 
     console.log(
       `branches for ${repo}:`,
@@ -82,10 +73,11 @@ export async function GET(request: NextRequest) {
 
     if (
       error instanceof Error &&
-      error.message === "GitHub account not connected"
+      (error.message === "GitHub account not connected" || 
+       error.message === "GitHub App not installed")
     ) {
       return NextResponse.json(
-        { error: "GitHub account not connected" },
+        { error: error.message },
         { status: 400 }
       );
     }

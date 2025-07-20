@@ -14,4 +14,10 @@ export const auth = betterAuth({
   },
   secret: process.env.BETTER_AUTH_SECRET as string,
   trustedOrigins: ["http://localhost:3000"],
+  callbacks: {
+    redirect: {
+      signInRedirect: "/",
+      signUpRedirect: "/",
+    },
+  },
 });

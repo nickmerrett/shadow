@@ -1,4 +1,5 @@
 import { getUser } from "@/lib/auth/get-user";
+import { createInstallationOctokit } from "@/lib/github-app";
 import { formatTimeAgo } from "@/lib/utils";
 import { Endpoints } from "@octokit/types";
 import { prisma } from "@repo/db";
@@ -16,8 +17,12 @@ async function getGitHubAccount(userId: string) {
     },
   });
 
-  if (!account?.accessToken) {
+  if (!account) {
     throw new Error("GitHub account not connected");
+  }
+
+  if (!account.githubAppConnected || !account.githubInstallationId) {
+    throw new Error("GitHub App not installed");
   }
 
   return account;
@@ -121,31 +126,21 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get the GitHub access token from the Account table
+    // Get the GitHub account and create authenticated Octokit instance
     const account = await getGitHubAccount(user.id);
+    const octokit = await createInstallationOctokit(account.githubInstallationId!);
 
     // Fetch repositories from GitHub API sorted by most recently pushed
-    const response = await fetch(
-      "https://api.github.com/user/repos?per_page=100&sort=pushed&direction=desc",
-      {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-      }
-    );
+    const { data: repositories } = await octokit.rest.apps.listReposAccessibleToInstallation({
+      per_page: 100,
+    });
 
-    if (!response.ok) {
-      console.error("GitHub API error:", await response.text());
-      return NextResponse.json(
-        { error: "Failed to fetch repositories" },
-        { status: response.status }
-      );
-    }
-
-    const repositories: UserRepository[] = await response.json();
-    const filteredRepos = repositories.map(filterRepositoryData);
+    // Sort repositories by pushed_at date
+    const sortedRepos = repositories.repositories.sort((a, b) => {
+      if (!a.pushed_at || !b.pushed_at) return 0;
+      return new Date(b.pushed_at).getTime() - new Date(a.pushed_at).getTime();
+    });
+    const filteredRepos = sortedRepos.map(filterRepositoryData);
     const groupedRepos = groupReposByOrg(filteredRepos, account.accountId);
 
     return NextResponse.json(groupedRepos);
@@ -154,10 +149,11 @@ export async function GET(_request: NextRequest) {
 
     if (
       error instanceof Error &&
-      error.message === "GitHub account not connected"
+      (error.message === "GitHub account not connected" || 
+       error.message === "GitHub App not installed")
     ) {
       return NextResponse.json(
-        { error: "GitHub account not connected" },
+        { error: error.message },
         { status: 400 }
       );
     }
