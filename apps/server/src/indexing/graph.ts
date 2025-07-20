@@ -143,7 +143,10 @@ class Graph {
   }
 
   addNode(node: GraphNode): GraphNode {
-    if (this.nodes.has(node.id)) return this.nodes.get(node.id)!;
+    if (this.nodes.has(node.id)) {
+      const existing = this.nodes.get(node.id);
+      if (existing) return existing;
+    }
     this.nodes.set(node.id, node);
     this.adj.set(node.id, []);
     this.rev.set(node.id, []);
@@ -152,8 +155,9 @@ class Graph {
 
   addEdge(edge: GraphEdge): void {
     if (!this.nodes.has(edge.from) || !this.nodes.has(edge.to)) return;
-    this.adj.get(edge.from)!.push(edge);
-    this.rev.get(edge.to)!.push(edge);
+
+    this.adj.get(edge.from)?.push(edge);
+    this.rev.get(edge.to)?.push(edge);
   }
 
   neighbors(id: string, filterKinds?: string[]): GraphNode[] {
