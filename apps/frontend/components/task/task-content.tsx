@@ -5,7 +5,6 @@ import { PromptForm } from "@/components/chat/prompt-form";
 import { ScrollToBottom } from "@/hooks/use-is-at-top";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
-import type { Task } from "@/lib/db-operations/get-task";
 import { socket } from "@/lib/socket";
 import { cn } from "@/lib/utils";
 import type {
@@ -17,6 +16,7 @@ import type {
   ToolStatusType,
 } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { StickToBottom } from "use-stick-to-bottom";
 
@@ -30,21 +30,16 @@ interface StreamingToolCall {
   error?: string;
 }
 
-export function TaskPageContent({
-  task,
-  initialMessages,
-  isAtTop,
-}: {
-  task: Task;
-  initialMessages: Message[];
-  isAtTop: boolean;
-}) {
-  const taskId = task.id;
+export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
+  const { taskId } = useParams<{ taskId: string }>();
 
   const queryClient = useQueryClient();
 
-  const { data: messages = [] } = useTaskMessages(taskId, initialMessages);
+  const { data: messages = [], error: taskMessagesError } =
+    useTaskMessages(taskId);
   const sendMessageMutation = useSendMessage();
+
+  console.log("messages", messages);
 
   // Streaming state for structured assistant parts
   const [streamingAssistantParts, setStreamingAssistantParts] = useState<
@@ -239,10 +234,12 @@ export function TaskPageContent({
     });
   };
 
-  if (!task) {
+  if (taskMessagesError) {
     return (
       <div className="mx-auto flex w-full grow max-w-lg flex-col items-center justify-center">
-        <div className="text-muted-foreground">Task not found</div>
+        <div className="text-destructive">
+          Error fetching messages: {taskMessagesError.message}
+        </div>
       </div>
     );
   }

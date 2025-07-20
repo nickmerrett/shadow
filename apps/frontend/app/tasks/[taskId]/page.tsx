@@ -1,6 +1,11 @@
 import { TaskPageLayout } from "@/components/task/task-layout";
 import { getTask } from "@/lib/db-operations/get-task";
 import { getTaskMessages } from "@/lib/db-operations/get-task-messages";
+import {
+  HydrationBoundary,
+  QueryClient,
+  dehydrate,
+} from "@tanstack/react-query";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
@@ -9,6 +14,15 @@ export default async function TaskPage({
 }: {
   params: Promise<{ taskId: string }>;
 }) {
+  const { taskId } = await params;
+
+  const task = await getTask(taskId);
+  if (!task) {
+    notFound();
+  }
+
+  const queryClient = new QueryClient();
+
   const getInitialLayout = async () => {
     const cookieStore = await cookies();
     const taskLayoutCookie = cookieStore.get("resizable-task-layout");
@@ -25,29 +39,17 @@ export default async function TaskPage({
     return initialLayout;
   };
 
-  const getTaskAndMessages = async () => {
-    const { taskId } = await params;
-
-    const task = await getTask(taskId);
-    if (!task) {
-      notFound();
-    }
-
-    const messages = await getTaskMessages(taskId);
-
-    return { task, messages };
-  };
-
-  const [initialLayout, { task, messages }] = await Promise.all([
+  const [initialLayout] = await Promise.all([
     getInitialLayout(),
-    getTaskAndMessages(),
+    queryClient.prefetchQuery({
+      queryKey: ["task-messages", taskId],
+      queryFn: () => getTaskMessages(taskId),
+    }),
   ]);
 
   return (
-    <TaskPageLayout
-      initialLayout={initialLayout}
-      task={task}
-      messages={messages}
-    />
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <TaskPageLayout initialLayout={initialLayout} />
+    </HydrationBoundary>
   );
 }
