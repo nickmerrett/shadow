@@ -2,8 +2,6 @@
 
 import type { CoreMessage } from "ai";
 import { randomUUID } from "crypto";
-// Import MessageRole from Prisma instead of defining our own
-export { MessageRole } from "@repo/db";
 
 // AI SDK message parts for structured assistant content
 export interface TextPart {
@@ -174,11 +172,12 @@ export interface StreamChunk {
 // This is specifically for tool execution status, separate from database TaskStatus
 export const ToolExecutionStatus = {
   RUNNING: "RUNNING",
-  COMPLETED: "COMPLETED", 
+  COMPLETED: "COMPLETED",
   FAILED: "FAILED",
 } as const;
 
-export type ToolExecutionStatusType = (typeof ToolExecutionStatus)[keyof typeof ToolExecutionStatus];
+export type ToolExecutionStatusType =
+  (typeof ToolExecutionStatus)[keyof typeof ToolExecutionStatus];
 
 // === LLM Integration Types ===
 
@@ -309,9 +308,3 @@ export function getModelProvider(model: ModelType): "anthropic" | "openai" {
 export function getModelInfo(model: ModelType): ModelInfo {
   return ModelInfos[model];
 }
-
-// === Legacy type aliases for backward compatibility ===
-// These can be removed after updating all imports
-export type { MessageRole as MessageRoleType } from "@repo/db";
-export type ToolStatusType = ToolExecutionStatusType;
-export const ToolStatus = ToolExecutionStatus;
