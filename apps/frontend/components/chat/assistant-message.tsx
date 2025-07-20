@@ -46,21 +46,48 @@ export function AssistantMessage({ message }: { message: Message }) {
     );
   }
 
+  // Group consecutive text parts together for better rendering
+  const groupedParts: Array<
+    | { type: "text"; text: string }
+    | { type: "tool-call"; part: any; index: number }
+  > = [];
+  let currentTextGroup = "";
+
+  message.metadata.parts.forEach((part, index) => {
+    if (part.type === "text") {
+      currentTextGroup += part.text;
+    } else {
+      // If we have accumulated text, add it as a group
+      if (currentTextGroup) {
+        groupedParts.push({ type: "text", text: currentTextGroup });
+        currentTextGroup = "";
+      }
+      // Add the non-text part
+      groupedParts.push({ type: "tool-call", part, index });
+    }
+  });
+
+  // Don't forget any remaining text at the end
+  if (currentTextGroup) {
+    groupedParts.push({ type: "text", text: currentTextGroup });
+  }
+
   return (
     <div className="space-y-2">
-      {message.metadata.parts.map((part, index) => {
-        if (part.type === "text") {
+      {groupedParts.map((group, groupIndex) => {
+        if (group.type === "text") {
           return (
-            <div key={index} className="text-sm">
+            <div key={`text-${groupIndex}`} className="text-sm">
               <MemoizedMarkdown
-                content={part.text}
-                id={`${message.id}-part-${index}`}
+                content={group.text}
+                id={`${message.id}-text-${groupIndex}`}
               />
             </div>
           );
         }
 
-        if (part.type === "tool-call") {
+        if (group.type === "tool-call") {
+          const part = group.part;
           // Create a proper tool message for rendering
           const toolMessage: Message = {
             id: `${message.id}-tool-${part.toolCallId}`,
@@ -78,7 +105,7 @@ export function AssistantMessage({ message }: { message: Message }) {
           };
 
           return (
-            <div key={index}>
+            <div key={`tool-${groupIndex}`}>
               <ToolMessage message={toolMessage} />
             </div>
           );
