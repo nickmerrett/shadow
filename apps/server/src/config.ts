@@ -17,6 +17,9 @@ const configSchema = z
     WORKSPACE_BASE_DIR: z.string().default("/workspace/tasks"),
     GITHUB_ACCESS_TOKEN: z.string().optional(),
     MAX_REPO_SIZE_MB: z.coerce.number().default(500),
+    PINECONE_API_KEY: z.string().optional(),
+    PINECONE_INDEX_NAME: z.string().default("shadow"),
+    EMBEDDING_MODEL: z.string().default("llama-text-embed-v2"),
     DEBUG: z
       .string()
       .optional()
@@ -46,6 +49,9 @@ const config = {
   workspaceBaseDir: parsed.data.WORKSPACE_BASE_DIR,
   githubAccessToken: parsed.data.GITHUB_ACCESS_TOKEN,
   maxRepoSizeMB: parsed.data.MAX_REPO_SIZE_MB,
+  pineconeApiKey: parsed.data.PINECONE_API_KEY,
+  pineconeIndexName: parsed.data.PINECONE_INDEX_NAME,
+  embeddingModel: parsed.data.EMBEDDING_MODEL,
   debug: parsed.data.DEBUG,
 };
 
