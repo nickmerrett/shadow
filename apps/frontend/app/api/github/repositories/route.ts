@@ -1,32 +1,13 @@
 import { getUser } from "@/lib/auth/get-user";
+import { getGitHubAccount } from "@/lib/db-operations/get-github-account";
 import { createInstallationOctokit } from "@/lib/github-app";
 import { formatTimeAgo } from "@/lib/utils";
 import { Endpoints } from "@octokit/types";
-import { prisma } from "@repo/db";
 import { NextRequest, NextResponse } from "next/server";
 
 // Type definitions for GitHub API responses
 type ListUserReposResponse = Endpoints["GET /user/repos"]["response"];
 type UserRepository = ListUserReposResponse["data"][0];
-
-async function getGitHubAccount(userId: string) {
-  const account = await prisma.account.findFirst({
-    where: {
-      userId,
-      providerId: "github",
-    },
-  });
-
-  if (!account) {
-    throw new Error("GitHub account not connected");
-  }
-
-  if (!account.githubAppConnected || !account.githubInstallationId) {
-    throw new Error("GitHub App not installed");
-  }
-
-  return account;
-}
 
 interface FilteredRepository {
   id: number;
@@ -126,14 +107,25 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get the GitHub account and create authenticated Octokit instance
     const account = await getGitHubAccount(user.id);
-    const octokit = await createInstallationOctokit(account.githubInstallationId!);
+
+    if (!account) {
+      throw new Error("GitHub account not connected");
+    }
+
+    if (!account.githubAppConnected || !account.githubInstallationId) {
+      throw new Error("GitHub App not installed");
+    }
+
+    const octokit = await createInstallationOctokit(
+      account.githubInstallationId
+    );
 
     // Fetch repositories from GitHub API sorted by most recently pushed
-    const { data: repositories } = await octokit.rest.apps.listReposAccessibleToInstallation({
-      per_page: 100,
-    });
+    const { data: repositories } =
+      await octokit.rest.apps.listReposAccessibleToInstallation({
+        per_page: 100,
+      });
 
     // Sort repositories by pushed_at date
     const sortedRepos = repositories.repositories.sort((a, b) => {
@@ -149,13 +141,10 @@ export async function GET(_request: NextRequest) {
 
     if (
       error instanceof Error &&
-      (error.message === "GitHub account not connected" || 
-       error.message === "GitHub App not installed")
+      (error.message === "GitHub account not connected" ||
+        error.message === "GitHub App not installed")
     ) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json(

@@ -1,6 +1,6 @@
 import { getUser } from "@/lib/auth/get-user";
+import { getGitHubAccount } from "@/lib/db-operations/get-github-account";
 import { getGitHubAppInstallationUrl } from "@/lib/github-app";
-import { prisma } from "@repo/db";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_request: NextRequest) {
@@ -21,13 +21,7 @@ export async function GET(_request: NextRequest) {
       });
     }
 
-    // Get the GitHub account for this user
-    const account = await prisma.account.findFirst({
-      where: {
-        userId: user.id,
-        providerId: "github",
-      },
-    });
+    const account = await getGitHubAccount(user.id);
 
     if (!account) {
       return NextResponse.json({
@@ -38,14 +32,15 @@ export async function GET(_request: NextRequest) {
       });
     }
 
-    const isAppInstalled = account.githubAppConnected && account.githubInstallationId;
+    const isAppInstalled =
+      account.githubAppConnected && account.githubInstallationId;
 
     return NextResponse.json({
       isConnected: true,
       isAppInstalled,
       installationId: account.githubInstallationId,
       installationUrl: !isAppInstalled ? getGitHubAppInstallationUrl() : null,
-      message: isAppInstalled 
+      message: isAppInstalled
         ? "GitHub App is installed and connected"
         : "GitHub App needs to be installed for full repository access",
     });
