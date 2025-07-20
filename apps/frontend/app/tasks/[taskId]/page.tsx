@@ -1,7 +1,10 @@
 import { TaskPageLayout } from "@/components/task/task-layout";
 import { getTask } from "@/lib/db-operations/get-task";
 import { getTaskMessages } from "@/lib/db-operations/get-task-messages";
-import { getGitHubRepositories } from "@/lib/github/github-api";
+import {
+  getGitHubRepositories,
+  getGitHubStatus,
+} from "@/lib/github/github-api";
 import {
   HydrationBoundary,
   QueryClient,
@@ -40,15 +43,21 @@ export default async function TaskPage({
     return initialLayout;
   };
 
-  const prefetchGitHubRepos = async () => {
+  const prefetchGitHubData = async () => {
     try {
-      await queryClient.prefetchQuery({
-        queryKey: ["github", "repositories"],
-        queryFn: getGitHubRepositories,
-      });
+      await Promise.all([
+        queryClient.prefetchQuery({
+          queryKey: ["github", "status"],
+          queryFn: getGitHubStatus,
+        }),
+        queryClient.prefetchQuery({
+          queryKey: ["github", "repositories"],
+          queryFn: getGitHubRepositories,
+        }),
+      ]);
     } catch (error) {
       // Silently fail - user might not have GitHub connected
-      console.log("Could not prefetch GitHub repositories:", error);
+      console.log("Could not prefetch GitHub data:", error);
     }
   };
 
@@ -58,7 +67,7 @@ export default async function TaskPage({
       queryKey: ["task-messages", taskId],
       queryFn: () => getTaskMessages(taskId),
     }),
-    prefetchGitHubRepos(),
+    prefetchGitHubData(),
   ]);
 
   return (

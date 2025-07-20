@@ -41,7 +41,6 @@ export function GithubConnection({
   const [branchSearch, setBranchSearch] = useState("");
   const [collapsedOrgs, setCollapsedOrgs] = useState<Set<string>>(new Set());
 
-  // Query for GitHub status
   const {
     data: githubStatus,
     isLoading: isLoadingStatus,

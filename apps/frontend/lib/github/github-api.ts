@@ -2,7 +2,10 @@
 
 import { getUser } from "@/lib/auth/get-user";
 import { getGitHubAccount } from "@/lib/db-operations/get-github-account";
-import { createInstallationOctokit } from "@/lib/github/github-app";
+import {
+  createInstallationOctokit,
+  getGitHubAppInstallationUrl,
+} from "@/lib/github/github-app";
 import { formatTimeAgo } from "@/lib/utils";
 import { Endpoints } from "@octokit/types";
 
@@ -30,6 +33,10 @@ export interface GroupedRepos {
   }[];
 }
 
+// Use GitHub API's actual branch type
+type GitHubBranch =
+  Endpoints["GET /repos/{owner}/{repo}/branches"]["response"]["data"][0];
+
 export interface Branch {
   name: string;
   commit: {
@@ -37,6 +44,14 @@ export interface Branch {
     url: string;
   };
   protected?: boolean;
+}
+
+export interface GitHubStatus {
+  isConnected: boolean;
+  isAppInstalled: boolean;
+  installationId?: string;
+  installationUrl?: string;
+  message: string;
 }
 
 function filterRepositoryData(repo: UserRepository): FilteredRepository {
@@ -107,6 +122,51 @@ function groupReposByOrg(
     });
 
   return { groups };
+}
+
+export async function getGitHubStatus(): Promise<GitHubStatus> {
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  // Check if GitHub App is configured
+  if (!process.env.GITHUB_APP_ID || !process.env.GITHUB_APP_SLUG) {
+    return {
+      isConnected: false,
+      isAppInstalled: false,
+      installationUrl: undefined,
+      message: "GitHub App not configured",
+    };
+  }
+
+  const account = await getGitHubAccount(user.id);
+
+  if (!account) {
+    return {
+      isConnected: false,
+      isAppInstalled: false,
+      installationUrl: undefined,
+      message: "GitHub account not connected",
+    };
+  }
+
+  const isAppInstalled = !!(
+    account.githubAppConnected && account.githubInstallationId
+  );
+
+  return {
+    isConnected: true,
+    isAppInstalled,
+    installationId: account.githubInstallationId || undefined,
+    installationUrl: !isAppInstalled
+      ? getGitHubAppInstallationUrl()
+      : undefined,
+    message: isAppInstalled
+      ? "GitHub App is installed and connected"
+      : "GitHub App needs to be installed for full repository access",
+  };
 }
 
 export async function getGitHubRepositories(): Promise<GroupedRepos> {
@@ -204,6 +264,14 @@ export async function getGitHubBranches(
 }
 
 // Client-side API functions (for use in hooks)
+export async function fetchGitHubStatus(): Promise<GitHubStatus> {
+  const response = await fetch("/api/github/status");
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+}
+
 export async function fetchGitHubRepositories(): Promise<GroupedRepos> {
   const response = await fetch("/api/github/repositories");
   if (!response.ok) {

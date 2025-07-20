@@ -1,26 +1,13 @@
+import { fetchGitHubStatus } from "@/lib/github/github-api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-
-interface GitHubStatus {
-  isConnected: boolean;
-  isAppInstalled: boolean;
-  installationId?: string;
-  installationUrl?: string;
-  message: string;
-}
 
 export function useGitHubStatus(enabled = true) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ["github", "status"],
-    queryFn: async (): Promise<GitHubStatus> => {
-      const response = await fetch("/api/github/status");
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    },
+    queryFn: fetchGitHubStatus,
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -33,7 +20,7 @@ export function useGitHubStatus(enabled = true) {
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete("github_app_installed");
       window.history.replaceState({}, "", newUrl.toString());
-      
+
       // Refresh the status
       queryClient.invalidateQueries({ queryKey: ["github", "status"] });
       queryClient.invalidateQueries({ queryKey: ["github", "repositories"] });

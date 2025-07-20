@@ -1,6 +1,9 @@
 import { PromptForm } from "@/components/chat/prompt-form";
 import { HomeLayoutWrapper } from "@/components/layout/home-layout";
-import { getGitHubRepositories } from "@/lib/github/github-api";
+import {
+  getGitHubRepositories,
+  getGitHubStatus,
+} from "@/lib/github/github-api";
 import {
   dehydrate,
   HydrationBoundary,
@@ -10,15 +13,21 @@ import {
 export default async function Home() {
   const queryClient = new QueryClient();
 
-  // Prefetch GitHub repositories for better UX when user opens repository selector
+  // Prefetch GitHub data for better UX when user opens repository selector
   try {
-    await queryClient.prefetchQuery({
-      queryKey: ["github", "repositories"],
-      queryFn: getGitHubRepositories,
-    });
+    await Promise.all([
+      queryClient.prefetchQuery({
+        queryKey: ["github", "status"],
+        queryFn: getGitHubStatus,
+      }),
+      queryClient.prefetchQuery({
+        queryKey: ["github", "repositories"],
+        queryFn: getGitHubRepositories,
+      }),
+    ]);
   } catch (error) {
     // Silently fail - user might not have GitHub connected
-    console.log("Could not prefetch GitHub repositories:", error);
+    console.log("Could not prefetch GitHub data:", error);
   }
 
   return (
