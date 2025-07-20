@@ -138,7 +138,7 @@ model ChatMessage {
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId, sequence]) // Order by sequence first for correct conversation flow
-  @@index([taskId, createdAt])
+  @@index([taskId, role, sequence]) // For efficient tool message lookups
   @@index([llmModel, createdAt]) // For usage analytics
 }
 
