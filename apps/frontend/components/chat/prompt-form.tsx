@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { createTask } from "@/lib/actions/create-task";
-import { queryClient } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
 import {
   AvailableModels,
@@ -16,6 +15,7 @@ import {
   type ModelInfo,
   type ModelType,
 } from "@repo/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, Layers, Loader2, Square } from "lucide-react";
 import { redirect } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
@@ -39,6 +39,8 @@ export function PromptForm({
   const [repoUrl, setRepoUrl] = useState<string | null>(null);
   const [branch, setBranch] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const queryClient = useQueryClient();
 
   // TODO: initial fetch on server and use useQuery
   useEffect(() => {

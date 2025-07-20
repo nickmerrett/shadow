@@ -1,7 +1,7 @@
 import type { Message } from "@repo/types";
 import { useQuery } from "@tanstack/react-query";
 
-export function useTaskMessages(taskId: string, initialData?: Message[]) {
+export function useTaskMessages(taskId: string) {
   return useQuery({
     queryKey: ["task-messages", taskId],
     queryFn: async () => {
@@ -10,7 +10,7 @@ export function useTaskMessages(taskId: string, initialData?: Message[]) {
       const data = await res.json();
       return data.messages as Message[];
     },
-    initialData,
+    throwOnError: true,
     enabled: !!taskId,
   });
 }

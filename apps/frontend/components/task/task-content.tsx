@@ -1,0 +1,281 @@
+"use client";
+
+import { Messages } from "@/components/chat/messages";
+import { PromptForm } from "@/components/chat/prompt-form";
+import { ScrollToBottom } from "@/hooks/use-is-at-top";
+import { useSendMessage } from "@/hooks/use-send-message";
+import { useTaskMessages } from "@/hooks/use-task-messages";
+import { socket } from "@/lib/socket";
+import { cn } from "@/lib/utils";
+import type {
+  AssistantMessagePart,
+  Message,
+  StreamChunk,
+  TextPart,
+  ToolCallPart,
+  ToolExecutionStatusType,
+} from "@repo/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { StickToBottom } from "use-stick-to-bottom";
+
+// Types for streaming tool calls
+interface StreamingToolCall {
+  id: string;
+  name: string;
+  args: Record<string, any>;
+  status: ToolExecutionStatusType;
+  result?: string;
+  error?: string;
+}
+
+export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
+  const { taskId } = useParams<{ taskId: string }>();
+
+  const queryClient = useQueryClient();
+
+  const { data: messages = [], error: taskMessagesError } =
+    useTaskMessages(taskId);
+  const sendMessageMutation = useSendMessage();
+
+  // Streaming state for structured assistant parts
+  const [streamingAssistantParts, setStreamingAssistantParts] = useState<
+    AssistantMessagePart[]
+  >([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingToolCalls, setStreamingToolCalls] = useState<
+    StreamingToolCall[]
+  >([]);
+
+  useEffect(() => {
+    function onConnect() {
+      // Request chat history when connected
+      if (taskId) {
+        socket.emit("get-chat-history", { taskId });
+      }
+    }
+
+    function onDisconnect() {
+      // Connection lost
+    }
+
+    function onChatHistory(data: { taskId: string; messages: Message[] }) {
+      if (data.taskId === taskId) {
+        // Update the query cache directly with fresh data from server
+        queryClient.setQueryData(["task-messages", taskId], data.messages);
+
+        // Clear streaming state when we have the updated chat history
+        setStreamingAssistantParts([]);
+        setIsStreaming(false);
+
+        // Clear state
+        setStreamingToolCalls([]);
+      }
+    }
+
+    function onStreamState(state: { content: string; isStreaming: boolean }) {
+      console.log("Received stream state:", state);
+      setIsStreaming(state.isStreaming);
+    }
+
+    function onStreamChunk(chunk: StreamChunk) {
+      setIsStreaming(true);
+
+      // Handle different types of stream chunks
+      switch (chunk.type) {
+        case "content":
+          if (chunk.content) {
+            // Add text part to structured assistant parts
+            const textPart: TextPart = {
+              type: "text",
+              text: chunk.content,
+            };
+            setStreamingAssistantParts((prev) => [...prev, textPart]);
+          }
+          break;
+
+        case "tool-call":
+          if (chunk.toolCall) {
+            console.log("Tool call:", chunk.toolCall);
+
+            // Add tool call part to structured assistant parts
+            const toolCallPart: ToolCallPart = {
+              type: "tool-call",
+              toolCallId: chunk.toolCall.id,
+              toolName: chunk.toolCall.name,
+              args: chunk.toolCall.args,
+            };
+            setStreamingAssistantParts((prev) => [...prev, toolCallPart]);
+
+            // Keep old behavior for now during transition
+            const newToolCall: StreamingToolCall = {
+              id: chunk.toolCall.id,
+              name: chunk.toolCall.name,
+              args: chunk.toolCall.args,
+              status: "RUNNING",
+            };
+            setStreamingToolCalls((prev) => [...prev, newToolCall]);
+          }
+          break;
+
+        case "tool-result":
+          if (chunk.toolResult) {
+            console.log("Tool result:", chunk.toolResult);
+            // For structured parts, tool results are handled separately as tool messages
+            // We don't need to update the assistant parts here
+
+            // Keep old behavior for now during transition
+            setStreamingToolCalls((prev) =>
+              prev.map((toolCall) =>
+                toolCall.id === chunk.toolResult!.id
+                  ? {
+                      ...toolCall,
+                      status: "COMPLETED" as const,
+                      result: chunk.toolResult!.result,
+                    }
+                  : toolCall
+              )
+            );
+          }
+          break;
+
+        case "complete":
+          setIsStreaming(false);
+          console.log("Stream completed");
+          socket.emit("get-chat-history", { taskId });
+          break;
+
+        case "error": {
+          setIsStreaming(false);
+          console.error("Stream error:", chunk.error);
+
+          // Add error text part to structured assistant parts
+          const errorTextPart: TextPart = {
+            type: "text",
+            text: `\n\nError: ${chunk.error}`,
+          };
+          setStreamingAssistantParts((prev) => [...prev, errorTextPart]);
+          break;
+        }
+
+        case "usage":
+          console.log("Usage:", chunk.usage);
+          break;
+
+        case "thinking":
+          console.log("Thinking:", chunk.thinking);
+          break;
+      }
+    }
+
+    function onStreamComplete() {
+      setIsStreaming(false);
+      console.log("Stream completed");
+      // Refresh messages when stream is complete
+      socket.emit("get-chat-history", { taskId });
+    }
+
+    function onStreamError(error: any) {
+      setIsStreaming(false);
+      console.error("Stream error:", error);
+
+      // Add error to structured parts
+      const errorTextPart: TextPart = {
+        type: "text",
+        text: "\n\nStream error occurred",
+      };
+      setStreamingAssistantParts((prev) => [...prev, errorTextPart]);
+    }
+
+    function onMessageError(data: { error: string }) {
+      console.error("Message error:", data.error);
+      setIsStreaming(false);
+    }
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("chat-history", onChatHistory);
+    socket.on("stream-state", onStreamState);
+    socket.on("stream-chunk", onStreamChunk);
+    socket.on("stream-complete", onStreamComplete);
+    socket.on("stream-error", onStreamError);
+    socket.on("message-error", onMessageError);
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("chat-history", onChatHistory);
+      socket.off("stream-state", onStreamState);
+      socket.off("stream-chunk", onStreamChunk);
+      socket.off("stream-complete", onStreamComplete);
+      socket.off("stream-error", onStreamError);
+      socket.off("message-error", onMessageError);
+    };
+  }, [taskId]);
+
+  const handleSendMessage = (message: string, model: string) => {
+    if (!taskId || !message.trim()) return;
+
+    // Use the mutation for optimistic updates
+    sendMessageMutation.mutate({ taskId, message, model });
+
+    console.log("Sending message:", { taskId, message, model });
+    socket.emit("user-message", {
+      taskId,
+      message: message.trim(),
+      llmModel: model,
+    });
+  };
+
+  if (taskMessagesError) {
+    return (
+      <div className="mx-auto flex w-full grow max-w-lg flex-col items-center justify-center">
+        <div className="text-destructive">
+          Error fetching messages: {taskMessagesError.message}
+        </div>
+      </div>
+    );
+  }
+
+  // Combine real messages with current streaming content
+  const displayMessages = [...messages];
+
+  // Add streaming assistant message with structured parts if present
+  if (streamingAssistantParts.length > 0 || isStreaming) {
+    displayMessages.push({
+      id: "streaming",
+      role: "assistant",
+      content: "", // Content will come from parts
+      createdAt: new Date().toISOString(),
+      metadata: {
+        isStreaming: true,
+        parts: streamingAssistantParts,
+      },
+    });
+  }
+
+  return (
+    <StickToBottom.Content className="mx-auto flex w-full grow max-w-lg flex-col items-center px-4 sm:px-6 relative z-0">
+      <div
+        className={cn(
+          "sticky -left-px w-[calc(100%+2px)] top-0 h-16 bg-gradient-to-b from-background via-background/60 to-transparent -translate-y-px pointer-events-none z-10 transition-opacity",
+          isAtTop ? "opacity-0" : "opacity-100"
+        )}
+      />
+
+      <Messages messages={displayMessages} />
+
+      <ScrollToBottom />
+
+      <PromptForm
+        onSubmit={handleSendMessage}
+        isStreaming={isStreaming || sendMessageMutation.isPending}
+      />
+    </StickToBottom.Content>
+  );
+}

@@ -55,6 +55,10 @@ model Account {
   createdAt             DateTime
   updatedAt             DateTime
 
+  // GitHub App installation data
+  githubInstallationId  String?   // GitHub App installation ID
+  githubAppConnected    Boolean   @default(false) // Whether GitHub App is installed
+
   @@map("account")
 }
 
@@ -147,7 +151,7 @@ model ChatMessage {
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId, sequence]) // Order by sequence first for correct conversation flow
-  @@index([taskId, createdAt])
+  @@index([taskId, role, sequence]) // For efficient tool message lookups
   @@index([llmModel, createdAt]) // For usage analytics
 }
 

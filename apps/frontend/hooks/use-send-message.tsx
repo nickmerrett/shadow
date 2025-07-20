@@ -1,6 +1,5 @@
-import { queryClient } from "@/lib/query-client";
 import type { Message } from "@repo/types";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface SendMessageParams {
   taskId: string;
@@ -9,6 +8,8 @@ interface SendMessageParams {
 }
 
 export function useSendMessage() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async ({ taskId, message, model }: SendMessageParams) => {
       // This will be handled via socket, not direct API call

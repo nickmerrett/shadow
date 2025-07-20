@@ -16,31 +16,48 @@ interface GraphJSON {
   edges: GraphEdge[];
 }
 
+export enum GraphEdgeKind {
+  CONTAINS = "CONTAINS",
+  DOCS_FOR = "DOCS_FOR",
+  PART_OF = "PART_OF",
+  NEXT_CHUNK = "NEXT_CHUNK",
+  CALLS = "CALLS",
+}
+
+export enum GraphNodeKind {
+  REPO = "REPO",
+  FILE = "FILE",
+  SYMBOL = "SYMBOL",
+  COMMENT = "COMMENT",
+  IMPORT = "IMPORT",
+  CHUNK = "CHUNK",
+}
+
 interface GraphNodeConstructorParams {
   id: string;
-  kind: string;
-  name: string;
-  path?: string;
-  lang?: string;
-  loc?: Location;
-  signature?: string;
-  code?: string;
-  doc?: string;
-  meta?: Record<string, any>;
+  kind: GraphNodeKind; // CHUNK / FILE / REPO / SYMBOL / COMMENT / IMPORT
+  name: string; // Symbol name
+  path?: string; // File path
+  lang?: string; // Language
+  loc?: Location; // Start, end, byte
+  signature?: string; // First line of code
+  code?: string; // Code
+  doc?: string; // Doc string
+  meta?: Record<string, any>; // Additional Metadata
 }
 
 class GraphNode implements HashGenerator {
-  public id: string;
-  public kind: string;
-  public name: string;
-  public path: string;
-  public lang: string;
-  public loc: Location;
-  public signature: string;
-  public code: string;
-  public doc: string;
-  public meta: Record<string, any>;
-  public embedding: number[];
+  public id: string; // repoId
+  public kind: GraphNodeKind; // CHUNK / FILE / REPO
+  public name: string; // Symbol name
+  public path: string; // File path
+  public lang: string; // Language
+  public loc: Location; // Start, end, byte
+  public signature: string; // First line of code
+  public code: string; // Code
+  public doc: string; // Doc string
+  public meta: Record<string, any>; // Additional Metadata
+  public embedding: number[]; // Embedding - defaults to empty
 
   constructor({
     id,
@@ -81,9 +98,15 @@ class GraphNode implements HashGenerator {
         "|" +
         this.path +
         "|" +
-        this.kind +
+        this.kind.toString() +
         "|" +
         this.name +
+        "|" +
+        this.signature +
+        "|" +
+        this.code +
+        "|" +
+        this.doc +
         "|" +
         `${this.loc.startLine}:${this.loc.startCol}-${this.loc.endLine}:${this.loc.endCol}`
     );
@@ -94,7 +117,7 @@ class GraphNode implements HashGenerator {
 class GraphEdge {
   public from: string;
   public to: string;
-  public kind: string;
+  public kind: GraphEdgeKind;
   public meta: Record<string, any>;
 
   constructor({ from, to, kind, meta = {} }: GraphEdge) {
@@ -119,7 +142,10 @@ class Graph {
   }
 
   addNode(node: GraphNode): GraphNode {
-    if (this.nodes.has(node.id)) return this.nodes.get(node.id)!;
+    if (this.nodes.has(node.id)) {
+      const existing = this.nodes.get(node.id);
+      if (existing) return existing;
+    }
     this.nodes.set(node.id, node);
     this.adj.set(node.id, []);
     this.rev.set(node.id, []);
@@ -128,8 +154,9 @@ class Graph {
 
   addEdge(edge: GraphEdge): void {
     if (!this.nodes.has(edge.from) || !this.nodes.has(edge.to)) return;
-    this.adj.get(edge.from)!.push(edge);
-    this.rev.get(edge.to)!.push(edge);
+
+    this.adj.get(edge.from)?.push(edge);
+    this.rev.get(edge.to)?.push(edge);
   }
 
   neighbors(id: string, filterKinds?: string[]): GraphNode[] {
@@ -172,7 +199,7 @@ class Graph {
 function makeId(
   repoId: string,
   path: string,
-  kind: string,
+  kind: GraphNodeKind | GraphEdgeKind,
   name: string,
   loc: {
     startLine: number;
@@ -187,7 +214,7 @@ function makeId(
       "|" +
       path +
       "|" +
-      kind +
+      kind.toString() +
       "|" +
       name +
       "|" +
