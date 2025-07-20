@@ -6,7 +6,6 @@ import { ScrollToBottom } from "@/hooks/use-is-at-top";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
 import type { Task } from "@/lib/db-operations/get-task";
-import { queryClient } from "@/lib/query-client";
 import { socket } from "@/lib/socket";
 import { cn } from "@/lib/utils";
 import type {
@@ -17,6 +16,7 @@ import type {
   ToolCallPart,
   ToolStatusType,
 } from "@repo/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { StickToBottom } from "use-stick-to-bottom";
 
@@ -40,6 +40,8 @@ export function TaskPageContent({
   isAtTop: boolean;
 }) {
   const taskId = task.id;
+
+  const queryClient = useQueryClient();
 
   const { data: messages = [] } = useTaskMessages(taskId, initialMessages);
   const sendMessageMutation = useSendMessage();
