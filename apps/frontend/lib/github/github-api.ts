@@ -1,7 +1,8 @@
 "use server";
 
-import { getUser } from "@/lib/auth/get-user";
+import { AuthUser, getUser } from "@/lib/auth/get-user";
 import { getGitHubAccount } from "@/lib/db-operations/get-github-account";
+import { clearGitHubInstallation } from "@/lib/db-operations/update-github-account";
 import {
   createInstallationOctokit,
   getGitHubAppInstallationUrl,
@@ -12,8 +13,6 @@ import { Endpoints } from "@octokit/types";
 // Type definitions for GitHub API responses
 type ListUserReposResponse = Endpoints["GET /user/repos"]["response"];
 type UserRepository = ListUserReposResponse["data"][0];
-
-const BASE_URL = process.env.VERCEL_URL || "http://localhost:3000";
 
 export interface FilteredRepository {
   id: number;
@@ -126,148 +125,246 @@ function groupReposByOrg(
   return { groups };
 }
 
+async function handleStaleInstallation(
+  error: any,
+  userId: string
+): Promise<boolean> {
+  console.log("handleStaleInstallation error", error);
+
+  // Check if this is a 404 error indicating the installation no longer exists
+  if (error?.status === 404 || error?.message?.includes("Not Found")) {
+    console.log("Detected stale GitHub installation, clearing from database");
+    try {
+      await clearGitHubInstallation(userId);
+      return true; // Installation was cleared
+    } catch (clearError) {
+      console.error("Error clearing stale installation:", clearError);
+    }
+  }
+  return false; // Not a stale installation or failed to clear
+}
+
 export async function getGitHubStatus(): Promise<GitHubStatus> {
-  const user = await getUser();
+  try {
+    const user = await getUser();
 
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
+    if (!user) {
+      return {
+        isConnected: false,
+        isAppInstalled: false,
+        installationUrl: undefined,
+        message: "User not authenticated",
+      };
+    }
 
-  // Check if GitHub App is configured
-  if (!process.env.GITHUB_APP_ID || !process.env.GITHUB_APP_SLUG) {
+    // Check if GitHub App is configured
+    if (!process.env.GITHUB_APP_ID || !process.env.GITHUB_APP_SLUG) {
+      return {
+        isConnected: false,
+        isAppInstalled: false,
+        installationUrl: undefined,
+        message: "GitHub App not configured",
+      };
+    }
+
+    const account = await getGitHubAccount(user.id);
+
+    if (!account) {
+      return {
+        isConnected: false,
+        isAppInstalled: false,
+        installationUrl: getGitHubAppInstallationUrl(),
+        message: "GitHub account not connected",
+      };
+    }
+
+    const isAppInstalled = !!(
+      account.githubAppConnected && account.githubInstallationId
+    );
+
+    // If we think the app is installed, let's verify it by trying to create an Octokit instance
+    if (isAppInstalled && account.githubInstallationId) {
+      try {
+        await createInstallationOctokit(account.githubInstallationId);
+      } catch (error) {
+        // If we get a 404, the installation is stale - clear it
+        const wasCleared = await handleStaleInstallation(error, user.id);
+        if (wasCleared) {
+          return {
+            isConnected: true,
+            isAppInstalled: false,
+            installationUrl: getGitHubAppInstallationUrl(),
+            message: "GitHub App installation was removed - please reinstall",
+          };
+        }
+        // If it's some other error, treat as not installed
+        console.error("Error verifying GitHub installation:", error);
+        return {
+          isConnected: true,
+          isAppInstalled: false,
+          installationUrl: getGitHubAppInstallationUrl(),
+          message: "Error verifying GitHub App installation",
+        };
+      }
+    }
+
+    return {
+      isConnected: true,
+      isAppInstalled,
+      installationId: account.githubInstallationId || undefined,
+      installationUrl: !isAppInstalled
+        ? getGitHubAppInstallationUrl()
+        : undefined,
+      message: isAppInstalled
+        ? "GitHub App is installed and connected"
+        : "GitHub App needs to be installed for full repository access",
+    };
+  } catch (error) {
+    console.error("Error getting GitHub status:", error);
     return {
       isConnected: false,
       isAppInstalled: false,
       installationUrl: undefined,
-      message: "GitHub App not configured",
+      message: "Error checking GitHub status",
     };
   }
-
-  const account = await getGitHubAccount(user.id);
-
-  if (!account) {
-    return {
-      isConnected: false,
-      isAppInstalled: false,
-      installationUrl: undefined,
-      message: "GitHub account not connected",
-    };
-  }
-
-  const isAppInstalled = !!(
-    account.githubAppConnected && account.githubInstallationId
-  );
-
-  return {
-    isConnected: true,
-    isAppInstalled,
-    installationId: account.githubInstallationId || undefined,
-    installationUrl: !isAppInstalled
-      ? getGitHubAppInstallationUrl()
-      : undefined,
-    message: isAppInstalled
-      ? "GitHub App is installed and connected"
-      : "GitHub App needs to be installed for full repository access",
-  };
 }
 
 export async function getGitHubRepositories(): Promise<GroupedRepos> {
-  const user = await getUser();
+  let user: any = null;
 
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
+  try {
+    user = await getUser();
 
-  const account = await getGitHubAccount(user.id);
+    if (!user) {
+      // Return empty state instead of throwing
+      return { groups: [] };
+    }
 
-  if (!account) {
-    throw new Error("GitHub account not connected");
-  }
+    const account = await getGitHubAccount(user.id);
 
-  if (!account.githubAppConnected || !account.githubInstallationId) {
-    throw new Error("GitHub App not installed");
-  }
+    if (!account) {
+      // Return empty state instead of throwing
+      return { groups: [] };
+    }
 
-  const octokit = await createInstallationOctokit(account.githubInstallationId);
+    if (!account.githubAppConnected || !account.githubInstallationId) {
+      // Return empty state instead of throwing
+      return { groups: [] };
+    }
 
-  // Fetch repositories from GitHub API sorted by most recently pushed
-  const { data: repositories } =
-    await octokit.rest.apps.listReposAccessibleToInstallation({
-      per_page: 100,
+    const octokit = await createInstallationOctokit(
+      account.githubInstallationId
+    );
+
+    // Fetch repositories from GitHub API sorted by most recently pushed
+    const { data: repositories } =
+      await octokit.rest.apps.listReposAccessibleToInstallation({
+        per_page: 100,
+      });
+
+    // Sort repositories by pushed_at date
+    const sortedRepos = repositories.repositories.sort((a, b) => {
+      if (!a.pushed_at || !b.pushed_at) return 0;
+      return new Date(b.pushed_at).getTime() - new Date(a.pushed_at).getTime();
     });
 
-  // Sort repositories by pushed_at date
-  const sortedRepos = repositories.repositories.sort((a, b) => {
-    if (!a.pushed_at || !b.pushed_at) return 0;
-    return new Date(b.pushed_at).getTime() - new Date(a.pushed_at).getTime();
-  });
+    const filteredRepos = sortedRepos.map(filterRepositoryData);
+    const groupedRepos = groupReposByOrg(filteredRepos, account.accountId);
 
-  const filteredRepos = sortedRepos.map(filterRepositoryData);
-  const groupedRepos = groupReposByOrg(filteredRepos, account.accountId);
+    return groupedRepos;
+  } catch (error) {
+    console.error("Error getting GitHub repositories:", error);
 
-  return groupedRepos;
+    // Check if this is a stale installation and clear it
+    if (user) {
+      await handleStaleInstallation(error, user.id);
+    }
+
+    // Return empty state instead of throwing
+    return { groups: [] };
+  }
 }
 
 export async function getGitHubBranches(
   repoFullName: string
 ): Promise<Branch[]> {
-  const user = await getUser();
+  let user: AuthUser | null = null;
 
-  if (!user) {
-    throw new Error("Unauthorized");
+  try {
+    user = await getUser();
+
+    if (!user) {
+      // Return empty state instead of throwing
+      return [];
+    }
+
+    // Parse owner and repo name from full_name (e.g., "owner/repo")
+    const [owner, repoName] = repoFullName.split("/");
+    if (!owner || !repoName) {
+      throw new Error("Invalid repository format. Expected 'owner/repo'");
+    }
+
+    // Get the GitHub account and create authenticated Octokit instance
+    const account = await getGitHubAccount(user.id);
+
+    if (!account) {
+      // Return empty state instead of throwing
+      return [];
+    }
+
+    if (!account.githubAppConnected || !account.githubInstallationId) {
+      // Return empty state instead of throwing
+      return [];
+    }
+
+    const octokit = await createInstallationOctokit(
+      account.githubInstallationId
+    );
+
+    // Fetch branches from GitHub API
+    const { data: branches } = await octokit.rest.repos.listBranches({
+      owner,
+      repo: repoName,
+      per_page: 100,
+    });
+
+    // Convert to our simplified Branch interface and sort
+    const simplifiedBranches: Branch[] = branches.map((branch) => ({
+      name: branch.name,
+      commit: {
+        sha: branch.commit.sha,
+        url: branch.commit.url,
+      },
+      protected: branch.protected,
+    }));
+
+    // Sort branches: main/master first, then by name
+    return simplifiedBranches.sort((a: Branch, b: Branch) => {
+      const isMainA = a.name === "main" || a.name === "master";
+      const isMainB = b.name === "main" || b.name === "master";
+
+      if (isMainA && !isMainB) return -1;
+      if (!isMainA && isMainB) return 1;
+
+      return a.name.localeCompare(b.name);
+    });
+  } catch (error) {
+    console.error("Error getting GitHub branches:", error);
+
+    // Check if this is a stale installation and clear it
+    if (user) {
+      await handleStaleInstallation(error, user.id);
+    }
+
+    // Return empty state instead of throwing
+    return [];
   }
-
-  // Parse owner and repo name from full_name (e.g., "owner/repo")
-  const [owner, repoName] = repoFullName.split("/");
-  if (!owner || !repoName) {
-    throw new Error("Invalid repository format. Expected 'owner/repo'");
-  }
-
-  // Get the GitHub account and create authenticated Octokit instance
-  const account = await getGitHubAccount(user.id);
-
-  if (!account) {
-    throw new Error("GitHub account not connected");
-  }
-
-  if (!account.githubAppConnected || !account.githubInstallationId) {
-    throw new Error("GitHub App not installed");
-  }
-
-  const octokit = await createInstallationOctokit(account.githubInstallationId);
-
-  // Fetch branches from GitHub API
-  const { data: branches } = await octokit.rest.repos.listBranches({
-    owner,
-    repo: repoName,
-    per_page: 100,
-  });
-
-  // Convert to our simplified Branch interface and sort
-  const simplifiedBranches: Branch[] = branches.map((branch) => ({
-    name: branch.name,
-    commit: {
-      sha: branch.commit.sha,
-      url: branch.commit.url,
-    },
-    protected: branch.protected,
-  }));
-
-  // Sort branches: main/master first, then by name
-  return simplifiedBranches.sort((a: Branch, b: Branch) => {
-    const isMainA = a.name === "main" || a.name === "master";
-    const isMainB = b.name === "main" || b.name === "master";
-
-    if (isMainA && !isMainB) return -1;
-    if (!isMainA && isMainB) return 1;
-
-    return a.name.localeCompare(b.name);
-  });
 }
 
 // Client-side API functions (for use in hooks)
 export async function fetchGitHubStatus(): Promise<GitHubStatus> {
-  const response = await fetch(`${BASE_URL}/api/github/status`);
+  const response = await fetch("/api/github/status");
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
@@ -275,7 +372,7 @@ export async function fetchGitHubStatus(): Promise<GitHubStatus> {
 }
 
 export async function fetchGitHubRepositories(): Promise<GroupedRepos> {
-  const response = await fetch(`${BASE_URL}/api/github/repositories`);
+  const response = await fetch("/api/github/repositories");
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
@@ -285,9 +382,7 @@ export async function fetchGitHubRepositories(): Promise<GroupedRepos> {
 export async function fetchGitHubBranches(
   repoFullName: string
 ): Promise<Branch[]> {
-  const response = await fetch(
-    `${BASE_URL}/api/github/branches?repo=${repoFullName}`
-  );
+  const response = await fetch(`/api/github/branches?repo=${repoFullName}`);
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }

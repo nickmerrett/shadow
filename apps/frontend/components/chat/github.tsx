@@ -41,6 +41,7 @@ export function GithubConnection({
   const [branchSearch, setBranchSearch] = useState("");
   const [collapsedOrgs, setCollapsedOrgs] = useState<Set<string>>(new Set());
 
+  // Query for GitHub status
   const {
     data: githubStatus,
     isLoading: isLoadingStatus,
@@ -65,27 +66,36 @@ export function GithubConnection({
     !!selectedRepo && mode === "branches" && !!githubStatus?.isAppInstalled
   );
 
+  // Handle errors with toast notifications, but don't break UI
   if (statusError) {
-    toast.error("Failed to check GitHub status", {
-      description:
-        statusError instanceof Error ? statusError.message : "Unknown error",
-    });
+    console.error("GitHub status error:", statusError);
+    // Don't show toast for status errors - these are handled by the UI states
   }
 
   if (reposError) {
-    toast.error("Failed to fetch repositories", {
-      description:
-        reposError instanceof Error ? reposError.message : "Unknown error",
-    });
+    console.error("GitHub repositories error:", reposError);
+    // Only show toast for unexpected errors, not auth errors
+    if (!(reposError instanceof Error && reposError.message.includes("401"))) {
+      toast.error("Failed to fetch repositories", {
+        description:
+          reposError instanceof Error ? reposError.message : "Unknown error",
+      });
+    }
   }
 
   if (branchesError) {
-    toast.error("Failed to fetch branches", {
-      description:
-        branchesError instanceof Error
-          ? branchesError.message
-          : "Unknown error",
-    });
+    console.error("GitHub branches error:", branchesError);
+    // Only show toast for unexpected errors, not auth errors
+    if (
+      !(branchesError instanceof Error && branchesError.message.includes("401"))
+    ) {
+      toast.error("Failed to fetch branches", {
+        description:
+          branchesError instanceof Error
+            ? branchesError.message
+            : "Unknown error",
+      });
+    }
   }
 
   const filteredGroups = groupedRepos.groups
@@ -151,6 +161,10 @@ export function GithubConnection({
       return "Connect GitHub";
     }
 
+    if (statusError || !githubStatus) {
+      return "Connect GitHub";
+    }
+
     return "Select Repository";
   };
 
@@ -160,8 +174,9 @@ export function GithubConnection({
         <Folder className="size-12 mx-auto text-muted-foreground mb-3" />
         <h3 className="text-lg font-semibold mb-2">Connect GitHub App</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          To access private repositories and have full functionality, you need
-          to install our GitHub App.
+          {statusError
+            ? "Unable to check GitHub connection. Please try connecting your GitHub account."
+            : "To access private repositories and have full functionality, you need to install our GitHub App."}
         </p>
       </div>
 
@@ -310,7 +325,7 @@ export function GithubConnection({
             <Loader2 className="size-4 animate-spin" />
             <span className="text-sm">Checking GitHub status...</span>
           </div>
-        ) : githubStatus && !githubStatus.isAppInstalled ? (
+        ) : statusError || !githubStatus || !githubStatus.isAppInstalled ? (
           renderConnectGitHub
         ) : mode === "repos" ? (
           renderRepos

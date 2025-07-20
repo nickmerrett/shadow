@@ -13,22 +13,35 @@ import {
 export default async function Home() {
   const queryClient = new QueryClient();
 
-  // Prefetch GitHub data for better UX when user opens repository selector
-  try {
-    await Promise.all([
-      queryClient.prefetchQuery({
+  // Prefetch GitHub data for better UX - each prefetch is independent
+  // and failures won't break the page render
+  const prefetchPromises = [
+    queryClient
+      .prefetchQuery({
         queryKey: ["github", "status"],
         queryFn: getGitHubStatus,
+      })
+      .catch((error) => {
+        console.log(
+          "Could not prefetch GitHub status:",
+          error?.message || error
+        );
       }),
-      queryClient.prefetchQuery({
+    queryClient
+      .prefetchQuery({
         queryKey: ["github", "repositories"],
         queryFn: getGitHubRepositories,
+      })
+      .catch((error) => {
+        console.log(
+          "Could not prefetch GitHub repositories:",
+          error?.message || error
+        );
       }),
-    ]);
-  } catch (error) {
-    // Silently fail - user might not have GitHub connected
-    console.log("Could not prefetch GitHub data:", error);
-  }
+  ];
+
+  // Wait for all prefetch attempts to complete (success or failure)
+  await Promise.allSettled(prefetchPromises);
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

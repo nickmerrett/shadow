@@ -43,31 +43,41 @@ export default async function TaskPage({
     return initialLayout;
   };
 
-  const prefetchGitHubData = async () => {
-    try {
-      await Promise.all([
-        queryClient.prefetchQuery({
-          queryKey: ["github", "status"],
-          queryFn: getGitHubStatus,
-        }),
-        queryClient.prefetchQuery({
-          queryKey: ["github", "repositories"],
-          queryFn: getGitHubRepositories,
-        }),
-      ]);
-    } catch (error) {
-      // Silently fail - user might not have GitHub connected
-      console.log("Could not prefetch GitHub data:", error);
-    }
-  };
-
-  const [initialLayout] = await Promise.all([
-    getInitialLayout(),
+  // Prefetch data with individual error handling - GitHub failures won't break the page
+  const prefetchPromises = [
+    // Task messages are critical - let this throw if it fails
     queryClient.prefetchQuery({
       queryKey: ["task-messages", taskId],
       queryFn: () => getTaskMessages(taskId),
     }),
-    prefetchGitHubData(),
+    // GitHub prefetches are optional - catch their errors
+    queryClient
+      .prefetchQuery({
+        queryKey: ["github", "status"],
+        queryFn: getGitHubStatus,
+      })
+      .catch((error) => {
+        console.log(
+          "Could not prefetch GitHub status:",
+          error?.message || error
+        );
+      }),
+    queryClient
+      .prefetchQuery({
+        queryKey: ["github", "repositories"],
+        queryFn: getGitHubRepositories,
+      })
+      .catch((error) => {
+        console.log(
+          "Could not prefetch GitHub repositories:",
+          error?.message || error
+        );
+      }),
+  ];
+
+  const [initialLayout] = await Promise.all([
+    getInitialLayout(),
+    ...prefetchPromises,
   ]);
 
   return (

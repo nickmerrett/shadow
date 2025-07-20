@@ -9,7 +9,16 @@ export function useGitHubStatus(enabled = true) {
     queryKey: ["github", "status"],
     queryFn: fetchGitHubStatus,
     enabled,
+    throwOnError: false, // Don't throw on error - let component handle error states
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: (failureCount, error) => {
+      // Don't retry on auth errors - the status endpoint should handle these gracefully
+      if (error instanceof Error && error.message.includes("401")) {
+        return false;
+      }
+      // Retry other errors up to 2 times
+      return failureCount < 2;
+    },
   });
 
   // Check for installation success in URL params and refresh if needed
