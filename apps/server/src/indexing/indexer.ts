@@ -20,7 +20,6 @@ export interface IndexRepoOptions {
   maxLines?: number;
   embed?: boolean;
   outDir?: string;
-  force?: boolean;
   paths?: string[] | null;
 }
 

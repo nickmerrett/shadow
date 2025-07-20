@@ -57,7 +57,7 @@ class GraphNode implements HashGenerator {
   public code: string; // Code
   public doc: string; // Doc string
   public meta: Record<string, any>; // Additional Metadata
-  public embedding: number[]; // Embedding – defaults to empty
+  public embedding: number[]; // Embedding - defaults to empty
 
   constructor({
     id,
@@ -98,9 +98,15 @@ class GraphNode implements HashGenerator {
         "|" +
         this.path +
         "|" +
-        this.kind +
+        this.kind.toString() +
         "|" +
         this.name +
+        "|" +
+        this.signature +
+        "|" +
+        this.code +
+        "|" +
+        this.doc +
         "|" +
         `${this.loc.startLine}:${this.loc.startCol}-${this.loc.endLine}:${this.loc.endCol}`
     );
