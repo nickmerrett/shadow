@@ -1,21 +1,16 @@
 import { chunkSymbol } from "@/indexing/chunker";
-import { ChunkNode, embedGraphChunks } from "@/indexing/embedder";
 import { extractGeneric } from "@/indexing/extractors/generic";
-import { Graph, GraphEdge, GraphNode } from "@/indexing/graph";
+import { Graph, GraphEdge, GraphNode, GraphNodeKind, GraphEdgeKind } from "@/indexing/graph";
 import { getLanguageForPath } from "@/indexing/languages";
 import logger from "@/indexing/logger";
 import { getHash, getNodeHash } from "@/indexing/utils/hash";
 import { sliceByLoc } from "@/indexing/utils/text";
 import { tokenize } from "@/indexing/utils/tokenize";
 import TreeSitter from "tree-sitter";
+import { embedAndUpsertToPinecone } from "./embedder";
+import { getOwnerRepo, isValidRepo } from "./utils/repository";
 
 export interface FileContentResponse {
-  content: string;
-  path: string;
-  type: string;
-}
-
-export interface GitHubFileResponse {
   content: string;
   path: string;
   type: string;
@@ -35,47 +30,55 @@ async function fetchRepoFiles(
   repo: string,
   path: string = ""
 ): Promise<Array<{ path: string; content: string; type: string }>> {
-  const { Octokit } = await import("@octokit/rest");
-  const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN,
-  });
+  const baseUrl = `https://api.github.com/repos/${owner}/${repo}/contents`;
+  const url = path ? `${baseUrl}/${path}` : baseUrl;
+  
+  const headers: Record<string, string> = {
+    'Accept': 'application/vnd.github.v3+json',
+    'User-Agent': 'shadow-indexer'
+  };
+  
+  if (process.env.GITHUB_TOKEN) {
+    headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
 
   try {
-    const response = await octokit.repos.getContent({
-      owner,
-      repo,
-      path,
-      ref: "main",
-    });
+    const response = await fetch(url, { headers });
+    
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    const files: Array<{ path: string; content: string; type: string }> = [];
 
-    if (Array.isArray(response.data)) {
+    if (Array.isArray(data)) {
       // Directory
-      const files: Array<{ path: string; content: string; type: string }> = [];
-      for (const item of response.data) {
+      for (const item of data) {
         if (item.type === "file") {
-          const fileResponse = await octokit.repos.getContent({
-            owner,
-            repo,
-            path: item.path,
-          });
-          // Type assertion to handle the content property
-          const fileData = fileResponse.data as FileContentResponse;
-          const content = Buffer.from(fileData.content, "base64").toString(
-            "utf8"
-          );
-          files.push({ path: fileData.path, content, type: "file" });
+          try {
+            const fileResponse = await fetch(item.url, { headers });
+            if (!fileResponse.ok) {
+              throw new Error(`Failed to fetch file: ${item.path} - ${fileResponse.status} ${fileResponse.statusText}`);
+            }
+            const fileData = await fileResponse.json();
+            const content = Buffer.from(fileData.content, "base64").toString("utf8");
+            files.push({ path: fileData.path, content, type: "file" });
+          } catch (error) {
+            logger.error(`Error fetching file ${item.path}: ${error}`);
+          }
         } else if (item.type === "dir") {
           const subFiles = await fetchRepoFiles(owner, repo, item.path);
           files.push(...subFiles);
         }
       }
-      return files;
     } else {
       // Single file
-      const fileData = response.data as GitHubFileResponse;
-      const content = Buffer.from(fileData.content, "base64").toString("utf8");
-      return [{ path: fileData.path, content, type: "file" }];
+      const content = Buffer.from(data.content, "base64").toString("utf8");
+      files.push({ path: data.path, content, type: "file" });
     }
+
+    return files;
   } catch (error) {
     logger.error(`Error fetching ${owner}/${repo}: ${error}`);
     return [];
@@ -103,17 +106,17 @@ async function indexRepo(
 
   // Check if it's a GitHub repo (format: "owner/repo")
   if (
-    repoName.includes("/") &&
-    !repoName.startsWith("/") &&
-    !repoName.startsWith("./")
+    isValidRepo(repoName)
   ) {
-    const [owner, repo] = repoName.split("/");
-    if (!owner || !repo) {
-      throw new Error(`Invalid repo name: ${repoName}`);
-    }
+    const { owner, repo } = getOwnerRepo(repoName);
     logger.info(`Fetching GitHub repo: ${owner}/${repo}`);
 
     files = await fetchRepoFiles(owner, repo);
+    if (files.length === 0) {
+      logger.warn(`No files found in ${owner}/${repo}`);
+      throw new Error(`No files found in ${owner}/${repo}`);
+    }
+
     repoId = getHash(`${owner}/${repo}`, 12);
     logger.info(`Number of files fetched: ${files.length}`);
     const graph = new Graph(repoId);
@@ -123,8 +126,8 @@ async function indexRepo(
     // REPO node
     const repoNode = new GraphNode({
       id: repoId,
-      kind: "REPO",
-      name: repoName.split("/").pop() || repoName,
+      kind: GraphNodeKind.REPO,
+      name: repo,
       path: "",
       lang: "",
     });
@@ -149,7 +152,7 @@ async function indexRepo(
       const nodeHash = getNodeHash(repoId, file.path, "FILE", file.path);
       const fileNode = new GraphNode({
         id: nodeHash,
-        kind: "FILE",
+        kind: GraphNodeKind.FILE,
         name: file.path,
         path: file.path,
         lang: spec.id,
@@ -160,7 +163,7 @@ async function indexRepo(
         new GraphEdge({
           from: repoId,
           to: nodeHash,
-          kind: "CONTAINS",
+          kind: GraphEdgeKind.CONTAINS,
           meta: {},
         })
       );
@@ -180,7 +183,7 @@ async function indexRepo(
         const id = getNodeHash(repoId, file.path, "SYMBOL", d.name, d.loc);
         const symNode = new GraphNode({
           id,
-          kind: "SYMBOL",
+          kind: GraphNodeKind.SYMBOL,
           name: d.name,
           path: file.path,
           lang: spec.id,
@@ -192,7 +195,7 @@ async function indexRepo(
           new GraphEdge({
             from: nodeHash,
             to: symNode.id,
-            kind: "CONTAINS",
+            kind: GraphEdgeKind.CONTAINS,
             meta: {},
           })
         );
@@ -215,7 +218,7 @@ async function indexRepo(
         );
         const docNode = new GraphNode({
           id: docId,
-          kind: "COMMENT",
+          kind: GraphNodeKind.COMMENT,
           name: `doc@${file.path}:${ds.loc.startLine}`,
           path: file.path,
           lang: spec.id,
@@ -229,7 +232,7 @@ async function indexRepo(
           new GraphEdge({
             from: nodeHash,
             to: docNode.id,
-            kind: "CONTAINS",
+            kind: GraphEdgeKind.CONTAINS,
             meta: {},
           })
         );
@@ -239,7 +242,7 @@ async function indexRepo(
             new GraphEdge({
               from: docNode.id,
               to: near.id,
-              kind: "DOCS_FOR",
+              kind: GraphEdgeKind.DOCS_FOR,
               meta: {},
             })
           );
@@ -253,7 +256,7 @@ async function indexRepo(
         const imId = getNodeHash(repoId, file.path, "IMPORT", name, im.loc);
         const imNode = new GraphNode({
           id: imId,
-          kind: "IMPORT",
+          kind: GraphNodeKind.IMPORT,
           name,
           path: file.path,
           lang: spec.id,
@@ -265,7 +268,7 @@ async function indexRepo(
           new GraphEdge({
             from: nodeHash,
             to: imNode.id,
-            kind: "CONTAINS",
+            kind: GraphEdgeKind.CONTAINS,
             meta: {},
           })
         );
@@ -293,7 +296,7 @@ async function indexRepo(
             new GraphEdge({
               from: symNode.id,
               to: ch.id,
-              kind: "PART_OF",
+              kind: GraphEdgeKind.PART_OF,
               meta: {},
             })
           );
@@ -302,7 +305,7 @@ async function indexRepo(
               new GraphEdge({
                 from: prev.id,
                 to: ch.id,
-                kind: "NEXT_CHUNK",
+                kind: GraphEdgeKind.NEXT_CHUNK,
                 meta: {},
               })
             );
@@ -341,7 +344,7 @@ async function indexRepo(
             new GraphEdge({
               from: callerSym.id,
               to: targetId,
-              kind: "CALLS",
+              kind: GraphEdgeKind.CALLS,
               meta: { callSiteLine: c.loc.startLine },
             })
           );
@@ -350,27 +353,16 @@ async function indexRepo(
       // ================================ END OF THIS CODE SHOULD NOT BE CHANGED ================================ //
     } // END OF FILE LOOP
     // Embed chunks if requested
+
+    // Output is the graph with nodes, adjacencies and inverted index
+    // Only the nodes get embedded
     if (embed) {
-      logger.info("Computing embeddings...");
-      const chunks = [...graph.nodes.values()].filter(
-        (n) => n.kind === "CHUNK"
-      ) as unknown as ChunkNode[];
-      logger.info(`Found ${chunks.length} chunks to embed`);
-      if (chunks.length > 0) {
-        await embedGraphChunks(chunks, { provider: "local-transformers" });
-        logger.info(`Embedded ${chunks.length} chunks`);
-        // Debug: check if embeddings were actually added
-        const withEmbeddings = chunks.filter((ch) => ch.embedding);
-        logger.info(`${withEmbeddings.length} chunks have embeddings`);
-      }
+      logger.info("Embedding and uploading to Pinecone...");      
+      await embedAndUpsertToPinecone(Array.from(graph.nodes.values()), repoName);
     } else {
       logger.info("Embedding skipped (embed=false).");
     }
 
-    // Persist
-    // if (embed) saveEmbeddings(graph, repoName); // save binary embeddings first
-    // saveGraph(graph, repoName); // then write graph (strips inlined embeddings)
-    // buildInverted(graph, outDir); // This line is removed as per the new_code
     logger.info(`Indexed ${graph.nodes.size} nodes.`);
     return {
       graph,
@@ -446,7 +438,7 @@ function buildEmbeddingsInMemory(
 ): { index: any; binary: Buffer } | undefined {
   const chunks = Array.from(graph.nodes.values()).filter(
     (node): node is GraphNode & { embedding: Float32Array } =>
-      node.kind === "CHUNK" &&
+      node.kind === GraphNodeKind.CHUNK &&
       Array.isArray(node.embedding) &&
       node.embedding.length > 0
   );

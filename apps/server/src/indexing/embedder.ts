@@ -14,7 +14,13 @@
  *   * Use MEAN pooling over token embeddings; L2-normalize for cosine sim.
  */
 
+import { logger } from "./logger";
+import PineconeHandler from "./embedding/pineconeService";
+import { GraphNode } from "./graph";
+import { getNamespaceFromRepo } from "./utils/repository";
+
 type EmbeddingProvider = "jina-api" | "local-transformers" | "cheap-hash";
+const EMBEDDING_MODEL = "jinaai/jina-embeddings-v2-base-code";
 
 interface EmbedViaJinaAPIOptions {
   model?: string;
@@ -45,30 +51,31 @@ interface EmbeddingResult {
 export type ChunkNode = {
   code?: string;
   embedding?: Float32Array;
-  meta?: { [k: string]: any };
+  meta?: { [k: string]: unknown };
 };
 
-// ------------------------------
-// Cheap hash fallback
-// ------------------------------
-function cheapHashEmbedding(text: string, dim: number = 256): Float32Array {
-  const buf = Buffer.from(text);
-  const vec = new Float32Array(dim);
-  for (let i = 0; i < buf.length; i++) {
-    const index = buf[i]! % dim;
-    vec[index] = (vec[index] || 0) + 1;
+// ---- Cheap hash fallback --- //
+async function cheapHashEmbedding(texts: string[], dim: number = 256): Promise<EmbeddingResult> {
+  const embeddings: Float32Array[] = [];
+  for (const text of texts) {
+    const buf = Buffer.from(text, 'utf8');
+    const vec = new Float32Array(dim);
+    
+    for (let i = 0; i < buf.length; i++) {
+      const byteValue = (buf[i] ?? 0) % dim;
+      vec[byteValue] = (vec[byteValue] ?? 0) + 1;
+    }
+    
+    // L2 normalize
+    const norm = Math.sqrt(
+      vec.reduce((sum, value) => sum + value * value, 0)
+    ) || 1;
+    embeddings.push(vec.map(value => value / norm) as Float32Array);
   }
-  // L2 normalize
-  let norm = 0;
-  for (let i = 0; i < dim; i++) norm += (vec[i] || 0) * (vec[i] || 0);
-  norm = Math.sqrt(norm) || 1;
-  for (let i = 0; i < dim; i++) vec[i] = (vec[i] || 0) / norm;
-  return vec;
+  return { embeddings, dim };
 }
 
-// ------------------------------
-// Remote Jina API provider
-// ------------------------------
+// ---- Remote Jina API provider --- //
 async function embedViaJinaAPI(
   texts: string[],
   {
@@ -80,11 +87,13 @@ async function embedViaJinaAPI(
     endpoint = "https://api.jina.ai/v1/embeddings",
   }: EmbedViaJinaAPIOptions = {}
 ): Promise<EmbeddingResult> {
+
   if (!apiKey) {
     throw new Error(
       "JINA_API_KEY not set in environment; required for provider=jina-api"
     );
   }
+  
   const out: Float32Array[] = new Array(texts.length);
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts.slice(i, i + batchSize);
@@ -113,15 +122,21 @@ async function embedViaJinaAPI(
         object: string;
       }>;
       model: string;
-      usage: any;
+      usage: Record<string, number>;
     };
     // Response: {data:[{embedding:[...],index:n,object:'embedding'}],model:'...',usage:{...}}
     for (const item of json.data) {
       out[i + item.index] = Float32Array.from(item.embedding);
     }
   }
-  const dim = out[0]?.length || 0;
-  return { embeddings: out, dim };
+  
+  if (out.length === 0 || out[0] === undefined) {
+    logger.error("No embeddings returned from Jina API");
+    return { embeddings: [], dim: 0 };
+  } else {
+    const dim = out[0].length;
+    return { embeddings: out, dim };
+  }
 }
 
 // ------------------------------
@@ -131,7 +146,7 @@ async function embedViaJinaAPI(
 let _localPipeline: any = null;
 
 async function getLocalPipeline(
-  model: string = "jinaai/jina-embeddings-v2-base-code",
+  model: string = EMBEDDING_MODEL,
   { quantized = true }: { quantized?: boolean } = {}
 ): Promise<any> {
   if (_localPipeline) return _localPipeline;
@@ -147,12 +162,7 @@ async function getLocalPipeline(
  * Run local model; apply mean pooling & L2 norm (recommended in model card).
  */
 async function embedViaLocalTransformers(
-  texts: string[],
-  {
-    model = "jinaai/jina-embeddings-v2-base-code",
-    quantized = true,
-    batchSize = 32,
-  }: EmbedViaLocalTransformersOptions = {}
+  texts: string[], { model = EMBEDDING_MODEL, quantized = true, batchSize = 32 }: EmbedViaLocalTransformersOptions = {}
 ): Promise<EmbeddingResult> {
   const extractor = await getLocalPipeline(model, { quantized });
   const out: Float32Array[] = new Array(texts.length);
@@ -169,8 +179,13 @@ async function embedViaLocalTransformers(
       out[i + j] = embeddings[j].data; // already Float32Array
     }
   }
-  const dim = out[0]?.length || 0;
-  return { embeddings: out, dim };
+  if (out.length === 0 || out[0] === undefined) {
+    logger.error("No embeddings returned from local transformers");
+    return { embeddings: [], dim: 0 };
+  } else {
+    const dim = out[0].length;
+    return { embeddings: out, dim };
+  }
 }
 
 // ------------------------------
@@ -180,7 +195,7 @@ async function embedTexts(
   texts: string[],
   {
     provider = "cheap-hash",
-    model = "jinaai/jina-embeddings-v2-base-code",
+    model = EMBEDDING_MODEL,
     batchSize,
     quantized = true,
     normalized = true,
@@ -209,10 +224,9 @@ async function embedTexts(
         batchSize,
       });
     case "cheap-hash":
-    default: {
+    default: {  
       const dim = 256;
-      const embeddings = texts.map((t) => cheapHashEmbedding(t, dim));
-      return { embeddings, dim };
+      return cheapHashEmbedding(texts, dim);
     }
   }
 }
@@ -222,7 +236,7 @@ async function embedTexts(
 // ------------------------------
 
 async function embedGraphChunks(
-  chunks: ChunkNode[],
+  chunks: GraphNode[],
   opts: EmbedTextsOptions = {}
 ): Promise<number> {
   // gather codes
@@ -230,8 +244,8 @@ async function embedGraphChunks(
   const { embeddings, dim } = await embedTexts(texts, opts);
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
-    if (chunk) {
-      chunk.embedding = embeddings[i];
+    if (chunk && embeddings[i]) {
+      chunk.embedding = Array.from(embeddings[i]!);
       // record dim in meta for persistence
       if (chunk.meta) {
         chunk.meta.embedding_dim = dim;
@@ -243,10 +257,46 @@ async function embedGraphChunks(
   return dim;
 }
 
+async function embedAndUpsertToPinecone(
+  nodes: GraphNode[],
+  repo: string,
+  opts: EmbedTextsOptions = {}
+): Promise<number> {
+  const pinecone = new PineconeHandler();
+  const namespace = getNamespaceFromRepo(repo);
+
+  // Chunk by line ranges and upload
+  const recordChunks: GraphNode[][] = await pinecone.chunkRecords(nodes);
+
+  let totalUploaded = 0;
+  for (const recordChunk of recordChunks) {
+    // Convert each chunk to Pinecone format
+    const batchRecords = recordChunk.map((chunk) => ({
+      id: chunk.id,
+      metadata: {
+        code: chunk.code || "",
+        path: chunk.path,
+        name: chunk.name,
+        lang: chunk.lang,
+        line_start: chunk.loc?.startLine || 0,
+        line_end: chunk.loc?.endLine || 0,
+        kind: chunk.kind,
+      }
+    }));
+    
+    const uploaded = await pinecone.upsertAutoEmbed(batchRecords, namespace);
+    totalUploaded += uploaded;
+  }
+  
+  logger.info(`Embedded and uploaded ${totalUploaded} chunks to Pinecone`);
+  return totalUploaded;
+}
+
 export {
   cheapHashEmbedding,
   embedGraphChunks,
   embedTexts,
   embedViaJinaAPI,
   embedViaLocalTransformers,
+  embedAndUpsertToPinecone,
 };
