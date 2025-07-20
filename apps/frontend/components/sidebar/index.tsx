@@ -59,15 +59,17 @@ const statusOrder = {
   RUNNING: 0,
   PAUSED: 1,
   PENDING: 2,
-  INITIALIZING: 3,
-  COMPLETED: 4,
-  FAILED: 5,
-  CANCELLED: 6,
+  QUEUED: 3,
+  INITIALIZING: 4,
+  COMPLETED: 5,
+  FAILED: 6,
+  CANCELLED: 7,
 };
 
 // Status icons and colors
 const statusConfig = {
   PENDING: { icon: Clock, className: "text-yellow-500" },
+  QUEUED: { icon: Clock, className: "text-yellow-400" },
   INITIALIZING: { icon: CircleDashed, className: "text-blue-500" },
   RUNNING: { icon: Play, className: "text-green-500" },
   PAUSED: { icon: Pause, className: "text-orange-500" },
@@ -98,7 +100,6 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
     data: tasks = [],
     isLoading: loading,
     error,
-    refetch,
   } = useTasks(initialTasks);
 
   // Group tasks by repository and sort within each group
@@ -228,7 +229,7 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
                                       .toLowerCase()
                                       .replace("_", " ")}
                                   </span>
-                                  <GitBranch className="size-3" />  {task.branch}
+                                  <GitBranch className="size-3" /> {task.branch}
                                 </div>
                               </a>
                             </SidebarMenuButton>
