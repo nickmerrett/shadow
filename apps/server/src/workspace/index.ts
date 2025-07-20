@@ -22,7 +22,7 @@ export class WorkspaceManager {
    * Get the workspace directory path for a specific task
    */
   private getTaskWorkspaceDir(taskId: string): string {
-    return path.join(config.workspaceBaseDir, taskId);
+    return path.join(config.workspaceDir, "tasks", taskId);
   }
 
   /**
