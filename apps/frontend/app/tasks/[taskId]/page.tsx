@@ -1,7 +1,7 @@
 import { TaskPageLayout } from "@/components/task/task-layout";
 import { getTask } from "@/lib/db-operations/get-task";
 import { getTaskMessages } from "@/lib/db-operations/get-task-messages";
-import { getGitHubRepositories } from "@/lib/github-api";
+import { getGitHubRepositories } from "@/lib/github/github-api";
 import {
   HydrationBoundary,
   QueryClient,

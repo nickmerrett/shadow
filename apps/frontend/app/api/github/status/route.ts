@@ -1,6 +1,6 @@
 import { getUser } from "@/lib/auth/get-user";
 import { getGitHubAccount } from "@/lib/db-operations/get-github-account";
-import { getGitHubAppInstallationUrl } from "@/lib/github-app";
+import { getGitHubAppInstallationUrl } from "@/lib/github/github-app";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_request: NextRequest) {

@@ -1,6 +1,6 @@
 import { PromptForm } from "@/components/chat/prompt-form";
 import { HomeLayoutWrapper } from "@/components/layout/home-layout";
-import { getGitHubRepositories } from "@/lib/github-api";
+import { getGitHubRepositories } from "@/lib/github/github-api";
 import {
   dehydrate,
   HydrationBoundary,

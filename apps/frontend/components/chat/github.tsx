@@ -26,7 +26,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { FilteredRepository as Repository } from "@/lib/github-api";
+import type { FilteredRepository as Repository } from "@/lib/github/github-api";
 
 export function GithubConnection({
   onSelect,

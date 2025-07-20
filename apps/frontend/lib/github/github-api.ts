@@ -2,7 +2,7 @@
 
 import { getUser } from "@/lib/auth/get-user";
 import { getGitHubAccount } from "@/lib/db-operations/get-github-account";
-import { createInstallationOctokit } from "@/lib/github-app";
+import { createInstallationOctokit } from "@/lib/github/github-app";
 import { formatTimeAgo } from "@/lib/utils";
 import { Endpoints } from "@octokit/types";
 

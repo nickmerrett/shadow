@@ -1,4 +1,4 @@
-import { getGitHubRepositories } from "@/lib/github-api";
+import { getGitHubRepositories } from "@/lib/github/github-api";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_request: NextRequest) {

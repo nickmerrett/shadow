@@ -1,4 +1,4 @@
-import { getGitHubBranches } from "@/lib/github-api";
+import { getGitHubBranches } from "@/lib/github/github-api";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {

@@ -1,4 +1,4 @@
-import { fetchGitHubRepositories } from "@/lib/github-api";
+import { fetchGitHubRepositories } from "@/lib/github/github-api";
 import { useQuery } from "@tanstack/react-query";
 
 export function useGitHubRepositories(enabled: boolean = true) {
