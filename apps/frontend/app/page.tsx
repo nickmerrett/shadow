@@ -1,5 +1,6 @@
 import { PromptForm } from "@/components/chat/prompt-form";
 import { HomeLayoutWrapper } from "@/components/layout/home-layout";
+import { getUser } from "@/lib/auth/get-user";
 import {
   getGitHubRepositories,
   getGitHubStatus,
@@ -11,6 +12,7 @@ import {
 } from "@tanstack/react-query";
 
 export default async function Home() {
+  const user = await getUser();
   const queryClient = new QueryClient();
 
   // Prefetch GitHub data for better UX - each prefetch is independent
@@ -19,7 +21,7 @@ export default async function Home() {
     queryClient
       .prefetchQuery({
         queryKey: ["github", "status"],
-        queryFn: getGitHubStatus,
+        queryFn: () => getGitHubStatus(user?.id),
       })
       .catch((error) => {
         console.log(
@@ -30,7 +32,7 @@ export default async function Home() {
     queryClient
       .prefetchQuery({
         queryKey: ["github", "repositories"],
-        queryFn: getGitHubRepositories,
+        queryFn: () => getGitHubRepositories(user?.id),
       })
       .catch((error) => {
         console.log(

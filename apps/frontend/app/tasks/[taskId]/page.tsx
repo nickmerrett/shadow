@@ -1,4 +1,5 @@
 import { TaskPageLayout } from "@/components/task/task-layout";
+import { getUser } from "@/lib/auth/get-user";
 import { getTask } from "@/lib/db-operations/get-task";
 import { getTaskMessages } from "@/lib/db-operations/get-task-messages";
 import {
@@ -19,8 +20,11 @@ export default async function TaskPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
+  const [user, task] = await Promise.all([
+    getUser(),
+    getTask((await params).taskId),
+  ]);
 
-  const task = await getTask(taskId);
   if (!task) {
     notFound();
   }
@@ -54,7 +58,7 @@ export default async function TaskPage({
     queryClient
       .prefetchQuery({
         queryKey: ["github", "status"],
-        queryFn: getGitHubStatus,
+        queryFn: () => getGitHubStatus(user?.id),
       })
       .catch((error) => {
         console.log(
@@ -65,7 +69,7 @@ export default async function TaskPage({
     queryClient
       .prefetchQuery({
         queryKey: ["github", "repositories"],
-        queryFn: getGitHubRepositories,
+        queryFn: () => getGitHubRepositories(user?.id),
       })
       .catch((error) => {
         console.log(

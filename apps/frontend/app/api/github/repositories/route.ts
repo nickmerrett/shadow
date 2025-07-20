@@ -1,9 +1,16 @@
+import { getUser } from "@/lib/auth/get-user";
 import { getGitHubRepositories } from "@/lib/github/github-api";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_request: NextRequest) {
   try {
-    const groupedRepos = await getGitHubRepositories();
+    const user = await getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const groupedRepos = await getGitHubRepositories(user.id);
     return NextResponse.json(groupedRepos);
   } catch (error) {
     console.error("Error fetching repositories:", error);

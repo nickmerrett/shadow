@@ -1,4 +1,4 @@
-import { fetchGitHubStatus } from "@/lib/github/github-api";
+import { fetchGitHubStatus } from "@/lib/github/fetch";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 

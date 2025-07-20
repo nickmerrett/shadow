@@ -1,6 +1,5 @@
 "use server";
 
-import { AuthUser, getUser } from "@/lib/auth/get-user";
 import { getGitHubAccount } from "@/lib/db-operations/get-github-account";
 import { clearGitHubInstallation } from "@/lib/db-operations/update-github-account";
 import {
@@ -8,54 +7,13 @@ import {
   getGitHubAppInstallationUrl,
 } from "@/lib/github/github-app";
 import { formatTimeAgo } from "@/lib/utils";
-import { Endpoints } from "@octokit/types";
-
-const BASE_URL = process.env.VERCEL_URL || "http://localhost:3000";
-
-// Type definitions for GitHub API responses
-type ListUserReposResponse = Endpoints["GET /user/repos"]["response"];
-type UserRepository = ListUserReposResponse["data"][0];
-
-export interface FilteredRepository {
-  id: number;
-  name: string;
-  full_name: string;
-  owner: {
-    id?: number;
-    login: string;
-    type: string;
-  };
-  pushed_at: string | null;
-}
-
-export interface GroupedRepos {
-  groups: {
-    name: string;
-    type: "user" | "organization";
-    repositories: FilteredRepository[];
-  }[];
-}
-
-// Use GitHub API's actual branch type
-type GitHubBranch =
-  Endpoints["GET /repos/{owner}/{repo}/branches"]["response"]["data"][0];
-
-export interface Branch {
-  name: string;
-  commit: {
-    sha: string;
-    url: string;
-  };
-  protected?: boolean;
-}
-
-export interface GitHubStatus {
-  isConnected: boolean;
-  isAppInstalled: boolean;
-  installationId?: string;
-  installationUrl?: string;
-  message: string;
-}
+import {
+  Branch,
+  FilteredRepository,
+  GitHubStatus,
+  GroupedRepos,
+  UserRepository,
+} from "./types";
 
 function filterRepositoryData(repo: UserRepository): FilteredRepository {
   return {
@@ -146,11 +104,11 @@ async function handleStaleInstallation(
   return false; // Not a stale installation or failed to clear
 }
 
-export async function getGitHubStatus(): Promise<GitHubStatus> {
+export async function getGitHubStatus(
+  userId: string | undefined
+): Promise<GitHubStatus> {
   try {
-    const user = await getUser();
-
-    if (!user) {
+    if (!userId) {
       return {
         isConnected: false,
         isAppInstalled: false,
@@ -169,7 +127,7 @@ export async function getGitHubStatus(): Promise<GitHubStatus> {
       };
     }
 
-    const account = await getGitHubAccount(user.id);
+    const account = await getGitHubAccount(userId);
 
     if (!account) {
       return {
@@ -190,7 +148,7 @@ export async function getGitHubStatus(): Promise<GitHubStatus> {
         await createInstallationOctokit(account.githubInstallationId);
       } catch (error) {
         // If we get a 404, the installation is stale - clear it
-        const wasCleared = await handleStaleInstallation(error, user.id);
+        const wasCleared = await handleStaleInstallation(error, userId);
         if (wasCleared) {
           return {
             isConnected: true,
@@ -232,21 +190,17 @@ export async function getGitHubStatus(): Promise<GitHubStatus> {
   }
 }
 
-export async function getGitHubRepositories(): Promise<GroupedRepos> {
-  let user: any = null;
+export async function getGitHubRepositories(
+  userId: string | undefined
+): Promise<GroupedRepos> {
+  if (!userId) {
+    return { groups: [] };
+  }
 
   try {
-    user = await getUser();
-
-    if (!user) {
-      // Return empty state instead of throwing
-      return { groups: [] };
-    }
-
-    const account = await getGitHubAccount(user.id);
+    const account = await getGitHubAccount(userId);
 
     if (!account) {
-      // Return empty state instead of throwing
       return { groups: [] };
     }
 
@@ -278,29 +232,17 @@ export async function getGitHubRepositories(): Promise<GroupedRepos> {
   } catch (error) {
     console.error("Error getting GitHub repositories:", error);
 
-    // Check if this is a stale installation and clear it
-    if (user) {
-      await handleStaleInstallation(error, user.id);
-    }
+    await handleStaleInstallation(error, userId);
 
-    // Return empty state instead of throwing
     return { groups: [] };
   }
 }
 
 export async function getGitHubBranches(
-  repoFullName: string
+  repoFullName: string,
+  userId: string
 ): Promise<Branch[]> {
-  let user: AuthUser | null = null;
-
   try {
-    user = await getUser();
-
-    if (!user) {
-      // Return empty state instead of throwing
-      return [];
-    }
-
     // Parse owner and repo name from full_name (e.g., "owner/repo")
     const [owner, repoName] = repoFullName.split("/");
     if (!owner || !repoName) {
@@ -308,7 +250,7 @@ export async function getGitHubBranches(
     }
 
     // Get the GitHub account and create authenticated Octokit instance
-    const account = await getGitHubAccount(user.id);
+    const account = await getGitHubAccount(userId);
 
     if (!account) {
       // Return empty state instead of throwing
@@ -355,40 +297,11 @@ export async function getGitHubBranches(
     console.error("Error getting GitHub branches:", error);
 
     // Check if this is a stale installation and clear it
-    if (user) {
-      await handleStaleInstallation(error, user.id);
+    if (userId) {
+      await handleStaleInstallation(error, userId);
     }
 
     // Return empty state instead of throwing
     return [];
   }
-}
-
-// Client-side API functions (for use in hooks)
-export async function fetchGitHubStatus(): Promise<GitHubStatus> {
-  const response = await fetch(`${BASE_URL}/api/github/status`);
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  return response.json();
-}
-
-export async function fetchGitHubRepositories(): Promise<GroupedRepos> {
-  const response = await fetch(`${BASE_URL}/api/github/repositories`);
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  return response.json();
-}
-
-export async function fetchGitHubBranches(
-  repoFullName: string
-): Promise<Branch[]> {
-  const response = await fetch(
-    `${BASE_URL}/api/github/branches?repo=${repoFullName}`
-  );
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  return response.json();
 }

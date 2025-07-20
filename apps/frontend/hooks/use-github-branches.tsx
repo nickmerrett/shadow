@@ -1,4 +1,4 @@
-import { fetchGitHubBranches } from "@/lib/github/github-api";
+import { fetchGitHubBranches } from "@/lib/github/fetch";
 import { useQuery } from "@tanstack/react-query";
 
 export function useGitHubBranches(

@@ -1,9 +1,16 @@
+import { getUser } from "@/lib/auth/get-user";
 import { getGitHubStatus } from "@/lib/github/github-api";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_request: NextRequest) {
   try {
-    const status = await getGitHubStatus();
+    const user = await getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const status = await getGitHubStatus(user.id);
     return NextResponse.json(status);
   } catch (error) {
     console.error("Error checking GitHub status:", error);

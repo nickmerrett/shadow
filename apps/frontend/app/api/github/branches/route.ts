@@ -1,9 +1,15 @@
+import { getUser } from "@/lib/auth/get-user";
 import { getGitHubBranches } from "@/lib/github/github-api";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the repo parameter from the query string
+    const user = await getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const repo = searchParams.get("repo");
 
@@ -14,7 +20,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const branches = await getGitHubBranches(repo);
+    const branches = await getGitHubBranches(repo, user.id);
     return NextResponse.json(branches);
   } catch (error) {
     console.error("Error fetching branches:", error);
