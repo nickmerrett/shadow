@@ -1,11 +1,10 @@
+import { prisma } from "@repo/db";
 import { tool } from "ai";
 import { exec } from "child_process";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { promisify } from "util";
 import { z } from "zod";
 import config from "../config";
-import { prisma } from "@repo/db";
 import { execAsync } from "../utils/exec";
 
 // Configuration flag for terminal command approval
@@ -25,6 +24,10 @@ const pendingCommands = new Map<
 export function createTools(taskId: string, workspacePath?: string) {
   // Use provided workspace path or fall back to global config
   const toolWorkspacePath = workspacePath || config.workspaceDir;
+
+  console.log(
+    `[TOOLS] Creating tools for task ${taskId} with workspace: ${toolWorkspacePath}${workspacePath ? " (task-specific)" : " (fallback)"}`
+  );
   return {
     todo_write: tool({
       description:
@@ -68,7 +71,7 @@ export function createTools(taskId: string, workspacePath?: string) {
           for (let i = 0; i < todos.length; i++) {
             const todo = todos[i];
             if (!todo) continue; // Skip undefined items
-            
+
             // Check if todo exists (by id within the task)
             const existingTodo = await prisma.todo.findFirst({
               where: {
@@ -145,7 +148,9 @@ export function createTools(taskId: string, workspacePath?: string) {
           .describe("Glob patterns for directories to search over"),
         explanation: z
           .string()
-          .describe("One sentence explanation as to why this tool is being used"),
+          .describe(
+            "One sentence explanation as to why this tool is being used"
+          ),
       }),
       execute: async ({ query, target_directories = [], explanation }) => {
         try {
@@ -155,25 +160,34 @@ export function createTools(taskId: string, workspacePath?: string) {
           );
 
           // Use ripgrep for a basic semantic-like search with multiple patterns
-          const searchTerms = query.split(' ').filter(term => term.length > 2);
-          const searchPattern = searchTerms.join('|');
-          
+          const searchTerms = query
+            .split(" ")
+            .filter((term) => term.length > 2);
+          const searchPattern = searchTerms.join("|");
+
           let searchPath = toolWorkspacePath;
           if (target_directories.length > 0) {
             // For now, just use the first directory
-            searchPath = path.resolve(toolWorkspacePath, target_directories[0] || '.');
+            searchPath = path.resolve(
+              toolWorkspacePath,
+              target_directories[0] || "."
+            );
           }
 
           // Use ripgrep with case-insensitive search and context
           const command = `rg -i -C 3 --max-count 10 "${searchPattern}" "${searchPath}"`;
-          
+
           try {
             const { stdout } = await execAsync(command);
-            const results = stdout.trim().split('\n--\n').map((chunk, index) => ({
-              id: index + 1,
-              content: chunk.trim(),
-              relevance: 0.8, // Mock relevance score
-            })).filter(result => result.content.length > 0);
+            const results = stdout
+              .trim()
+              .split("\n--\n")
+              .map((chunk, index) => ({
+                id: index + 1,
+                content: chunk.trim(),
+                relevance: 0.8, // Mock relevance score
+              }))
+              .filter((result) => result.content.length > 0);
 
             return {
               success: true,
@@ -220,7 +234,9 @@ export function createTools(taskId: string, workspacePath?: string) {
           .describe("The one-indexed line number to end reading at"),
         explanation: z
           .string()
-          .describe("One sentence explanation as to why this tool is being used"),
+          .describe(
+            "One sentence explanation as to why this tool is being used"
+          ),
       }),
       execute: async ({
         target_file,
@@ -233,6 +249,9 @@ export function createTools(taskId: string, workspacePath?: string) {
           console.log(`[READ_FILE] ${explanation}`);
 
           const filePath = path.resolve(toolWorkspacePath, target_file);
+          console.log(
+            `[READ_FILE] Resolved path: ${filePath} (workspace: ${toolWorkspacePath})`
+          );
           const content = await fs.readFile(filePath, "utf-8");
           const lines = content.split("\n");
 
@@ -311,6 +330,10 @@ export function createTools(taskId: string, workspacePath?: string) {
             timeout: is_background ? undefined : 30000, // 30 second timeout for non-background commands
           };
 
+          console.log(
+            `[TERMINAL_CMD] Running in directory: ${toolWorkspacePath}`
+          );
+
           if (is_background) {
             // For background commands, start and don't wait
             exec(command, options, (error, stdout, stderr) => {
@@ -355,7 +378,9 @@ export function createTools(taskId: string, workspacePath?: string) {
           .describe("Path to list contents of, relative to the workspace root"),
         explanation: z
           .string()
-          .describe("One sentence explanation as to why this tool is being used"),
+          .describe(
+            "One sentence explanation as to why this tool is being used"
+          ),
       }),
       execute: async ({ relative_workspace_path, explanation }) => {
         try {
@@ -417,7 +442,9 @@ export function createTools(taskId: string, workspacePath?: string) {
           .describe("Whether the search should be case sensitive"),
         explanation: z
           .string()
-          .describe("One sentence explanation as to why this tool is being used"),
+          .describe(
+            "One sentence explanation as to why this tool is being used"
+          ),
       }),
       execute: async ({
         query,
@@ -615,12 +642,15 @@ export function createTools(taskId: string, workspacePath?: string) {
     }),
 
     file_search: tool({
-      description: "Fast file search based on fuzzy matching against file path.",
+      description:
+        "Fast file search based on fuzzy matching against file path.",
       parameters: z.object({
         query: z.string().describe("Fuzzy filename to search for"),
         explanation: z
           .string()
-          .describe("One sentence explanation as to why this tool is being used"),
+          .describe(
+            "One sentence explanation as to why this tool is being used"
+          ),
       }),
       execute: async ({ query, explanation }) => {
         try {
@@ -659,7 +689,9 @@ export function createTools(taskId: string, workspacePath?: string) {
         target_file: z.string().describe("The path of the file to delete"),
         explanation: z
           .string()
-          .describe("One sentence explanation as to why this tool is being used"),
+          .describe(
+            "One sentence explanation as to why this tool is being used"
+          ),
       }),
       execute: async ({ target_file, explanation }) => {
         try {

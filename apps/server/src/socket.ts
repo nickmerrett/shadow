@@ -1,3 +1,4 @@
+import { prisma } from "@repo/db";
 import { ModelType, StreamChunk } from "@repo/types";
 import http from "http";
 import { Server } from "socket.io";
@@ -48,10 +49,18 @@ export function createSocketServer(server: http.Server): Server {
       }) => {
         try {
           console.log("Received user message:", data);
+
+          // Get task workspace path from database
+          const task = await prisma.task.findUnique({
+            where: { id: data.taskId },
+            select: { workspacePath: true },
+          });
+
           await chatService.processUserMessage({
             taskId: data.taskId,
             userMessage: data.message,
             llmModel: data.llmModel || DEFAULT_MODEL,
+            workspacePath: task?.workspacePath || undefined,
           });
         } catch (error) {
           console.error("Error processing user message:", error);
