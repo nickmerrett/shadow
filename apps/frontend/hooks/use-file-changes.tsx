@@ -30,7 +30,7 @@ export function useFileChanges(taskId: string) {
       return res.json() as Promise<FileChange[]>;
     },
     enabled: !!taskId,
-    staleTime: 1000 * 30, // 30 seconds
+    refetchOnReconnect: true,
   });
 }
 

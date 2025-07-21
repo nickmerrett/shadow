@@ -147,12 +147,105 @@ function createFileTree(filePaths: string[]) {
   return convertToArray(tree);
 }
 
+// FileNode component to handle individual file/folder nodes
+function FileNode({
+  node,
+  depth = 0,
+  fileChanges,
+}: {
+  node: any;
+  depth?: number;
+  fileChanges: any[];
+}) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const fileChange = fileChanges.find(
+    (change) => change.filePath === node.path
+  );
+  const operation = fileChange?.operation;
+
+  const getOperationColor = (op: string) => {
+    switch (op) {
+      case "CREATE":
+        return "text-green-400";
+      case "UPDATE":
+        return "text-yellow-400";
+      case "DELETE":
+        return "text-red-400";
+      default:
+        return "text-blue-400";
+    }
+  };
+
+  const getOperationLetter = (op: string) => {
+    switch (op) {
+      case "CREATE":
+        return "A";
+      case "UPDATE":
+        return "M";
+      case "DELETE":
+        return "D";
+      case "RENAME":
+        return "R";
+      case "MOVE":
+        return "M";
+      default:
+        return "?";
+    }
+  };
+
+  return (
+    <div key={node.path}>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          className="justify-between"
+          onClick={() => node.type === "folder" && setIsExpanded(!isExpanded)}
+        >
+          <div
+            className="flex w-full items-center gap-1.5"
+            style={{ paddingLeft: `${depth * 8}px` }}
+          >
+            {node.type === "folder" ? (
+              isExpanded ? (
+                <FolderOpen className="size-4" />
+              ) : (
+                <Folder className="size-4" />
+              )
+            ) : (
+              <File className="size-4" />
+            )}
+            <div className="line-clamp-1 flex-1">{node.name}</div>
+          </div>
+          {node.type === "file" && operation && (
+            <span
+              className={cn(
+                "text-xs font-medium",
+                getOperationColor(operation)
+              )}
+            >
+              {getOperationLetter(operation)}
+            </span>
+          )}
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      {node.type === "folder" && isExpanded && node.children && (
+        <div>
+          {node.children.map((child: any) => (
+            <FileNode
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              fileChanges={fileChanges}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
   const pathname = usePathname();
   const isTaskPage = pathname.match(/^\/tasks\/[^/]+$/);
-  const [activeView, setActiveView] = useState<"home" | "task">(
-    isTaskPage ? "task" : "home"
-  );
 
   // Extract taskId from pathname
   const taskId = useMemo(() => {
@@ -307,89 +400,6 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
     </>
   );
 
-  // Modified file tree renderer
-  const renderFileNode = (node: any, depth = 0) => {
-    const [isExpanded, setIsExpanded] = useState(true);
-    const fileChange = fileChanges.find(
-      (change) => change.filePath === node.path
-    );
-    const operation = fileChange?.operation;
-
-    const getOperationColor = (op: string) => {
-      switch (op) {
-        case "CREATE":
-          return "text-green-400";
-        case "UPDATE":
-          return "text-yellow-400";
-        case "DELETE":
-          return "text-red-400";
-        default:
-          return "text-blue-400";
-      }
-    };
-
-    const getOperationLetter = (op: string) => {
-      switch (op) {
-        case "CREATE":
-          return "A";
-        case "UPDATE":
-          return "M";
-        case "DELETE":
-          return "D";
-        case "RENAME":
-          return "R";
-        case "MOVE":
-          return "M";
-        default:
-          return "?";
-      }
-    };
-
-    return (
-      <div key={node.path}>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            className="justify-between"
-            onClick={() => node.type === "folder" && setIsExpanded(!isExpanded)}
-          >
-            <div
-              className="flex w-full items-center gap-1.5"
-              style={{ paddingLeft: `${depth * 8}px` }}
-            >
-              {node.type === "folder" ? (
-                isExpanded ? (
-                  <FolderOpen className="size-4" />
-                ) : (
-                  <Folder className="size-4" />
-                )
-              ) : (
-                <File className="size-4" />
-              )}
-              <div className="line-clamp-1 flex-1">{node.name}</div>
-            </div>
-            {node.type === "file" && operation && (
-              <span
-                className={cn(
-                  "text-xs font-medium",
-                  getOperationColor(operation)
-                )}
-              >
-                {getOperationLetter(operation)}
-              </span>
-            )}
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        {node.type === "folder" && isExpanded && node.children && (
-          <div>
-            {node.children.map((child: any) =>
-              renderFileNode(child, depth + 1)
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   const taskView = currentTask ? (
     <>
       <SidebarGroup>
@@ -483,7 +493,9 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
             Modified Files ({diffStats.totalFiles})
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            {modifiedFileTree.map((node) => renderFileNode(node))}
+            {modifiedFileTree.map((node) => (
+              <FileNode key={node.path} node={node} fileChanges={fileChanges} />
+            ))}
           </SidebarGroupContent>
         </SidebarGroup>
       )}
