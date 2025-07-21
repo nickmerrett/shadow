@@ -6,11 +6,17 @@ import {
   ChevronDown,
   CircleDashed,
   Clock,
+  File,
+  FileDiff,
   Folder,
+  FolderGit2,
   GitBranch,
+  ListTodo,
   Pause,
   Play,
   Settings,
+  Square,
+  SquareCheck,
   XCircle,
 } from "lucide-react";
 
@@ -26,6 +32,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useTasks } from "@/hooks/use-tasks";
+import { cn } from "@/lib/utils";
 import { Task } from "@repo/db";
 import Image from "next/image";
 import Link from "next/link";
@@ -127,6 +134,183 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
     });
   });
 
+  const homeView = (
+    <>
+      <SidebarGroup className="gap-4">
+        <SidebarGroupContent>
+          <Button asChild className="w-full">
+            <Link href="/">New Task</Link>
+          </Button>
+        </SidebarGroupContent>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {buttons.map((button) => (
+              <SidebarMenuItem key={button.title}>
+                <SidebarMenuButton asChild>
+                  <a href={button.url}>
+                    <button.icon />
+                    <span>{button.title}</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      {loading && (
+        <SidebarGroup>
+          <SidebarGroupLabel>Loading tasks...</SidebarGroupLabel>
+        </SidebarGroup>
+      )}
+
+      {error && (
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-red-500">
+            Error: {error instanceof Error ? error.message : String(error)}
+          </SidebarGroupLabel>
+        </SidebarGroup>
+      )}
+
+      {!loading &&
+        !error &&
+        Object.entries(groupedTasks).map(([repoUrl, group]) => (
+          <Collapsible
+            key={repoUrl}
+            defaultOpen={true}
+            className="group/collapsible"
+          >
+            <SidebarGroup>
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger>
+                  <Folder className="mr-1.5 !size-3.5" />
+                  {group.repoName}
+                  <ChevronDown className="ml-auto -rotate-90 transition-transform group-data-[state=open]/collapsible:rotate-0" />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  {group.tasks.map((task) => {
+                    const StatusIcon = statusConfig[task.status].icon;
+                    return (
+                      <SidebarMenuItem key={task.id}>
+                        <SidebarMenuButton
+                          className="flex h-auto flex-col items-start gap-0"
+                          asChild
+                        >
+                          <a href={`/tasks/${task.id}`}>
+                            <div className="flex w-full items-center gap-1.5">
+                              <div className="line-clamp-1 flex-1">
+                                {task.title ||
+                                  task.description ||
+                                  "Untitled Task"}
+                              </div>
+                            </div>
+                            <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                              <StatusIcon
+                                className={`!size-3 ${statusConfig[task.status].className}`}
+                              />
+                              <span className="capitalize text-xs">
+                                {task.status.toLowerCase().replace("_", " ")}
+                              </span>
+                              <GitBranch className="size-3" /> {task.branch}
+                            </div>
+                          </a>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        ))}
+
+      {!loading && !error && Object.keys(groupedTasks).length === 0 && (
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-muted-foreground">
+            No tasks found
+          </SidebarGroupLabel>
+        </SidebarGroup>
+      )}
+    </>
+  );
+
+  const taskView = (
+    <>
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <Button asChild className="w-full">
+            <Link href="/">New Task</Link>
+          </Button>
+        </SidebarGroupContent>
+      </SidebarGroup>
+      <SidebarGroup className="mt-2">
+        <SidebarGroupContent>
+          {/* Live task status */}
+          <SidebarMenuItem>
+            <div className="h-8 text-sm px-2 gap-2 flex items-center">
+              <CircleDashed className="size-4" />
+              <span>Live Status</span>
+            </div>
+          </SidebarMenuItem>
+
+          {/* Task branch name */}
+          <SidebarMenuItem>
+            <div className="h-8 text-sm px-2 gap-2 flex items-center">
+              <GitBranch className="size-4" />
+              <span>task.branch</span>
+            </div>
+          </SidebarMenuItem>
+
+          {/* Task total diff */}
+          <SidebarMenuItem>
+            <div className="h-8 text-sm px-2 gap-2 flex items-center">
+              <FileDiff className="size-4" />
+              <div className="flex items-center gap-1">
+                <span className="text-green-400">+15</span>
+                <span className="text-red-400">-15</span>
+              </div>
+            </div>
+          </SidebarMenuItem>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup>
+        <SidebarGroupLabel className="hover:text-muted-foreground">
+          <ListTodo className="mr-1.5 !size-3.5" />
+          Task List
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+          <TaskItem isCompleted={true}>Task 1</TaskItem>
+          <TaskItem isCompleted={false}>Task 2</TaskItem>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup>
+        <SidebarGroupLabel className="hover:text-muted-foreground">
+          <FolderGit2 className="mr-1.5 !size-3.5" />
+          Modified Files
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+          {/* TODO: add file explorer like the agent environment's file tree here */}
+          <SidebarMenuItem>
+            <SidebarMenuButton className="justify-between">
+              <div className="flex w-full items-center gap-1.5">
+                <File className="size-4" />
+                <div className="line-clamp-1 flex-1">
+                  src/components/sidebar/index.tsx
+                </div>
+              </div>
+              {/* Like in VSCode, show a letter for the diff type: yellow M for modified, green A for added, red D for deleted */}
+              <span className="text-green-400">A</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </>
+  );
+
   return (
     <Sidebar>
       <SidebarContent>
@@ -139,106 +323,8 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
             <Image src="/shadow.svg" alt="Logo" width={22} height={22} />
           </Link>
         </SidebarGroup>
-        <div className="flex flex-col gap-4">
-          <SidebarGroup className="mt-6 gap-4">
-            <SidebarGroupContent>
-              <Button asChild className="w-full">
-                <Link href="/">New Task</Link>
-              </Button>
-            </SidebarGroupContent>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {buttons.map((button) => (
-                  <SidebarMenuItem key={button.title}>
-                    <SidebarMenuButton asChild>
-                      <a href={button.url}>
-                        <button.icon />
-                        <span>{button.title}</span>
-                      </a>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {loading && (
-            <SidebarGroup>
-              <SidebarGroupLabel>Loading tasks...</SidebarGroupLabel>
-            </SidebarGroup>
-          )}
-
-          {error && (
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-red-500">
-                Error: {error instanceof Error ? error.message : String(error)}
-              </SidebarGroupLabel>
-            </SidebarGroup>
-          )}
-
-          {!loading &&
-            !error &&
-            Object.entries(groupedTasks).map(([repoUrl, group]) => (
-              <Collapsible
-                key={repoUrl}
-                defaultOpen={true}
-                className="group/collapsible"
-              >
-                <SidebarGroup>
-                  <SidebarGroupLabel asChild>
-                    <CollapsibleTrigger>
-                      <Folder className="mr-1.5 !size-3.5" />
-                      {group.repoName}
-                      <ChevronDown className="ml-auto -rotate-90 transition-transform group-data-[state=open]/collapsible:rotate-0" />
-                    </CollapsibleTrigger>
-                  </SidebarGroupLabel>
-                  <CollapsibleContent>
-                    <SidebarGroupContent>
-                      {group.tasks.map((task) => {
-                        const StatusIcon = statusConfig[task.status].icon;
-                        return (
-                          <SidebarMenuItem key={task.id}>
-                            <SidebarMenuButton
-                              className="flex h-auto flex-col items-start gap-0"
-                              asChild
-                            >
-                              <a href={`/tasks/${task.id}`}>
-                                <div className="flex w-full items-center gap-1.5">
-                                  <div className="line-clamp-1 flex-1">
-                                    {task.title ||
-                                      task.description ||
-                                      "Untitled Task"}
-                                  </div>
-                                </div>
-                                <div className="text-muted-foreground flex items-center gap-1 text-xs">
-                                  <StatusIcon
-                                    className={`!size-3 ${statusConfig[task.status].className}`}
-                                  />
-                                  <span className="capitalize text-xs">
-                                    {task.status
-                                      .toLowerCase()
-                                      .replace("_", " ")}
-                                  </span>
-                                  <GitBranch className="size-3" /> {task.branch}
-                                </div>
-                              </a>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        );
-                      })}
-                    </SidebarGroupContent>
-                  </CollapsibleContent>
-                </SidebarGroup>
-              </Collapsible>
-            ))}
-
-          {!loading && !error && Object.keys(groupedTasks).length === 0 && (
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-muted-foreground">
-                No tasks found
-              </SidebarGroupLabel>
-            </SidebarGroup>
-          )}
+        <div className="flex flex-col gap-4 mt-6">
+          {isTaskPage ? taskView : homeView}
         </div>
       </SidebarContent>
       <SidebarFooter>
@@ -249,5 +335,31 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
+  );
+}
+
+function TaskItem({
+  isCompleted,
+  children,
+}: {
+  isCompleted: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <SidebarMenuItem>
+      <div
+        className={cn(
+          "h-8 text-sm px-2 gap-2 flex items-center",
+          isCompleted && "text-muted-foreground line-through"
+        )}
+      >
+        {isCompleted ? (
+          <SquareCheck className="size-4" />
+        ) : (
+          <Square className="size-4" />
+        )}
+        {children}
+      </div>
+    </SidebarMenuItem>
   );
 }
