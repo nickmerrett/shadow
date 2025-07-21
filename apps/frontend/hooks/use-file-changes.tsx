@@ -18,25 +18,21 @@ export interface DiffStats {
   totalFiles: number;
 }
 
-export function useFileChanges(taskId: string | null) {
-  const enabled = !!taskId;
+export function useFileChanges(taskId: string) {
   return useQuery({
     queryKey: ["file-changes", taskId],
-    queryFn: enabled
-      ? async () => {
-          const res = await fetch(`/api/tasks/${taskId}/file-changes`);
-          if (!res.ok) {
-            if (res.status === 404) return [];
-            throw new Error("Failed to fetch file changes");
-          }
-          return res.json() as Promise<FileChange[]>;
-        }
-      : undefined,
-    enabled,
+    queryFn: async () => {
+      const res = await fetch(`/api/tasks/${taskId}/file-changes`);
+      if (!res.ok) {
+        if (res.status === 404) return [];
+        throw new Error("Failed to fetch file changes");
+      }
+      return res.json() as Promise<FileChange[]>;
+    },
   });
 }
 
-export function useDiffStats(taskId: string | null) {
+export function useDiffStats(taskId: string) {
   const { data: fileChanges = [] } = useFileChanges(taskId);
 
   const stats: DiffStats = fileChanges.reduce(

@@ -7,7 +7,7 @@ export default async function TaskLayout({
   params,
 }: Readonly<{
   children: React.ReactNode;
-  params: { taskId: string };
+  params: Promise<{ taskId: string }>;
 }>) {
   const user = await getUser();
   const initialTasks = user ? await getTasks(user.id) : [];
