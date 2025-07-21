@@ -173,6 +173,8 @@ export class GitHubService {
         console.warn(`Could not fetch repo info for ${repoUrl}:`, error);
       }
 
+      console.log("[GITHUB] Repo info", repoInfo);
+
       // Prepare clone command
       const cloneUrl = `https://${accessToken}@github.com/${owner}/${repo}.git`;
 

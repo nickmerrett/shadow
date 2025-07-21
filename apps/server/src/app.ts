@@ -62,6 +62,7 @@ app.get("/api/tasks/:taskId", async (req, res) => {
 // Initiate task with agent using new initialization system
 app.post("/api/tasks/:taskId/initiate", async (req, res) => {
   try {
+    console.log("RECEIVED TASK INITIATE REQUEST: /api/tasks/:taskId/initiate");
     const { taskId } = req.params;
     const { message, model, userId } = req.body;
 
