@@ -5,10 +5,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useDiffStats, useFileChanges } from "@/hooks/use-file-changes";
+import { useFileChanges } from "@/hooks/use-file-changes";
 import { useTask } from "@/hooks/use-task";
 import { useTodos } from "@/hooks/use-todos";
 import { cn } from "@/lib/utils";
+import { FileChange, Task, Todo } from "@repo/db";
 import {
   CircleDashed,
   File,
@@ -22,10 +23,8 @@ import {
   SquareCheck,
   XCircle,
 } from "lucide-react";
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { statusColorsConfig } from ".";
-import { Button } from "../ui/button";
 
 // Todo status config
 const todoStatusConfig = {
@@ -172,12 +171,24 @@ function FileNode({
   );
 }
 
-export function SidebarAgentView({ currentTaskId }: { currentTaskId: string }) {
-  // Task-specific data hooks (only fetch when on task page)
-  const { data: currentTask } = useTask(currentTaskId);
-  const { data: todos = [] } = useTodos(currentTaskId);
-  const { data: fileChanges = [] } = useFileChanges(currentTaskId);
-  const diffStats = useDiffStats(currentTaskId);
+export function SidebarAgentView({
+  taskId,
+  currentTask: {
+    taskData: initialTaskData,
+    todos: initialTodos,
+    fileChanges: initialFileChanges,
+  },
+}: {
+  taskId: string;
+  currentTask: {
+    taskData: Task;
+    todos: Todo[];
+    fileChanges: FileChange[];
+  };
+}) {
+  const { data: currentTask } = useTask(taskId, initialTaskData);
+  const { data: todos = [] } = useTodos(taskId, initialTodos);
+  const { fileChanges, diffStats } = useFileChanges(taskId, initialFileChanges);
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
@@ -196,14 +207,6 @@ export function SidebarAgentView({ currentTaskId }: { currentTaskId: string }) {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupContent>
-          <Button asChild className="w-full">
-            <Link href="/">New Task</Link>
-          </Button>
-        </SidebarGroupContent>
-      </SidebarGroup>
-
-      <SidebarGroup className="mt-2">
         <SidebarGroupContent>
           {/* Live task status */}
           <SidebarMenuItem>
@@ -259,8 +262,12 @@ export function SidebarAgentView({ currentTaskId }: { currentTaskId: string }) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             {todos.map((todo) => {
-              const TodoIcon = todoStatusConfig[todo.status].icon;
-              const iconClass = todoStatusConfig[todo.status].className;
+              const TodoIcon =
+                todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
+                  .icon;
+              const iconClass =
+                todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
+                  .className;
               return (
                 <SidebarMenuItem key={todo.id}>
                   <div

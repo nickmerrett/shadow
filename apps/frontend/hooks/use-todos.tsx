@@ -1,18 +1,10 @@
+import { Todo } from "@repo/db";
 import { useQuery } from "@tanstack/react-query";
 
-export interface Todo {
-  id: string;
-  content: string;
-  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-  sequence: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export function useTodos(taskId: string) {
+export function useTodos(taskId: string, initialData?: Todo[]) {
   return useQuery({
     queryKey: ["todos", taskId],
-    queryFn: async () => {
+    queryFn: async (): Promise<Todo[]> => {
       const res = await fetch(`/api/tasks/${taskId}/todos`);
       if (!res.ok) {
         if (res.status === 404) return [];
@@ -20,5 +12,6 @@ export function useTodos(taskId: string) {
       }
       return res.json() as Promise<Todo[]>;
     },
+    initialData,
   });
 }

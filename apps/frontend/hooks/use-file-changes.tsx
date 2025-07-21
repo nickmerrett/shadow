@@ -1,16 +1,6 @@
+import { FileChange } from "@repo/db";
 import { useQuery } from "@tanstack/react-query";
-
-export interface FileChange {
-  id: string;
-  filePath: string;
-  operation: "CREATE" | "UPDATE" | "DELETE" | "RENAME" | "MOVE";
-  oldContent?: string;
-  newContent?: string;
-  diffPatch?: string;
-  additions: number;
-  deletions: number;
-  createdAt: string;
-}
+import { useMemo } from "react";
 
 export interface DiffStats {
   additions: number;
@@ -18,10 +8,18 @@ export interface DiffStats {
   totalFiles: number;
 }
 
-export function useFileChanges(taskId: string) {
-  return useQuery({
+export interface FileChangesData {
+  fileChanges: FileChange[];
+  diffStats: DiffStats;
+}
+
+export function useFileChanges(
+  taskId: string,
+  initialData?: FileChange[]
+): FileChangesData {
+  const query = useQuery({
     queryKey: ["file-changes", taskId],
-    queryFn: async () => {
+    queryFn: async (): Promise<FileChange[]> => {
       const res = await fetch(`/api/tasks/${taskId}/file-changes`);
       if (!res.ok) {
         if (res.status === 404) return [];
@@ -29,20 +27,27 @@ export function useFileChanges(taskId: string) {
       }
       return res.json() as Promise<FileChange[]>;
     },
+    enabled: !!taskId,
+    refetchOnReconnect: true,
+    initialData,
   });
-}
 
-export function useDiffStats(taskId: string) {
-  const { data: fileChanges = [] } = useFileChanges(taskId);
+  const fileChanges = query.data || [];
 
-  const stats: DiffStats = fileChanges.reduce(
-    (acc, change) => ({
-      additions: acc.additions + change.additions,
-      deletions: acc.deletions + change.deletions,
-      totalFiles: acc.totalFiles,
-    }),
-    { additions: 0, deletions: 0, totalFiles: fileChanges.length }
-  );
+  // Compute diff stats efficiently with useMemo
+  const diffStats = useMemo((): DiffStats => {
+    return fileChanges.reduce(
+      (acc, change) => ({
+        additions: acc.additions + change.additions,
+        deletions: acc.deletions + change.deletions,
+        totalFiles: acc.totalFiles,
+      }),
+      { additions: 0, deletions: 0, totalFiles: fileChanges.length }
+    );
+  }, [fileChanges]);
 
-  return stats;
+  return {
+    fileChanges,
+    diffStats,
+  };
 }

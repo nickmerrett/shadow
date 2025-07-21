@@ -12,7 +12,7 @@ export default async function HomeLayout({
 
   return (
     <>
-      <SidebarComponent currentTaskId={null} initialTasks={initialTasks} />
+      <SidebarComponent initialTasks={initialTasks} currentTask={null} />
       {children}
     </>
   );

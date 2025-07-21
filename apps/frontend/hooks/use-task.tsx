@@ -1,7 +1,7 @@
-import type { Task } from "@/lib/db-operations/get-task";
+import { Task } from "@repo/db";
 import { useQuery } from "@tanstack/react-query";
 
-export function useTask(taskId: string) {
+export function useTask(taskId: string, initialData?: Task) {
   return useQuery({
     queryKey: ["task", taskId],
     queryFn: async () => {
@@ -9,5 +9,6 @@ export function useTask(taskId: string) {
       if (!res.ok) throw new Error("Failed to fetch task");
       return res.json() as Promise<Task>;
     },
+    initialData,
   });
 }

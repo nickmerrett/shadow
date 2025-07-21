@@ -2,7 +2,6 @@
 
 import { Messages } from "@/components/chat/messages";
 import { PromptForm } from "@/components/chat/prompt-form";
-import type { FileChange } from "@/hooks/use-file-changes";
 import { ScrollToBottom } from "@/hooks/use-is-at-top";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
@@ -144,11 +143,10 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
         case "file-change":
           if (chunk.fileChange) {
             console.log("File change:", chunk.fileChange);
-            // Optimistically update the file changes cache
-            queryClient.setQueryData<FileChange[]>(
-              ["file-changes", taskId],
-              (old = []) => [chunk.fileChange!, ...old]
-            );
+            // Invalidate file changes query to refetch with new data
+            queryClient.invalidateQueries({
+              queryKey: ["file-changes", taskId],
+            });
           }
           break;
 

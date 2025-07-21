@@ -8,8 +8,9 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { DiffStats } from "@/hooks/use-file-changes";
 import { useTasks } from "@/hooks/use-tasks";
-import { Task } from "@repo/db";
+import { FileChange, Task, Todo } from "@repo/db";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -49,11 +50,16 @@ export const statusColorsConfig = {
 };
 
 export function SidebarComponent({
-  currentTaskId,
   initialTasks,
+  currentTask,
 }: {
-  currentTaskId: string | null;
   initialTasks: Task[];
+  currentTask: {
+    taskData: Task;
+    todos: Todo[];
+    fileChanges: FileChange[];
+    diffStats: DiffStats;
+  } | null;
 }) {
   const { data: tasks, isLoading: loading, error } = useTasks(initialTasks);
 
@@ -70,8 +76,11 @@ export function SidebarComponent({
           </Link>
         </SidebarGroup>
         <div className="flex flex-col gap-4 mt-6">
-          {currentTaskId ? (
-            <SidebarAgentView currentTaskId={currentTaskId} />
+          {currentTask ? (
+            <SidebarAgentView
+              taskId={currentTask.taskData.id}
+              currentTask={currentTask}
+            />
           ) : (
             <SidebarTasksView tasks={tasks} loading={loading} error={error} />
           )}
