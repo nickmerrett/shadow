@@ -1,4 +1,5 @@
 import { prisma } from "@repo/db";
+import { githubTokenManager } from "./github-token-manager";
 
 export async function getGitHubAccount(userId: string) {
   const account = await prisma.account.findFirst({
@@ -11,9 +12,13 @@ export async function getGitHubAccount(userId: string) {
   return account;
 }
 
+/**
+ * Get a valid GitHub access token for a user, refreshing if necessary
+ * @param userId - The user ID
+ * @returns A valid access token or null if authentication is needed
+ */
 export async function getGitHubAccessToken(
   userId: string
 ): Promise<string | null> {
-  const account = await getGitHubAccount(userId);
-  return account?.accessToken || null;
+  return await githubTokenManager.getValidAccessToken(userId);
 }

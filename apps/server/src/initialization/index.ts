@@ -55,7 +55,7 @@ export class TaskInitializationEngine {
   async initializeTask(
     taskId: string,
     steps: InitStepType[] = ["CLONE_REPOSITORY"],
-    accessToken: string
+    userId: string
   ): Promise<void> {
     console.log(
       `[TASK_INIT] Starting initialization for task ${taskId} with steps: ${steps.join(", ")}`
@@ -99,7 +99,7 @@ export class TaskInitializationEngine {
           );
 
           // Execute the step
-          await this.executeStep(taskId, step, accessToken);
+          await this.executeStep(taskId, step, userId);
 
           console.log(
             `[TASK_INIT] ${taskId}: Completed step ${stepNumber}/${steps.length}: ${step}`
@@ -155,11 +155,11 @@ export class TaskInitializationEngine {
   private async executeStep(
     taskId: string,
     step: InitStepType,
-    accessToken: string
+    userId: string
   ): Promise<void> {
     switch (step) {
       case "CLONE_REPOSITORY":
-        await this.executeCloneRepository(taskId, accessToken);
+        await this.executeCloneRepository(taskId, userId);
         break;
 
       case "PROVISION_MICROVM":
@@ -192,7 +192,7 @@ export class TaskInitializationEngine {
    */
   private async executeCloneRepository(
     taskId: string,
-    accessToken: string
+    userId: string
   ): Promise<void> {
     // Get task info
     const task = await prisma.task.findUnique({
@@ -209,7 +209,7 @@ export class TaskInitializationEngine {
       taskId,
       task.repoUrl,
       task.branch,
-      accessToken
+      userId
     );
 
     if (!workspaceResult.success) {

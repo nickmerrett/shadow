@@ -72,7 +72,7 @@ export class WorkspaceManager {
     taskId: string,
     repoUrl: string,
     branch: string,
-    accessToken: string
+    userId: string
   ): Promise<WorkspaceSetupResult> {
     const workspacePath = this.getTaskWorkspaceDir(taskId);
 
@@ -89,7 +89,7 @@ export class WorkspaceManager {
         repoUrl,
         branch,
         workspacePath,
-        accessToken
+        userId
       );
 
       if (!cloneResult.success) {

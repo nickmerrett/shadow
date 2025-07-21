@@ -88,7 +88,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
     );
 
     try {
-      // Get user's GitHub access token
+      // Get user's GitHub access token to validate authentication
       const githubAccessToken = await getGitHubAccessToken(userId);
 
       if (!githubAccessToken) {
@@ -114,13 +114,9 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         data: { status: "INITIALIZING" },
       });
 
-      // Run initialization steps (for now just clone repository)
+      // Run initialization steps using userId (token management is handled internally)
       const initSteps = initializationEngine.getDefaultStepsForTask("simple");
-      await initializationEngine.initializeTask(
-        taskId,
-        initSteps,
-        githubAccessToken
-      );
+      await initializationEngine.initializeTask(taskId, initSteps, userId);
 
       // Get updated task with workspace info
       const updatedTask = await prisma.task.findUnique({
@@ -148,23 +144,47 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       });
 
       res.json({
-        status: "initiated",
-        workspacePath: updatedTask?.workspacePath,
-        commitSha: updatedTask?.commitSha,
+        success: true,
+        message: "Task initiated successfully",
       });
     } catch (initError) {
       console.error(
-        `[TASK_INITIATE] Initialization error for task ${taskId}:`,
+        `[TASK_INITIATE] Initialization failed for task ${taskId}:`,
         initError
       );
 
-      // Update task status to failed
+      // Update task status to failed with specific error message
       await prisma.task.update({
         where: { id: taskId },
-        data: { status: "FAILED" },
+        data: {
+          status: "FAILED",
+          // Store error in description if it's an auth error
+          description:
+            initError instanceof Error &&
+            initError.message.includes("authentication")
+              ? `${task.description}\n\nError: ${initError.message}`
+              : task.description,
+        },
       });
 
-      throw initError;
+      // Return appropriate error response
+      if (
+        initError instanceof Error &&
+        (initError.message.includes("authentication") ||
+          initError.message.includes("access token") ||
+          initError.message.includes("refresh"))
+      ) {
+        return res.status(401).json({
+          error: "GitHub authentication failed",
+          details: "Please reconnect your GitHub account and try again",
+        });
+      }
+
+      return res.status(500).json({
+        error: "Task initialization failed",
+        details:
+          initError instanceof Error ? initError.message : "Unknown error",
+      });
     }
   } catch (error) {
     console.error("Error initiating task:", error);
