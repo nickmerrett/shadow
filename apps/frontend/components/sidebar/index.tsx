@@ -222,7 +222,7 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
                                 </div>
                                 <div className="text-muted-foreground flex items-center gap-1 text-xs">
                                   <StatusIcon
-                                    className={`ml-1 !size-3 ${statusConfig[task.status].className}`}
+                                    className={`!size-3 ${statusConfig[task.status].className}`}
                                   />
                                   <span className="capitalize text-xs">
                                     {task.status

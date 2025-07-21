@@ -1,11 +1,6 @@
 import { TaskPageLayout } from "@/components/task/task-layout";
-import { getUser } from "@/lib/auth/get-user";
 import { getTask } from "@/lib/db-operations/get-task";
 import { getTaskMessages } from "@/lib/db-operations/get-task-messages";
-import {
-  getGitHubRepositories,
-  getGitHubStatus,
-} from "@/lib/github/github-api";
 import {
   HydrationBoundary,
   QueryClient,
@@ -20,10 +15,7 @@ export default async function TaskPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const [user, task] = await Promise.all([
-    getUser(),
-    getTask((await params).taskId),
-  ]);
+  const task = await getTask(taskId);
 
   if (!task) {
     notFound();
@@ -47,41 +39,12 @@ export default async function TaskPage({
     return initialLayout;
   };
 
-  // Prefetch data with individual error handling - GitHub failures won't break the page
-  const prefetchPromises = [
-    // Task messages are critical - let this throw if it fails
+  const [initialLayout] = await Promise.all([
+    getInitialLayout(),
     queryClient.prefetchQuery({
       queryKey: ["task-messages", taskId],
       queryFn: () => getTaskMessages(taskId),
     }),
-    // GitHub prefetches are optional - catch their errors
-    queryClient
-      .prefetchQuery({
-        queryKey: ["github", "status"],
-        queryFn: () => getGitHubStatus(user?.id),
-      })
-      .catch((error) => {
-        console.log(
-          "Could not prefetch GitHub status:",
-          error?.message || error
-        );
-      }),
-    queryClient
-      .prefetchQuery({
-        queryKey: ["github", "repositories"],
-        queryFn: () => getGitHubRepositories(user?.id),
-      })
-      .catch((error) => {
-        console.log(
-          "Could not prefetch GitHub repositories:",
-          error?.message || error
-        );
-      }),
-  ];
-
-  const [initialLayout] = await Promise.all([
-    getInitialLayout(),
-    ...prefetchPromises,
   ]);
 
   return (
