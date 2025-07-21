@@ -14,7 +14,7 @@ import {
 import { useGitHubBranches } from "@/hooks/use-github-branches";
 import { useGitHubRepositories } from "@/hooks/use-github-repositories";
 import { useGitHubStatus } from "@/hooks/use-github-status";
-import { cn } from "@/lib/utils";
+import { cn, formatTimeAgo } from "@/lib/utils";
 import {
   ArrowLeft,
   ChevronDown,
@@ -252,7 +252,7 @@ export function GithubConnection({
                   >
                     <span className="truncate">{repo.name}</span>
                     <span className="text-muted-foreground">
-                      {repo.pushed_at}
+                      {repo.pushed_at ? formatTimeAgo(repo.pushed_at) : ""}
                     </span>
                   </Button>
                 ))}
