@@ -2,14 +2,12 @@
 
 import {
   AlertTriangle,
-  Brain,
   CheckCircle2,
   ChevronDown,
   CircleDashed,
   Clock,
   Folder,
   GitBranch,
-  Monitor,
   Pause,
   Play,
   Settings,
@@ -133,21 +131,13 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <div className="flex w-full items-center justify-between">
-            <Link
-              href="/"
-              className="flex size-9 items-center justify-center"
-              aria-label="Home"
-            >
-              <Image src="/shadow.svg" alt="Logo" width={22} height={22} />
-            </Link>
-            {isTaskPage && (
-              <SidebarViewSwitcher
-                activeView={activeView}
-                setActiveView={setActiveView}
-              />
-            )}
-          </div>
+          <Link
+            href="/"
+            className="flex size-9 items-center justify-center"
+            aria-label="Home"
+          >
+            <Image src="/shadow.svg" alt="Logo" width={22} height={22} />
+          </Link>
         </SidebarGroup>
         <div className="flex flex-col gap-4">
           <SidebarGroup className="mt-6 gap-4">
@@ -259,42 +249,5 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
-  );
-}
-
-function SidebarViewSwitcher({
-  activeView,
-  setActiveView,
-}: {
-  activeView: "home" | "task";
-  setActiveView: (view: "home" | "task") => void;
-}) {
-  return (
-    <div className="bg-accent border-sidebar-border flex gap-0.5 rounded-full border p-[3px]">
-      <Button
-        size="iconSm"
-        variant={activeView === "home" ? "default" : "ghost"}
-        onClick={() => setActiveView("home")}
-        className={
-          activeView === "home"
-            ? "rounded-full"
-            : "text-muted-foreground hover:text-primary rounded-full hover:bg-transparent"
-        }
-      >
-        <Monitor className="size-4" />
-      </Button>
-      <Button
-        size="iconSm"
-        variant={activeView === "task" ? "default" : "ghost"}
-        onClick={() => setActiveView("task")}
-        className={
-          activeView === "task"
-            ? "rounded-full"
-            : "text-muted-foreground hover:text-primary rounded-full hover:bg-transparent"
-        }
-      >
-        <Brain className="size-4" />
-      </Button>
-    </div>
   );
 }
