@@ -133,6 +133,13 @@ export function emitStreamChunk(chunk: StreamChunk) {
     } else if (chunk.type === "tool-result" && chunk.toolResult) {
       console.log(`\n✅ [TOOL_RESULT] ${chunk.toolResult.id}:`);
       console.log(`   ${chunk.toolResult.result}`);
+    } else if (chunk.type === "file-change" && chunk.fileChange) {
+      console.log(
+        `\n📝 [FILE_CHANGE] ${chunk.fileChange.operation} ${chunk.fileChange.filePath}`
+      );
+      console.log(
+        `   Changes: +${chunk.fileChange.additions} -${chunk.fileChange.deletions}`
+      );
     } else if (chunk.type === "usage" && chunk.usage) {
       console.log(
         `\n📊 [USAGE] Tokens: ${chunk.usage.totalTokens} (${chunk.usage.promptTokens} prompt + ${chunk.usage.completionTokens} completion)`

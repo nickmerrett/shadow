@@ -6,6 +6,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import { z } from "zod";
 import config from "../config";
+import { emitStreamChunk } from "../socket";
 import { execAsync } from "../utils/exec";
 
 // Configuration flag for terminal command approval
@@ -62,7 +63,7 @@ async function saveFileChange(
       deletions = oldContent.split("\n").length;
     }
 
-    await prisma.fileChange.create({
+    const savedFileChange = await prisma.fileChange.create({
       data: {
         taskId,
         filePath,
@@ -78,6 +79,22 @@ async function saveFileChange(
     console.log(
       `[FILE_CHANGE] Recorded ${operation} for ${filePath} (+${additions} -${deletions})`
     );
+
+    // Stream the file change in real-time
+    emitStreamChunk({
+      type: "file-change",
+      fileChange: {
+        id: savedFileChange.id,
+        filePath,
+        operation,
+        oldContent,
+        newContent,
+        diffPatch,
+        additions,
+        deletions,
+        createdAt: savedFileChange.createdAt.toISOString(),
+      },
+    });
   } catch (error) {
     console.error(`[FILE_CHANGE_ERROR] Failed to save file change:`, error);
     // Don't throw error - file operation succeeded, logging is secondary
