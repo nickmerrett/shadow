@@ -1,12 +1,14 @@
 import { Octokit } from "@octokit/rest";
-import { execAsync } from "../utils/exec";
-import config from "../config";
 import { z } from "zod";
+import config from "../config";
+import { execAsync } from "../utils/exec";
 
-const RepoUrlSchema = z.string().regex(
-  /^https:\/\/github\.com\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/,
-  "Invalid GitHub repository URL format"
-);
+const RepoUrlSchema = z
+  .string()
+  .regex(
+    /^https:\/\/github\.com\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/,
+    "Invalid GitHub repository URL format"
+  );
 
 export interface CloneResult {
   success: boolean;
@@ -26,15 +28,17 @@ export interface RepoInfo {
 }
 
 export class GitHubService {
-  private octokit: Octokit | null = null;
-
   constructor() {
-    // Initialize Octokit if GitHub token is available
-    if (config.githubAccessToken) {
-      this.octokit = new Octokit({
-        auth: config.githubAccessToken,
-      });
-    }
+    // No longer initialize Octokit in constructor - create per-operation
+  }
+
+  /**
+   * Create Octokit instance with the provided token
+   */
+  private createOctokit(accessToken: string): Octokit {
+    return new Octokit({
+      auth: accessToken,
+    });
   }
 
   /**
@@ -62,15 +66,12 @@ export class GitHubService {
   /**
    * Get repository information from GitHub API
    */
-  async getRepoInfo(repoUrl: string): Promise<RepoInfo> {
+  async getRepoInfo(repoUrl: string, accessToken: string): Promise<RepoInfo> {
     const { owner, repo } = this.parseRepoUrl(repoUrl);
-
-    if (!this.octokit) {
-      throw new Error("GitHub access token not configured");
-    }
+    const octokit = this.createOctokit(accessToken);
 
     try {
-      const { data } = await this.octokit.repos.get({
+      const { data } = await octokit.repos.get({
         owner,
         repo,
       });
@@ -84,33 +85,37 @@ export class GitHubService {
         size: data.size, // GitHub returns size in KB
       };
     } catch (error) {
-      if (error instanceof Error && 'status' in error && error.status === 404) {
-        throw new Error(`Repository not found or not accessible: ${owner}/${repo}`);
+      if (error instanceof Error && "status" in error && error.status === 404) {
+        throw new Error(
+          `Repository not found or not accessible: ${owner}/${repo}`
+        );
       }
-      throw new Error(`Failed to fetch repository info: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to fetch repository info: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     }
   }
 
   /**
    * Validate that a branch exists in the repository
    */
-  async validateBranch(repoUrl: string, branch: string): Promise<boolean> {
+  async validateBranch(
+    repoUrl: string,
+    branch: string,
+    accessToken: string
+  ): Promise<boolean> {
     const { owner, repo } = this.parseRepoUrl(repoUrl);
-
-    if (!this.octokit) {
-      // If no token, we'll try to clone anyway and let git handle the validation
-      return true;
-    }
+    const octokit = this.createOctokit(accessToken);
 
     try {
-      await this.octokit.repos.getBranch({
+      await octokit.repos.getBranch({
         owner,
         repo,
         branch,
       });
       return true;
     } catch (error) {
-      if (error instanceof Error && 'status' in error && error.status === 404) {
+      if (error instanceof Error && "status" in error && error.status === 404) {
         return false;
       }
       // For other errors, assume branch might exist (could be auth issue)
@@ -124,16 +129,21 @@ export class GitHubService {
   async cloneRepository(
     repoUrl: string,
     branch: string,
-    workspacePath: string
+    workspacePath: string,
+    accessToken: string
   ): Promise<CloneResult> {
     const clonedAt = new Date();
 
     try {
       // Validate inputs
       const { owner, repo } = this.parseRepoUrl(repoUrl);
-      
+
       // Check if branch exists (if we have API access)
-      const branchExists = await this.validateBranch(repoUrl, branch);
+      const branchExists = await this.validateBranch(
+        repoUrl,
+        branch,
+        accessToken
+      );
       if (!branchExists) {
         return {
           success: false,
@@ -146,8 +156,8 @@ export class GitHubService {
       // Get repo info to check size limits
       let repoInfo: RepoInfo | null = null;
       try {
-        repoInfo = await this.getRepoInfo(repoUrl);
-        
+        repoInfo = await this.getRepoInfo(repoUrl, accessToken);
+
         // Check size limit (convert KB to MB)
         const sizeInMB = repoInfo.size / 1024;
         if (sizeInMB > config.maxRepoSizeMB) {
@@ -164,24 +174,27 @@ export class GitHubService {
       }
 
       // Prepare clone command
-      const cloneUrl = config.githubAccessToken 
-        ? `https://${config.githubAccessToken}@github.com/${owner}/${repo}.git`
-        : repoUrl;
+      const cloneUrl = `https://${accessToken}@github.com/${owner}/${repo}.git`;
 
       // Use shallow clone for performance, targeting specific branch
       const cloneCommand = [
-        'git', 'clone',
-        '--depth', '1',
-        '--branch', branch,
-        '--single-branch',
+        "git",
+        "clone",
+        "--depth",
+        "1",
+        "--branch",
+        branch,
+        "--single-branch",
         cloneUrl,
-        workspacePath
-      ].join(' ');
+        workspacePath,
+      ].join(" ");
 
-      console.log(`[GITHUB] Cloning ${owner}/${repo}:${branch} to ${workspacePath}`);
+      console.log(
+        `[GITHUB] Cloning ${owner}/${repo}:${branch} to ${workspacePath}`
+      );
 
       // Execute clone with timeout
-      const { stdout, stderr } = await execAsync(cloneCommand, {
+      const { stdout: _, stderr: __ } = await execAsync(cloneCommand, {
         timeout: 300000, // 5 minute timeout
       });
 
@@ -189,7 +202,9 @@ export class GitHubService {
       const commitCommand = `cd "${workspacePath}" && git rev-parse HEAD`;
       const { stdout: commitSha } = await execAsync(commitCommand);
 
-      console.log(`[GITHUB] Successfully cloned ${owner}/${repo}:${branch} (${commitSha.trim()})`);
+      console.log(
+        `[GITHUB] Successfully cloned ${owner}/${repo}:${branch} (${commitSha.trim()})`
+      );
 
       return {
         success: true,
@@ -197,22 +212,25 @@ export class GitHubService {
         commitSha: commitSha.trim(),
         clonedAt,
       };
-
     } catch (error) {
       console.error(`[GITHUB] Clone failed for ${repoUrl}:${branch}`, error);
-      
-      let errorMessage = 'Unknown clone error';
+
+      let errorMessage = "Unknown clone error";
       if (error instanceof Error) {
         errorMessage = error.message;
-        
+
         // Provide more user-friendly error messages
-        if (errorMessage.includes('Repository not found')) {
+        if (errorMessage.includes("Repository not found")) {
           errorMessage = `Repository not found or not accessible: ${repoUrl}`;
-        } else if (errorMessage.includes('timeout')) {
-          errorMessage = 'Clone operation timed out. Repository might be too large.';
-        } else if (errorMessage.includes('authentication')) {
-          errorMessage = 'Authentication failed. Check repository permissions.';
-        } else if (errorMessage.includes('not found') && errorMessage.includes(branch)) {
+        } else if (errorMessage.includes("timeout")) {
+          errorMessage =
+            "Clone operation timed out. Repository might be too large.";
+        } else if (errorMessage.includes("authentication")) {
+          errorMessage = "Authentication failed. Check repository permissions.";
+        } else if (
+          errorMessage.includes("not found") &&
+          errorMessage.includes(branch)
+        ) {
           errorMessage = `Branch '${branch}' not found in repository`;
         }
       }

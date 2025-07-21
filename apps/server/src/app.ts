@@ -8,6 +8,7 @@ import { ChatService, DEFAULT_MODEL } from "./chat";
 import { TaskInitializationEngine } from "./initialization";
 import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";
+import { getGitHubAccessToken } from "./utils/github-account";
 import { WorkspaceManager } from "./workspace";
 
 const app = express();
@@ -62,10 +63,14 @@ app.get("/api/tasks/:taskId", async (req, res) => {
 app.post("/api/tasks/:taskId/initiate", async (req, res) => {
   try {
     const { taskId } = req.params;
-    const { message, model } = req.body;
+    const { message, model, userId } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
+    }
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
     }
 
     // Verify task exists
@@ -82,6 +87,26 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
     );
 
     try {
+      // Get user's GitHub access token
+      const githubAccessToken = await getGitHubAccessToken(userId);
+
+      if (!githubAccessToken) {
+        console.error(
+          `[TASK_INITIATE] No GitHub access token found for user ${userId}`
+        );
+
+        // Update task status to failed
+        await prisma.task.update({
+          where: { id: taskId },
+          data: { status: "FAILED" },
+        });
+
+        return res.status(400).json({
+          error: "GitHub access token required",
+          details: "Please connect your GitHub account to clone repositories",
+        });
+      }
+
       // Update task status to initializing
       await prisma.task.update({
         where: { id: taskId },
@@ -90,7 +115,11 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 
       // Run initialization steps (for now just clone repository)
       const initSteps = initializationEngine.getDefaultStepsForTask("simple");
-      await initializationEngine.initializeTask(taskId, initSteps);
+      await initializationEngine.initializeTask(
+        taskId,
+        initSteps,
+        githubAccessToken
+      );
 
       // Get updated task with workspace info
       const updatedTask = await prisma.task.findUnique({

@@ -71,7 +71,8 @@ export class WorkspaceManager {
   async prepareTaskWorkspace(
     taskId: string,
     repoUrl: string,
-    branch: string
+    branch: string,
+    accessToken: string
   ): Promise<WorkspaceSetupResult> {
     const workspacePath = this.getTaskWorkspaceDir(taskId);
 
@@ -87,7 +88,8 @@ export class WorkspaceManager {
       const cloneResult = await this.githubService.cloneRepository(
         repoUrl,
         branch,
-        workspacePath
+        workspacePath,
+        accessToken
       );
 
       if (!cloneResult.success) {
