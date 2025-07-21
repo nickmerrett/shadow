@@ -1,7 +1,7 @@
 import { Task } from "@repo/db";
 import { useQuery } from "@tanstack/react-query";
 
-export function useTasks(initialData?: Task[]) {
+export function useTasks(initialData: Task[]) {
   return useQuery({
     queryKey: ["tasks"],
     queryFn: async () => {

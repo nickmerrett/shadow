@@ -40,7 +40,6 @@ import { cn } from "@/lib/utils";
 import { Task } from "@repo/db";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import { UserMenu } from "../auth/user-menu";
 import { Button } from "../ui/button";
@@ -100,10 +99,6 @@ interface GroupedTasks {
     repoName: string;
     tasks: Task[];
   };
-}
-
-interface SidebarComponentProps {
-  initialTasks: Task[];
 }
 
 // Create file tree structure from file paths
@@ -243,16 +238,13 @@ function FileNode({
   );
 }
 
-export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
-  const pathname = usePathname();
-  const isTaskPage = pathname.match(/^\/tasks\/[^/]+$/);
-
-  // Extract taskId from pathname
-  const taskId = useMemo(() => {
-    const match = pathname.match(/^\/tasks\/([^/]+)$/);
-    return match ? match[1] : null;
-  }, [pathname]);
-
+export function SidebarComponent({
+  currentTaskId,
+  initialTasks,
+}: {
+  currentTaskId: string | null;
+  initialTasks: Task[];
+}) {
   const {
     data: tasks = [],
     isLoading: loading,
@@ -260,10 +252,10 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
   } = useTasks(initialTasks);
 
   // Task-specific data hooks (only fetch when on task page)
-  const { data: currentTask } = useTask(taskId!, undefined);
-  const { data: todos = [] } = useTodos(taskId!);
-  const { data: fileChanges = [] } = useFileChanges(taskId!);
-  const diffStats = useDiffStats(taskId!);
+  const { data: currentTask } = useTask(currentTaskId);
+  const { data: todos = [] } = useTodos(currentTaskId);
+  const { data: fileChanges = [] } = useFileChanges(currentTaskId);
+  const diffStats = useDiffStats(currentTaskId);
 
   // Group tasks by repository and sort within each group
   const groupedTasks: GroupedTasks = tasks.reduce(
@@ -519,7 +511,7 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
           </Link>
         </SidebarGroup>
         <div className="flex flex-col gap-4 mt-6">
-          {isTaskPage ? taskView : homeView}
+          {currentTaskId ? taskView : homeView}
         </div>
       </SidebarContent>
       <SidebarFooter>
@@ -530,31 +522,5 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
-  );
-}
-
-function TaskItem({
-  isCompleted,
-  children,
-}: {
-  isCompleted: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <SidebarMenuItem>
-      <div
-        className={cn(
-          "h-8 text-sm px-2 gap-2 flex items-center",
-          isCompleted && "text-muted-foreground line-through"
-        )}
-      >
-        {isCompleted ? (
-          <SquareCheck className="size-4" />
-        ) : (
-          <Square className="size-4" />
-        )}
-        {children}
-      </div>
-    </SidebarMenuItem>
   );
 }
