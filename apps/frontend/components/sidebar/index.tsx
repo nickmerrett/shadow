@@ -10,6 +10,7 @@ import {
   FileDiff,
   Folder,
   FolderGit2,
+  FolderOpen,
   GitBranch,
   ListTodo,
   Pause,
@@ -31,13 +32,16 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useDiffStats, useFileChanges } from "@/hooks/use-file-changes";
+import { useTask } from "@/hooks/use-task";
 import { useTasks } from "@/hooks/use-tasks";
+import { useTodos } from "@/hooks/use-todos";
 import { cn } from "@/lib/utils";
 import { Task } from "@repo/db";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { UserMenu } from "../auth/user-menu";
 import { Button } from "../ui/button";
 import {
@@ -83,6 +87,14 @@ const statusConfig = {
   CANCELLED: { icon: AlertTriangle, className: "text-gray-500" },
 };
 
+// Todo status config
+const todoStatusConfig = {
+  PENDING: { icon: Square, className: "text-gray-400" },
+  IN_PROGRESS: { icon: CircleDashed, className: "text-blue-500" },
+  COMPLETED: { icon: SquareCheck, className: "text-green-500" },
+  CANCELLED: { icon: XCircle, className: "text-gray-500" },
+};
+
 interface GroupedTasks {
   [repoUrl: string]: {
     repoName: string;
@@ -94,6 +106,47 @@ interface SidebarComponentProps {
   initialTasks: Task[];
 }
 
+// Create file tree structure from file paths
+function createFileTree(filePaths: string[]) {
+  const tree: any = {};
+
+  filePaths.forEach((filePath) => {
+    const parts = filePath.split("/");
+    let current = tree;
+
+    parts.forEach((part, index) => {
+      if (!current[part]) {
+        current[part] = {
+          name: part,
+          type: index === parts.length - 1 ? "file" : "folder",
+          path: parts.slice(0, index + 1).join("/"),
+          children: index === parts.length - 1 ? undefined : {},
+        };
+      }
+      if (current[part].children) {
+        current = current[part].children;
+      }
+    });
+  });
+
+  // Convert to array and sort (folders first, then files)
+  const convertToArray = (obj: any): any[] => {
+    return Object.values(obj)
+      .sort((a: any, b: any) => {
+        if (a.type !== b.type) {
+          return a.type === "folder" ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      })
+      .map((item: any) => ({
+        ...item,
+        children: item.children ? convertToArray(item.children) : undefined,
+      }));
+  };
+
+  return convertToArray(tree);
+}
+
 export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
   const pathname = usePathname();
   const isTaskPage = pathname.match(/^\/tasks\/[^/]+$/);
@@ -101,11 +154,23 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
     isTaskPage ? "task" : "home"
   );
 
+  // Extract taskId from pathname
+  const taskId = useMemo(() => {
+    const match = pathname.match(/^\/tasks\/([^/]+)$/);
+    return match ? match[1] : null;
+  }, [pathname]);
+
   const {
     data: tasks = [],
     isLoading: loading,
     error,
   } = useTasks(initialTasks);
+
+  // Task-specific data hooks (only fetch when on task page)
+  const { data: currentTask } = useTask(taskId!, undefined);
+  const { data: todos = [] } = useTodos(taskId!);
+  const { data: fileChanges = [] } = useFileChanges(taskId!);
+  const diffStats = useDiffStats(taskId!);
 
   // Group tasks by repository and sort within each group
   const groupedTasks: GroupedTasks = tasks.reduce(
@@ -133,6 +198,12 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
   });
+
+  // Create file tree from file changes
+  const modifiedFileTree = useMemo(() => {
+    const filePaths = fileChanges.map((change) => change.filePath);
+    return createFileTree(filePaths);
+  }, [fileChanges]);
 
   const homeView = (
     <>
@@ -236,7 +307,90 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
     </>
   );
 
-  const taskView = (
+  // Modified file tree renderer
+  const renderFileNode = (node: any, depth = 0) => {
+    const [isExpanded, setIsExpanded] = useState(true);
+    const fileChange = fileChanges.find(
+      (change) => change.filePath === node.path
+    );
+    const operation = fileChange?.operation;
+
+    const getOperationColor = (op: string) => {
+      switch (op) {
+        case "CREATE":
+          return "text-green-400";
+        case "UPDATE":
+          return "text-yellow-400";
+        case "DELETE":
+          return "text-red-400";
+        default:
+          return "text-blue-400";
+      }
+    };
+
+    const getOperationLetter = (op: string) => {
+      switch (op) {
+        case "CREATE":
+          return "A";
+        case "UPDATE":
+          return "M";
+        case "DELETE":
+          return "D";
+        case "RENAME":
+          return "R";
+        case "MOVE":
+          return "M";
+        default:
+          return "?";
+      }
+    };
+
+    return (
+      <div key={node.path}>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            className="justify-between"
+            onClick={() => node.type === "folder" && setIsExpanded(!isExpanded)}
+          >
+            <div
+              className="flex w-full items-center gap-1.5"
+              style={{ paddingLeft: `${depth * 8}px` }}
+            >
+              {node.type === "folder" ? (
+                isExpanded ? (
+                  <FolderOpen className="size-4" />
+                ) : (
+                  <Folder className="size-4" />
+                )
+              ) : (
+                <File className="size-4" />
+              )}
+              <div className="line-clamp-1 flex-1">{node.name}</div>
+            </div>
+            {node.type === "file" && operation && (
+              <span
+                className={cn(
+                  "text-xs font-medium",
+                  getOperationColor(operation)
+                )}
+              >
+                {getOperationLetter(operation)}
+              </span>
+            )}
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        {node.type === "folder" && isExpanded && node.children && (
+          <div>
+            {node.children.map((child: any) =>
+              renderFileNode(child, depth + 1)
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const taskView = currentTask ? (
     <>
       <SidebarGroup>
         <SidebarGroupContent>
@@ -245,13 +399,28 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
           </Button>
         </SidebarGroupContent>
       </SidebarGroup>
+
       <SidebarGroup className="mt-2">
         <SidebarGroupContent>
           {/* Live task status */}
           <SidebarMenuItem>
             <div className="h-8 text-sm px-2 gap-2 flex items-center">
-              <CircleDashed className="size-4" />
-              <span>Live Status</span>
+              {(() => {
+                const StatusIcon =
+                  statusConfig[currentTask.status as keyof typeof statusConfig]
+                    ?.icon || CircleDashed;
+                const statusClass =
+                  statusConfig[currentTask.status as keyof typeof statusConfig]
+                    ?.className || "text-gray-500";
+                return (
+                  <>
+                    <StatusIcon className={cn("size-4", statusClass)} />
+                    <span className="capitalize">
+                      {currentTask.status.toLowerCase().replace("_", " ")}
+                    </span>
+                  </>
+                );
+              })()}
             </div>
           </SidebarMenuItem>
 
@@ -259,7 +428,7 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
           <SidebarMenuItem>
             <div className="h-8 text-sm px-2 gap-2 flex items-center">
               <GitBranch className="size-4" />
-              <span>task.branch</span>
+              <span>{currentTask.branch}</span>
             </div>
           </SidebarMenuItem>
 
@@ -268,47 +437,61 @@ export function SidebarComponent({ initialTasks }: SidebarComponentProps) {
             <div className="h-8 text-sm px-2 gap-2 flex items-center">
               <FileDiff className="size-4" />
               <div className="flex items-center gap-1">
-                <span className="text-green-400">+15</span>
-                <span className="text-red-400">-15</span>
+                <span className="text-green-400">+{diffStats.additions}</span>
+                <span className="text-red-400">-{diffStats.deletions}</span>
               </div>
             </div>
           </SidebarMenuItem>
         </SidebarGroupContent>
       </SidebarGroup>
 
-      <SidebarGroup>
-        <SidebarGroupLabel className="hover:text-muted-foreground">
-          <ListTodo className="mr-1.5 !size-3.5" />
-          Task List
-        </SidebarGroupLabel>
-        <SidebarGroupContent>
-          <TaskItem isCompleted={true}>Task 1</TaskItem>
-          <TaskItem isCompleted={false}>Task 2</TaskItem>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      {/* Task List (Todos) - Only show if todos exist */}
+      {todos.length > 0 && (
+        <SidebarGroup>
+          <SidebarGroupLabel className="hover:text-muted-foreground">
+            <ListTodo className="mr-1.5 !size-3.5" />
+            Task List
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            {todos.map((todo) => {
+              const TodoIcon = todoStatusConfig[todo.status].icon;
+              const iconClass = todoStatusConfig[todo.status].className;
+              return (
+                <SidebarMenuItem key={todo.id}>
+                  <div
+                    className={cn(
+                      "h-8 text-sm px-2 gap-2 flex items-center",
+                      todo.status === "COMPLETED" &&
+                        "text-muted-foreground line-through"
+                    )}
+                  >
+                    <TodoIcon className={cn("size-4", iconClass)} />
+                    <span className="line-clamp-1 flex-1">{todo.content}</span>
+                  </div>
+                </SidebarMenuItem>
+              );
+            })}
+          </SidebarGroupContent>
+        </SidebarGroup>
+      )}
 
-      <SidebarGroup>
-        <SidebarGroupLabel className="hover:text-muted-foreground">
-          <FolderGit2 className="mr-1.5 !size-3.5" />
-          Modified Files
-        </SidebarGroupLabel>
-        <SidebarGroupContent>
-          {/* TODO: add file explorer like the agent environment's file tree here */}
-          <SidebarMenuItem>
-            <SidebarMenuButton className="justify-between">
-              <div className="flex w-full items-center gap-1.5">
-                <File className="size-4" />
-                <div className="line-clamp-1 flex-1">
-                  src/components/sidebar/index.tsx
-                </div>
-              </div>
-              {/* Like in VSCode, show a letter for the diff type: yellow M for modified, green A for added, red D for deleted */}
-              <span className="text-green-400">A</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      {/* Modified Files - Only show if file changes exist */}
+      {fileChanges.length > 0 && (
+        <SidebarGroup>
+          <SidebarGroupLabel className="hover:text-muted-foreground">
+            <FolderGit2 className="mr-1.5 !size-3.5" />
+            Modified Files ({diffStats.totalFiles})
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            {modifiedFileTree.map((node) => renderFileNode(node))}
+          </SidebarGroupContent>
+        </SidebarGroup>
+      )}
     </>
+  ) : (
+    <SidebarGroup>
+      <SidebarGroupLabel>Loading task...</SidebarGroupLabel>
+    </SidebarGroup>
   );
 
   return (
