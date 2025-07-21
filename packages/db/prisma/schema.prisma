@@ -80,11 +80,20 @@ model Task {
   status      TaskStatus @default(PENDING)
 
   // Git repo config
-  repoUrl String
-  branch  String @default("main")
+  repoUrl       String
+  branch        String  @default("main")
+  commitSha     String? // Track exact commit cloned
+  workspacePath String? // Store task-specific workspace path
+
+  // Simplified initialization tracking
+  initializationStatus InitializationStatus @default(PENDING)
+  currentInitStep      InitStepType?
 
   // Execution config
   mode TaskMode @default(FULL_AUTO)
+
+  // Cleanup tracking
+  workspaceCleanedUp Boolean @default(false)
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -220,6 +229,7 @@ model TaskSession {
 // Enums
 enum TaskStatus {
   PENDING
+  INITIALIZING
   QUEUED
   RUNNING
   COMPLETED
@@ -262,4 +272,20 @@ enum TodoStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum InitializationStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum InitStepType {
+  CLONE_REPOSITORY
+  PROVISION_MICROVM
+  SETUP_ENVIRONMENT
+  INSTALL_DEPENDENCIES
+  CONFIGURE_TOOLS
+  VALIDATE_SETUP
 }

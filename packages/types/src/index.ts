@@ -126,7 +126,8 @@ export interface StreamChunk {
     | "complete"
     | "error"
     | "tool-call"
-    | "tool-result";
+    | "tool-result"
+    | "init-progress";
 
   // For content chunks
   content?: string;
@@ -166,7 +167,43 @@ export interface StreamChunk {
     id: string;
     result: string;
   };
+
+  // For initialization progress
+  initProgress?: InitializationProgress;
 }
+
+// Initialization progress tracking
+export interface InitializationProgress {
+  type: "init-start" | "step-start" | "init-complete" | "init-error";
+  taskId: string;
+
+  // Current step info
+  currentStep?: InitStepType;
+  stepName?: string; // Human readable name
+  message?: string;
+
+  // Optional: simple progress
+  stepNumber?: number;
+  totalSteps?: number;
+
+  error?: string;
+}
+
+// Initialization step types
+export type InitStepType =
+  | "CLONE_REPOSITORY"
+  | "PROVISION_MICROVM"
+  | "SETUP_ENVIRONMENT"
+  | "INSTALL_DEPENDENCIES"
+  | "CONFIGURE_TOOLS"
+  | "VALIDATE_SETUP";
+
+// Initialization status
+export type InitializationStatus =
+  | "PENDING"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "FAILED";
 
 // === Tool Execution Status ===
 // This is specifically for tool execution status, separate from database TaskStatus

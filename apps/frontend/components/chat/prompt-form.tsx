@@ -71,10 +71,12 @@ export function PromptForm({
         return;
       }
 
+      const completeRepoUrl = `https://github.com/${repoUrl}`;
+
       const formData = new FormData();
       formData.append("message", message);
       formData.append("model", selectedModel);
-      formData.append("repoUrl", repoUrl);
+      formData.append("repoUrl", completeRepoUrl);
       formData.append("branch", branch);
 
       startTransition(async () => {

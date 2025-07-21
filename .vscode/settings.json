@@ -1,5 +1,6 @@
 {
   "files.exclude": {
-    "apps/server/dist/**": true
+    "apps/server/dist/**": true,
+    "apps/frontend/.next/**": true
   }
 }

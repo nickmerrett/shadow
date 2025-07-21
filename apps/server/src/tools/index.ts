@@ -1,13 +1,12 @@
 import { tool } from "ai";
 import { exec } from "child_process";
-import fs from "fs/promises";
-import path from "path";
+import * as fs from "fs/promises";
+import * as path from "path";
 import { promisify } from "util";
 import { z } from "zod";
 import config from "../config";
 import { prisma } from "@repo/db";
-
-const execAsync = promisify(exec);
+import { execAsync } from "../utils/exec";
 
 // Configuration flag for terminal command approval
 export const REQUIRE_TERMINAL_APPROVAL = false; // Set to true to require approval
@@ -23,7 +22,9 @@ const pendingCommands = new Map<
 >();
 
 // Factory function to create tools with task context
-export function createTools(taskId: string) {
+export function createTools(taskId: string, workspacePath?: string) {
+  // Use provided workspace path or fall back to global config
+  const toolWorkspacePath = workspacePath || config.workspaceDir;
   return {
     todo_write: tool({
       description:
@@ -147,18 +148,58 @@ export function createTools(taskId: string) {
           .describe("One sentence explanation as to why this tool is being used"),
       }),
       execute: async ({ query, target_directories = [], explanation }) => {
-        // For now, return a placeholder implementation
-        // In a real implementation, this would integrate with vector search/embeddings
-        console.log(`[CODEBASE_SEARCH] ${explanation}`);
-        console.log(
-          `Searching for: "${query}" in directories: ${target_directories.join(", ") || "all"}`
-        );
+        try {
+          console.log(`[CODEBASE_SEARCH] ${explanation}`);
+          console.log(
+            `Searching for: "${query}" in directories: ${target_directories.join(", ") || "all"}`
+          );
 
-        return {
-          success: true,
-          message: `Semantic search for "${query}" completed. This would normally return relevant code snippets.`,
-          results: [],
-        };
+          // Use ripgrep for a basic semantic-like search with multiple patterns
+          const searchTerms = query.split(' ').filter(term => term.length > 2);
+          const searchPattern = searchTerms.join('|');
+          
+          let searchPath = toolWorkspacePath;
+          if (target_directories.length > 0) {
+            // For now, just use the first directory
+            searchPath = path.resolve(toolWorkspacePath, target_directories[0] || '.');
+          }
+
+          // Use ripgrep with case-insensitive search and context
+          const command = `rg -i -C 3 --max-count 10 "${searchPattern}" "${searchPath}"`;
+          
+          try {
+            const { stdout } = await execAsync(command);
+            const results = stdout.trim().split('\n--\n').map((chunk, index) => ({
+              id: index + 1,
+              content: chunk.trim(),
+              relevance: 0.8, // Mock relevance score
+            })).filter(result => result.content.length > 0);
+
+            return {
+              success: true,
+              message: `Found ${results.length} relevant code snippets for "${query}"`,
+              results: results.slice(0, 5), // Limit to top 5 results
+              query,
+              searchTerms,
+            };
+          } catch (error) {
+            // If ripgrep fails (no matches), return empty results
+            return {
+              success: true,
+              message: `No relevant code found for "${query}"`,
+              results: [],
+              query,
+              searchTerms,
+            };
+          }
+        } catch (error) {
+          console.error(`[CODEBASE_SEARCH_ERROR]`, error);
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+            message: `Failed to search codebase for: ${query}`,
+          };
+        }
       },
     }),
 
@@ -191,7 +232,7 @@ export function createTools(taskId: string) {
         try {
           console.log(`[READ_FILE] ${explanation}`);
 
-          const filePath = path.resolve(config.workspaceDir, target_file);
+          const filePath = path.resolve(toolWorkspacePath, target_file);
           const content = await fs.readFile(filePath, "utf-8");
           const lines = content.split("\n");
 
@@ -266,7 +307,7 @@ export function createTools(taskId: string) {
 
         try {
           const options = {
-            cwd: config.workspaceDir,
+            cwd: toolWorkspacePath,
             timeout: is_background ? undefined : 30000, // 30 second timeout for non-background commands
           };
 
@@ -331,7 +372,7 @@ export function createTools(taskId: string) {
             normalizedPath = ".";
           }
 
-          const dirPath = path.resolve(config.workspaceDir, normalizedPath);
+          const dirPath = path.resolve(toolWorkspacePath, normalizedPath);
           console.log(`[LIST_DIR] Resolved path: ${dirPath}`);
           const entries = await fs.readdir(dirPath, { withFileTypes: true });
 
@@ -388,7 +429,7 @@ export function createTools(taskId: string) {
         try {
           console.log(`[GREP_SEARCH] ${explanation}`);
 
-          let command = `rg "${query}" "${config.workspaceDir}"`;
+          let command = `rg "${query}" "${toolWorkspacePath}"`;
 
           if (!case_sensitive) {
             command += " -i";
@@ -457,7 +498,7 @@ export function createTools(taskId: string) {
         try {
           console.log(`[EDIT_FILE] ${instructions}`);
 
-          const filePath = path.resolve(config.workspaceDir, target_file);
+          const filePath = path.resolve(toolWorkspacePath, target_file);
           const dirPath = path.dirname(filePath);
 
           // Ensure directory exists
@@ -529,7 +570,7 @@ export function createTools(taskId: string) {
         try {
           console.log(`[SEARCH_REPLACE] Replacing text in ${file_path}`);
 
-          const filePath = path.resolve(config.workspaceDir, file_path);
+          const filePath = path.resolve(toolWorkspacePath, file_path);
           const content = await fs.readFile(filePath, "utf-8");
 
           const occurrences = content.split(old_string).length - 1;
@@ -585,14 +626,14 @@ export function createTools(taskId: string) {
         try {
           console.log(`[FILE_SEARCH] ${explanation}`);
 
-          const command = `find "${config.workspaceDir}" -name "*${query}*" -type f | head -10`;
+          const command = `find "${toolWorkspacePath}" -name "*${query}*" -type f | head -10`;
           const { stdout } = await execAsync(command);
 
           const files = stdout
             .trim()
             .split("\n")
             .filter((line) => line.length > 0)
-            .map((file) => file.replace(config.workspaceDir + "/", ""));
+            .map((file) => file.replace(toolWorkspacePath + "/", ""));
 
           return {
             success: true,
@@ -624,7 +665,7 @@ export function createTools(taskId: string) {
         try {
           console.log(`[DELETE_FILE] ${explanation}`);
 
-          const filePath = path.resolve(config.workspaceDir, target_file);
+          const filePath = path.resolve(toolWorkspacePath, target_file);
           await fs.unlink(filePath);
 
           return {

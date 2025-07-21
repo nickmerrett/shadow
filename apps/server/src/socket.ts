@@ -128,6 +128,21 @@ export function emitStreamChunk(chunk: StreamChunk) {
       console.log(
         `\n📊 [USAGE] Tokens: ${chunk.usage.totalTokens} (${chunk.usage.promptTokens} prompt + ${chunk.usage.completionTokens} completion)`
       );
+    } else if (chunk.type === "init-progress" && chunk.initProgress) {
+      console.log(`\n🔄 [INIT] ${chunk.initProgress.message}`);
+      if (chunk.initProgress.currentStep) {
+        console.log(
+          `   Step: ${chunk.initProgress.stepName || chunk.initProgress.currentStep}`
+        );
+        if (chunk.initProgress.stepNumber && chunk.initProgress.totalSteps) {
+          console.log(
+            `   Progress: ${chunk.initProgress.stepNumber}/${chunk.initProgress.totalSteps}`
+          );
+        }
+      }
+      if (chunk.initProgress.error) {
+        console.log(`   Error: ${chunk.initProgress.error}`);
+      }
     } else if (chunk.type === "complete") {
       console.log(
         `\n\n✅ [COMPLETE] Finished with reason: ${chunk.finishReason}`
