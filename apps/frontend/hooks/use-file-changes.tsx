@@ -7,6 +7,8 @@ export interface FileChange {
   oldContent?: string;
   newContent?: string;
   diffPatch?: string;
+  additions: number;
+  deletions: number;
   createdAt: string;
 }
 
@@ -36,20 +38,11 @@ export function useDiffStats(taskId: string) {
   const { data: fileChanges = [] } = useFileChanges(taskId);
 
   const stats: DiffStats = fileChanges.reduce(
-    (acc, change) => {
-      if (change.diffPatch) {
-        // Parse git diff to count additions/deletions
-        const lines = change.diffPatch.split("\n");
-        lines.forEach((line) => {
-          if (line.startsWith("+") && !line.startsWith("+++")) {
-            acc.additions++;
-          } else if (line.startsWith("-") && !line.startsWith("---")) {
-            acc.deletions++;
-          }
-        });
-      }
-      return acc;
-    },
+    (acc, change) => ({
+      additions: acc.additions + change.additions,
+      deletions: acc.deletions + change.deletions,
+      totalFiles: acc.totalFiles,
+    }),
     { additions: 0, deletions: 0, totalFiles: fileChanges.length }
   );
 

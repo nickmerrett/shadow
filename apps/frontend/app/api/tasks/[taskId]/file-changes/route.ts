@@ -18,6 +18,8 @@ export async function GET(
         oldContent: true,
         newContent: true,
         diffPatch: true,
+        additions: true,
+        deletions: true,
         createdAt: true,
       },
     });
