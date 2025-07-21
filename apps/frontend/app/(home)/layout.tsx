@@ -1,7 +1,6 @@
 import { SidebarComponent } from "@/components/sidebar";
 import { getUser } from "@/lib/auth/get-user";
 import { getTasks } from "@/lib/db-operations/get-tasks";
-import "./globals.css";
 
 export default async function HomeLayout({
   children,
