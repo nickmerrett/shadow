@@ -150,12 +150,10 @@ export class ChatService {
     const history = await this.getChatHistory(taskId);
 
     // Prepare messages for LLM (exclude the user message we just saved to avoid duplication)
+    // Filter out tool messages since they're embedded in assistant messages as parts
     const messages: Message[] = history
       .slice(0, -1) // Remove the last message (the one we just saved)
-      .filter(
-        (msg) =>
-          msg.role === "user" || msg.role === "assistant" || msg.role === "tool"
-      )
+      .filter((msg) => msg.role === "user" || msg.role === "assistant")
       .concat([
         {
           id: randomUUID(),
