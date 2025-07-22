@@ -1,303 +1,311 @@
-import chalk from "chalk";
-import { config } from "dotenv";
-import fg from "fast-glob";
 import fs from "fs";
-import ignore from "ignore";
-import { OpenAI } from "openai";
 import path from "path";
-import readline from "readline";
+import glob from "fast-glob";
+import { OpenAI } from "openai";
+import chalk from "chalk";
+import { config } from "dotenv"
 
 config();
 
-/*────────── config you might tweak ─────────────────────────────────────────*/
+// ───────────── Config ───────────────────────────────────────────────────────
 const ROOT = path.resolve(process.argv[2] || ".");
-const OUT_DIR = path.join(ROOT, ".shadow");
-const MODEL = process.env.MODEL || "gpt-4o-mini";
+const OUT_DIR = path.join(ROOT, ".shadow", "tree");
+const MODEL = process.env.MODEL || "gpt-4o";
+const TEMP = 0.15;
 
-const FILES_PER_CHUNK = 12; // leaf prompt granularity
-const MAX_SNIPPET_CHARS = 600; // per‑file snippet
-const MAX_LEAF_CONTEXT = 7_000; // tokens (≈ chars) per leaf prompt
-const OVERVIEW_TOKENS = 160; // repo overview budget
-const SECTION_TOKENS = 160; // section budget
+const MAX_FILE_BYTES = 120_000;     // skip very large binaries
+const MAX_CHUNK_LINES = 110;        // lines per chunk sent to LLM
+const MAX_MSG_CHARS = 65_000;     // char cap for any single LLM request
+const FILE_SUM_TOKENS = 110;        // target tokens for one file summary
+const DIR_SUM_TOKENS = 180;        // per directory node
+const ROOT_SUM_TOKENS = 200;        // top-level overview
 
-// Only index files with these common extensions unless approved by the user at runtime
-const ALLOWED_EXT_REGEX = /\.(ts|tsx|js|jsx|json|md|txt|py|html?|css)$/i;
+// ───────────── Types ────────────────────────────────────────────────────────
+type NodeId = string;
 
-/*────────── tiny helpers ───────────────────────────────────────────────────*/
-const bold = (s: string) => chalk.bold.cyan(s);
-const pad4 = (n: number) => n.toString().padStart(4, " ");
-
-async function yesNo(q: string): Promise<boolean> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-  return new Promise((r) =>
-    rl.question(q + " (y/N) ", (a) => {
-      rl.close();
-      r(/^y(es)?$/i.test(a.trim()));
-    })
-  );
+interface TreeNode {
+  id: NodeId;
+  name: string;
+  absPath: string;
+  relPath: string;
+  level: number;             // 0 = repo root
+  children: NodeId[];
+  files: string[];           // file rel paths directly under this dir
+  summary_md?: string;
 }
 
-/*────────── OpenAI wrapper ─────────────────────────────────────────────────*/
+interface IndexFile {
+  root: NodeId;
+  nodes: Record<NodeId, TreeNode>;
+}
+
+// ───────────── Helpers ──────────────────────────────────────────────────────
+const bold = (s: string) => chalk.bold.cyan(s);
+const pad = (n: number, w = 4) => n.toString().padStart(w, " ");
+
 const openai = new OpenAI();
 
-async function chat(
-  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-  expectJson = false
-) {
+async function chat(messages: any[]): Promise<string> {
+  const size = JSON.stringify(messages).length;
+  if (size > MAX_MSG_CHARS)
+    throw new Error(`Prompt too large: ${size} > ${MAX_MSG_CHARS}`);
   const res = await openai.chat.completions.create({
     model: MODEL,
-    temperature: 0.2,
+    temperature: TEMP,
     messages,
-    ...(expectJson && { response_format: { type: "json_object" as const } }),
   });
   return res.choices[0]?.message?.content?.trim() || "";
 }
 
-/*────────── repo scanning utilities ────────────────────────────────────────*/
-interface FileMeta {
-  rel: string; // path relative to ROOT
-  snip: string; // line‑numbered snippet
-  deps: string[]; // relative import targets
+function ensureDir(p: string) { fs.mkdirSync(p, { recursive: true }); }
+
+function readGitignore(root: string): string[] {
+  const giPath = path.join(root, ".gitignore");
+  if (!fs.existsSync(giPath)) return [];
+  return fs
+    .readFileSync(giPath, "utf8")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#"));
 }
 
-function numberedSnippet(abs: string): string {
-  const srcBuf = fs.readFileSync(abs);
-  if (!srcBuf.length) return "";
-  const lines = srcBuf.toString("utf8").split(/\r?\n/);
-
-  const first = lines.slice(0, 15);
-  const midIdx = Math.floor(lines.length / 2);
-  const middle = lines.slice(Math.max(0, midIdx - 7), midIdx + 8);
-
-  const num = (chunk: string[], base: number) =>
-    chunk.map((l, i) => `${pad4(base + i)}│ ${l}`).join("\n");
-
-  let out = num(first, 1);
-  if (midIdx > 15) out += "\n…\n" + num(middle, midIdx - 6);
-  return out.slice(0, MAX_SNIPPET_CHARS);
-}
-
-function extractDeps(src: string): string[] {
-  const re =
-    /\bimport\s+(?:.+?\s+from\s+)?["']([^"']+)["']|require\(\s*["']([^"']+)["']\s*\)/g;
-  const deps: string[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(src))) {
-    const spec = (m[1] || m[2] || "").trim();
-    if (spec.startsWith(".")) deps.push(spec);
-  }
-  return deps;
-}
-
-/*────────── hierarchial summary engine ─────────────────────────────────────*/
-interface DirSum {
-  id: string;
-  md: string;
-}
-
-async function buildDeepWiki() {
-  console.log(bold(`📚 Indexing ${ROOT}`));
-
-  /* ── 1. honour .gitignore ───────────────────────────────────────────────*/
-  const ig = ignore();
-  ig.add([".git/", "node_modules/"]); // always ignore
-  const gitIgnoreFile = path.join(ROOT, ".gitignore");
-  if (fs.existsSync(gitIgnoreFile))
-    ig.add(fs.readFileSync(gitIgnoreFile, "utf8"));
-
-  // also honour nested .gitignore files within the repository
-  const nestedGitIgnores = await fg("**/.gitignore", {
-    cwd: ROOT,
-    dot: true,
-    absolute: true,
+function mergeIgnore(defaults: string[], gitignore: string[]): string[] {
+  // Convert .gitignore patterns to fast-glob style (most are the same)
+  // Add "**/" where necessary
+  const norm = gitignore.map((p) => {
+    if (p.startsWith("/")) p = p.slice(1);
+    if (!p.includes("/")) return `**/${p}`;
+    return p.endsWith("/") ? `${p}**` : p;
   });
-  for (const gi of nestedGitIgnores) {
-    if (gi === gitIgnoreFile) continue; // skip root which is already added
-    const dirRel = path.relative(ROOT, path.dirname(gi)).replace(/\\/g, "/");
-    const lines = fs
-      .readFileSync(gi, "utf8")
-      .split(/\r?\n/)
-      .filter((l) => l.trim() && !l.startsWith("#"))
-      .map((p) => path.posix.join(dirRel, p.trim()));
-    ig.add(lines);
-  }
-
-  const allFiles = await fg("**/*", { cwd: ROOT, dot: true, absolute: true });
-
-  const metas: FileMeta[] = [];
-  const importGraph: Record<string, string[]> = {};
-
-  for (const abs of allFiles) {
-    const rel = path.relative(ROOT, abs).replace(/\\/g, "/");
-    if (ig.ignores(rel) || fs.statSync(abs).isDirectory()) continue;
-
-    // enforce allowed extensions, ask for approval otherwise
-    if (!ALLOWED_EXT_REGEX.test(abs)) {
-      const ok = await yesNo(`❓  Index uncommon file '${rel}'?`);
-      if (!ok) continue;
-    }
-
-    const snip = numberedSnippet(abs);
-    const deps = /\.[jt]sx?$/.test(abs)
-      ? extractDeps(fs.readFileSync(abs, "utf8").slice(0, 20_000))
-      : [];
-
-    if (deps.length) importGraph[rel] = deps;
-    metas.push({ rel, snip, deps });
-  }
-
-  /* ── 2. leaf‑level summaries (≤ FILES_PER_CHUNK each) ──────────────────*/
-  // display list of files selected for indexing
-  console.log(bold(`📄 ${metas.length} files selected for indexing:`));
-  metas.forEach((m) => console.log(" •", m.rel));
-
-  const dirSums: Record<string, DirSum> = {};
-
-  async function summariseChunk(_dir: string, chunk: FileMeta[]) {
-    const ctx = chunk
-      .map((m) => `// ===== ${m.rel} =====\n${m.snip}`)
-      .join("\n\n")
-      .slice(0, MAX_LEAF_CONTEXT);
-
-    const relTxt =
-      chunk
-        .filter((m) => importGraph[m.rel])
-        .map((m) => `${m.rel} -> ${importGraph[m.rel]?.join(", ") || ""}`)
-        .join("\n") || "(no deps)";
-
-    const md = await chat([
-      {
-        role: "system",
-        content: `You are DeepWiki‑LLM. Summarise the following code chunk in ≤8 crisp bullets.
-Mention standout identifiers and import relations. Use wiki‑links [[file.ts]].`,
-      },
-      {
-        role: "user",
-        content: `\`\`\`txt\n${ctx}\n\`\`\`\n\n## RELATIONS\n\`\`\`txt\n${relTxt}\n\`\`\``,
-      },
-    ]);
-    return md.trim();
-  }
-
-  async function recurse(dirRel: string): Promise<DirSum> {
-    const absDir = path.join(ROOT, dirRel || ".");
-    const children = fs.readdirSync(absDir, { withFileTypes: true });
-
-    const localFiles = metas.filter((m) => path.dirname(m.rel) === dirRel);
-    const chunks: FileMeta[][] = [];
-    for (let i = 0; i < localFiles.length; i += FILES_PER_CHUNK)
-      chunks.push(localFiles.slice(i, i + FILES_PER_CHUNK));
-
-    const leafMd: string[] = [];
-    for (const ch of chunks)
-      if (ch.length) leafMd.push(await summariseChunk(dirRel, ch));
-
-    const subMd: string[] = [];
-    for (const child of children)
-      if (child.isDirectory()) {
-        const subDirRel = path.posix.join(dirRel, child.name);
-        subMd.push((await recurse(subDirRel)).md);
-      }
-
-    const md = [`### ${dirRel || "./"}`, ...leafMd, ...subMd].join("\n\n");
-
-    const id = (dirRel || "root").replace(/[\\/]/g, "_") || "root";
-    return (dirSums[dirRel] = { id, md });
-  }
-
-  await recurse(""); // build summaries bottom‑up
-
-  /* ── 3. repo‑wide overview & TOC from only dir summaries ────────────────*/
-  const dirsFlatMd = Object.values(dirSums)
-    .map((s) => `[[${s.id}]]\n${s.md}`)
-    .join("\n\n");
-
-  const tocJSON = await chat(
-    [
-      {
-        role: "system",
-        content: `You are DeepWiki-LLM. Craft: 
-  • overview_md (≤${OVERVIEW_TOKENS} tokens, start with a bullet diagram of subsystems)
-  • sections (array of {id,title,file_globs})  
-Respond **only** with JSON.`,
-      },
-      { role: "user", content: dirsFlatMd },
-    ],
-    true
-  );
-
-  let toc: {
-    overview_md: string;
-    sections: { id: string; title: string; file_globs: string }[];
-  };
-  try {
-    toc = JSON.parse(tocJSON);
-  } catch {
-    throw new Error("LLM returned bad JSON:\n" + tocJSON);
-  }
-
-  console.log(bold("📑 Sections"));
-  toc.sections.forEach((s, i) => console.log(`  ${i + 1}.`, s.title));
-  if (!(await yesNo("Generate wiki now?"))) return;
-
-  fs.mkdirSync(OUT_DIR, { recursive: true });
-  const nowISO = new Date().toISOString();
-
-  /* ── 4. write overview ──────────────────────────────────────────────────*/
-  fs.writeFileSync(
-    path.join(OUT_DIR, "00_OVERVIEW.md"),
-    `---\nid: overview\ntitle: Overview\ngenerated: ${nowISO}\nmodel: ${MODEL}\n---\n\n${toc.overview_md.trim()}\n`
-  );
-
-  /* ── 5. section pages ───────────────────────────────────────────────────*/
-  for (const sec of toc.sections) {
-    const globs = sec.file_globs.split(/[,;]/).map((s) => s.trim());
-    const rels = (await fg(globs, { cwd: ROOT, absolute: false })).map((f) =>
-      f.replace(/\\/g, "/")
-    );
-
-    /* compress context further: stitch directory summaries of matching files */
-    const ctx =
-      rels
-        .map((r) => dirSums[path.dirname(r)]?.md)
-        .filter(Boolean)
-        .join("\n\n") || "(no summary)";
-
-    const mdBody = await chat([
-      {
-        role: "system",
-        content: `DeepWiki‑LLM. Produce a section doc with YAML front‑matter.
-Headings:
-# ${sec.title}
-## Purpose  (≤2 bullets)
-## Architecture Highlights (≤4 bullets, reference deps / lines)
-## Key Snippets (• file: Lx‑Ly → summary)
-## Further Reading (omit if none)
-≤${SECTION_TOKENS} tokens, use [[wikilinks]].`,
-      },
-      { role: "user", content: ctx },
-    ]);
-
-    const fn = sec.id.replace(/[^a-z0-9\-]+/gi, "_").toLowerCase() + ".md";
-    fs.writeFileSync(
-      path.join(OUT_DIR, fn),
-      `---\nid:${sec.id}\ntitle:${sec.title}\ngenerated:${nowISO}\n---\n\n${mdBody.trim()}\n`
-    );
-    console.log("  ✍️ ", fn);
-  }
-
-  console.log(bold("\n🎉  DeepWiki ready in"), OUT_DIR);
+  return Array.from(new Set([...defaults, ...norm]));
 }
 
-/*────────── main entry (CJS‑safe) ──────────────────────────────────────────*/
-(async () => {
-  try {
-    await buildDeepWiki();
-  } catch (err) {
-    console.error(err);
+function readFileSafe(abs: string): string {
+  const buf = fs.readFileSync(abs);
+  if (buf.length === 0 || buf.length > MAX_FILE_BYTES) return "";
+  return buf.toString("utf8");
+}
+
+function chunkLines(src: string, maxLines = MAX_CHUNK_LINES): string[] {
+  const lines = src.split(/\r?\n/);
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i += maxLines) {
+    const slice = lines.slice(i, i + maxLines);
+    const numbered = slice.map((ln, idx) => `${pad(i + idx + 1)}│ ${ln}`);
+    out.push(numbered.join("\n"));
+  }
+  return out;
+}
+
+function toNodeId(rel: string): string {
+  return rel
+    .replace(/[^a-z0-9\/]+/gi, "_")
+    .replace(/[\/]+/g, "__")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase() || "root";
+}
+
+// ───────────── Tree Construction ────────────────────────────────────────────
+async function buildTree(ignoreGlobs: string[]): Promise<IndexFile> {
+  const entries = await glob("**/*", {
+    cwd: ROOT,
+    absolute: true,
+    dot: true,
+    ignore: ignoreGlobs,
+  });
+
+  const files = entries.filter((p) => fs.statSync(p).isFile());
+  const nodes: Record<NodeId, TreeNode> = {};
+
+  const rootNode: TreeNode = {
+    id: "root",
+    name: path.basename(ROOT),
+    absPath: ROOT,
+    relPath: ".",
+    level: 0,
+    children: [],
+    files: [],
+  };
+  nodes[rootNode.id] = rootNode;
+
+  for (const abs of files) {
+    const rel = path.relative(ROOT, abs);
+    const parts = rel.split(path.sep);
+    let curPath = ".";
+    let parentId = "root";
+    for (let depth = 0; depth < parts.length - 1; depth++) {
+      curPath = path.join(curPath, parts[depth]!);
+      const nid = toNodeId(curPath);
+      if (!nodes[nid]) {
+        nodes[nid] = {
+          id: nid,
+          name: parts[depth]!,
+          absPath: path.join(ROOT, curPath),
+          relPath: curPath,
+          level: depth + 1,
+          children: [],
+          files: [],
+        };
+        nodes[parentId]!.children.push(nid);
+      }
+      parentId = nid;
+    }
+    nodes[parentId]!.files.push(rel);
+  }
+  return { root: "root", nodes };
+}
+
+// ───────────── Summarizers ──────────────────────────────────────────────────
+async function summarizeFile(rel: string): Promise<string> {
+  const abs = path.join(ROOT, rel);
+  const src = readFileSafe(abs);
+  if (!src) return "_(skipped/empty)_";
+
+  const chunks = chunkLines(src);
+  const chunkSums: string[] = [];
+  for (const c of chunks) {
+    const msg = [
+      {
+        role: "system",
+        content:
+          `Summarize code chunk in ≤45 tokens. High value:token ratio. ` +
+          `Use bullets. Include precise line ranges (e.g., L12–34). No fluff.`,
+      },
+      { role: "user", content: "```txt\n" + c + "\n```" },
+    ];
+    const sum = await chat(msg);
+    chunkSums.push(sum);
+  }
+
+  const joined = chunkSums.join("\n\n");
+  const compressMsg = [
+    {
+      role: "system",
+      content:
+        `Compress to ≤${FILE_SUM_TOKENS} tokens. Preserve identifiers + line spans. ` +
+        `Output bullets only.`,
+    },
+    { role: "user", content: joined },
+  ];
+  return await chat(compressMsg);
+}
+
+async function summarizeDir(_node: TreeNode, childBlocks: string[]): Promise<string> {
+  const msg = [
+    {
+      role: "system",
+      content:
+        `Write DeepWiki doc for a module/folder. ≤${DIR_SUM_TOKENS} tokens. ` +
+        `No filler. Write highly meaningful but also concise analysis of the code, architecture, etc.`
+    },
+    { role: "user", content: childBlocks.join("\n\n---\n\n") },
+  ];
+  return await chat(msg);
+}
+
+async function summarizeRoot(node: TreeNode, topBlocks: string[]): Promise<string> {
+  const msg = [
+    {
+      role: "system",
+      content:
+        `DeepWiki top-level overview for ${node.name}. ≤${ROOT_SUM_TOKENS} tokens. Start with a bullet diagram of subsystems.` +
+        `Use [[wikilinks]]. Highlight data flow, core abstractions, and terminology.`,
+    },
+    { role: "user", content: topBlocks.join("\n\n---\n\n") },
+  ];
+  return await chat(msg);
+}
+
+// ───────────── Main Orchestration ───────────────────────────────────────────
+async function run() {
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("OPENAI_API_KEY env var not set");
     process.exit(1);
   }
-})();
+
+  const defaultsIgnore = [
+    "**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**",
+    "**/*.png", "**/*.jpg", "**/*.jpeg", "**/*.gif", "**/*.svg", "**/*.ico",
+    "**/*.lock", "**/*.min.*", "**/*.map", "**/*.woff*", "**/*.eot",
+    "**/*.class", "**/*.exe", "**/__pycache__/**"
+  ];
+  const gi = readGitignore(ROOT);
+  const ignoreGlobs = mergeIgnore(defaultsIgnore, gi);
+
+  console.log(bold("📦 Building tree with .gitignore…"));
+  const index = await buildTree(ignoreGlobs);
+
+  ensureDir(OUT_DIR);
+
+  // 1) File summaries
+  const fileSumCache: Record<string, string> = {};
+  for (const nodeId in index.nodes) {
+    const node = index.nodes[nodeId]!;
+    for (const rel of node.files) {
+      console.log(bold(`📝 File: ${rel}`));
+      try {
+        fileSumCache[rel] = await summarizeFile(rel);
+      } catch (e) {
+        console.error("  ↪ summary failed:", rel, e);
+        fileSumCache[rel] = "_(summary failed)_";
+      }
+    }
+  }
+
+  // 2) Directory summaries (post-order)
+  const idsByDepthDesc = Object.keys(index.nodes).sort(
+    (a, b) => index.nodes[b]!.level - index.nodes[a]!.level
+  );
+
+  for (const nid of idsByDepthDesc) {
+    if (nid === "root") continue;
+    const node = index.nodes[nid]!;
+
+    const childBlocks: string[] = [];
+    node.children.forEach((cid) => {
+      const c = index.nodes[cid]!;
+      childBlocks.push(`[[${c.id}]]\n${c.summary_md || "_missing_"}`);
+    });
+    node.files.forEach((f) => {
+      childBlocks.push(`${f}\n${fileSumCache[f]}`);
+    });
+
+    try {
+      node.summary_md = await summarizeDir(node, [childBlocks.join("\n\n")]);
+    } catch (e) {
+      console.error("Dir summary failed:", node.relPath, e);
+      node.summary_md = "_(summary failed)_";
+    }
+
+    const front = `---\nid: ${node.id}\ntitle: ${node.name}\nlevel: ${node.level}\n---\n\n`;
+    fs.writeFileSync(path.join(OUT_DIR, `${node.id}.md`), front + node.summary_md + "\n");
+    console.log(bold(`✅ Dir: ${node.relPath}`));
+  }
+
+  // 3) Root summary
+  const root = index.nodes[index.root]!;
+  const topBlocks = root.children.map((cid) => {
+    const c = index.nodes[cid]!;
+    return `[[${c.id}]]\n${c.summary_md || "_missing_"}`;
+  });
+
+  try {
+    root.summary_md = await summarizeRoot(root, topBlocks);
+  } catch (e) {
+    console.error("Root summary failed:", e);
+    root.summary_md = "_(summary failed)_";
+  }
+  const rootFront = `---\nid: ${root.id}\ntitle: ${root.name}\nlevel: 0\n---\n\n`;
+  fs.writeFileSync(path.join(OUT_DIR, "00_OVERVIEW.md"), rootFront + root.summary_md + "\n");
+
+  // 4) Save index
+  fs.writeFileSync(path.join(OUT_DIR, "index.json"), JSON.stringify(index, null, 2));
+
+  console.log(bold("\n🎉 DeepWiki tree generated at"), OUT_DIR);
+}
+
+// ───────────── Execute ──────────────────────────────────────────────────────
+run().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
