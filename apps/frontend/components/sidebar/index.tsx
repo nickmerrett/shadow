@@ -3,11 +3,14 @@
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
-  SidebarMenu,
-  SidebarMenuItem,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useTasks } from "@/hooks/use-tasks";
 import { FileChange, Task, Todo } from "@repo/db";
 import {
@@ -19,10 +22,9 @@ import {
   Play,
   XCircle,
 } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { UserMenu } from "../auth/user-menu";
+import { useEffect, useRef, useState } from "react";
 import { SidebarAgentView } from "./agent-view";
+import { SidebarNavigation } from "./navigation";
 import { SidebarTasksView } from "./tasks-view";
 
 export const statusOrder = {
@@ -48,7 +50,9 @@ export const statusColorsConfig = {
   CANCELLED: { icon: AlertTriangle, className: "text-gray-500" },
 };
 
-export function SidebarComponent({
+export type SidebarView = "tasks" | "agent";
+
+export function SidebarViews({
   initialTasks,
   currentTask,
 }: {
@@ -61,36 +65,59 @@ export function SidebarComponent({
 }) {
   const { data: tasks, isLoading: loading, error } = useTasks(initialTasks);
 
+  const [sidebarView, setSidebarView] = useState<SidebarView>(
+    currentTask ? "agent" : "tasks"
+  );
+
+  // Initial render trick to avoid hydration issues on navigation
+  const isInitialRender = useRef(true);
+
+  useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      return;
+    }
+    if (currentTask) {
+      setSidebarView("agent");
+    } else {
+      setSidebarView("tasks");
+    }
+  }, [currentTask]);
+
   return (
-    <Sidebar>
-      <SidebarContent>
-        <SidebarGroup>
-          <Link
-            href="/"
-            className="flex size-9 items-center justify-center"
-            aria-label="Home"
-          >
-            <Image src="/shadow.svg" alt="Logo" width={22} height={22} />
-          </Link>
-        </SidebarGroup>
-        <div className="mt-6 flex flex-col gap-4">
-          {currentTask ? (
-            <SidebarAgentView
-              taskId={currentTask.taskData.id}
-              currentTask={currentTask}
-            />
-          ) : (
-            <SidebarTasksView tasks={tasks} loading={loading} error={error} />
-          )}
-        </div>
-      </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <UserMenu />
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-    </Sidebar>
+    <div className="flex">
+      <SidebarNavigation
+        doesCurrentTaskExist={!!currentTask}
+        sidebarView={sidebarView}
+        setSidebarView={setSidebarView}
+      />
+      <Sidebar>
+        <SidebarContent>
+          <SidebarGroup className="flex h-7 flex-row items-center justify-between">
+            <div className="font-medium">
+              {sidebarView === "tasks" ? "Tasks" : "Agent Environment"}
+            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SidebarTrigger className="hover:bg-sidebar-accent" />
+              </TooltipTrigger>
+              <TooltipContent side="right" shortcut="⌘B">
+                Toggle Sidebar
+              </TooltipContent>
+            </Tooltip>
+          </SidebarGroup>
+          <div className="mt-6 flex flex-col gap-4">
+            {currentTask && sidebarView === "agent" ? (
+              <SidebarAgentView
+                taskId={currentTask.taskData.id}
+                currentTask={currentTask}
+              />
+            ) : (
+              <SidebarTasksView tasks={tasks} loading={loading} error={error} />
+            )}
+          </div>
+        </SidebarContent>
+      </Sidebar>
+    </div>
   );
 }

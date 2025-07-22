@@ -1,4 +1,4 @@
-import { SidebarComponent } from "@/components/sidebar";
+import { SidebarViews } from "@/components/sidebar";
 import { getUser } from "@/lib/auth/get-user";
 import { getTasks } from "@/lib/db-operations/get-tasks";
 
@@ -12,7 +12,7 @@ export default async function HomeLayout({
 
   return (
     <>
-      <SidebarComponent initialTasks={initialTasks} currentTask={null} />
+      <SidebarViews initialTasks={initialTasks} currentTask={null} />
       {children}
     </>
   );
