@@ -16,19 +16,19 @@ Cline implements intelligent context optimizations by identifying and replacing 
 
 Cline implements Long Term Memory through persistent disk storage for each task. The system saves:
 
-- API conversation history 
-- UI messages 
-- Task metadata 
-- Context history updates 
+- API conversation history
+- UI messages
+- Task metadata
+- Context history updates
 
 ### Memory Bank Pattern
 
 Cline supports a structured "Memory Bank" approach for maintaining context across sessions. This system uses organized markdown files to preserve project knowledge:
 
-- `projectbrief.md` for foundation and requirements 
-- `activeContext.md` for current work focus and recent changes 
-- `systemPatterns.md` for architecture and technical decisions 
-- Additional context files as needed 
+- `projectbrief.md` for foundation and requirements
+- `activeContext.md` for current work focus and recent changes
+- `systemPatterns.md` for architecture and technical decisions
+- Additional context files as needed
 
 ### New Task Tool for Context Continuity
 

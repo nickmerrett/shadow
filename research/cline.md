@@ -1,4 +1,3 @@
-
 - Cline has a plan mode and act mode
 - ApiHandler interface gets OpenAI, Anthropic, Cline and OpenRouter APIs
 - ToolExecutor uses MCP to execute tools
@@ -10,6 +9,7 @@
 - Chat History Abstraction is needed
 
 Key file operation tools include:
+
 - read_file supports extracting content, including from PDFs and DOCX
 - write_to_file handles full file creation or replacement
 - replace_in_file does targeted edits using search/replace blocks

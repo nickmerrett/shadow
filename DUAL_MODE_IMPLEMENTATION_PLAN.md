@@ -204,14 +204,14 @@ interface ToolExecutor {
   // Search operations
   searchFiles(
     query: string,
-    options?: SearchOptions
+    options?: SearchOptions,
   ): Promise<FileSearchResult>;
   grepSearch(pattern: string, options?: GrepOptions): Promise<GrepResult>;
 
   // Command execution
   executeCommand(
     command: string,
-    options?: CommandOptions
+    options?: CommandOptions,
   ): Promise<CommandResult>;
 
   // Workspace management

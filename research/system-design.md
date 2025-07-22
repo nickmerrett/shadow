@@ -96,7 +96,6 @@ Each task pod uses a **sidecar container pattern** to interface with the isolate
 - **Main Container (MicroVM Runner):** This container launches the Firecracker **microVM** process (using the Firecracker API or a wrapper script). The microVM boots a lightweight guest OS (e.g., an Alpine or Ubuntu image) which contains the development tools, the user’s code, and possibly an agent runtime. The microVM provides a _virtual hardware environment_ (CPU, memory, minimal devices) that is heavily sandboxed from the host. Firecracker’s companion **jailer** process is used to lock down the microVM’s permissions — for example, by chrooting into a dedicated folder and dropping privileges, so the microVM cannot see the host file system at all. This ensures that even if the code running inside the VM is malicious or crashes, it cannot escape or affect other tasks.
 
 - **Sidecar Container:** The sidecar is a regular Kubernetes container that runs alongside the microVM process in the same pod. Its job is to **bridge communication** between the isolated VM and the outside world. Because the microVM is jailed and cannot directly access the host or network easily, the sidecar provides controlled channels for I/O:
-
   - _File System Bridge:_ The sidecar mounts a shared **EFS volume** (Network File System) at a known mount point (say `/workspace`) and also makes that available to the microVM (more on this in the Storage section). This allows the sidecar to see any files the microVM creates or modifies, and vice versa, enabling file synchronization without breaking isolation.
   - _Terminal and I/O:_ The sidecar attaches to Firecracker’s **serial console** (ttyS0). Firecracker outputs all guest console logs to its stdout, which the sidecar can capture. The sidecar also can send input to the guest by writing to the serial interface. In practice, this means the sidecar can **feed commands** into the microVM’s terminal and **read output** from it. This mechanism is used to implement the live terminal feature.
   - _Networking (Optional):_ If the microVM needs network access (for example, to reach the Claude API or to install packages), the sidecar might set up a network interface (e.g., using a TAP device and NAT). Alternatively, the sidecar can proxy specific requests. (If internet access is disabled for security, the microVM could still perform offline tasks on the codebase, and only the sidecar/backend handle external calls.)
@@ -121,7 +120,6 @@ In summary, this design provides a **real-time terminal** experience with **no f
 We use a combination of Amazon EFS and S3 to handle storage needs, leveraging each for its strengths:
 
 - **EFS (Elastic File System):** EFS is a managed NFS that can be mounted across multiple instances/pods. In our design, the EFS volume is mounted on the **sidecar container** (and potentially on the host or backend server as well) at a path like `/mnt/workspaces/<taskId>`. This same mount is shared with the microVM as its **project workspace**. For example, the microVM guest OS might mount an NFS share (pointing to the EFS) at `/workspace`. All code files, editor changes, compilations outputs, etc., will be stored on this shared volume. This setup has several advantages:
-
   - The backend (outside the pod) can read/write the workspace files in real time if needed, since it can also mount or access the same EFS path. This is useful for features like showing diffs in the UI, indexing the code for search, or simply letting the user download files from the UI. It also means if the agent requests a file from the repository, the backend could directly read it from EFS instead of going through the VM.
   - Multiple pods (if needed) could access common data. For instance, if we cache a copy of popular git repositories or large language model indexes on EFS, new tasks can mount that and avoid re-downloading everything. The research notes suggest using EFS for **shared build caches** and dependencies across tasks.
   - EFS provides persistence during the task’s life: if the microVM reboots or the sidecar restarts, the data isn't lost since it's on network storage. (However, we might treat each task as ephemeral and still copy data out at the end.)
@@ -130,7 +128,6 @@ We use a combination of Amazon EFS and S3 to handle storage needs, leveraging ea
 - **MicroVM Root Filesystem:** It’s important to note that the microVM’s **root filesystem** is separate from the workspace. Each microVM boots from a disk image (a file) that contains the OS and base tools. This image could be stored on an S3 bucket or baked into the container image that runs Firecracker. The Firecracker API will attach it as a read-write block device for the VM. We might use a lightweight Linux distro with pre-installed compilers, debuggers, and the agent code. The workspace (EFS) might be attached as a secondary disk or via an NFS mount inside the VM. The Firecracker testing framework demonstrates how each microVM can be configured with a rootfs file for the OS.
 
 - **S3 (Simple Storage Service):** S3 is used for **long-term storage and artifacts**. While a task is running, we prefer the low-latency, POSIX compliance of EFS. But once a task completes, we don’t want stale data lingering in our EFS (which might be limited in size or costlier for large volumes). The sidecar or backend will upload important results to S3 at task completion. This could include:
-
   - Final artifacts like built binaries, zip files, or reports generated by the code.
   - Logs of the session (conversation, actions, and console output) for auditing or debugging.
   - The diff or full state of the repository if the user wants to review the changes later or download them.
@@ -168,7 +165,6 @@ To tie everything together, here’s how a typical task might execute step by st
 
 1. **User Starts a Task:** The user fills the form (repo + instructions) on the frontend and submits. The browser sends a request to `POST /api/tasks` on the Next.js backend.
 2. **Pod Launch:** The backend service receives the request, records a new task entry in a database (for tracking), and calls the Kubernetes API to create a new pod for this task. The pod definition includes:
-
    - The main container with the Firecracker binary (and the prepared VM image ready to boot).
    - The sidecar container with the bridging software.
    - A volume mount for EFS (e.g., mounted into the sidecar at `/mnt/workspace` and made available to the microVM).
@@ -179,7 +175,6 @@ To tie everything together, here’s how a typical task might execute step by st
 5. **Agent Startup:** Inside the microVM, we automatically start the agent controller process (this could be a Python script or Node app that is the “brain”). It connects to the Claude API and perhaps also opens a connection to the sidecar (depending on design) or simply writes to stdout for any logging/communication.
 6. **Handshake:** The sidecar detects that the VM is up (for instance, reading a special message on the console or waiting a few seconds). It then establishes a WebSocket connection to the backend to announce “Task ready” and begins forwarding the VM’s console output. The backend in turn notifies the frontend that the task has started and the terminal stream is available.
 7. **Task Execution:** Now the agent (Claude-driven) is performing the coding task:
-
    - It may output a message like “Cloning repository and analyzing code...” which, if printed to stdout, gets relayed to the user via the sidecar and backend WebSocket.
    - It reads files from `/workspace` (the repo) to understand the context. If a code indexing service is available, the backend might have pre-computed some vectors or summaries for the repo which it provides to the agent.
    - The agent sends a prompt to Claude through the AnthropIC API (this call could be made by the backend or by the agent in-VM). Claude responds with instructions or code.
@@ -190,7 +185,6 @@ To tie everything together, here’s how a typical task might execute step by st
 
 8. **User Interaction:** If at some point the agent asks the user a question (say it’s unsure about a requirement or needs confirmation to proceed with a potentially destructive change), the system will wait. The question appears in the UI via the streamed messages. The user can then type a reply. That reply goes to the backend, which forwards it to either the agent (in-VM) or directly into the next Claude prompt. The agent then continues based on the user’s input.
 9. **Completion:** When the agent declares the task done (or the user stops it), the backend will begin termination:
-
    - It instructs the agent (if external) to end the loop. If internal, the agent process exits.
    - The sidecar might wait for a signal that no more output is coming, then finalize any pending file writes.
    - The sidecar/backend uploads the final results to S3: e.g., the final patch or entire updated repository, plus logs of the session if needed.

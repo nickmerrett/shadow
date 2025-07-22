@@ -21,13 +21,13 @@ This directory contains the core logic for Shadow's code indexing, embedding, an
 
 ### Key Components
 
-*   `indexer.ts`: Orchestrates the entire indexing pipeline, from cloning the repo to building the graph and writing the final data.
-*   `graph.ts`: Defines the core data structures (`Graph`, `GraphNode`, `GraphEdge`) for representing the codebase as a graph.
-*   `chunker.ts`: Implements the logic for splitting code nodes into smaller chunks for embedding.
-*   `embedder.ts`: Manages the process of generating vector embeddings for code chunks.
-*   `retrieval.ts`: Provides the interface for querying the indexed data.
-*   `languages.ts`: Contains language-specific configurations, like tree-sitter parsers and symbol extraction queries.
-*   `extractors/`: Logic for extracting symbols and structure from different file types using tree-sitter.
-*   `embedding/`: Abstractions for different embedding providers and services like Pinecone.
+- `indexer.ts`: Orchestrates the entire indexing pipeline, from cloning the repo to building the graph and writing the final data.
+- `graph.ts`: Defines the core data structures (`Graph`, `GraphNode`, `GraphEdge`) for representing the codebase as a graph.
+- `chunker.ts`: Implements the logic for splitting code nodes into smaller chunks for embedding.
+- `embedder.ts`: Manages the process of generating vector embeddings for code chunks.
+- `retrieval.ts`: Provides the interface for querying the indexed data.
+- `languages.ts`: Contains language-specific configurations, like tree-sitter parsers and symbol extraction queries.
+- `extractors/`: Logic for extracting symbols and structure from different file types using tree-sitter.
+- `embedding/`: Abstractions for different embedding providers and services like Pinecone.
 
 This system effectively creates a "semantic search" engine for a given codebase, empowering the agent to understand and navigate code with high precision.

@@ -1,6 +1,7 @@
 Based on their security post
 
 File Hashing
+
 - Compute hash of file + store in Merkle Tree
 - Should be able to determine which files stayed the same quickly
 
