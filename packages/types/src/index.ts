@@ -16,7 +16,15 @@ export interface ToolCallPart {
   args: Record<string, any>;
 }
 
-export type AssistantMessagePart = TextPart | ToolCallPart;
+export interface ToolResultPart {
+  type: "tool-result";
+  toolCallId: string;
+  toolName: string;
+  result: unknown;
+  isError?: boolean;
+}
+
+export type AssistantMessagePart = TextPart | ToolCallPart | ToolResultPart;
 
 export interface BaseMessage {
   id: string;

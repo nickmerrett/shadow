@@ -1,5 +1,5 @@
 import { db } from "@repo/db";
-import type { Message } from "@repo/types";
+import { type Message } from "@repo/types";
 
 export async function getTaskMessages(taskId: string): Promise<Message[]> {
   try {

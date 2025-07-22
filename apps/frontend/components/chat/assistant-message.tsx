@@ -42,10 +42,24 @@ export function AssistantMessage({ message }: { message: Message }) {
     return null;
   }
 
+  const toolResultsMap = new Map<
+    string,
+    { result: unknown; toolName: string }
+  >();
+  message.metadata.parts.forEach((part) => {
+    if (part.type === "tool-result") {
+      toolResultsMap.set(part.toolCallId, {
+        result: part.result,
+        toolName: part.toolName,
+      });
+    }
+  });
+
   // Group consecutive text parts together for better rendering
   const groupedParts: Array<
     | { type: "text"; text: string }
     | { type: "tool-call"; part: any; index: number }
+    | { type: "tool-result"; part: any; index: number }
   > = [];
   let currentTextGroup = "";
 
@@ -59,7 +73,11 @@ export function AssistantMessage({ message }: { message: Message }) {
         currentTextGroup = "";
       }
       // Add the non-text part
-      groupedParts.push({ type: "tool-call", part, index });
+      if (part.type === "tool-call") {
+        groupedParts.push({ type: "tool-call", part, index });
+      } else if (part.type === "tool-result") {
+        groupedParts.push({ type: "tool-result", part, index });
+      }
     }
   });
 
@@ -84,6 +102,8 @@ export function AssistantMessage({ message }: { message: Message }) {
 
         if (group.type === "tool-call") {
           const part = group.part;
+          const toolResult = toolResultsMap.get(part.toolCallId);
+
           // Create a proper tool message for rendering
           const toolMessage: Message = {
             id: `${message.id}-tool-${part.toolCallId}`,
@@ -95,7 +115,7 @@ export function AssistantMessage({ message }: { message: Message }) {
                 name: part.toolName,
                 args: part.args,
                 status: "COMPLETED",
-                result: undefined,
+                result: toolResult?.result,
               },
             },
           };
@@ -105,6 +125,11 @@ export function AssistantMessage({ message }: { message: Message }) {
               <ToolMessage message={toolMessage} />
             </div>
           );
+        }
+
+        // Skip standalone tool-result parts since they're handled with tool-call parts
+        if (group.type === "tool-result") {
+          return null;
         }
 
         return null;

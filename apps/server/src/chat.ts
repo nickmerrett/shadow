@@ -6,6 +6,7 @@ import {
   ModelType,
   TextPart,
   ToolCallPart,
+  ToolResultPart,
 } from "@repo/types";
 import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../packages/db/src/client";
@@ -299,6 +300,45 @@ export class ChatService {
 
         // Update tool results when they complete
         if (chunk.type === "tool-result" && chunk.toolResult) {
+          // Add tool result part to assistant message
+          const toolResultPart: ToolResultPart = {
+            type: "tool-result",
+            toolCallId: chunk.toolResult.id,
+            toolName: "", // We'll need to find the tool name from the corresponding call
+            result: chunk.toolResult.result,
+          };
+
+          // Find the corresponding tool call to get the tool name
+          const correspondingCall = assistantParts.find(
+            (part) =>
+              part.type === "tool-call" &&
+              part.toolCallId === chunk.toolResult!.id
+          );
+          if (correspondingCall && correspondingCall.type === "tool-call") {
+            toolResultPart.toolName = correspondingCall.toolName;
+          }
+
+          assistantParts.push(toolResultPart);
+
+          // Update assistant message with tool result part
+          if (assistantMessageId) {
+            const fullContent = assistantParts
+              .filter((part) => part.type === "text")
+              .map((part) => (part as TextPart).text)
+              .join("");
+
+            await prisma.chatMessage.update({
+              where: { id: assistantMessageId },
+              data: {
+                content: fullContent,
+                metadata: {
+                  isStreaming: true,
+                  parts: assistantParts,
+                } as any,
+              },
+            });
+          }
+
           const toolSequence = toolCallSequences.get(chunk.toolResult.id);
           if (toolSequence !== undefined) {
             // Find and update the tool message with the result
