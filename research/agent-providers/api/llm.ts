@@ -3,6 +3,9 @@ import { APIStream } from "./stream";
 import { Anthropic } from "@anthropic-ai/sdk";
 
 export interface APIHandler {
-    createMessage(systemPrompt: string, messages: Anthropic.Messages.MessageParam[]): APIStream;
-    getModel(): LLM;
+  createMessage(
+    systemPrompt: string,
+    messages: Anthropic.Messages.MessageParam[],
+  ): APIStream;
+  getModel(): LLM;
 }
