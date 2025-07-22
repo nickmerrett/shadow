@@ -496,13 +496,12 @@ export class ChatService {
     this.stopRequested.add(taskId);
 
     console.log(`[CHAT] Stopping stream for task ${taskId}`);
-    
+
     const abortController = this.activeStreams.get(taskId);
     if (abortController) {
       abortController.abort();
       this.activeStreams.delete(taskId);
       console.log(`[CHAT] Stream stopped for task ${taskId}`);
     }
-
   }
 }
