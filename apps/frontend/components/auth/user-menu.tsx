@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth/auth-client";
-import { LogOut, Settings, User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthSession } from "./session-provider";
 
@@ -42,10 +41,7 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="hover:bg-sidebar-accent h-10 w-full justify-start font-normal"
-        >
+        <button className="bg-sidebar-accent size-7 cursor-pointer rounded-full transition-opacity hover:opacity-80">
           {session.user.image ? (
             <img
               src={session.user.image}
@@ -55,15 +51,15 @@ export function UserMenu() {
           ) : (
             <User className="size-4" />
           )}
-          <span>{session.user.name}</span>
-        </Button>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
+        align="start"
         sideOffset={8}
-        className="bg-sidebar-accent border-sidebar-border w-[var(--radix-dropdown-menu-trigger-width)]"
+        className="bg-sidebar-accent border-sidebar-border rounded-lg p-1"
       >
-        <div className="flex items-center justify-start gap-2 p-2">
-          <div className="flex flex-col space-y-1 leading-none">
+        <div className="flex items-center justify-start gap-2 p-1">
+          <div className="flex flex-col">
             {session.user.name && (
               <p className="text-sm font-medium">{session.user.name}</p>
             )}
@@ -74,19 +70,10 @@ export function UserMenu() {
         </div>
         <DropdownMenuSeparator className="bg-sidebar-border" />
         <DropdownMenuItem
-          onClick={() => {
-            router.push("/settings");
-          }}
-          className="hover:bg-sidebar-border! cursor-pointer transition-colors"
-        >
-          <Settings className="size-3.5" />
-          Settings
-        </DropdownMenuItem>
-        <DropdownMenuItem
           onClick={handleSignOut}
-          className="hover:bg-sidebar-border! cursor-pointer transition-colors"
+          className="hover:bg-sidebar-border! text-destructive hover:text-destructive! cursor-pointer transition-colors"
         >
-          <LogOut className="size-3.5" />
+          <LogOut className="text-destructive size-3.5" />
           Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>

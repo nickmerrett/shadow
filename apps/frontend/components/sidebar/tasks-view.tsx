@@ -7,9 +7,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Task } from "@repo/db";
 import { ChevronDown, Folder, GitBranch } from "lucide-react";
-import Link from "next/link";
 import { statusColorsConfig, statusOrder } from ".";
-import { Button } from "../ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -61,14 +59,6 @@ export function SidebarTasksView({
 
   return (
     <>
-      <SidebarGroup className="gap-4">
-        <SidebarGroupContent>
-          <Button asChild className="w-full">
-            <Link href="/">New Task</Link>
-          </Button>
-        </SidebarGroupContent>
-      </SidebarGroup>
-
       {loading && (
         <SidebarGroup>
           <SidebarGroupLabel>Loading tasks...</SidebarGroupLabel>
