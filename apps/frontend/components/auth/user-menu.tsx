@@ -77,14 +77,14 @@ export function UserMenu() {
           onClick={() => {
             router.push("/settings");
           }}
-          className="hover:bg-sidebar-border! transition-colors"
+          className="hover:bg-sidebar-border! transition-colors cursor-pointer"
         >
           <Settings className="size-3.5" />
           Settings
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={handleSignOut}
-          className="hover:bg-sidebar-border! transition-colors"
+          className="hover:bg-sidebar-border! transition-colors cursor-pointer"
         >
           <LogOut className="size-3.5" />
           Sign Out
