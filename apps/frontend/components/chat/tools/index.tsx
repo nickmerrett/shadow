@@ -12,6 +12,9 @@ import { RunTerminalCmdTool } from "./run-terminal-cmd";
 import { SearchReplaceTool } from "./search-replace";
 import { TodoWriteTool } from "./todo-write";
 
+// Export ToolType enum
+export { ToolType } from "./collapsible-tool";
+
 // Tool component registry
 const TOOL_COMPONENTS = {
   todo_write: TodoWriteTool,

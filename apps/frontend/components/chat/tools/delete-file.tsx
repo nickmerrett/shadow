@@ -11,7 +11,7 @@ export function DeleteFileTool({ message }: { message: Message }) {
   return (
     <div className="flex items-center gap-2 w-full text-left transition-colors text-muted-foreground hover:text-foreground text-[13px] [&_svg:not([class*='size-'])]:size-3.5">
       <Trash2 className="text-destructive" />
-      <span>Delete {filePath}</span>
+      <span>Deleted {filePath}</span>
     </div>
   );
 }

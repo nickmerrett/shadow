@@ -1,6 +1,6 @@
 import type { Message } from "@repo/types";
 import { Eye } from "lucide-react";
-import { CollapsibleTool } from "./collapsible-tool";
+import { CollapsibleTool, ToolType } from "./collapsible-tool";
 
 export function ReadFileTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
@@ -13,13 +13,17 @@ export function ReadFileTool({ message }: { message: Message }) {
   const readEntireFile = args.should_read_entire_file as boolean;
 
   const lineRange = readEntireFile
-    ? "entire file"
+    ? ""
     : startLine && endLine
       ? `lines ${startLine}-${endLine}`
-      : "partial read";
+      : "";
 
   return (
-    <CollapsibleTool icon={<Eye />} title={`Read ${filePath} (${lineRange})`}>
+    <CollapsibleTool
+      icon={<Eye />}
+      type={ToolType.READ_FILE}
+      title={`${filePath} (${lineRange})`}
+    >
       {result && status === "COMPLETED" && (
         <div>
           <div className="text-xs text-muted-foreground mb-1">Preview:</div>

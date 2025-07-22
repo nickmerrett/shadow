@@ -2,7 +2,6 @@ import { cn } from "@/lib/utils";
 import type { Message, ToolExecutionStatusType } from "@repo/types";
 import { CheckIcon, Loader, Terminal, X } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { CollapsibleTool } from "./collapsible-tool";
 
 interface TerminalOutputProps {
   output: string;
@@ -86,38 +85,46 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
-  const { args, status, result, error } = toolMeta;
+  const { args, status, result } = toolMeta;
   const command = args.command as string;
   const isBackground = args.is_background as boolean;
 
+  // Error may not be available in the current type definition
+  const error = (toolMeta as any)?.error;
+
   return (
-    <CollapsibleTool
-      icon={<Terminal />}
-      title={`Terminal Command${isBackground ? " (Background)" : ""}`}
-    >
-      <div className="flex items-center gap-2">
-        <StatusBadge status={status} />
+    <div className="flex flex-col gap-2">
+      {/* Header */}
+      <div className="flex items-center gap-2 text-muted-foreground text-[13px] [&_svg:not([class*='size-'])]:size-3.5">
+        <Terminal />
+        <span>Terminal Command{isBackground ? " (Background)" : ""}</span>
       </div>
 
-      {/* Command display */}
-      <div className="bg-gray-100 dark:bg-gray-800/50 rounded-md p-3 border">
-        <div className="text-xs text-muted-foreground mb-1">Command:</div>
-        <code className="text-sm font-mono text-foreground break-all">
-          {command}
-        </code>
-      </div>
-
-      {/* Terminal output */}
-      {(result || error || status === "RUNNING") && (
-        <div>
-          <div className="text-xs text-muted-foreground mb-2">Output:</div>
-          <TerminalOutput
-            output={result || ""}
-            isRunning={status === "RUNNING"}
-            error={error}
-          />
+      <div className="pl-6 flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <StatusBadge status={status} />
         </div>
-      )}
-    </CollapsibleTool>
+
+        {/* Command display */}
+        <div className="bg-gray-100 dark:bg-gray-800/50 rounded-md p-3 border">
+          <div className="text-xs text-muted-foreground mb-1">Command:</div>
+          <code className="text-sm font-mono text-foreground break-all">
+            {command}
+          </code>
+        </div>
+
+        {/* Terminal output */}
+        {(result || error || status === "RUNNING") && (
+          <div>
+            <div className="text-xs text-muted-foreground mb-2">Output:</div>
+            <TerminalOutput
+              output={result || ""}
+              isRunning={status === "RUNNING"}
+              error={error}
+            />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

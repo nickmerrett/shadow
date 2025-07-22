@@ -1,6 +1,6 @@
 import type { Message } from "@repo/types";
 import { FileSearch } from "lucide-react";
-import { CollapsibleTool } from "./collapsible-tool";
+import { CollapsibleTool, ToolType } from "./collapsible-tool";
 
 export function FileSearchTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
@@ -10,7 +10,11 @@ export function FileSearchTool({ message }: { message: Message }) {
   const query = args.query as string;
 
   return (
-    <CollapsibleTool icon={<FileSearch />} title={`File search: "${query}"`}>
+    <CollapsibleTool
+      icon={<FileSearch />}
+      type={ToolType.FILE_SEARCH}
+      title={`"${query}"`}
+    >
       {result && status === "COMPLETED" && (
         <div>
           <div className="text-xs text-muted-foreground mb-1">Found files:</div>

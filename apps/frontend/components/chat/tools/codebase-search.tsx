@@ -1,6 +1,6 @@
 import type { Message } from "@repo/types";
 import { Folder, Search } from "lucide-react";
-import { CollapsibleTool } from "./collapsible-tool";
+import { CollapsibleTool, ToolType } from "./collapsible-tool";
 
 export function CodebaseSearchTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
@@ -11,7 +11,11 @@ export function CodebaseSearchTool({ message }: { message: Message }) {
   const targetDirectories = (args.target_directories as string[]) || [];
 
   return (
-    <CollapsibleTool icon={<Search />} title={`Semantic search: "${query}"`}>
+    <CollapsibleTool
+      icon={<Search />}
+      type={ToolType.CODEBASE_SEARCH}
+      title={`"${query}"`}
+    >
       {targetDirectories.length > 0 && (
         <div className="flex items-center gap-1">
           <Folder className="size-3 text-muted-foreground" />

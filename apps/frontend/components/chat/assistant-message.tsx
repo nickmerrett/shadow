@@ -8,6 +8,7 @@ import { ToolMessage } from "./tools";
 export function AssistantMessage({ message }: { message: Message }) {
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
 
+  // TODO(Ishaan) test with a reasoning model
   if (message.metadata?.thinking) {
     return (
       <div>
@@ -26,7 +27,7 @@ export function AssistantMessage({ message }: { message: Message }) {
           </span>
         </div>
         {isThinkingExpanded && (
-          <div className="ml-6 p-3 bg-gray-50 rounded text-sm">
+          <div className="ml-6 p-3 rounded text-sm">
             <MemoizedMarkdown
               content={message.metadata.thinking.content}
               id={`${message.id}-thinking`}
@@ -87,11 +88,11 @@ export function AssistantMessage({ message }: { message: Message }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 px-3">
+    <div className="flex flex-col gap-1">
       {groupedParts.map((group, groupIndex) => {
         if (group.type === "text") {
           return (
-            <div key={`text-${groupIndex}`} className="text-sm">
+            <div key={`text-${groupIndex}`} className="text-sm p-3">
               <MemoizedMarkdown
                 content={group.text}
                 id={`${message.id}-text-${groupIndex}`}

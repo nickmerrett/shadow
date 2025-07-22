@@ -1,6 +1,6 @@
 import type { Message } from "@repo/types";
 import { Replace } from "lucide-react";
-import { CollapsibleTool } from "./collapsible-tool";
+import { CollapsibleTool, ToolType } from "./collapsible-tool";
 
 export function SearchReplaceTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
@@ -12,7 +12,11 @@ export function SearchReplaceTool({ message }: { message: Message }) {
   const newString = args.new_string as string;
 
   return (
-    <CollapsibleTool icon={<Replace />} title={`Replace in ${filePath}`}>
+    <CollapsibleTool
+      icon={<Replace />}
+      type={ToolType.SEARCH_REPLACE}
+      title={filePath}
+    >
       {status !== "RUNNING" && (
         <div className="space-y-2">
           <div>

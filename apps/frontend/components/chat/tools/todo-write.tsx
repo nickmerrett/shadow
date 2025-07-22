@@ -1,6 +1,5 @@
 import type { Message } from "@repo/types";
 import { CheckCircle, Circle, Clock, X } from "lucide-react";
-import { CollapsibleTool } from "./collapsible-tool";
 
 interface TodoItem {
   id: string;
@@ -106,24 +105,28 @@ export function TodoWriteTool({ message }: { message: Message }) {
   const title = `${merge ? "Merge" : "Replace"} todos (${todos.length} items)`;
 
   return (
-    <CollapsibleTool
-      icon={<CheckCircle />}
-      title={title}
-      className="todo-tool"
-    >
-      {status === "COMPLETED" && parsedResult?.success && (
-        <div className="text-xs text-green-600 dark:text-green-400 mb-2">
-          {parsedResult.message}
-        </div>
-      )}
+    <div className="flex flex-col gap-2 todo-tool">
+      {/* Header */}
+      <div className="flex items-center gap-2 text-muted-foreground text-[13px] [&_svg:not([class*='size-'])]:size-3.5">
+        <CheckCircle />
+        <span>{title}</span>
+      </div>
 
-      {status === "FAILED" && (
-        <div className="text-xs text-red-600 dark:text-red-400 mb-2">
-          {parsedResult?.error || "Failed to manage todos"}
-        </div>
-      )}
+      <div className="pl-6 flex flex-col gap-2">
+        {status === "COMPLETED" && parsedResult?.success && (
+          <div className="text-xs text-green-600 dark:text-green-400 mb-2">
+            {parsedResult.message}
+          </div>
+        )}
 
-      <TodoList todos={todos} />
-    </CollapsibleTool>
+        {status === "FAILED" && (
+          <div className="text-xs text-red-600 dark:text-red-400 mb-2">
+            {parsedResult?.error || "Failed to manage todos"}
+          </div>
+        )}
+
+        <TodoList todos={todos} />
+      </div>
+    </div>
   );
 }
