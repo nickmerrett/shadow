@@ -121,7 +121,7 @@ export function SidebarTasksView({
                               <StatusIcon
                                 className={`!size-3 ${statusColorsConfig[task.status].className}`}
                               />
-                              <span className="capitalize text-xs">
+                              <span className="text-xs capitalize">
                                 {task.status.toLowerCase().replace("_", " ")}
                               </span>
                               <GitBranch className="size-3" /> {task.branch}

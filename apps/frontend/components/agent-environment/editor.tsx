@@ -12,7 +12,7 @@ import type { FileNode } from "./file-explorer";
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center size-full bg-background">
+    <div className="bg-background flex size-full items-center justify-center">
       Loading editor...
     </div>
   ),
@@ -60,15 +60,15 @@ export function Editor({
   };
 
   return (
-    <div className="flex flex-col size-full bg-background">
-      <div className="px-2 h-13 border-b border-sidebar-border bg-card flex items-center gap-2">
+    <div className="bg-background flex size-full flex-col">
+      <div className="border-sidebar-border bg-card flex h-13 items-center gap-2 border-b px-2">
         {isExplorerCollapsed && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-7 cursor-pointer hover:bg-sidebar-accent"
+                className="hover:bg-sidebar-accent size-7 cursor-pointer"
                 onClick={onToggleCollapse}
               >
                 <ChevronsRight className="size-4" />
@@ -82,7 +82,7 @@ export function Editor({
         )}
         <div className="flex flex-col items-start justify-center">
           <div className="text-sm select-none">Code Editor</div>
-          <div className="text-[13px] text-muted-foreground flex items-center gap-0.5">
+          <div className="text-muted-foreground flex items-center gap-0.5 text-[13px]">
             {selectedFile
               ? selectedFile.path.split("/").map((part, index) => (
                   <Fragment key={index}>
@@ -100,7 +100,7 @@ export function Editor({
           </div>
         </div>
       </div>
-      <div className="flex-1 overflow-hidden pl-2 code-editor">
+      <div className="code-editor flex-1 overflow-hidden pl-2">
         <MonacoEditor
           height="100%"
           language={

@@ -302,7 +302,7 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
 
   if (taskMessagesError) {
     return (
-      <div className="mx-auto flex w-full grow max-w-lg flex-col items-center justify-center">
+      <div className="mx-auto flex w-full max-w-lg grow flex-col items-center justify-center">
         <div className="text-destructive">
           Error fetching messages: {taskMessagesError.message}
         </div>
@@ -328,10 +328,10 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
   }
 
   return (
-    <StickToBottom.Content className="mx-auto flex min-h-full w-full max-w-lg flex-col items-center px-4 sm:px-6 relative z-0">
+    <StickToBottom.Content className="relative z-0 mx-auto flex min-h-full w-full max-w-lg flex-col items-center px-4 sm:px-6">
       <div
         className={cn(
-          "sticky -left-px w-[calc(100%+2px)] top-0 h-16 bg-gradient-to-b from-background via-background/60 to-transparent -translate-y-px pointer-events-none z-10 transition-opacity",
+          "from-background via-background/60 pointer-events-none sticky top-0 -left-px z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-b to-transparent transition-opacity",
           isAtTop ? "opacity-0" : "opacity-100"
         )}
       />

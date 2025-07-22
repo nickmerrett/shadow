@@ -20,7 +20,7 @@ export const AgentEnvironment: React.FC = () => {
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
 
   return (
-    <div className="size-full max-h-svh flex">
+    <div className="flex size-full max-h-svh">
       <FileExplorer
         files={mockFileStructure}
         onFileSelect={setSelectedFile}

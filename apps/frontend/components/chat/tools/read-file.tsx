@@ -26,8 +26,8 @@ export function ReadFileTool({ message }: { message: Message }) {
     >
       {result && status === "COMPLETED" && (
         <div>
-          <div className="text-xs text-muted-foreground mb-1">Preview:</div>
-          <div className="bg-gray-50 dark:bg-gray-900/50 border rounded-md p-3 max-h-32 overflow-y-auto text-xs font-mono">
+          <div className="text-muted-foreground mb-1 text-xs">Preview:</div>
+          <div className="max-h-32 overflow-y-auto rounded-md border bg-gray-50 p-3 font-mono text-xs dark:bg-gray-900/50">
             <div className="text-muted-foreground whitespace-pre-wrap">
               {result.substring(0, 500)}
               {result.length > 500 && "\n\n... (truncated)"}

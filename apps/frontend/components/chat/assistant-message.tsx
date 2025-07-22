@@ -13,7 +13,7 @@ export function AssistantMessage({ message }: { message: Message }) {
     return (
       <div>
         <div
-          className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+          className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50"
           onClick={() => setIsThinkingExpanded(!isThinkingExpanded)}
         >
           <span className="text-muted-foreground">
@@ -27,7 +27,7 @@ export function AssistantMessage({ message }: { message: Message }) {
           </span>
         </div>
         {isThinkingExpanded && (
-          <div className="ml-6 p-3 rounded text-sm">
+          <div className="ml-6 rounded p-3 text-sm">
             <MemoizedMarkdown
               content={message.metadata.thinking.content}
               id={`${message.id}-thinking`}
@@ -92,7 +92,7 @@ export function AssistantMessage({ message }: { message: Message }) {
       {groupedParts.map((group, groupIndex) => {
         if (group.type === "text") {
           return (
-            <div key={`text-${groupIndex}`} className="text-sm p-3">
+            <div key={`text-${groupIndex}`} className="p-3 text-sm">
               <MemoizedMarkdown
                 content={group.text}
                 id={`${message.id}-text-${groupIndex}`}

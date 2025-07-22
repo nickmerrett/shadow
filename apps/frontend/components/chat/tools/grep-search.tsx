@@ -18,12 +18,12 @@ export function GrepSearchTool({ message }: { message: Message }) {
     <CollapsibleTool icon={<Hash />} type={ToolType.GREP_SEARCH} title={title}>
       {(includePattern || excludePattern) && (
         <div className="flex items-center gap-1">
-          <Filter className="size-3 text-muted-foreground" />
-          <div className="text-xs text-muted-foreground">
+          <Filter className="text-muted-foreground size-3" />
+          <div className="text-muted-foreground text-xs">
             {includePattern && (
               <span>
                 include:{" "}
-                <code className="bg-gray-100 dark:bg-gray-800/50 px-1 py-0.5 rounded">
+                <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800/50">
                   {includePattern}
                 </code>
               </span>
@@ -32,7 +32,7 @@ export function GrepSearchTool({ message }: { message: Message }) {
             {excludePattern && (
               <span>
                 exclude:{" "}
-                <code className="bg-gray-100 dark:bg-gray-800/50 px-1 py-0.5 rounded">
+                <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800/50">
                   {excludePattern}
                 </code>
               </span>
@@ -43,8 +43,8 @@ export function GrepSearchTool({ message }: { message: Message }) {
 
       {result && status === "COMPLETED" && (
         <div>
-          <div className="text-xs text-muted-foreground mb-1">Matches:</div>
-          <div className="bg-gray-50 dark:bg-gray-900/50 border rounded-md p-3 max-h-40 overflow-y-auto text-xs font-mono">
+          <div className="text-muted-foreground mb-1 text-xs">Matches:</div>
+          <div className="max-h-40 overflow-y-auto rounded-md border bg-gray-50 p-3 font-mono text-xs dark:bg-gray-900/50">
             <div className="text-muted-foreground whitespace-pre-wrap">
               {result.substring(0, 1000)}
               {result.length > 1000 && "\n\n... (truncated)"}

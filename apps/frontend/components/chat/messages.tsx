@@ -11,7 +11,7 @@ export function Messages({ messages }: { messages: Message[] }) {
   );
 
   return (
-    <div className="w-full flex grow flex-col gap-3 mb-24 -mt-12">
+    <div className="-mt-12 mb-24 flex w-full grow flex-col gap-3">
       {filteredMessages.map((message, index) => {
         if (isUserMessage(message)) {
           return (

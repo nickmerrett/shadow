@@ -48,7 +48,7 @@ export default async function Home() {
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <HomeLayoutWrapper>
-        <div className="mx-auto flex size-full max-w-lg flex-col items-center mt-24 gap-8">
+        <div className="mx-auto mt-24 flex size-full max-w-lg flex-col items-center gap-8">
           <div className="text-2xl font-medium">Shadow</div>
           <PromptForm isHome />
         </div>

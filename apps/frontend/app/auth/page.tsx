@@ -16,8 +16,8 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="grow w-full flex justify-start pt-32 items-center flex-col gap-2 bg-background">
-      <div className="font-medium text-xl">Auth Page</div>
+    <div className="bg-background flex w-full grow flex-col items-center justify-start gap-2 pt-32">
+      <div className="text-xl font-medium">Auth Page</div>
 
       <Button onClick={handleGithubSignIn}>Sign in with Github</Button>
     </div>

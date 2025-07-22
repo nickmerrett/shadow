@@ -32,7 +32,7 @@ export function UserMenu() {
   };
 
   if (isLoading) {
-    return <div className="bg-muted size-8 rounded-full animate-pulse" />;
+    return <div className="bg-muted size-8 animate-pulse rounded-full" />;
   }
 
   if (!session?.user) {
@@ -44,7 +44,7 @@ export function UserMenu() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="w-full justify-start font-normal hover:bg-sidebar-accent h-10"
+          className="hover:bg-sidebar-accent h-10 w-full justify-start font-normal"
         >
           {session.user.image ? (
             <img
@@ -60,14 +60,14 @@ export function UserMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         sideOffset={8}
-        className="w-[var(--radix-dropdown-menu-trigger-width)] bg-sidebar-accent border-sidebar-border"
+        className="bg-sidebar-accent border-sidebar-border w-[var(--radix-dropdown-menu-trigger-width)]"
       >
         <div className="flex items-center justify-start gap-2 p-2">
           <div className="flex flex-col space-y-1 leading-none">
             {session.user.name && (
-              <p className="font-medium text-sm">{session.user.name}</p>
+              <p className="text-sm font-medium">{session.user.name}</p>
             )}
-            <p className="w-[200px] truncate text-[13px] pb-px text-muted-foreground">
+            <p className="text-muted-foreground w-[200px] truncate pb-px text-[13px]">
               {session.user.email}
             </p>
           </div>
@@ -77,14 +77,14 @@ export function UserMenu() {
           onClick={() => {
             router.push("/settings");
           }}
-          className="hover:bg-sidebar-border! transition-colors cursor-pointer"
+          className="hover:bg-sidebar-border! cursor-pointer transition-colors"
         >
           <Settings className="size-3.5" />
           Settings
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={handleSignOut}
-          className="hover:bg-sidebar-border! transition-colors cursor-pointer"
+          className="hover:bg-sidebar-border! cursor-pointer transition-colors"
         >
           <LogOut className="size-3.5" />
           Sign Out

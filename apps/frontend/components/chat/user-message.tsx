@@ -20,16 +20,16 @@ export function UserMessage({
     > */
     <button
       className={cn(
-        "p-px text-left relative items-center z-0 bg-gradient-to-b w-full rounded-[calc(var(--radius)+1px)] shadow-lg shadow-highlight/10 cursor-pointer transition-[color,box-shadow,opacity,background-color]",
-        "focus-visible:ring-ring/10 focus-visible:outline-none focus-visible:ring-4",
+        "shadow-highlight/10 relative z-0 w-full cursor-pointer items-center rounded-[calc(var(--radius)+1px)] bg-gradient-to-b p-px text-left shadow-lg transition-[color,box-shadow,opacity,background-color]",
+        "focus-visible:ring-ring/10 focus-visible:ring-4 focus-visible:outline-none",
         "user-message-border hover:shadow-highlight/20",
         className
       )}
     >
-      <div className="px-3 py-2 w-full text-sm from-card/10 to-card rounded-lg bg-gradient-to-t">
+      <div className="from-card/10 to-card w-full rounded-lg bg-gradient-to-t px-3 py-2 text-sm">
         {message.content}
       </div>
-      <div className="absolute inset-px -z-10 bg-background rounded-[calc(var(--radius)+1px)]" />
+      <div className="bg-background absolute inset-px -z-10 rounded-[calc(var(--radius)+1px)]" />
     </button>
   );
 }

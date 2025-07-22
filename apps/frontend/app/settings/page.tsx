@@ -48,10 +48,10 @@ export default async function SettingsPage() {
 
   return (
     <HomeLayoutWrapper>
-      <div className="mx-auto flex max-w-lg flex-col items-start mt-24 gap-6 w-full px-4">
+      <div className="mx-auto mt-24 flex w-full max-w-lg flex-col items-start gap-6 px-4">
         <h1 className="text-2xl font-medium">Settings</h1>
         {user ? (
-          <div className="flex flex-col gap-4 w-full">
+          <div className="flex w-full flex-col gap-4">
             <div className="flex items-center gap-3">
               {user.image && (
                 <img
@@ -62,13 +62,13 @@ export default async function SettingsPage() {
               )}
               <div className="flex flex-col">
                 <span className="font-medium">{user.name}</span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-muted-foreground text-sm">
                   {user.email}
                 </span>
               </div>
             </div>
             {stats && (
-              <div className="grid grid-cols-2 gap-4 w-full text-sm pt-2 border-t mt-4">
+              <div className="mt-4 grid w-full grid-cols-2 gap-4 border-t pt-2 text-sm">
                 <div className="flex flex-col">
                   <span className="text-muted-foreground">Joined</span>
                   <span>{stats.joinedAt?.toLocaleDateString()}</span>
@@ -89,7 +89,7 @@ export default async function SettingsPage() {
             )}
 
             {github && (
-              <div className="grid grid-cols-2 gap-4 w-full text-sm pt-2 border-t">
+              <div className="grid w-full grid-cols-2 gap-4 border-t pt-2 text-sm">
                 <div className="flex flex-col">
                   <span className="text-muted-foreground">GitHub Linked</span>
                   <span>{github.connected ? "Yes" : "No"}</span>

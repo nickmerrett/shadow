@@ -101,12 +101,12 @@ export function TaskPageLayout({
     >
       <ResizablePanel minSize={30} defaultSize={leftSize}>
         <StickToBottom
-          className="flex size-full overflow-y-auto max-h-svh flex-col relative"
+          className="relative flex size-full max-h-svh flex-col overflow-y-auto"
           resize="smooth"
           initial="smooth"
           contextRef={stickToBottomContextRef}
         >
-          <div className="flex w-full items-center justify-between p-3 sticky top-0 bg-background z-10">
+          <div className="bg-background sticky top-0 z-10 flex w-full items-center justify-between p-3">
             <Tooltip>
               <TooltipTrigger asChild>
                 <SidebarTrigger />

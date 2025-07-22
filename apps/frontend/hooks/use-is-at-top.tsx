@@ -44,10 +44,10 @@ export function ScrollToBottom() {
         <button
           disabled={isAtBottom}
           className={cn(
-            "sticky bg-background border border-border rounded-full p-1.5 hover:bg-accent z-20 text-muted-foreground hover:text-foreground transition-all",
+            "bg-background border-border hover:bg-accent text-muted-foreground hover:text-foreground sticky z-20 rounded-full border p-1.5 transition-all",
             isAtBottom
-              ? "opacity-0 translate-y-2"
-              : "opacity-100 translate-y-0 cursor-pointer",
+              ? "translate-y-2 opacity-0"
+              : "translate-y-0 cursor-pointer opacity-100",
             "bottom-38"
           )}
           onClick={() => scrollToBottom()}

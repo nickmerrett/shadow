@@ -9,7 +9,7 @@ export function DeleteFileTool({ message }: { message: Message }) {
   const filePath = args.target_file as string;
 
   return (
-    <div className="flex items-center gap-2 w-full text-left transition-colors text-muted-foreground hover:text-foreground text-[13px] [&_svg:not([class*='size-'])]:size-3.5">
+    <div className="text-muted-foreground hover:text-foreground flex w-full items-center gap-2 text-left text-[13px] transition-colors [&_svg:not([class*='size-'])]:size-3.5">
       <Trash2 className="text-destructive" />
       <span>Deleted {filePath}</span>
     </div>

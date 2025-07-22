@@ -210,7 +210,7 @@ export function SidebarAgentView({
         <SidebarGroupContent>
           {/* Live task status */}
           <SidebarMenuItem>
-            <div className="h-8 text-sm px-2 gap-2 flex items-center">
+            <div className="flex h-8 items-center gap-2 px-2 text-sm">
               {(() => {
                 const StatusIcon =
                   statusColorsConfig[
@@ -234,7 +234,7 @@ export function SidebarAgentView({
 
           {/* Task branch name */}
           <SidebarMenuItem>
-            <div className="h-8 text-sm px-2 gap-2 flex items-center">
+            <div className="flex h-8 items-center gap-2 px-2 text-sm">
               <GitBranch className="size-4" />
               <span>{currentTask.branch}</span>
             </div>
@@ -242,7 +242,7 @@ export function SidebarAgentView({
 
           {/* Task total diff */}
           <SidebarMenuItem>
-            <div className="h-8 text-sm px-2 gap-2 flex items-center">
+            <div className="flex h-8 items-center gap-2 px-2 text-sm">
               <FileDiff className="size-4" />
               <div className="flex items-center gap-1">
                 <span className="text-green-400">+{diffStats.additions}</span>
@@ -272,7 +272,7 @@ export function SidebarAgentView({
                 <SidebarMenuItem key={todo.id}>
                   <div
                     className={cn(
-                      "h-8 text-sm px-2 gap-2 flex items-center",
+                      "flex h-8 items-center gap-2 px-2 text-sm",
                       todo.status === "COMPLETED" &&
                         "text-muted-foreground line-through"
                     )}

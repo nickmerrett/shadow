@@ -26,20 +26,20 @@ function TerminalOutput({ output, isRunning, error }: TerminalOutputProps) {
     <div
       ref={terminalRef}
       className={cn(
-        "relative bg-black/90 rounded-md p-3 font-mono text-xs max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent",
+        "scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent relative max-h-64 overflow-y-auto rounded-md bg-black/90 p-3 font-mono text-xs",
         error && "border border-red-500/20"
       )}
     >
-      <div className="text-gray-300 whitespace-pre-wrap">
-        {error && <div className="text-red-400 mb-2">Error: {error}</div>}
+      <div className="whitespace-pre-wrap text-gray-300">
+        {error && <div className="mb-2 text-red-400">Error: {error}</div>}
         {displayText.split("\n").map((line, i) => (
           <div key={i} className="min-h-[1rem]">
             {line || "\u00A0"}
           </div>
         ))}
         {isRunning && (
-          <div className="inline-flex items-center gap-1 text-blue-400 animate-pulse">
-            <div className="w-2 h-3 bg-blue-400 animate-pulse" />
+          <div className="inline-flex animate-pulse items-center gap-1 text-blue-400">
+            <div className="h-3 w-2 animate-pulse bg-blue-400" />
           </div>
         )}
       </div>
@@ -71,7 +71,7 @@ function StatusBadge({ status }: { status: ToolExecutionStatusType }) {
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border",
+        "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium",
         className
       )}
     >
@@ -95,20 +95,20 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
   return (
     <div className="flex flex-col gap-2">
       {/* Header */}
-      <div className="flex items-center gap-2 text-muted-foreground text-[13px] [&_svg:not([class*='size-'])]:size-3.5">
+      <div className="text-muted-foreground flex items-center gap-2 text-[13px] [&_svg:not([class*='size-'])]:size-3.5">
         <Terminal />
         <span>Terminal Command{isBackground ? " (Background)" : ""}</span>
       </div>
 
-      <div className="pl-6 flex flex-col gap-2">
+      <div className="flex flex-col gap-2 pl-6">
         <div className="flex items-center gap-2">
           <StatusBadge status={status} />
         </div>
 
         {/* Command display */}
-        <div className="bg-gray-100 dark:bg-gray-800/50 rounded-md p-3 border">
-          <div className="text-xs text-muted-foreground mb-1">Command:</div>
-          <code className="text-sm font-mono text-foreground break-all">
+        <div className="rounded-md border bg-gray-100 p-3 dark:bg-gray-800/50">
+          <div className="text-muted-foreground mb-1 text-xs">Command:</div>
+          <code className="text-foreground font-mono text-sm break-all">
             {command}
           </code>
         </div>
@@ -116,7 +116,7 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
         {/* Terminal output */}
         {(result || error || status === "RUNNING") && (
           <div>
-            <div className="text-xs text-muted-foreground mb-2">Output:</div>
+            <div className="text-muted-foreground mb-2 text-xs">Output:</div>
             <TerminalOutput
               output={result || ""}
               isRunning={status === "RUNNING"}

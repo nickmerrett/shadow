@@ -44,7 +44,7 @@ export function CollapsibleTool({
     <button
       onClick={() => setIsExpanded(!isExpanded)}
       className={cn(
-        "flex flex-col cursor-pointer gap-2 w-full px-3 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md py-1.5 text-left text-[13px] transition-colors",
+        "text-muted-foreground hover:text-foreground hover:bg-secondary flex w-full cursor-pointer flex-col gap-2 rounded-md px-3 py-1.5 text-left text-[13px] transition-colors",
         className
       )}
     >
@@ -55,7 +55,7 @@ export function CollapsibleTool({
           <span>{title}</span>
         </div>
       </div>
-      {isExpanded && <div className="pl-6 flex flex-col gap-2">{children}</div>}
+      {isExpanded && <div className="flex flex-col gap-2 pl-6">{children}</div>}
     </button>
   );
 }

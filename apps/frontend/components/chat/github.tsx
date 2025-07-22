@@ -205,7 +205,7 @@ export function GithubConnection({
   };
 
   const renderConnectGitHub = (
-    <div className="p-4 flex flex-col gap-2">
+    <div className="flex flex-col gap-2 p-4">
       <div className="flex items-center gap-2">
         <img
           src="/github.svg"
@@ -216,7 +216,7 @@ export function GithubConnection({
         />
         <div className="font-medium">Connect Github</div>
       </div>
-      <div className="text-sm text-muted-foreground mb-4">
+      <div className="text-muted-foreground mb-4 text-sm">
         {statusError
           ? "Unable to check GitHub connection. Try again or report an issue."
           : "For required access, install the Shadow GitHub App to your organization."}
@@ -239,19 +239,19 @@ export function GithubConnection({
   const renderRepos = (
     <div>
       <div className="relative border-b">
-        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 size-3.5 text-muted-foreground" />
+        <Search className="text-muted-foreground absolute top-1/2 left-2 size-3.5 -translate-y-1/2 transform" />
         <input
           placeholder="Search repositories..."
           value={repoSearch}
           autoFocus
           onChange={(e) => setRepoSearch(e.target.value)}
-          className="pl-7 pr-3 h-9 text-sm focus:outline-none w-full"
+          className="h-9 w-full pr-3 pl-7 text-sm focus:outline-none"
         />
       </div>
 
-      <div className="h-64 overflow-y-auto flex flex-col gap-2 py-2">
+      <div className="flex h-64 flex-col gap-2 overflow-y-auto py-2">
         {isLoadingRepos ? (
-          <div className="flex items-center justify-center h-7 mt-1 gap-1.5 text-muted-foreground">
+          <div className="text-muted-foreground mt-1 flex h-7 items-center justify-center gap-1.5">
             <Loader2 className="size-3.5 animate-spin" />
             <span className="text-[13px]">Loading repositories...</span>
           </div>
@@ -266,7 +266,7 @@ export function GithubConnection({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full !px-4.5 text-[13px] font-normal text-muted-foreground hover:bg-transparent gap-2"
+                  className="text-muted-foreground w-full gap-2 !px-4.5 text-[13px] font-normal hover:bg-transparent"
                 >
                   <Folder className="size-3.5" />
                   {group.name}
@@ -279,13 +279,13 @@ export function GithubConnection({
                   />
                 </Button>
               </CollapsibleTrigger>
-              <CollapsibleContent className="flex flex-col gap-1 py-1 px-2">
+              <CollapsibleContent className="flex flex-col gap-1 px-2 py-1">
                 {group.repositories.map((repo) => (
                   <Button
                     key={repo.id}
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-between text-sm font-normal hover:bg-accent"
+                    className="hover:bg-accent w-full justify-between text-sm font-normal"
                     onClick={() => handleRepoSelect(repo)}
                   >
                     <span className="truncate">{repo.name}</span>
@@ -305,7 +305,7 @@ export function GithubConnection({
   const renderBranches = (
     <div>
       <button
-        className="flex cursor-pointer items-center w-full text-sm gap-2 px-2 h-9 border-b hover:bg-sidebar-accent transition-colors"
+        className="hover:bg-sidebar-accent flex h-9 w-full cursor-pointer items-center gap-2 border-b px-2 text-sm transition-colors"
         onClick={handleBackToRepos}
       >
         <ArrowLeft className="size-3.5" />
@@ -313,19 +313,19 @@ export function GithubConnection({
       </button>
 
       <div className="relative border-b">
-        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 size-3.5 text-muted-foreground" />
+        <Search className="text-muted-foreground absolute top-1/2 left-2 size-3.5 -translate-y-1/2 transform" />
         <input
           placeholder="Search branches..."
           value={branchSearch}
           autoFocus
           onChange={(e) => setBranchSearch(e.target.value)}
-          className="pl-7 pr-3 h-9 text-sm focus:outline-none w-full"
+          className="h-9 w-full pr-3 pl-7 text-sm focus:outline-none"
         />
       </div>
 
-      <div className="h-64 overflow-y-auto flex flex-col gap-1 p-2">
+      <div className="flex h-64 flex-col gap-1 overflow-y-auto p-2">
         {isLoadingBranches ? (
-          <div className="flex items-center justify-center h-7 mt-1 gap-1.5 text-muted-foreground">
+          <div className="text-muted-foreground mt-1 flex h-7 items-center justify-center gap-1.5">
             <Loader2 className="size-3.5 animate-spin" />
             <span className="text-[13px]">Loading branches...</span>
           </div>
@@ -335,7 +335,7 @@ export function GithubConnection({
               key={branch.name}
               variant="ghost"
               size="sm"
-              className="w-full justify-start text-sm font-normal hover:bg-accent"
+              className="hover:bg-accent w-full justify-start text-sm font-normal"
               onClick={() => handleBranchSelect(branch.name)}
             >
               <span className="truncate">{branch.name}</span>
@@ -359,7 +359,7 @@ export function GithubConnection({
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
         {isLoadingStatus ? (
-          <div className="flex items-center justify-center h-20 gap-2 text-muted-foreground">
+          <div className="text-muted-foreground flex h-20 items-center justify-center gap-2">
             <Loader2 className="size-4 animate-spin" />
             <span className="text-sm">Checking GitHub status...</span>
           </div>

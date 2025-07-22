@@ -31,7 +31,7 @@ function TodoList({ todos }: { todos: TodoItem[] }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+      <div className="text-muted-foreground flex items-center gap-4 text-xs">
         {statusCounts.pending && (
           <span className="flex items-center gap-1">
             <Circle className="size-3" />
@@ -62,14 +62,14 @@ function TodoList({ todos }: { todos: TodoItem[] }) {
         {todos.map((todo, index) => (
           <div key={todo.id} className="flex items-start gap-2">
             <StatusIcon status={todo.status} />
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="text-sm">
                 <span
                   className={`${
                     todo.status === "completed"
-                      ? "line-through text-muted-foreground"
+                      ? "text-muted-foreground line-through"
                       : todo.status === "cancelled"
-                        ? "line-through text-red-500/70"
+                        ? "text-red-500/70 line-through"
                         : ""
                   }`}
                 >
@@ -77,7 +77,7 @@ function TodoList({ todos }: { todos: TodoItem[] }) {
                 </span>
               </div>
             </div>
-            <div className="text-xs text-muted-foreground font-mono">
+            <div className="text-muted-foreground font-mono text-xs">
               {index + 1}
             </div>
           </div>
@@ -105,22 +105,22 @@ export function TodoWriteTool({ message }: { message: Message }) {
   const title = `${merge ? "Merge" : "Replace"} todos (${todos.length} items)`;
 
   return (
-    <div className="flex flex-col gap-2 todo-tool">
+    <div className="todo-tool flex flex-col gap-2">
       {/* Header */}
-      <div className="flex items-center gap-2 text-muted-foreground text-[13px] [&_svg:not([class*='size-'])]:size-3.5">
+      <div className="text-muted-foreground flex items-center gap-2 text-[13px] [&_svg:not([class*='size-'])]:size-3.5">
         <CheckCircle />
         <span>{title}</span>
       </div>
 
-      <div className="pl-6 flex flex-col gap-2">
+      <div className="flex flex-col gap-2 pl-6">
         {status === "COMPLETED" && parsedResult?.success && (
-          <div className="text-xs text-green-600 dark:text-green-400 mb-2">
+          <div className="mb-2 text-xs text-green-600 dark:text-green-400">
             {parsedResult.message}
           </div>
         )}
 
         {status === "FAILED" && (
-          <div className="text-xs text-red-600 dark:text-red-400 mb-2">
+          <div className="mb-2 text-xs text-red-600 dark:text-red-400">
             {parsedResult?.error || "Failed to manage todos"}
           </div>
         )}

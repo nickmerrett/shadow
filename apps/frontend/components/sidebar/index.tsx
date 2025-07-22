@@ -73,7 +73,7 @@ export function SidebarComponent({
             <Image src="/shadow.svg" alt="Logo" width={22} height={22} />
           </Link>
         </SidebarGroup>
-        <div className="flex flex-col gap-4 mt-6">
+        <div className="mt-6 flex flex-col gap-4">
           {currentTask ? (
             <SidebarAgentView
               taskId={currentTask.taskData.id}

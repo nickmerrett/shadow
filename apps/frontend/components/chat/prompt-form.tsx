@@ -113,19 +113,19 @@ export function PromptForm({
     <form
       onSubmit={handleSubmit}
       className={cn(
-        "flex w-full flex-col max-w-lg bg-background z-0 relative",
+        "bg-background relative z-0 flex w-full max-w-lg flex-col",
         !isHome && "sticky bottom-0 pb-6"
       )}
     >
       {/* Wrapper div with textarea styling */}
       <div
         className={cn(
-          "border-border relative focus-within:ring-ring/10 from-input/25 to-input flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow,border] focus-within:ring-4 focus-within:border-sidebar-border",
+          "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border relative flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow,border] focus-within:ring-4",
           isPending && "opacity-50"
         )}
       >
         {!isHome && (
-          <div className="absolute -left-px w-[calc(100%+2px)] -top-16 h-16 bg-gradient-to-t from-background via-background/60 to-transparent -translate-y-px pointer-events-none -z-10" />
+          <div className="from-background via-background/60 pointer-events-none absolute -top-16 -left-px -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
         )}
 
         {/* Textarea without border/background since wrapper handles it */}
@@ -135,7 +135,7 @@ export function PromptForm({
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Build a cool new feature..."
-          className="max-h-48 flex-1 resize-none rounded-lg border-0 bg-transparent! shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/50"
+          className="placeholder:text-muted-foreground/50 max-h-48 flex-1 resize-none rounded-lg border-0 bg-transparent! shadow-none focus-visible:ring-0"
         />
 
         {/* Buttons inside the container */}
@@ -145,7 +145,7 @@ export function PromptForm({
               <Button
                 size="sm"
                 variant="ghost"
-                className="text-muted-foreground hover:bg-accent font-normal px-2"
+                className="text-muted-foreground hover:bg-accent px-2 font-normal"
               >
                 {isHome && <Layers className="size-4" />}
                 <span>

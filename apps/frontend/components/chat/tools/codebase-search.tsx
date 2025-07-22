@@ -18,13 +18,13 @@ export function CodebaseSearchTool({ message }: { message: Message }) {
     >
       {targetDirectories.length > 0 && (
         <div className="flex items-center gap-1">
-          <Folder className="size-3 text-muted-foreground" />
-          <div className="text-xs text-muted-foreground">
+          <Folder className="text-muted-foreground size-3" />
+          <div className="text-muted-foreground text-xs">
             in{" "}
             {targetDirectories.map((dir) => (
               <code
                 key={dir}
-                className="bg-gray-100 dark:bg-gray-800/50 px-1 py-0.5 rounded mx-0.5"
+                className="mx-0.5 rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800/50"
               >
                 {dir}
               </code>
@@ -35,8 +35,8 @@ export function CodebaseSearchTool({ message }: { message: Message }) {
 
       {result && status === "COMPLETED" && (
         <div>
-          <div className="text-xs text-muted-foreground mb-1">Results:</div>
-          <div className="bg-gray-50 dark:bg-gray-900/50 border rounded-md p-3 max-h-40 overflow-y-auto text-xs">
+          <div className="text-muted-foreground mb-1 text-xs">Results:</div>
+          <div className="max-h-40 overflow-y-auto rounded-md border bg-gray-50 p-3 text-xs dark:bg-gray-900/50">
             <div className="text-muted-foreground whitespace-pre-wrap">
               {result.substring(0, 800)}
               {result.length > 800 && "\n\n... (truncated)"}

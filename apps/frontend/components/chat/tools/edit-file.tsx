@@ -28,7 +28,7 @@ export function EditFileTool({ message }: { message: Message }) {
       title={`${filePath}${changeSummary}`}
     >
       {instructions && (
-        <div className="text-xs text-muted-foreground">{instructions}</div>
+        <div className="text-muted-foreground text-xs">{instructions}</div>
       )}
     </CollapsibleTool>
   );

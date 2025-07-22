@@ -54,15 +54,15 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     const isSelected = selectedFile?.path === node.path;
 
     return (
-      <div key={node.path} className="flex flex-col gap-0.5 relative">
+      <div key={node.path} className="relative flex flex-col gap-0.5">
         {isExpanded && (
           <div
-            className="absolute bottom-0 w-px h-[calc(100%-30px)] bg-border hidden group-hover/files:block"
+            className="bg-border absolute bottom-0 hidden h-[calc(100%-30px)] w-px group-hover/files:block"
             style={{ left: `${depth * 12 + 12}px` }}
           />
         )}
         <div
-          className={`flex group/item items-center gap-1.5 py-1 px-2 cursor-pointer hover:bg-white/10 rounded-md ${
+          className={`group/item flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 hover:bg-white/10 ${
             isSelected ? "bg-white/5" : ""
           }`}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
@@ -77,17 +77,17 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           {node.type === "folder" ? (
             isExpanded ? (
               <>
-                <FolderOpen className="size-4 text-muted-foreground group/item-hover:hidden" />
-                <ChevronDown className="size-4 text-muted-foreground group/item-hover:block hidden" />
+                <FolderOpen className="text-muted-foreground group/item-hover:hidden size-4" />
+                <ChevronDown className="text-muted-foreground group/item-hover:block hidden size-4" />
               </>
             ) : (
               <>
-                <Folder className="size-4 text-muted-foreground group/item-hover:hidden" />
-                <ChevronRight className="size-4 text-muted-foreground group/item-hover:block hidden" />
+                <Folder className="text-muted-foreground group/item-hover:hidden size-4" />
+                <ChevronRight className="text-muted-foreground group/item-hover:block hidden size-4" />
               </>
             )
           ) : (
-            <File className="size-4 text-muted-foreground" />
+            <File className="text-muted-foreground size-4" />
           )}
           <span className="text-sm text-gray-300">{node.name}</span>
         </div>
@@ -102,15 +102,15 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
 
   if (!isCollapsed)
     return (
-      <div className="w-52 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col select-none">
-        <div className="px-2 h-13 border-b border-sidebar-border flex items-center justify-between">
+      <div className="bg-sidebar border-sidebar-border flex w-52 shrink-0 flex-col border-r select-none">
+        <div className="border-sidebar-border flex h-13 items-center justify-between border-b px-2">
           <h3 className="text-sm">Agent Environment</h3>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-7 cursor-pointer hover:bg-sidebar-accent"
+                className="hover:bg-sidebar-accent size-7 cursor-pointer"
                 onClick={onToggleCollapse}
               >
                 <ChevronsLeft className="size-4" />
@@ -122,7 +122,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
             </TooltipContent>
           </Tooltip>
         </div>
-        <div className="flex-1 overflow-auto p-1 flex flex-col gap-0.5 group/files">
+        <div className="group/files flex flex-1 flex-col gap-0.5 overflow-auto p-1">
           {files.map((file) => renderNode(file))}
         </div>
       </div>
