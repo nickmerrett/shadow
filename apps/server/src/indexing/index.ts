@@ -1,9 +1,9 @@
 import indexRepo, { IndexRepoOptions } from "@/indexing/indexer";
 import express from "express";
 import TreeSitter from "tree-sitter";
+import PineconeHandler from "./embedding/pineconeService";
 import { getLanguageForPath } from "./languages";
 import { retrieve } from "./retrieval";
-import PineconeHandler from "./embedding/pineconeService";
 import { isValidRepo } from "./utils/repository";
 
 const router = express.Router();
@@ -55,7 +55,7 @@ router.post(
     } catch (error: any) {
       if (error.message.includes("Not Found")) {
         return res.status(500).json({
-          error: `Failed to fetch repository: ${error.message}`
+          error: `Failed to fetch repository: ${error.message}`,
         });
       }
       next(error);
@@ -92,11 +92,7 @@ router.post(
 
 router.delete(
   "/clear-namespace",
-  async (
-    req: express.Request<{}, {}, { namespace: string }>,
-    res,
-    next
-  ) => {
+  async (req: express.Request<{}, {}, { namespace: string }>, res, next) => {
     try {
       const { namespace } = req.body;
       if (!namespace) {

@@ -1,13 +1,12 @@
 export interface EmbeddingResult {
-    embeddings: Float32Array[];
-    dim: number;
+  embeddings: Float32Array[];
+  dim: number;
 }
 
-
 export type ChunkNode = {
-    code?: string;
-    embedding?: Float32Array;
-    meta?: { [k: string]: unknown };
+  code?: string;
+  embedding?: Float32Array;
+  meta?: { [k: string]: unknown };
 };
 
 type EmbeddingProvider = "jina-api" | "local-transformers" | "cheap-hash";
@@ -20,7 +19,7 @@ interface EmbedTextsOptions {
   quantized: boolean;
   normalized: boolean;
   embedding_type: "float" | "binary" | "base64";
-  batchSize: number; 
+  batchSize: number;
   apiKey?: string;
   endpoint: string;
 }
@@ -30,15 +29,14 @@ interface EmbedViaProviderOptions extends EmbedTextsOptions {
 }
 
 export const defaultEmbedTextsOptions: EmbedViaProviderOptions = {
-    provider: "cheap-hash",
-    model: EMBEDDING_MODEL,
-    quantized: true,
-    normalized: true,
-    embedding_type: "float",
-    batchSize: 32,
-    apiKey: process.env.JINA_API_KEY,
-    endpoint: "https://api.jina.ai/v1/embeddings",
+  provider: "cheap-hash",
+  model: EMBEDDING_MODEL,
+  quantized: true,
+  normalized: true,
+  embedding_type: "float",
+  batchSize: 32,
+  apiKey: process.env.JINA_API_KEY,
+  endpoint: "https://api.jina.ai/v1/embeddings",
 };
 
-
-export type { EmbedTextsOptions, EmbeddingProvider, EmbedViaProviderOptions };
+export type { EmbedTextsOptions, EmbedViaProviderOptions, EmbeddingProvider };

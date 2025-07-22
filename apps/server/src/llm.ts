@@ -1,10 +1,10 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
 import {
+  AIStreamChunk,
   Message,
   ModelType,
   StreamChunk,
-  AIStreamChunk,
   getModelProvider,
   toCoreMessage,
 } from "@repo/types";

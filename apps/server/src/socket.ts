@@ -86,13 +86,13 @@ export function createSocketServer(server: http.Server): Server {
     socket.on("stop-stream", async (data: { taskId: string }) => {
       try {
         console.log("Received stop stream request for task:", data.taskId);
-        
+
         // Stop the current streaming operation
         await chatService.stopStream(data.taskId);
-        
+
         // Update stream state
         endStream();
-        
+
         // Notify all clients that the stream has been stopped
         io.emit("stream-complete");
       } catch (error) {

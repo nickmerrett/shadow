@@ -1,9 +1,13 @@
-import { EmbeddingResult, EmbedTextsOptions, EMBEDDING_MODEL, defaultEmbedTextsOptions } from "./types";
 import { logger } from "../logger";
+import {
+  defaultEmbedTextsOptions,
+  EMBEDDING_MODEL,
+  EmbeddingResult,
+  EmbedTextsOptions,
+} from "./types";
 
 // ---- Local Transformers.js provider --- //
 let _localPipeline: any = null;
-
 
 async function getLocalPipeline(
   model: string = EMBEDDING_MODEL,
@@ -22,11 +26,12 @@ async function getLocalPipeline(
  * Run local model; apply mean pooling & L2 norm (recommended in model card).
  */
 export async function embedViaLocalTransformers(
-  texts: string[], options: Partial<EmbedTextsOptions> = {}
+  texts: string[],
+  options: Partial<EmbedTextsOptions> = {}
 ): Promise<EmbeddingResult> {
   const opts = { ...defaultEmbedTextsOptions, ...options };
   const { model, quantized, batchSize } = opts;
-  
+
   const extractor = await getLocalPipeline(model, { quantized });
   const out: Float32Array[] = new Array(texts.length);
   // run in small batches; pipeline can accept array input

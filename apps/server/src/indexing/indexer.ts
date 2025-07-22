@@ -1,6 +1,12 @@
 import { chunkSymbol } from "@/indexing/chunker";
 import { extractGeneric } from "@/indexing/extractors/generic";
-import { Graph, GraphEdge, GraphNode, GraphNodeKind, GraphEdgeKind } from "@/indexing/graph";
+import {
+  Graph,
+  GraphEdge,
+  GraphEdgeKind,
+  GraphNode,
+  GraphNodeKind,
+} from "@/indexing/graph";
 import { getLanguageForPath } from "@/indexing/languages";
 import logger from "@/indexing/logger";
 import { getHash, getNodeHash } from "@/indexing/utils/hash";
@@ -31,23 +37,25 @@ async function fetchRepoFiles(
 ): Promise<Array<{ path: string; content: string; type: string }>> {
   const baseUrl = `https://api.github.com/repos/${owner}/${repo}/contents`;
   const url = path ? `${baseUrl}/${path}` : baseUrl;
-  
+
   const headers: Record<string, string> = {
-    'Accept': 'application/vnd.github.v3+json',
-    'User-Agent': 'shadow-indexer'
+    Accept: "application/vnd.github.v3+json",
+    "User-Agent": "shadow-indexer",
   };
-  
+
   if (process.env.GITHUB_TOKEN) {
-    headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+    headers["Authorization"] = `Bearer ${process.env.GITHUB_TOKEN}`;
   }
 
   try {
     const response = await fetch(url, { headers });
-    
+
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `GitHub API error: ${response.status} ${response.statusText}`
+      );
     }
-    
+
     const data = await response.json();
     const files: Array<{ path: string; content: string; type: string }> = [];
 
@@ -58,10 +66,14 @@ async function fetchRepoFiles(
           try {
             const fileResponse = await fetch(item.url, { headers });
             if (!fileResponse.ok) {
-              throw new Error(`Failed to fetch file: ${item.path} - ${fileResponse.status} ${fileResponse.statusText}`);
+              throw new Error(
+                `Failed to fetch file: ${item.path} - ${fileResponse.status} ${fileResponse.statusText}`
+              );
             }
             const fileData = await fileResponse.json();
-            const content = Buffer.from(fileData.content, "base64").toString("utf8");
+            const content = Buffer.from(fileData.content, "base64").toString(
+              "utf8"
+            );
             files.push({ path: fileData.path, content, type: "file" });
           } catch (error) {
             logger.error(`Error fetching file ${item.path}: ${error}`);
@@ -104,9 +116,7 @@ async function indexRepo(
   let repoId: string;
 
   // Check if it's a GitHub repo (format: "owner/repo")
-  if (
-    isValidRepo(repoName)
-  ) {
+  if (isValidRepo(repoName)) {
     const { owner, repo } = getOwnerRepo(repoName);
     logger.info(`Fetching GitHub repo: ${owner}/${repo}`);
 
@@ -356,8 +366,11 @@ async function indexRepo(
     // Output is the graph with nodes, adjacencies and inverted index
     // Only the nodes get embedded
     if (embed) {
-      logger.info("Embedding and uploading to Pinecone...");      
-      await embedAndUpsertToPinecone(Array.from(graph.nodes.values()), repoName);
+      logger.info("Embedding and uploading to Pinecone...");
+      await embedAndUpsertToPinecone(
+        Array.from(graph.nodes.values()),
+        repoName
+      );
     } else {
       logger.info("Embedding skipped (embed=false).");
     }

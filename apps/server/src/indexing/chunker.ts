@@ -34,7 +34,13 @@ export function chunkSymbol({
 
   if (len <= maxLines) {
     const code = sliceByLoc(sourceText, sym.loc);
-    const id = makeId(repoId, fileNode.path, GraphNodeKind.CHUNK, sym.name, sym.loc);
+    const id = makeId(
+      repoId,
+      fileNode.path,
+      GraphNodeKind.CHUNK,
+      sym.name,
+      sym.loc
+    );
     chunks.push(
       new GraphNode({
         id,
@@ -82,7 +88,13 @@ export function chunkSymbol({
         byteEnd: 0,
       };
       const code = lines.slice(start, end + 1).join("\n");
-      const id = makeId(repoId, fileNode.path, GraphNodeKind.CHUNK, sym.name, loc);
+      const id = makeId(
+        repoId,
+        fileNode.path,
+        GraphNodeKind.CHUNK,
+        sym.name,
+        loc
+      );
       chunks.push(
         new GraphNode({
           id,
@@ -124,7 +136,13 @@ export function chunkSymbol({
   let idx = 0;
   for (const m of merged) {
     const code = sliceByLoc(sourceText, m.loc);
-    const id = makeId(repoId, fileNode.path, GraphNodeKind.CHUNK, sym.name, m.loc);
+    const id = makeId(
+      repoId,
+      fileNode.path,
+      GraphNodeKind.CHUNK,
+      sym.name,
+      m.loc
+    );
     chunks.push(
       new GraphNode({
         id,

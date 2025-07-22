@@ -14,9 +14,9 @@
  *   * Use MEAN pooling over token embeddings; L2-normalize for cosine sim.
  */
 
-import { logger } from "./logger";
 import PineconeHandler from "./embedding/pineconeService";
 import { GraphNode } from "./graph";
+import { logger } from "./logger";
 import { getNamespaceFromRepo } from "./utils/repository";
 
 type EmbeddingProvider = "jina-api" | "local-transformers" | "cheap-hash";
@@ -55,22 +55,24 @@ export type ChunkNode = {
 };
 
 // ---- Cheap hash fallback --- //
-async function cheapHashEmbedding(texts: string[], dim: number = 256): Promise<EmbeddingResult> {
+async function cheapHashEmbedding(
+  texts: string[],
+  dim: number = 256
+): Promise<EmbeddingResult> {
   const embeddings: Float32Array[] = [];
   for (const text of texts) {
-    const buf = Buffer.from(text, 'utf8');
+    const buf = Buffer.from(text, "utf8");
     const vec = new Float32Array(dim);
-    
+
     for (let i = 0; i < buf.length; i++) {
       const byteValue = (buf[i] ?? 0) % dim;
       vec[byteValue] = (vec[byteValue] ?? 0) + 1;
     }
-    
+
     // L2 normalize
-    const norm = Math.sqrt(
-      vec.reduce((sum, value) => sum + value * value, 0)
-    ) || 1;
-    embeddings.push(vec.map(value => value / norm) as Float32Array);
+    const norm =
+      Math.sqrt(vec.reduce((sum, value) => sum + value * value, 0)) || 1;
+    embeddings.push(vec.map((value) => value / norm) as Float32Array);
   }
   return { embeddings, dim };
 }
@@ -87,13 +89,12 @@ async function embedViaJinaAPI(
     endpoint = "https://api.jina.ai/v1/embeddings",
   }: EmbedViaJinaAPIOptions = {}
 ): Promise<EmbeddingResult> {
-
   if (!apiKey) {
     throw new Error(
       "JINA_API_KEY not set in environment; required for provider=jina-api"
     );
   }
-  
+
   const out: Float32Array[] = new Array(texts.length);
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts.slice(i, i + batchSize);
@@ -129,7 +130,7 @@ async function embedViaJinaAPI(
       out[i + item.index] = Float32Array.from(item.embedding);
     }
   }
-  
+
   if (out.length === 0 || out[0] === undefined) {
     logger.error("No embeddings returned from Jina API");
     return { embeddings: [], dim: 0 };
@@ -162,7 +163,12 @@ async function getLocalPipeline(
  * Run local model; apply mean pooling & L2 norm (recommended in model card).
  */
 async function embedViaLocalTransformers(
-  texts: string[], { model = EMBEDDING_MODEL, quantized = true, batchSize = 32 }: EmbedViaLocalTransformersOptions = {}
+  texts: string[],
+  {
+    model = EMBEDDING_MODEL,
+    quantized = true,
+    batchSize = 32,
+  }: EmbedViaLocalTransformersOptions = {}
 ): Promise<EmbeddingResult> {
   const extractor = await getLocalPipeline(model, { quantized });
   const out: Float32Array[] = new Array(texts.length);
@@ -224,7 +230,7 @@ async function embedTexts(
         batchSize,
       });
     case "cheap-hash":
-    default: {  
+    default: {
       const dim = 256;
       return cheapHashEmbedding(texts, dim);
     }
@@ -281,22 +287,22 @@ async function embedAndUpsertToPinecone(
         line_start: chunk.loc?.startLine || 0,
         line_end: chunk.loc?.endLine || 0,
         kind: chunk.kind,
-      }
+      },
     }));
-    
+
     const uploaded = await pinecone.upsertAutoEmbed(batchRecords, namespace);
     totalUploaded += uploaded;
   }
-  
+
   logger.info(`Embedded and uploaded ${totalUploaded} chunks to Pinecone`);
   return totalUploaded;
 }
 
 export {
   cheapHashEmbedding,
+  embedAndUpsertToPinecone,
   embedGraphChunks,
   embedTexts,
   embedViaJinaAPI,
   embedViaLocalTransformers,
-  embedAndUpsertToPinecone,
 };

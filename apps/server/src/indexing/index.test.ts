@@ -1,8 +1,7 @@
-import { app } from "../app";
+import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import request from "supertest";
-import { expect, describe, it, beforeEach, afterEach } from "@jest/globals";
+import { app } from "../app";
 import PineconeHandler from "./embedding/pineconeService";
-
 
 describe("Indexing and Embedding API", () => {
   const testNamespace = "test-rajansagarwal-arceus";
@@ -30,8 +29,8 @@ describe("Indexing and Embedding API", () => {
           options: {
             maxLines: 200,
             embed: false,
-            paths: null
-          }
+            paths: null,
+          },
         })
         .expect(200);
 
@@ -49,8 +48,8 @@ describe("Indexing and Embedding API", () => {
           options: {
             maxLines: 200,
             embed: true,
-            paths: null
-          }
+            paths: null,
+          },
         })
         .expect(200);
 
@@ -68,14 +67,13 @@ describe("Indexing and Embedding API", () => {
           options: {
             maxLines: 200,
             embed: false,
-            paths: null
-          }
+            paths: null,
+          },
         })
         .expect(400);
 
       expect(response.body).toHaveProperty("error");
     });
-
   });
 
   describe("POST /api/indexing/search", () => {
@@ -88,8 +86,8 @@ describe("Indexing and Embedding API", () => {
           options: {
             maxLines: 200,
             embed: true,
-            paths: null
-          }
+            paths: null,
+          },
         });
     }, 60000);
 
@@ -98,7 +96,7 @@ describe("Indexing and Embedding API", () => {
         .post("/api/indexing/search")
         .send({
           query: "function authentication",
-          namespace: testNamespace
+          namespace: testNamespace,
         })
         .expect(200);
 
@@ -112,7 +110,7 @@ describe("Indexing and Embedding API", () => {
         .send({
           query: "function authentication",
           namespace: testNamespace,
-          topK: 5
+          topK: 5,
         })
         .expect(200);
 
@@ -127,7 +125,7 @@ describe("Indexing and Embedding API", () => {
           query: "function authentication",
           namespace: testNamespace,
           topK: 3,
-          fields: ["code", "path", "name"]
+          fields: ["code", "path", "name"],
         })
         .expect(200);
 
@@ -144,7 +142,7 @@ describe("Indexing and Embedding API", () => {
         .post("/api/indexing/search")
         .send({
           query: "",
-          namespace: testNamespace
+          namespace: testNamespace,
         })
         .expect(400);
 
@@ -156,7 +154,7 @@ describe("Indexing and Embedding API", () => {
         .post("/api/indexing/search")
         .send({
           query: "function authentication",
-          namespace: "non-existent-namespace"
+          namespace: "non-existent-namespace",
         })
         .expect(200);
 
@@ -176,8 +174,8 @@ describe("Indexing and Embedding API", () => {
           options: {
             maxLines: 200,
             embed: true,
-            paths: null
-          }
+            paths: null,
+          },
         });
     }, 60000);
 
@@ -185,7 +183,7 @@ describe("Indexing and Embedding API", () => {
       const response = await request(app)
         .delete("/api/indexing/clear-namespace")
         .send({
-          namespace: testNamespace
+          namespace: testNamespace,
         })
         .expect(200);
 
@@ -197,7 +195,7 @@ describe("Indexing and Embedding API", () => {
         .post("/api/indexing/search")
         .send({
           query: "function authentication",
-          namespace: testNamespace
+          namespace: testNamespace,
         });
 
       expect(searchResponse.body.matches).toEqual([]);
@@ -207,7 +205,7 @@ describe("Indexing and Embedding API", () => {
       const response = await request(app)
         .delete("/api/indexing/clear-namespace")
         .send({
-          namespace: "non-existent-namespace"
+          namespace: "non-existent-namespace",
         })
         .expect(200);
 
@@ -234,8 +232,8 @@ describe("Indexing and Embedding API", () => {
           options: {
             maxLines: 50, // Smaller chunks for testing
             embed: true,
-            paths: null
-          }
+            paths: null,
+          },
         })
         .expect(200);
 
@@ -244,13 +242,7 @@ describe("Indexing and Embedding API", () => {
       expect(response.body.embeddings).toHaveProperty("binary");
 
       // Test that we can search different types of code
-      const searchTests = [
-        "function",
-        "class",
-        "import",
-        "export",
-        "variable"
-      ];
+      const searchTests = ["function", "class", "import", "export", "variable"];
 
       for (const query of searchTests) {
         const searchResponse = await request(app)
@@ -258,7 +250,7 @@ describe("Indexing and Embedding API", () => {
           .send({
             query,
             namespace: testNamespace,
-            topK: 2
+            topK: 2,
           });
 
         expect(searchResponse.status).toBe(200);
