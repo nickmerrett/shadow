@@ -10,9 +10,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth/auth-client";
 import { LogOut, Settings, User } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuthSession } from "./session-provider";
 
 export function UserMenu() {
+  const router = useRouter();
   const { session, isLoading } = useAuthSession();
 
   const handleSignOut = async () => {
@@ -73,7 +75,7 @@ export function UserMenu() {
         <DropdownMenuSeparator className="bg-sidebar-border" />
         <DropdownMenuItem
           onClick={() => {
-            console.log("settings");
+            router.push("/settings");
           }}
           className="hover:bg-sidebar-border! transition-colors"
         >
