@@ -7,18 +7,17 @@ import { config } from "dotenv"
 
 config();
 
-// ───────────── Config ───────────────────────────────────────────────────────
 const ROOT = path.resolve(process.argv[2] || ".");
 const OUT_DIR = path.join(ROOT, ".shadow", "tree");
 const MODEL = process.env.MODEL || "gpt-4o";
 const TEMP = 0.15;
 
-const MAX_FILE_BYTES = 120_000;     // skip very large binaries
-const MAX_CHUNK_LINES = 110;        // lines per chunk sent to LLM
-const MAX_MSG_CHARS = 65_000;     // char cap for any single LLM request
-const FILE_SUM_TOKENS = 110;        // target tokens for one file summary
-const DIR_SUM_TOKENS = 180;        // per directory node
-const ROOT_SUM_TOKENS = 200;        // top-level overview
+const MAX_FILE_BYTES = 120_000;
+const MAX_CHUNK_LINES = 110;
+const MAX_MSG_CHARS = 65_000;
+const FILE_SUM_TOKENS = 110;
+const DIR_SUM_TOKENS = 180;
+const ROOT_SUM_TOKENS = 200;
 
 // ───────────── Types ────────────────────────────────────────────────────────
 type NodeId = string;
@@ -28,9 +27,9 @@ interface TreeNode {
   name: string;
   absPath: string;
   relPath: string;
-  level: number;             // 0 = repo root
+  level: number;
   children: NodeId[];
-  files: string[];           // file rel paths directly under this dir
+  files: string[];
   summary_md?: string;
 }
 
