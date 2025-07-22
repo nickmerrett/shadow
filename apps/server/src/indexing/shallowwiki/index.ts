@@ -1,9 +1,9 @@
-import fs from "fs";
-import path from "path";
-import glob from "fast-glob";
-import { OpenAI } from "openai";
 import chalk from "chalk";
-import { config } from "dotenv"
+import { config } from "dotenv";
+import glob from "fast-glob";
+import fs from "fs";
+import { OpenAI } from "openai";
+import path from "path";
 
 config();
 
@@ -56,7 +56,9 @@ async function chat(messages: any[]): Promise<string> {
   return res.choices[0]?.message?.content?.trim() || "";
 }
 
-function ensureDir(p: string) { fs.mkdirSync(p, { recursive: true }); }
+function ensureDir(p: string) {
+  fs.mkdirSync(p, { recursive: true });
+}
 
 function readGitignore(root: string): string[] {
   const giPath = path.join(root, ".gitignore");
@@ -97,11 +99,13 @@ function chunkLines(src: string, maxLines = MAX_CHUNK_LINES): string[] {
 }
 
 function toNodeId(rel: string): string {
-  return rel
-    .replace(/[^a-z0-9\/]+/gi, "_")
-    .replace(/[\/]+/g, "__")
-    .replace(/^_+|_+$/g, "")
-    .toLowerCase() || "root";
+  return (
+    rel
+      .replace(/[^a-z0-9\/]+/gi, "_")
+      .replace(/[\/]+/g, "__")
+      .replace(/^_+|_+$/g, "")
+      .toLowerCase() || "root"
+  );
 }
 
 // ───────────── Tree Construction ────────────────────────────────────────────
@@ -189,20 +193,26 @@ async function summarizeFile(rel: string): Promise<string> {
   return await chat(compressMsg);
 }
 
-async function summarizeDir(_node: TreeNode, childBlocks: string[]): Promise<string> {
+async function summarizeDir(
+  _node: TreeNode,
+  childBlocks: string[]
+): Promise<string> {
   const msg = [
     {
       role: "system",
       content:
         `Write DeepWiki doc for a module/folder. ≤${DIR_SUM_TOKENS} tokens. ` +
-        `No filler. Write highly meaningful but also concise analysis of the code, architecture, etc.`
+        `No filler. Write highly meaningful but also concise analysis of the code, architecture, etc.`,
     },
     { role: "user", content: childBlocks.join("\n\n---\n\n") },
   ];
   return await chat(msg);
 }
 
-async function summarizeRoot(node: TreeNode, topBlocks: string[]): Promise<string> {
+async function summarizeRoot(
+  node: TreeNode,
+  topBlocks: string[]
+): Promise<string> {
   const msg = [
     {
       role: "system",
@@ -223,10 +233,24 @@ async function run() {
   }
 
   const defaultsIgnore = [
-    "**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**",
-    "**/*.png", "**/*.jpg", "**/*.jpeg", "**/*.gif", "**/*.svg", "**/*.ico",
-    "**/*.lock", "**/*.min.*", "**/*.map", "**/*.woff*", "**/*.eot",
-    "**/*.class", "**/*.exe", "**/__pycache__/**"
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.png",
+    "**/*.jpg",
+    "**/*.jpeg",
+    "**/*.gif",
+    "**/*.svg",
+    "**/*.ico",
+    "**/*.lock",
+    "**/*.min.*",
+    "**/*.map",
+    "**/*.woff*",
+    "**/*.eot",
+    "**/*.class",
+    "**/*.exe",
+    "**/__pycache__/**",
   ];
   const gi = readGitignore(ROOT);
   const ignoreGlobs = mergeIgnore(defaultsIgnore, gi);
@@ -277,7 +301,10 @@ async function run() {
     }
 
     const front = `---\nid: ${node.id}\ntitle: ${node.name}\nlevel: ${node.level}\n---\n\n`;
-    fs.writeFileSync(path.join(OUT_DIR, `${node.id}.md`), front + node.summary_md + "\n");
+    fs.writeFileSync(
+      path.join(OUT_DIR, `${node.id}.md`),
+      front + node.summary_md + "\n"
+    );
     console.log(bold(`✅ Dir: ${node.relPath}`));
   }
 
@@ -295,10 +322,16 @@ async function run() {
     root.summary_md = "_(summary failed)_";
   }
   const rootFront = `---\nid: ${root.id}\ntitle: ${root.name}\nlevel: 0\n---\n\n`;
-  fs.writeFileSync(path.join(OUT_DIR, "00_OVERVIEW.md"), rootFront + root.summary_md + "\n");
+  fs.writeFileSync(
+    path.join(OUT_DIR, "00_OVERVIEW.md"),
+    rootFront + root.summary_md + "\n"
+  );
 
   // 4) Save index
-  fs.writeFileSync(path.join(OUT_DIR, "index.json"), JSON.stringify(index, null, 2));
+  fs.writeFileSync(
+    path.join(OUT_DIR, "index.json"),
+    JSON.stringify(index, null, 2)
+  );
 
   console.log(bold("\n🎉 DeepWiki tree generated at"), OUT_DIR);
 }
