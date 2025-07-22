@@ -143,9 +143,9 @@ export function PromptForm({
               <Button
                 size="sm"
                 variant="ghost"
-                className="text-muted-foreground hover:bg-accent font-normal"
+                className="text-muted-foreground hover:bg-accent font-normal px-2"
               >
-                <Layers className="size-4" />
+                {isHome && <Layers className="size-4" />}
                 <span>
                   {selectedModel
                     ? ModelInfos[selectedModel].name
