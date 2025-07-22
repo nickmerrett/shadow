@@ -22,7 +22,7 @@ import {
   Play,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SidebarAgentView } from "./agent-view";
 import { SidebarNavigation } from "./navigation";
 import { SidebarTasksView } from "./tasks-view";
@@ -65,9 +65,18 @@ export function SidebarViews({
 }) {
   const { data: tasks, isLoading: loading, error } = useTasks(initialTasks);
 
-  const [sidebarView, setSidebarView] = useState<SidebarView>("tasks");
+  const [sidebarView, setSidebarView] = useState<SidebarView>(
+    currentTask ? "agent" : "tasks"
+  );
+
+  // Initial render trick to avoid hydration issues on navigation
+  const isInitialRender = useRef(true);
 
   useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      return;
+    }
     if (currentTask) {
       setSidebarView("agent");
     } else {
