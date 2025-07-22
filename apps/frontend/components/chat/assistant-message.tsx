@@ -87,7 +87,7 @@ export function AssistantMessage({ message }: { message: Message }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2 px-3">
       {groupedParts.map((group, groupIndex) => {
         if (group.type === "text") {
           return (
