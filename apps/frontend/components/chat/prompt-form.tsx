@@ -24,10 +24,12 @@ import { GithubConnection } from "./github";
 
 export function PromptForm({
   onSubmit,
+  onStopStream,
   isStreaming = false,
   isHome = false,
 }: {
   onSubmit?: (message: string, model: ModelType) => void;
+  onStopStream?: () => void;
   isStreaming?: boolean;
   isHome?: boolean;
 }) {
@@ -182,19 +184,18 @@ export function PromptForm({
               />
             )}
             <Button
-              type="submit"
+              type={isStreaming ? "button" : "submit"}
               size="iconSm"
               disabled={
-                isStreaming ||
-                isPending ||
-                !message.trim() ||
-                !selectedModel ||
-                (isHome && (!repoUrl || !branch))
+                (!isStreaming && (isPending || !message.trim() || !selectedModel || (isHome && (!repoUrl || !branch))))
               }
+              onClick={isStreaming ? onStopStream : undefined}
               className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
             >
               {isPending ? (
                 <Loader2 className="size-4 animate-spin" />
+              ) : isStreaming ? (
+                <Square className="size-4" />
               ) : (
                 <ArrowUp className="size-4" />
               )}
