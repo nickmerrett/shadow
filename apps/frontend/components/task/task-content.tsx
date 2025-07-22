@@ -15,6 +15,7 @@ import type {
   TextPart,
   ToolCallPart,
   ToolExecutionStatusType,
+  ToolResultPart,
 } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
@@ -123,8 +124,27 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
         case "tool-result":
           if (chunk.toolResult) {
             console.log("Tool result:", chunk.toolResult);
-            // For structured parts, tool results are handled separately as tool messages
-            // We don't need to update the assistant parts here
+
+            // Add tool result part to structured assistant parts
+            const toolResultPart: ToolResultPart = {
+              type: "tool-result",
+              toolCallId: chunk.toolResult.id,
+              toolName: "", // We'll find the tool name from the corresponding call
+              result: chunk.toolResult.result,
+            };
+
+            // Find the corresponding tool call to get the tool name
+            setStreamingAssistantParts((prev) => {
+              const correspondingCall = prev.find(
+                (part) =>
+                  part.type === "tool-call" &&
+                  part.toolCallId === chunk.toolResult!.id
+              );
+              if (correspondingCall && correspondingCall.type === "tool-call") {
+                toolResultPart.toolName = correspondingCall.toolName;
+              }
+              return [...prev, toolResultPart];
+            });
 
             // Keep old behavior for now during transition
             setStreamingToolCalls((prev) =>
@@ -273,7 +293,7 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
 
     console.log("Stopping stream for task:", taskId);
     socket.emit("stop-stream", { taskId });
-    
+
     // Immediately update local state
     setIsStreaming(false);
     setStreamingAssistantParts([]);
