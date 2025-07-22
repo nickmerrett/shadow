@@ -35,14 +35,29 @@ export function useFileChanges(
   const fileChanges = query.data || [];
 
   // Compute diff stats efficiently with useMemo
+  // Only count the latest change per file (like GitHub PR diffs)
   const diffStats = useMemo((): DiffStats => {
-    return fileChanges.reduce(
+    // Group by file path and keep only the most recent change per file
+    const latestChangePerFile = new Map<string, FileChange>();
+
+    fileChanges.forEach((change) => {
+      const existing = latestChangePerFile.get(change.filePath);
+      if (
+        !existing ||
+        new Date(change.createdAt) > new Date(existing.createdAt)
+      ) {
+        latestChangePerFile.set(change.filePath, change);
+      }
+    });
+
+    // Calculate diff stats from latest changes only
+    return Array.from(latestChangePerFile.values()).reduce(
       (acc, change) => ({
         additions: acc.additions + change.additions,
         deletions: acc.deletions + change.deletions,
         totalFiles: acc.totalFiles,
       }),
-      { additions: 0, deletions: 0, totalFiles: fileChanges.length }
+      { additions: 0, deletions: 0, totalFiles: latestChangePerFile.size }
     );
   }, [fileChanges]);
 

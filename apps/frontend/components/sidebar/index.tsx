@@ -8,7 +8,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { DiffStats } from "@/hooks/use-file-changes";
 import { useTasks } from "@/hooks/use-tasks";
 import { FileChange, Task, Todo } from "@repo/db";
 import {
@@ -58,7 +57,6 @@ export function SidebarComponent({
     taskData: Task;
     todos: Todo[];
     fileChanges: FileChange[];
-    diffStats: DiffStats;
   } | null;
 }) {
   const { data: tasks, isLoading: loading, error } = useTasks(initialTasks);

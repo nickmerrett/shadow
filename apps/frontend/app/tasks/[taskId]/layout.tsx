@@ -24,7 +24,6 @@ export default async function TaskLayout({
         taskData: taskDetails.task,
         todos: taskDetails.todos,
         fileChanges: taskDetails.fileChanges,
-        diffStats: taskDetails.diffStats,
       }
     : null;
 
