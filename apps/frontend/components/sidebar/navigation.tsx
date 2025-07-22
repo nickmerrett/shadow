@@ -5,6 +5,7 @@ import { SidebarView } from ".";
 import { SettingsDialog } from "../auth/settings-dialog";
 import { UserMenu } from "../auth/user-menu";
 import { Button } from "../ui/button";
+import { useSidebar } from "../ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export function SidebarNavigation({
@@ -16,6 +17,8 @@ export function SidebarNavigation({
   setSidebarView: (view: SidebarView) => void;
   doesCurrentTaskExist: boolean;
 }) {
+  const { open, toggleSidebar } = useSidebar();
+
   const agentViewTrigger = (
     <div className="relative z-0 h-7">
       <div className="bg-card pointer-events-none absolute -top-1.5 -right-1.5 z-10 rounded-full p-1">
@@ -30,12 +33,15 @@ export function SidebarNavigation({
             variant="ghost"
             className={cn(
               "border",
-              sidebarView === "agent"
+              sidebarView === "agent" && open
                 ? "text-foreground bg-sidebar-accent border-sidebar-border hover:opacity-80"
                 : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
             )}
             onClick={() => {
               setSidebarView("agent");
+              if (!open) {
+                toggleSidebar();
+              }
             }}
           >
             <Play />
@@ -74,12 +80,15 @@ export function SidebarNavigation({
                 variant="ghost"
                 className={cn(
                   "border",
-                  sidebarView === "tasks"
+                  sidebarView === "tasks" && open
                     ? "text-foreground bg-sidebar-accent border-sidebar-border hover:opacity-80"
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
                 )}
                 onClick={() => {
                   setSidebarView("tasks");
+                  if (!open) {
+                    toggleSidebar();
+                  }
                 }}
               >
                 <LayoutGrid />
