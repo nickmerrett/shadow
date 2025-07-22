@@ -7,6 +7,7 @@ import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
 import { socket } from "@/lib/socket";
 import { cn } from "@/lib/utils";
+import type { FileChange } from "@repo/db";
 import type {
   AssistantMessagePart,
   Message,
@@ -143,10 +144,32 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
         case "file-change":
           if (chunk.fileChange) {
             console.log("File change:", chunk.fileChange);
-            // Invalidate file changes query to refetch with new data
-            queryClient.invalidateQueries({
-              queryKey: ["file-changes", taskId],
-            });
+
+            // Optimistic update: Use chunk data directly instead of invalidating query
+            queryClient.setQueryData<FileChange[]>(
+              ["file-changes", taskId],
+              (oldData = []) => {
+                const chunkFileChange = chunk.fileChange!;
+
+                // Transform chunk data to match FileChange type
+                const newFileChange: FileChange = {
+                  ...chunkFileChange,
+                  taskId,
+                  oldContent: chunkFileChange.oldContent ?? null,
+                  newContent: chunkFileChange.newContent ?? null,
+                  diffPatch: chunkFileChange.diffPatch ?? null,
+                  createdAt: new Date(chunkFileChange.createdAt),
+                };
+
+                // Handle deduplication - replace existing entry for same file
+                const filteredData = oldData.filter(
+                  (change) => change.filePath !== newFileChange.filePath
+                );
+
+                // Add the new/updated file change
+                return [...filteredData, newFileChange];
+              }
+            );
           }
           break;
 
@@ -273,7 +296,7 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
   }
 
   return (
-    <StickToBottom.Content className="mx-auto flex w-full grow max-w-lg flex-col items-center px-4 sm:px-6 relative z-0">
+    <StickToBottom.Content className="mx-auto flex min-h-full w-full max-w-lg flex-col items-center px-4 sm:px-6 relative z-0">
       <div
         className={cn(
           "sticky -left-px w-[calc(100%+2px)] top-0 h-16 bg-gradient-to-b from-background via-background/60 to-transparent -translate-y-px pointer-events-none z-10 transition-opacity",
