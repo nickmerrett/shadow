@@ -82,6 +82,25 @@ export function createSocketServer(server: http.Server): Server {
       }
     });
 
+    // Handle stop stream request
+    socket.on("stop-stream", async (data: { taskId: string }) => {
+      try {
+        console.log("Received stop stream request for task:", data.taskId);
+        
+        // Stop the current streaming operation
+        await chatService.stopStream(data.taskId);
+        
+        // Update stream state
+        endStream();
+        
+        // Notify all clients that the stream has been stopped
+        io.emit("stream-complete");
+      } catch (error) {
+        console.error("Error stopping stream:", error);
+        socket.emit("stream-error", { error: "Failed to stop stream" });
+      }
+    });
+
     socket.on("disconnect", () => {
       console.log("a user disconnected");
     });

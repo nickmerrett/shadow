@@ -268,6 +268,18 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
     });
   };
 
+  const handleStopStream = () => {
+    if (!taskId || !isStreaming) return;
+
+    console.log("Stopping stream for task:", taskId);
+    socket.emit("stop-stream", { taskId });
+    
+    // Immediately update local state
+    setIsStreaming(false);
+    setStreamingAssistantParts([]);
+    setStreamingToolCalls([]);
+  };
+
   if (taskMessagesError) {
     return (
       <div className="mx-auto flex w-full grow max-w-lg flex-col items-center justify-center">
@@ -310,6 +322,7 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
 
       <PromptForm
         onSubmit={handleSendMessage}
+        onStopStream={handleStopStream}
         isStreaming={isStreaming || sendMessageMutation.isPending}
       />
     </StickToBottom.Content>
