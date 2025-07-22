@@ -5,6 +5,9 @@ import fg from "fast-glob";
 import ignore from "ignore";
 import readline from "readline";
 import { OpenAI } from "openai";
+import { config } from 'dotenv'
+
+config();
 
 /*────────── config you might tweak ─────────────────────────────────────────*/
 const ROOT = path.resolve(process.argv[2] || ".");
@@ -16,6 +19,9 @@ const MAX_SNIPPET_CHARS = 600;     // per‑file snippet
 const MAX_LEAF_CONTEXT = 7_000;   // tokens (≈ chars) per leaf prompt
 const OVERVIEW_TOKENS = 160;     // repo overview budget
 const SECTION_TOKENS = 160;     // section budget
+
+// Only index files with these common extensions unless approved by the user at runtime
+const ALLOWED_EXT_REGEX = /\.(ts|tsx|js|jsx|json|md|txt|py|html?|css)$/i;
 
 /*────────── tiny helpers ───────────────────────────────────────────────────*/
 const bold = (s: string) => chalk.bold.cyan(s);
@@ -89,6 +95,18 @@ async function buildDeepWiki() {
   const gitIgnoreFile = path.join(ROOT, ".gitignore");
   if (fs.existsSync(gitIgnoreFile)) ig.add(fs.readFileSync(gitIgnoreFile, "utf8"));
 
+  // also honour nested .gitignore files within the repository
+  const nestedGitIgnores = await fg("**/.gitignore", { cwd: ROOT, dot: true, absolute: true });
+  for (const gi of nestedGitIgnores) {
+    if (gi === gitIgnoreFile) continue; // skip root which is already added
+    const dirRel = path.relative(ROOT, path.dirname(gi)).replace(/\\/g, "/");
+    const lines = fs.readFileSync(gi, "utf8")
+      .split(/\r?\n/)
+      .filter(l => l.trim() && !l.startsWith("#"))
+      .map(p => path.posix.join(dirRel, p.trim()));
+    ig.add(lines);
+  }
+
   const allFiles = await fg("**/*", { cwd: ROOT, dot: true, absolute: true });
 
   const metas: FileMeta[] = [];
@@ -97,6 +115,12 @@ async function buildDeepWiki() {
   for (const abs of allFiles) {
     const rel = path.relative(ROOT, abs).replace(/\\/g, "/");
     if (ig.ignores(rel) || fs.statSync(abs).isDirectory()) continue;
+
+    // enforce allowed extensions, ask for approval otherwise
+    if (!ALLOWED_EXT_REGEX.test(abs)) {
+      const ok = await yesNo(`❓  Index uncommon file '${rel}'?`);
+      if (!ok) continue;
+    }
 
     const snip = numberedSnippet(abs);
     const deps = /\.[jt]sx?$/.test(abs)
@@ -108,9 +132,13 @@ async function buildDeepWiki() {
   }
 
   /* ── 2. leaf‑level summaries (≤ FILES_PER_CHUNK each) ──────────────────*/
+  // display list of files selected for indexing
+  console.log(bold(`📄 ${metas.length} files selected for indexing:`));
+  metas.forEach(m => console.log(" •", m.rel));
+
   const dirSums: Record<string, DirSum> = {};
 
-  async function summariseChunk(dir: string, chunk: FileMeta[]) {
+  async function summariseChunk(_dir: string, chunk: FileMeta[]) {
     const ctx = chunk
       .map(m => `// ===== ${m.rel} =====\n${m.snip}`)
       .join("\n\n")
