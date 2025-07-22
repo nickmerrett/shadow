@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
-import { LayoutGrid, Play, Plus, Settings } from "lucide-react";
+import { LayoutGrid, Play, Plus } from "lucide-react";
 import Link from "next/link";
 import { SidebarView } from ".";
+import { SettingsDialog } from "../auth/settings-dialog";
 import { UserMenu } from "../auth/user-menu";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
@@ -66,53 +67,44 @@ export function SidebarNavigation({
             </TooltipTrigger>
             <TooltipContent side="right">New Task</TooltipContent>
           </Tooltip>
-          <div className="flex flex-col gap-3">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="iconSm"
-                  variant="ghost"
-                  className={cn(
-                    "border",
-                    sidebarView === "tasks"
-                      ? "text-foreground bg-sidebar-accent border-sidebar-border hover:opacity-80"
-                      : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
-                  )}
-                  onClick={() => {
-                    setSidebarView("tasks");
-                  }}
-                >
-                  <LayoutGrid />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Tasks View</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="iconSm"
-                  variant="ghost"
-                  className="text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
-                  asChild
-                >
-                  <Link href="/settings">
-                    <Settings />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Settings</TooltipContent>
-            </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="iconSm"
+                variant="ghost"
+                className={cn(
+                  "border",
+                  sidebarView === "tasks"
+                    ? "text-foreground bg-sidebar-accent border-sidebar-border hover:opacity-80"
+                    : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
+                )}
+                onClick={() => {
+                  setSidebarView("tasks");
+                }}
+              >
+                <LayoutGrid />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Tasks View</TooltipContent>
+          </Tooltip>
 
-            {doesCurrentTaskExist ? (
-              <>
-                <div className="bg-border h-px w-full" />
-                {agentViewTrigger}
-              </>
-            ) : null}
-          </div>
+          {doesCurrentTaskExist ? (
+            <>
+              <div className="bg-border h-px w-full" />
+              {agentViewTrigger}
+            </>
+          ) : null}
         </div>
       </div>
-      <UserMenu />
+      <div className="flex flex-col gap-4">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SettingsDialog />
+          </TooltipTrigger>
+          <TooltipContent side="right">Settings</TooltipContent>
+        </Tooltip>
+        <UserMenu />
+      </div>
     </div>
   );
 }

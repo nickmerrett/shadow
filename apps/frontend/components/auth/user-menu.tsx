@@ -9,11 +9,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth/auth-client";
 import { LogOut, User } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useAuthSession } from "./session-provider";
 
 export function UserMenu() {
-  const router = useRouter();
   const { session, isLoading } = useAuthSession();
 
   const handleSignOut = async () => {
