@@ -1,17 +1,17 @@
 @property --colorStop1 {
-  syntax: '<color>';
+  syntax: "<color>";
   initial-value: black;
   inherits: false;
 }
 
 @property --colorStop2 {
-  syntax: '<color>';
+  syntax: "<color>";
   initial-value: black;
   inherits: false;
 }
 
 @property --colorStop3 {
-  syntax: '<color>';
+  syntax: "<color>";
   initial-value: black;
   inherits: false;
 }
@@ -20,12 +20,19 @@
   --colorStop1: var(--border);
   --colorStop2: var(--border);
   --colorStop3: var(--highlight);
-  
-  background: linear-gradient(var(--colorStop1), var(--colorStop2), var(--colorStop3));
-  transition: --colorStop1 150ms, --colorStop2 150ms, --colorStop3 150ms;
+
+  background: linear-gradient(
+    var(--colorStop1),
+    var(--colorStop2),
+    var(--colorStop3)
+  );
+  transition:
+    --colorStop1 150ms,
+    --colorStop2 150ms,
+    --colorStop3 150ms;
 }
 
-.user-message-border:hover {  
+.user-message-border:hover {
   --colorStop1: var(--sidebar-border);
   --colorStop2: var(--sidebar-border);
   --colorStop3: var(--highlight-hover);

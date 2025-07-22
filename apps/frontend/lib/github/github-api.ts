@@ -6,7 +6,6 @@ import {
   createInstallationOctokit,
   getGitHubAppInstallationUrl,
 } from "@/lib/github/github-app";
-import { formatTimeAgo } from "@/lib/utils";
 import {
   Branch,
   FilteredRepository,
@@ -60,13 +59,15 @@ function groupReposByOrg(
   Object.values(userGroups).forEach((repos) =>
     repos.sort(
       (a, b) =>
-        new Date(b.pushed_at || 0).getTime() - new Date(a.pushed_at || 0).getTime()
+        new Date(b.pushed_at || 0).getTime() -
+        new Date(a.pushed_at || 0).getTime()
     )
   );
   Object.values(orgGroups).forEach((repos) =>
     repos.sort(
       (a, b) =>
-        new Date(b.pushed_at || 0).getTime() - new Date(a.pushed_at || 0).getTime()
+        new Date(b.pushed_at || 0).getTime() -
+        new Date(a.pushed_at || 0).getTime()
     )
   );
 
@@ -231,11 +232,12 @@ export async function getGitHubRepositories(
     const perPage = 100;
 
     while (true) {
-      const { data } = await octokit.rest.apps.listReposAccessibleToInstallation({
-        per_page: perPage,
-        page,
-        sort: "pushed",
-      });
+      const { data } =
+        await octokit.rest.apps.listReposAccessibleToInstallation({
+          per_page: perPage,
+          page,
+          sort: "pushed",
+        });
 
       allRepositories.push(...data.repositories);
 

@@ -1,31 +1,35 @@
 import js from "@eslint/js";
-import tseslint from "@typescript-eslint/eslint-plugin";
-import tsParser from "@typescript-eslint/parser";
+import eslintConfigPrettier from "eslint-config-prettier";
+import turboPlugin from "eslint-plugin-turbo";
+import tseslint from "typescript-eslint";
+import onlyWarn from "eslint-plugin-only-warn";
 
-export default [
+/**
+ * A shared ESLint configuration for the repository.
+ *
+ * @type {import("eslint").Linter.Config[]}
+ * */
+export const config = [
   js.configs.recommended,
+  eslintConfigPrettier,
+  ...tseslint.configs.recommended,
   {
-    files: ["**/*.{js,ts,tsx}"],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        ecmaVersion: "latest",
-        sourceType: "module",
-      },
-    },
     plugins: {
-      "@typescript-eslint": tseslint,
+      turbo: turboPlugin,
     },
     rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_" },
-      ],
-      "no-unused-vars": "off", // Turn off base rule as it can report incorrect errors
-      "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-non-null-assertion": "warn",
-      "prefer-const": "error",
-      "no-var": "error",
+      "turbo/no-undeclared-env-vars": "warn",
     },
   },
+  {
+    plugins: {
+      onlyWarn,
+    },
+  },
+  {
+    ignores: ["dist/**", ".next/**"],
+  },
 ];
+
+// Default export for backward compatibility
+export default config;

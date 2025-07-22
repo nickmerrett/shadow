@@ -1,10 +1,15 @@
-import baseConfig from "./base.js";
 import globals from "globals";
+import { config as baseConfig } from "./base.js";
 
-export default [
+/**
+ * A custom ESLint configuration for Node.js applications.
+ *
+ * @type {import("eslint").Linter.Config[]}
+ * */
+export const nodeConfig = [
   ...baseConfig,
   {
-    files: ["src/**/*.ts"],
+    files: ["src/**/*.ts", "src/**/*.js"],
     languageOptions: {
       globals: {
         console: "readonly",
@@ -22,3 +27,6 @@ export default [
     },
   },
 ];
+
+// Default export for backward compatibility
+export default nodeConfig;

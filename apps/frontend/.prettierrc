@@ -7,5 +7,6 @@
     "prettier-plugin-tailwindcss",
     "prettier-plugin-organize-imports"
   ],
+  "tailwindStylesheet": "./app/globals.css",
   "organizeImportsSkipDestructiveCodeActions": false
 }

@@ -44,7 +44,8 @@ export function CollapsibleTool({
     <button
       onClick={() => setIsExpanded(!isExpanded)}
       className={cn(
-        "flex flex-col cursor-pointer gap-2 w-full px-3 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md py-1.5 text-left text-[13px] transition-colors"
+        "flex flex-col cursor-pointer gap-2 w-full px-3 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md py-1.5 text-left text-[13px] transition-colors",
+        className
       )}
     >
       <div className="flex items-center gap-2 [&_svg:not([class*='size-'])]:size-3.5">

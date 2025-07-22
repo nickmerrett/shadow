@@ -187,7 +187,11 @@ export function PromptForm({
               type={isStreaming ? "button" : "submit"}
               size="iconSm"
               disabled={
-                (!isStreaming && (isPending || !message.trim() || !selectedModel || (isHome && (!repoUrl || !branch))))
+                !isStreaming &&
+                (isPending ||
+                  !message.trim() ||
+                  !selectedModel ||
+                  (isHome && (!repoUrl || !branch)))
               }
               onClick={isStreaming ? onStopStream : undefined}
               className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
