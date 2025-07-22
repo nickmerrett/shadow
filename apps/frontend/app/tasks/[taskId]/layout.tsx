@@ -1,4 +1,4 @@
-import { SidebarComponent } from "@/components/sidebar";
+import { SidebarViews } from "@/components/sidebar";
 import { getUser } from "@/lib/auth/get-user";
 import { getTaskWithDetails } from "@/lib/db-operations/get-task-with-details";
 import { getTasks } from "@/lib/db-operations/get-tasks";
@@ -18,7 +18,7 @@ export default async function TaskLayout({
   // Fetch complete task details including todos and file changes
   const taskDetails = await getTaskWithDetails(taskId);
 
-  // Transform to match SidebarComponent interface
+  // Transform to match SidebarViews interface
   const currentTask = taskDetails.task
     ? {
         taskData: taskDetails.task,
@@ -29,7 +29,7 @@ export default async function TaskLayout({
 
   return (
     <>
-      <SidebarComponent initialTasks={initialTasks} currentTask={currentTask} />
+      <SidebarViews initialTasks={initialTasks} currentTask={currentTask} />
       {children}
     </>
   );

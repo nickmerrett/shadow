@@ -7,6 +7,7 @@ import {
   SidebarGroup,
   SidebarMenu,
   SidebarMenuItem,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { useTasks } from "@/hooks/use-tasks";
 import { FileChange, Task, Todo } from "@repo/db";
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import { UserMenu } from "../auth/user-menu";
 import { SidebarAgentView } from "./agent-view";
 import { SidebarTasksView } from "./tasks-view";
@@ -48,7 +50,7 @@ export const statusColorsConfig = {
   CANCELLED: { icon: AlertTriangle, className: "text-gray-500" },
 };
 
-export function SidebarComponent({
+export function SidebarViews({
   initialTasks,
   currentTask,
 }: {
@@ -61,36 +63,46 @@ export function SidebarComponent({
 }) {
   const { data: tasks, isLoading: loading, error } = useTasks(initialTasks);
 
+  const [sidebarView, setSidebarView] = useState<"tasks" | "agent">("tasks");
+
   return (
-    <Sidebar>
-      <SidebarContent>
-        <SidebarGroup>
-          <Link
-            href="/"
-            className="flex size-9 items-center justify-center"
-            aria-label="Home"
-          >
-            <Image src="/shadow.svg" alt="Logo" width={22} height={22} />
-          </Link>
-        </SidebarGroup>
-        <div className="mt-6 flex flex-col gap-4">
-          {currentTask ? (
-            <SidebarAgentView
-              taskId={currentTask.taskData.id}
-              currentTask={currentTask}
-            />
-          ) : (
-            <SidebarTasksView tasks={tasks} loading={loading} error={error} />
-          )}
-        </div>
-      </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <UserMenu />
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-    </Sidebar>
+    <div className="flex">
+      <div className="flex h-svh flex-col justify-between border-r p-3">
+        <Link
+          href="/"
+          className="flex size-8 items-center justify-center"
+          aria-label="Home"
+        >
+          <Image src="/shadow.svg" alt="Logo" width={22} height={22} />
+        </Link>
+      </div>
+      <Sidebar>
+        <SidebarContent>
+          <SidebarGroup className="flex h-7 flex-row items-center justify-between">
+            <div className="font-medium">
+              {sidebarView === "tasks" ? "Tasks" : "Agent"}
+            </div>
+            <SidebarTrigger className="hover:bg-sidebar-accent" />
+          </SidebarGroup>
+          <div className="mt-6 flex flex-col gap-4">
+            {currentTask ? (
+              <SidebarAgentView
+                taskId={currentTask.taskData.id}
+                currentTask={currentTask}
+              />
+            ) : (
+              <SidebarTasksView tasks={tasks} loading={loading} error={error} />
+            )}
+          </div>
+        </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <UserMenu />
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+    </div>
   );
 }
