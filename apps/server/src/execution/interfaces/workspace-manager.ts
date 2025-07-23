@@ -3,6 +3,7 @@ import {
   WorkspaceInfo,
   WorkspaceStatus,
   HealthStatus,
+  TaskConfig,
 } from "./types";
 
 /**
@@ -13,12 +14,7 @@ export interface WorkspaceManager {
   /**
    * Prepare a workspace for a task (clone repo, setup environment, etc.)
    */
-  prepareWorkspace(
-    taskId: string,
-    repoUrl: string,
-    branch: string,
-    userId: string
-  ): Promise<WorkspaceInfo>;
+  prepareWorkspace(taskConfig: TaskConfig): Promise<WorkspaceInfo>;
 
   /**
    * Clean up a task's workspace

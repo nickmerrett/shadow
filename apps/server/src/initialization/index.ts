@@ -6,6 +6,8 @@ import {
 } from "@repo/types";
 import { emitStreamChunk } from "../socket";
 import { WorkspaceManager } from "../workspace";
+import { createWorkspaceManager, createToolExecutor, getAgentMode } from "../execution";
+import type { WorkspaceManager as AbstractWorkspaceManager, ToolExecutor } from "../execution";
 
 // Helper for async delays
 const delay = (ms: number) =>
@@ -40,13 +42,32 @@ const STEP_DEFINITIONS: Record<
     name: "Validating Setup",
     description: "Verify environment is ready for development",
   },
+  // Remote mode specific steps
+  CREATE_POD: {
+    name: "Creating Pod",
+    description: "Create Kubernetes pod for task execution",
+  },
+  WAIT_SIDECAR_READY: {
+    name: "Waiting for Sidecar",
+    description: "Wait for sidecar service to become ready",
+  },
+  CLONE_TO_POD: {
+    name: "Cloning to Pod",
+    description: "Clone repository into pod workspace",
+  },
+  CLEANUP_POD: {
+    name: "Cleaning up Pod",
+    description: "Destroy Kubernetes pod and cleanup resources",
+  },
 };
 
 export class TaskInitializationEngine {
   private workspaceManager: WorkspaceManager;
+  private abstractWorkspaceManager: AbstractWorkspaceManager;
 
   constructor() {
-    this.workspaceManager = new WorkspaceManager();
+    this.workspaceManager = new WorkspaceManager(); // Legacy local workspace manager
+    this.abstractWorkspaceManager = createWorkspaceManager(); // New abstraction layer
   }
 
   /**
@@ -182,6 +203,23 @@ export class TaskInitializationEngine {
         await this.executeValidateSetup(taskId);
         break;
 
+      // Remote mode specific steps
+      case "CREATE_POD":
+        await this.executeCreatePod(taskId, userId);
+        break;
+
+      case "WAIT_SIDECAR_READY":
+        await this.executeWaitSidecarReady(taskId);
+        break;
+
+      case "CLONE_TO_POD":
+        await this.executeCloneToPod(taskId, userId);
+        break;
+
+      case "CLEANUP_POD":
+        await this.executeCleanupPod(taskId);
+        break;
+
       default:
         throw new Error(`Unknown initialization step: ${step}`);
     }
@@ -288,6 +326,162 @@ export class TaskInitializationEngine {
   }
 
   /**
+   * Create pod step - Create Kubernetes pod for remote execution
+   */
+  private async executeCreatePod(taskId: string, userId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Creating Kubernetes pod for remote execution`);
+
+    try {
+      // Get task info
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { repoUrl: true, branch: true },
+      });
+
+      if (!task) {
+        throw new Error(`Task not found: ${taskId}`);
+      }
+
+      // Use abstract workspace manager to prepare workspace (creates pod in remote mode)
+      const workspaceInfo = await this.abstractWorkspaceManager.prepareWorkspace({
+        taskId,
+        repoUrl: task.repoUrl,
+        branch: task.branch,
+        userId,
+      });
+
+      if (!workspaceInfo.success) {
+        throw new Error(`Failed to create pod: ${workspaceInfo.error}`);
+      }
+
+      // Create or update TaskSession with pod information
+      if (workspaceInfo.podName && workspaceInfo.podNamespace) {
+        await prisma.taskSession.create({
+          data: {
+            taskId,
+            podName: workspaceInfo.podName,
+            podNamespace: workspaceInfo.podNamespace,
+            isActive: true,
+          },
+        });
+      }
+
+      console.log(`[TASK_INIT] ${taskId}: Successfully created pod ${workspaceInfo.podName}`);
+    } catch (error) {
+      console.error(`[TASK_INIT] ${taskId}: Failed to create pod:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Wait for sidecar ready step - Wait for sidecar API to become healthy
+   */
+  private async executeWaitSidecarReady(taskId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Waiting for sidecar service to become ready`);
+
+    try {
+      // Get the tool executor for this task (will contain sidecar endpoint info)
+      const executor = createToolExecutor(taskId);
+
+      if (!executor.isRemote()) {
+        console.log(`[TASK_INIT] ${taskId}: Not in remote mode, skipping sidecar check`);
+        return;
+      }
+
+      // Wait for sidecar to be healthy with timeout and retries
+      const maxRetries = 30; // 30 * 2s = 60s timeout
+      const retryDelay = 2000; // 2 seconds between retries
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          // Try a simple file operation to test sidecar connectivity
+          await executor.listDirectory(".");
+          console.log(`[TASK_INIT] ${taskId}: Sidecar is ready (attempt ${attempt})`);
+          return;
+        } catch (error) {
+          if (attempt === maxRetries) {
+            throw new Error(`Sidecar failed to become ready after ${maxRetries} attempts`);
+          }
+          console.log(`[TASK_INIT] ${taskId}: Sidecar not ready yet (attempt ${attempt}/${maxRetries}), retrying...`);
+          await delay(retryDelay);
+        }
+      }
+    } catch (error) {
+      console.error(`[TASK_INIT] ${taskId}: Failed waiting for sidecar:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clone to pod step - Clone repository into the pod workspace
+   */
+  private async executeCloneToPod(taskId: string, userId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Cloning repository into pod workspace`);
+
+    try {
+      // Get task info
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { repoUrl: true, branch: true },
+      });
+
+      if (!task) {
+        throw new Error(`Task not found: ${taskId}`);
+      }
+
+      // Get the tool executor for remote operations
+      const executor = createToolExecutor(taskId);
+
+      if (!executor.isRemote()) {
+        console.log(`[TASK_INIT] ${taskId}: Not in remote mode, skipping pod clone`);
+        return;
+      }
+
+      // For now, this is handled by the workspace manager during pod creation
+      // In the future, this could be separated if we want different clone strategies
+      console.log(`[TASK_INIT] ${taskId}: Repository cloning handled by workspace manager`);
+      
+      // Verify the clone was successful by checking workspace contents
+      const listing = await executor.listDirectory(".");
+      if (!listing.success || listing.contents.length === 0) {
+        throw new Error("Repository clone verification failed - workspace appears empty");
+      }
+
+      console.log(`[TASK_INIT] ${taskId}: Successfully verified repository in pod workspace`);
+    } catch (error) {
+      console.error(`[TASK_INIT] ${taskId}: Failed to clone to pod:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cleanup pod step - Destroy Kubernetes pod and cleanup resources
+   */
+  private async executeCleanupPod(taskId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Cleaning up Kubernetes pod`);
+
+    try {
+      // Cleanup through abstract workspace manager
+      await this.abstractWorkspaceManager.cleanupWorkspace(taskId);
+
+      // Update TaskSession to mark as inactive
+      await prisma.taskSession.updateMany({
+        where: { taskId, isActive: true },
+        data: {
+          isActive: false,
+          endedAt: new Date(),
+        },
+      });
+
+      console.log(`[TASK_INIT] ${taskId}: Successfully cleaned up pod`);
+    } catch (error) {
+      console.error(`[TASK_INIT] ${taskId}: Failed to cleanup pod:`, error);
+      // Don't throw error for cleanup failures, just log them
+      // We don't want cleanup failures to break the overall flow
+    }
+  }
+
+  /**
    * Update task initialization status in database
    */
   private async updateTaskInit(
@@ -315,30 +509,76 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Get default initialization steps for a task type
+   * Get default initialization steps based on agent mode and task type
    */
   getDefaultStepsForTask(
     taskType: "simple" | "microvm" | "full" = "simple"
   ): InitStepType[] {
-    switch (taskType) {
-      case "simple":
-        return ["CLONE_REPOSITORY"];
+    const agentMode = getAgentMode();
 
-      case "microvm":
-        return ["CLONE_REPOSITORY", "PROVISION_MICROVM", "SETUP_ENVIRONMENT"];
+    if (agentMode === "remote") {
+      // Remote mode uses pod-based execution
+      switch (taskType) {
+        case "simple":
+          return ["CREATE_POD", "WAIT_SIDECAR_READY", "CLONE_TO_POD"];
 
-      case "full":
-        return [
-          "CLONE_REPOSITORY",
-          "PROVISION_MICROVM",
-          "SETUP_ENVIRONMENT",
-          "INSTALL_DEPENDENCIES",
-          "CONFIGURE_TOOLS",
-          "VALIDATE_SETUP",
-        ];
+        case "microvm":
+          return [
+            "CREATE_POD",
+            "WAIT_SIDECAR_READY", 
+            "CLONE_TO_POD",
+            "SETUP_ENVIRONMENT"
+          ];
 
-      default:
-        return ["CLONE_REPOSITORY"];
+        case "full":
+          return [
+            "CREATE_POD",
+            "WAIT_SIDECAR_READY",
+            "CLONE_TO_POD",
+            "SETUP_ENVIRONMENT",
+            "INSTALL_DEPENDENCIES",
+            "CONFIGURE_TOOLS",
+            "VALIDATE_SETUP",
+          ];
+
+        default:
+          return ["CREATE_POD", "WAIT_SIDECAR_READY", "CLONE_TO_POD"];
+      }
+    } else {
+      // Local/mock mode uses traditional local execution
+      switch (taskType) {
+        case "simple":
+          return ["CLONE_REPOSITORY"];
+
+        case "microvm":
+          return ["CLONE_REPOSITORY", "PROVISION_MICROVM", "SETUP_ENVIRONMENT"];
+
+        case "full":
+          return [
+            "CLONE_REPOSITORY",
+            "PROVISION_MICROVM",
+            "SETUP_ENVIRONMENT",
+            "INSTALL_DEPENDENCIES",
+            "CONFIGURE_TOOLS",
+            "VALIDATE_SETUP",
+          ];
+
+        default:
+          return ["CLONE_REPOSITORY"];
+      }
+    }
+  }
+
+  /**
+   * Get cleanup steps for task completion
+   */
+  getCleanupSteps(): InitStepType[] {
+    const agentMode = getAgentMode();
+    
+    if (agentMode === "remote") {
+      return ["CLEANUP_POD"];
+    } else {
+      return []; // Local mode cleanup is handled automatically
     }
   }
 }

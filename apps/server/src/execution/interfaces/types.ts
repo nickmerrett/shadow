@@ -124,6 +124,10 @@ export interface WorkspaceInfo {
   workspacePath: string;
   cloneResult?: any; // TODO: Type this properly when we import from github
   error?: string;
+  // Remote mode specific fields
+  podName?: string;
+  podNamespace?: string;
+  serviceName?: string;
 }
 
 export interface WorkspaceStatus {

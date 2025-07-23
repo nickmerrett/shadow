@@ -4,7 +4,9 @@ import {
   WorkspaceInfo,
   WorkspaceStatus,
   HealthStatus,
+  TaskConfig,
 } from "../interfaces/types";
+import config from "../../config";
 
 /**
  * RemoteWorkspaceManager manages Kubernetes pods for remote agent execution
@@ -23,7 +25,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
     timeout?: number;
   } = {}) {
     this.k8sApiUrl = options.k8sApiUrl || this.getK8sApiUrl();
-    this.namespace = options.namespace || process.env.K8S_NAMESPACE || "shadow";
+    this.namespace = options.namespace || config.kubernetesNamespace || "shadow";
     this.token = options.token || this.getServiceAccountToken();
     this.timeout = options.timeout || 60000; // 60 second timeout for K8s operations
   }
@@ -95,12 +97,9 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
     }
   }
 
-  async prepareWorkspace(
-    taskId: string,
-    repoUrl: string,
-    branch: string,
-    userId: string
-  ): Promise<WorkspaceInfo> {
+  async prepareWorkspace(taskConfig: TaskConfig): Promise<WorkspaceInfo> {
+    const { id: taskId, repoUrl, branch, userId } = taskConfig;
+    
     try {
       console.log(`[REMOTE_WORKSPACE] Preparing workspace for task ${taskId}`);
 
@@ -126,11 +125,13 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       return {
         success: true,
         workspacePath: "/workspace", // Standard path inside the pod
+        podName: pod.metadata.name,
+        podNamespace: this.namespace,
+        serviceName: service.metadata.name,
         cloneResult: {
           repoUrl,
           branch,
-          podName: pod.metadata.name,
-          serviceName: service.metadata.name,
+          success: true,
         },
       };
     } catch (error) {
@@ -232,10 +233,12 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       }
 
       // Try to ping the sidecar API
-      const sidecarUrl = `http://shadow-agent-${taskId}.${this.namespace}.svc.cluster.local:3000`;
+      const sidecarPort = config.sidecarPort || 8080;
+      const sidecarUrl = `http://shadow-agent-${taskId}.${this.namespace}.svc.cluster.local:${sidecarPort}`;
+      const healthPath = config.sidecarHealthPath || "/health";
       
       try {
-        const response = await fetch(`${sidecarUrl}/api/health`, {
+        const response = await fetch(`${sidecarUrl}${healthPath}`, {
           method: "GET",
           signal: AbortSignal.timeout(5000), // 5 second timeout
         });
@@ -289,7 +292,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
     userId: string
   ): any {
     const podName = `shadow-agent-${taskId}`;
-    const imageName = process.env.AGENT_IMAGE || "shadow/agent:latest";
+    const imageName = config.sidecarImage || "shadow-sidecar:latest";
 
     return {
       apiVersion: "v1",
@@ -316,7 +319,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
             image: imageName,
             ports: [
               {
-                containerPort: 3000,
+                containerPort: config.sidecarPort || 8080,
                 name: "api",
               },
             ],
@@ -350,18 +353,18 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
             ],
             resources: {
               requests: {
-                cpu: "500m",
-                memory: "1Gi",
+                cpu: "250m",
+                memory: "512Mi",
               },
               limits: {
-                cpu: "2000m",
-                memory: "4Gi",
+                cpu: config.remoteCpuLimit || "1000m",
+                memory: config.remoteMemoryLimit || "2Gi",
               },
             },
             readinessProbe: {
               httpGet: {
-                path: "/api/health",
-                port: 3000,
+                path: config.sidecarHealthPath || "/health",
+                port: config.sidecarPort || 8080,
               },
               initialDelaySeconds: 10,
               periodSeconds: 5,
@@ -369,8 +372,8 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
             },
             livenessProbe: {
               httpGet: {
-                path: "/api/health",
-                port: 3000,
+                path: config.sidecarHealthPath || "/health",
+                port: config.sidecarPort || 8080,
               },
               initialDelaySeconds: 30,
               periodSeconds: 10,
@@ -420,8 +423,8 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
         },
         ports: [
           {
-            port: 3000,
-            targetPort: 3000,
+            port: config.sidecarPort || 8080,
+            targetPort: config.sidecarPort || 8080,
             name: "api",
           },
         ],
@@ -519,10 +522,11 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
     // K8s doesn't provide easy disk usage, would need to call sidecar API
     // For now, return 0 as placeholder
     try {
-      const sidecarUrl = `http://shadow-agent-${taskId}.${this.namespace}.svc.cluster.local:3000`;
+      const sidecarPort = config.sidecarPort || 8080;
+      const sidecarUrl = `http://shadow-agent-${taskId}.${this.namespace}.svc.cluster.local:${sidecarPort}`;
       
       // This would be a custom endpoint in the sidecar to get disk usage
-      const response = await fetch(`${sidecarUrl}/api/workspace/size`, {
+      const response = await fetch(`${sidecarUrl}/workspace/size`, {
         method: "GET",
         signal: AbortSignal.timeout(5000),
       });

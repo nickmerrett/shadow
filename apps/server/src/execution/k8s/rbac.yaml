@@ -1,0 +1,119 @@
+# Service account for Shadow server to manage agent pods
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: shadow-server-sa
+  namespace: shadow-agents
+  labels:
+    app: shadow
+    component: server
+---
+# Service account for agent pods
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: shadow-agent-sa
+  namespace: shadow-agents
+  labels:
+    app: shadow
+    component: agent
+automountServiceAccountToken: false  # Agents don't need K8s API access
+---
+# Role for Shadow server to manage pods and services
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: shadow-agents
+  name: shadow-server-role
+rules:
+# Pod management
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["create", "get", "list", "watch", "delete"]
+- apiGroups: [""]
+  resources: ["pods/status"]
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get"]
+# Service management
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["create", "get", "list", "delete"]
+# Events (for debugging)
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "list"]
+---
+# Bind the role to the service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: shadow-server-binding
+  namespace: shadow-agents
+subjects:
+- kind: ServiceAccount
+  name: shadow-server-sa
+  namespace: shadow-agents
+roleRef:
+  kind: Role
+  name: shadow-server-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Pod Security Policy (if using PodSecurityPolicy)
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: shadow-agent-psp
+  labels:
+    app: shadow
+    component: agent
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+    ranges:
+      - min: 1000
+        max: 65535
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+---
+# Cluster role for pod security policy (if using PodSecurityPolicy)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: shadow-agent-psp-role
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs: ['use']
+  resourceNames:
+  - shadow-agent-psp
+---
+# Bind PSP to agent service account (if using PodSecurityPolicy)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: shadow-agent-psp-binding
+  namespace: shadow-agents
+roleRef:
+  kind: ClusterRole
+  name: shadow-agent-psp-role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: shadow-agent-sa
+  namespace: shadow-agents

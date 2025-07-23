@@ -9,6 +9,7 @@ import {
   WorkspaceInfo,
   WorkspaceStatus,
   HealthStatus,
+  TaskConfig,
 } from "../interfaces/types";
 import { LocalToolExecutor } from "./local-tool-executor";
 
@@ -69,12 +70,8 @@ export class LocalWorkspaceManager implements WorkspaceManager {
     }
   }
 
-  async prepareWorkspace(
-    taskId: string,
-    repoUrl: string,
-    branch: string,
-    userId: string
-  ): Promise<WorkspaceInfo> {
+  async prepareWorkspace(taskConfig: TaskConfig): Promise<WorkspaceInfo> {
+    const { id: taskId, repoUrl, branch, userId } = taskConfig;
     const workspacePath = this.getTaskWorkspaceDir(taskId);
 
     try {

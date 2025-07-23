@@ -4,6 +4,7 @@ import {
   WorkspaceInfo,
   WorkspaceStatus,
   HealthStatus,
+  TaskConfig,
 } from "../interfaces/types";
 import { MockRemoteToolExecutor } from "./mock-remote-tool-executor";
 
@@ -45,12 +46,9 @@ export class MockRemoteWorkspaceManager implements WorkspaceManager {
     return mockResponse();
   }
 
-  async prepareWorkspace(
-    taskId: string,
-    repoUrl: string,
-    branch: string,
-    userId: string
-  ): Promise<WorkspaceInfo> {
+  async prepareWorkspace(taskConfig: TaskConfig): Promise<WorkspaceInfo> {
+    const { id: taskId, repoUrl, branch, userId } = taskConfig;
+    
     return this.simulateInfrastructureCall("prepareWorkspace", () => {
       // Simulate pod creation and repository cloning
       const workspacePath = `/mock/workspaces/${taskId}`;
@@ -69,9 +67,16 @@ export class MockRemoteWorkspaceManager implements WorkspaceManager {
       }
 
       // 95% chance of success
+      const mockPodName = `mock-agent-${taskId}`;
+      const mockNamespace = "shadow";
+      const mockServiceName = `mock-agent-${taskId}`;
+      
       const workspaceInfo: WorkspaceInfo = {
         success: true,
         workspacePath,
+        podName: mockPodName,
+        podNamespace: mockNamespace,
+        serviceName: mockServiceName,
         cloneResult: {
           success: true,
           commitSha: `mock-commit-${Math.random().toString(36).substr(2, 9)}`,
