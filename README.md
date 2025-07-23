@@ -135,27 +135,3 @@ To run the Prisma Studio GUI, you can run:
 ```
 npm run db:studio
 ```
-
-### Local Workspace Terminal Agent
-
-The coding agent can be run locally in the terminal for testing on a local workspace.
-
-First, create a local workspace directory, we have a script to make one for you:
-
-```
-./create-local-workspace.sh
-```
-
-Ensure you set the absolute path of the workspace in the server's .env file:
-
-```
-WORKSPACE_DIR=...
-```
-
-Then, run the terminal agent:
-
-```
-cd apps/server
-npm run validate
-npm run agent
-```

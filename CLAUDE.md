@@ -67,17 +67,6 @@ docker-compose down      # Stop all services
 docker-compose logs -f   # Follow logs
 ```
 
-**Local Terminal Agent:**
-```bash
-# Create test workspace
-./create-local-workspace.sh
-
-# Run terminal agent (from apps/server)
-cd apps/server
-npm run validate
-npm run agent
-```
-
 ## Architecture Overview
 
 This is a Turborepo monorepo for an AI coding agent platform that allows users to submit GitHub repositories and natural language instructions to have AI agents perform coding tasks.
@@ -209,39 +198,21 @@ PostgreSQL with Prisma ORM. Schema location: `packages/db/prisma/schema.prisma`
 5. **Flexible Initialization**: Modular setup system ready for containerization/microVMs
 6. **Authentication Integration**: GitHub OAuth + token management for repo access
 
-## Execution Abstraction Layer (Phase 1 Complete)
+## Execution Abstraction Layer
 
-### Tool Execution System
+### Overview
 
-The codebase now includes a complete dual-mode execution abstraction layer:
+The codebase includes a dual-mode execution abstraction layer that allows the agent to run either locally or in distributed Kubernetes pods. This provides flexibility for development and production deployments.
 
 **Directory Structure:**
 ```
 apps/server/src/execution/
 ├── interfaces/           # Core interfaces and types
-│   ├── tool-executor.ts     # ToolExecutor interface
-│   ├── workspace-manager.ts # WorkspaceManager interface  
-│   └── types.ts            # Shared type definitions
 ├── local/               # Local filesystem implementation
-│   ├── local-tool-executor.ts     # Original local logic
-│   └── local-workspace-manager.ts # Local workspace management
-├── remote/              # Remote K8s pod implementation
-│   ├── remote-tool-executor.ts     # HTTP client for sidecar API
-│   └── remote-workspace-manager.ts # Kubernetes client for pod lifecycle
+├── remote/              # Remote K8s pod implementation  
 ├── mock/                # Mock implementations for testing
-│   ├── mock-remote-tool-executor.ts     # Simulated remote operations
-│   └── mock-remote-workspace-manager.ts # Simulated infrastructure ops
-├── sidecar-api.yaml     # Complete OpenAPI spec for sidecar REST API
 └── index.ts            # Factory functions for mode selection
 ```
-
-**Key Components:**
-- `ToolExecutor` interface: Abstracts all file operations and command execution
-- `WorkspaceManager` interface: Abstracts workspace lifecycle management
-- `LocalToolExecutor`: Direct filesystem operations (original behavior)
-- `RemoteToolExecutor`: HTTP client for sidecar API communication  
-- `RemoteWorkspaceManager`: Kubernetes client for pod lifecycle management
-- `MockRemoteToolExecutor/Manager`: Full simulation for testing without infrastructure
 
 **Agent Modes:**
 - `local`: Direct filesystem execution (default, backwards compatible)
@@ -258,79 +229,32 @@ const executor = createToolExecutor(taskId, workspacePath, "remote");
 const manager = createWorkspaceManager("remote");
 ```
 
-**Remote Architecture:**
-- **Sidecar API**: Complete REST API specification in `sidecar-api.yaml`
-- **Kubernetes Integration**: Full pod lifecycle management with health checks
-- **HTTP Client**: Resilient communication with timeouts and error handling
-- **Server-Sent Events**: Streaming command execution for background operations
+**Key Architecture Points:**
+- Factory pattern allows seamless switching between execution modes
+- All tool operations abstracted behind common interfaces
+- Remote mode uses HTTP communication to sidecar service in pods
+- Mock mode simulates network delays and failures for testing
+- Backwards compatible - existing code works unchanged in local mode
 
-**Phase 2 Implementation Status: ✅ COMPLETE**
-- ✅ Phase 2.1: OpenAPI specification for sidecar REST API
-- ✅ Phase 2.2: Mock implementations with network simulation
-- ✅ Phase 2.3: Real remote implementations with HTTP client and K8s client
+### Sidecar Service
 
-**Phase 3 Implementation Status: ✅ COMPLETE**
-- ✅ Phase 3.1: Sidecar service implementation (Express.js + TypeScript)
-- ✅ Phase 3.2: Docker containerization with Turborepo optimization
-- ✅ Phase 3.3: Integration testing with existing RemoteToolExecutor
-- ✅ Phase 3.4: Docker Compose development environment setup
+A separate Express.js service (`apps/sidecar/`) provides REST APIs for file operations and command execution within Kubernetes pods. This enables secure, isolated execution environments.
 
-**Next Phase (Future):**
-- Phase 3.5: Backend server Docker fixes (TypeScript build issues)
-- Phase 3.6: Production Kubernetes deployment configurations
+## Docker Support
 
-**Backwards Compatibility:**
-- All existing functionality works identically in local mode
-- No breaking changes to tool definitions or system behavior
-- Zero configuration required - defaults to local mode
-- Original workspace and tool logic preserved in LocalToolExecutor
+The monorepo includes Docker support for containerized deployment:
 
-## Docker Containerization Setup
+- **Sidecar Service**: Fully containerized with multi-stage builds
+- **Backend Server**: Dockerfile available (may need TypeScript fixes)
+- **Docker Compose**: Development environment configuration
 
-### Overview
-The monorepo includes Docker support for both the backend server and sidecar service, optimized using Turborepo's `turbo prune` pattern for efficient builds and caching.
-
-### Current Status
-- ✅ **Sidecar Service**: Fully containerized and working
-- ⚠️ **Backend Server**: Dockerfile created but has TypeScript build issues (needs fixing)
-- ✅ **Docker Compose**: Full development environment setup
-
-### Architecture
-Both services use multi-stage Docker builds:
-1. **Builder stage**: Uses `turbo prune` to create minimal monorepo subset
-2. **Installer stage**: Installs dependencies and builds the application  
-3. **Runtime stage**: Minimal production image with only built artifacts
-
-### Files Created
-- `apps/sidecar/Dockerfile` - Sidecar service Docker build
-- `apps/sidecar/tsconfig.docker.json` - Standalone TypeScript config for Docker
-- `apps/server/Dockerfile` - Backend server Docker build (needs TS fixes)
-- `apps/server/tsconfig.docker.json` - Lenient TypeScript config for Docker
-- `docker-compose.yml` - Full development environment
-- Updated `package.json` files with Docker build scripts
-
-### Usage Examples
-```bash
-# Test sidecar container
-docker run -p 8080:8080 -v $(pwd)/workspace:/workspace shadow-sidecar
-
-# Full development environment
-docker-compose up -d
-docker-compose logs -f sidecar
-```
-
-### Next Steps for Server Containerization
-The server Dockerfile needs TypeScript issues resolved:
-- Fix unused variable errors (noUnusedLocals/noUnusedParameters)
-- Resolve path alias imports (`@/` references)
-- Handle monorepo package references properly
+Services use Turborepo's `turbo prune` pattern for efficient builds with minimal dependencies.
 
 ### Important Notes
 
 - **DO NOT** run `npm run dev` or `turbo dev` without filters - causes chat to hang
-- The system is architected for both current local development and future cloud deployment with Kubernetes + Firecracker microVMs
-- Local development uses a simplified terminal agent for testing
-- **Phases 1-3 Complete**: Full dual-mode architecture with containerized sidecar service
+- The system is designed for both local development and cloud deployment
+- Future plans include Kubernetes deployment with Firecracker microVMs for enhanced isolation
 
 ## Development Practices
 
