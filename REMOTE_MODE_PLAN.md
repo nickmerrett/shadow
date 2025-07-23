@@ -40,7 +40,7 @@ This document outlines the implementation plan for adding **dual-mode support** 
 
 ## Implementation Phases
 
-### Phase 1: Create Abstraction Layer (Week 1-2)
+### Phase 1: Create Abstraction Layer
 
 #### 1.1 Tool Execution Interface
 
@@ -72,7 +72,7 @@ Update `config.ts` to support mode selection:
 - Add Kubernetes configuration section
 - Add sidecar communication settings
 
-### Phase 2: Remote Infrastructure (Week 3-5)
+### Phase 2: Remote Infrastructure
 
 #### 2.1 Sidecar API Definition
 
@@ -106,7 +106,7 @@ Implement pod lifecycle management:
 - Resource allocation and limits
 - Pod cleanup and garbage collection
 
-### Phase 3: Sidecar Implementation (Week 6-8)
+### Phase 3: Sidecar Implementation
 
 #### 3.1 Sidecar Service
 
@@ -140,7 +140,7 @@ apps/sidecar/
 - Command injection into VM console
 - Session management and reconnection
 
-### Phase 4: Remote Mode Integration (Week 9-10)
+### Phase 4: Remote Mode Integration
 
 #### 4.1 Remote Workspace Manager
 
@@ -166,7 +166,7 @@ Update agent creation to support mode selection:
 - Graceful degradation strategies
 - Comprehensive logging and metrics
 
-### Phase 5: Testing & Validation (Week 11-12)
+### Phase 5: Testing & Validation
 
 #### 5.1 Unit Tests
 
@@ -268,10 +268,10 @@ interface AgentConfig {
 
 ### Development Environment
 
-1. **Week 1-2**: Developers work on abstraction layer in feature branches
-2. **Week 3-5**: Set up local Kubernetes cluster (minikube/kind) for testing
-3. **Week 6-8**: Sidecar development with integration tests
-4. **Week 9-10**: End-to-end remote mode testing
+1. **Abstraction Layer**: Developers work on abstraction layer in feature branches
+2. **Local Testing**: Set up local Kubernetes cluster (minikube/kind) for testing
+3. **Sidecar Development**: Sidecar development with integration tests
+4. **End-to-End Testing**: End-to-end remote mode testing
 
 ### Staging Environment
 
@@ -282,10 +282,10 @@ interface AgentConfig {
 
 ### Production Rollout
 
-1. **Phase 1**: Deploy remote infrastructure (no traffic)
-2. **Phase 2**: Enable remote mode for internal users only
-3. **Phase 3**: Gradual rollout to external users (10%, 50%, 100%)
-4. **Phase 4**: Local mode remains available as fallback
+1. **Infrastructure Phase**: Deploy remote infrastructure (no traffic)
+2. **Internal Testing**: Enable remote mode for internal users only
+3. **Gradual Rollout**: Gradual rollout to external users (10%, 50%, 100%)
+4. **Fallback**: Local mode remains available as fallback
 
 ## Testing Strategy
 
@@ -371,17 +371,15 @@ interface AgentConfig {
 - ✅ Graceful handling of pod failures
 - ✅ Resource usage stays within 2x of local mode
 
-## Timeline Summary
+## Phase Summary
 
-| Phase   | Duration   | Key Deliverables                            |
-| ------- | ---------- | ------------------------------------------- |
-| Phase 1 | Week 1-2   | Abstraction layer, refactored tools         |
-| Phase 2 | Week 3-5   | Remote infrastructure, sidecar API          |
-| Phase 3 | Week 6-8   | Sidecar implementation, microVM integration |
-| Phase 4 | Week 9-10  | Remote mode integration, testing            |
-| Phase 5 | Week 11-12 | Validation, performance tuning              |
-
-**Total Duration**: ~3 months for full implementation and validation
+| Phase   | Key Deliverables                            |
+| ------- | ------------------------------------------- |
+| Phase 1 | Abstraction layer, refactored tools         |
+| Phase 2 | Remote infrastructure, sidecar API          |
+| Phase 3 | Sidecar implementation, microVM integration |
+| Phase 4 | Remote mode integration, testing            |
+| Phase 5 | Validation, performance tuning              |
 
 ## Next Steps
 
