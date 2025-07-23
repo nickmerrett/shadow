@@ -45,7 +45,7 @@ type FileNode = {
 };
 
 async function walkDir(dir: string, basePath: string): Promise<FileNode[]> {
-  let entries: any[] = [];
+  let entries: fs.Dirent[] = [];
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
   } catch (err) {
