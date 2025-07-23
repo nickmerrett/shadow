@@ -120,14 +120,22 @@ PostgreSQL with Prisma ORM. Schema location: `packages/db/prisma/schema.prisma`
   - `PROVISION_MICROVM`, `SETUP_ENVIRONMENT`, etc. (placeholders for future)
 - **Status Tracking**: Updates task status through `INITIALIZING` → `RUNNING` → `COMPLETED/FAILED`
 
-**Workspace Management** (`apps/server/src/workspace/index.ts`):
-- **Path Structure**: `{workspaceDir}/tasks/{taskId}/`
-- **Repository Cloning**: Uses GitHub service with user access tokens
-- **Cleanup**: Automatic workspace cleanup when tasks complete
+**Task Cleanup Flow** (`apps/server/src/app.ts:216-305`):
+- **Endpoint**: `DELETE /api/tasks/:taskId/cleanup`
+- **Mode-Agnostic**: Uses abstraction layer to work with local/remote/mock modes
+- **Status Validation**: Checks if workspace already cleaned up
+- **Database Update**: Marks `workspaceCleanedUp: true` on success
+
+**Workspace Management** (via execution abstraction layer):
+- **Path Structure**: `{workspaceDir}/tasks/{taskId}/` (local mode) or `/workspace` (remote mode)
+- **Repository Cloning**: Handled by workspace manager implementations
+- **Cleanup**: Mode-aware cleanup via `WorkspaceManager` interface
 
 **Agent Modes**:
-- **Web Mode**: Full initialization with GitHub repo cloning
-- **Local Mode** (`apps/server/src/agent.ts`): Terminal-based for local development testing
+- **Local Mode**: Direct filesystem execution (default, backwards compatible)
+- **Remote Mode**: Distributed execution via Kubernetes pods + sidecar APIs  
+- **Mock Mode**: Simulated remote behavior for testing
+- **Terminal Agent**: Basic terminal-based mode for local development testing (`apps/server/src/agent.ts`)
 
 ### Storage & Data Architecture
 
