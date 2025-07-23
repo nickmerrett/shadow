@@ -68,6 +68,8 @@ services:
     networks:
       - shadow-network
     restart: unless-stopped
+    # The 'admin' profile allows enabling the Adminer service for database administration.
+    # To enable this profile, use the `--profile admin` flag when running `docker-compose up`.
     profiles:
       - admin
 
