@@ -342,7 +342,7 @@ export class TaskInitializationEngine {
 
       // Use abstract workspace manager to prepare workspace (creates pod in remote mode)
       const workspaceInfo = await this.abstractWorkspaceManager.prepareWorkspace({
-        taskId,
+        id: taskId,
         repoUrl: task.repoUrl,
         branch: task.branch,
         userId,
@@ -441,7 +441,7 @@ export class TaskInitializationEngine {
 
       // Verify the clone was successful by checking workspace contents
       const listing = await executor.listDirectory(".");
-      if (!listing.success || listing.contents.length === 0) {
+      if (!listing.success || !listing.contents || listing.contents.length === 0) {
         throw new Error("Repository clone verification failed - workspace appears empty");
       }
 
