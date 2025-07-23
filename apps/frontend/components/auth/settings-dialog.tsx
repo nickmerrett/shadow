@@ -11,14 +11,11 @@ import {
 import { useSettings } from "@/hooks/use-settings";
 import { Loader2, Settings, X } from "lucide-react";
 import { useState } from "react";
-import { useAuthSession } from "./session-provider";
 import { authClient } from "@/lib/auth/auth-client";
 
 export function SettingsDialog() {
   const [open, setOpen] = useState(false);
   const { data, isLoading, error } = useSettings(open);
-
-  const { session } = useAuthSession();
 
   const handleSignOut = async () => {
     try {
