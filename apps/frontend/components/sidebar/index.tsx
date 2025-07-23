@@ -58,6 +58,7 @@ export function SidebarViews({
         doesCurrentTaskExist={!!currentTask}
         sidebarView={sidebarView}
         setSidebarView={setSidebarView}
+        currentTaskId={currentTask?.taskData.id || null}
         currentTaskStatus={currentTask?.taskData.status || null}
       />
       <Sidebar>

@@ -10,5 +10,6 @@ export function useTask(taskId: string, initialData?: Task) {
       return res.json() as Promise<Task>;
     },
     initialData,
+    enabled: !!taskId,
   });
 }
