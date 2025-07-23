@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { statusColorsConfig } from "./status";
 import { useTask } from "@/hooks/use-task";
 import { useMemo } from "react";
-import "./logo-animation.css";
+import { LogoHover } from "../logo/logo-hover";
 
 export function SidebarNavigation({
   sidebarView,
@@ -86,7 +86,7 @@ export function SidebarNavigation({
           className="flex size-7 items-center justify-center"
           aria-label="Home"
         >
-          <div className="logo-container h-5 w-5" role="img" aria-label="Logo" />
+          <LogoHover />
         </Link>
         <div className="flex flex-col gap-4">
           <Tooltip>

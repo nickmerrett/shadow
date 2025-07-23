@@ -1,4 +1,4 @@
-import { PromptForm } from "@/components/chat/prompt-form";
+import { HomePageContent } from "@/components/chat/home";
 import { HomeLayoutWrapper } from "@/components/layout/home-layout";
 import { getUser } from "@/lib/auth/get-user";
 import {
@@ -48,11 +48,7 @@ export default async function Home() {
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <HomeLayoutWrapper>
-        <div className="mx-auto mt-24 flex size-full max-w-lg flex-col items-center gap-8">
-          <div className="text-muted-foreground font-departureMono text-3xl font-medium tracking-tighter">Code with <span className="text-foreground inline-flex items-center gap-2">
-            Shadow</span></div>
-          <PromptForm isHome />
-        </div>
+        <HomePageContent />
       </HomeLayoutWrapper>
     </HydrationBoundary>
   );

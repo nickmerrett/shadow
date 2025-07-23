@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "check-types": "tsc --noEmit",
-    "format": "prettier --write ."
+    "format": "prettier --write . && prettier --write --plugin=prettier-plugin-organize-imports ."
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
