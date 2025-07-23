@@ -380,4 +380,13 @@ export function getPendingCommands() {
 export const REQUIRE_TERMINAL_APPROVAL = false;
 
 // Default tools export for backward compatibility (without todo_write)
-export const tools = createTools("placeholder-task-id");
+// Made lazy to avoid circular dependencies
+let _defaultTools: ReturnType<typeof createTools> | undefined;
+export const tools = new Proxy({} as ReturnType<typeof createTools>, {
+  get(_target, prop) {
+    if (!_defaultTools) {
+      _defaultTools = createTools("placeholder-task-id");
+    }
+    return (_defaultTools as any)[prop];
+  }
+});

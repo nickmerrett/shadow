@@ -3,7 +3,7 @@
  * These types define the contracts between local and remote execution modes
  */
 
-export type AgentMode = "local" | "remote";
+export type AgentMode = "local" | "remote" | "mock";
 
 // File operation results
 export interface FileResult {

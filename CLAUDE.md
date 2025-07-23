@@ -189,31 +189,70 @@ PostgreSQL with Prisma ORM. Schema location: `packages/db/prisma/schema.prisma`
 
 ### Tool Execution System
 
-The codebase now includes a dual-mode execution abstraction layer:
+The codebase now includes a complete dual-mode execution abstraction layer:
 
 **Directory Structure:**
 ```
 apps/server/src/execution/
 ├── interfaces/           # Core interfaces and types
-├── local/               # Local filesystem implementation  
+│   ├── tool-executor.ts     # ToolExecutor interface
+│   ├── workspace-manager.ts # WorkspaceManager interface  
+│   └── types.ts            # Shared type definitions
+├── local/               # Local filesystem implementation
+│   ├── local-tool-executor.ts     # Original local logic
+│   └── local-workspace-manager.ts # Local workspace management
+├── remote/              # Remote K8s pod implementation
+│   ├── remote-tool-executor.ts     # HTTP client for sidecar API
+│   └── remote-workspace-manager.ts # Kubernetes client for pod lifecycle
+├── mock/                # Mock implementations for testing
+│   ├── mock-remote-tool-executor.ts     # Simulated remote operations
+│   └── mock-remote-workspace-manager.ts # Simulated infrastructure ops
+├── sidecar-api.yaml     # Complete OpenAPI spec for sidecar REST API
 └── index.ts            # Factory functions for mode selection
 ```
 
 **Key Components:**
 - `ToolExecutor` interface: Abstracts all file operations and command execution
 - `WorkspaceManager` interface: Abstracts workspace lifecycle management
-- `LocalToolExecutor`: Current local filesystem implementation
-- `LocalWorkspaceManager`: Current local workspace management
-- Factory functions: `createToolExecutor()`, `createWorkspaceManager()`
+- `LocalToolExecutor`: Direct filesystem operations (original behavior)
+- `RemoteToolExecutor`: HTTP client for sidecar API communication  
+- `RemoteWorkspaceManager`: Kubernetes client for pod lifecycle management
+- `MockRemoteToolExecutor/Manager`: Full simulation for testing without infrastructure
+
+**Agent Modes:**
+- `local`: Direct filesystem execution (default, backwards compatible)
+- `remote`: Distributed execution via Kubernetes pods + sidecar APIs
+- `mock`: Simulated remote behavior for testing and development
 
 **Configuration:**
-- `AGENT_MODE=local` (default) - uses current local behavior
-- `AGENT_MODE=remote` - ready for future remote implementation
-- All remote mode config options available but not yet implemented
+```typescript
+// Environment variable
+AGENT_MODE=local|remote|mock
+
+// Programmatic
+const executor = createToolExecutor(taskId, workspacePath, "remote");
+const manager = createWorkspaceManager("remote");
+```
+
+**Remote Architecture:**
+- **Sidecar API**: Complete REST API specification in `sidecar-api.yaml`
+- **Kubernetes Integration**: Full pod lifecycle management with health checks
+- **HTTP Client**: Resilient communication with timeouts and error handling
+- **Server-Sent Events**: Streaming command execution for background operations
+
+**Phase 2 Implementation Status: ✅ COMPLETE**
+- ✅ Phase 2.1: OpenAPI specification for sidecar REST API
+- ✅ Phase 2.2: Mock implementations with network simulation
+- ✅ Phase 2.3: Real remote implementations with HTTP client and K8s client
+
+**Next Phase (Future):**
+- Phase 2.4: Actual sidecar service implementation
+- Phase 2.5: Production Kubernetes deployment configurations
 
 **Backwards Compatibility:**
 - All existing functionality works identically in local mode
 - No breaking changes to tool definitions or system behavior
+- Zero configuration required - defaults to local mode
 - Original workspace and tool logic preserved in LocalToolExecutor
 
 ### Important Notes

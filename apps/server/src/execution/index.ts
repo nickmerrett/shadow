@@ -9,6 +9,10 @@ import { ToolExecutor } from "./interfaces/tool-executor";
 import { WorkspaceManager } from "./interfaces/workspace-manager";
 import { LocalToolExecutor } from "./local/local-tool-executor";
 import { LocalWorkspaceManager } from "./local/local-workspace-manager";
+import { MockRemoteToolExecutor } from "./mock/mock-remote-tool-executor";
+import { MockRemoteWorkspaceManager } from "./mock/mock-remote-workspace-manager";
+import { RemoteToolExecutor } from "./remote/remote-tool-executor";
+import { RemoteWorkspaceManager } from "./remote/remote-workspace-manager";
 
 /**
  * Create a tool executor based on the configured agent mode
@@ -24,9 +28,11 @@ export function createToolExecutor(
     case "local":
       return new LocalToolExecutor(taskId, workspacePath);
     
+    case "mock":
+      return new MockRemoteToolExecutor(taskId, workspacePath);
+    
     case "remote":
-      // TODO: Implement RemoteToolExecutor in Phase 2
-      throw new Error("Remote mode not yet implemented");
+      return new RemoteToolExecutor(taskId, workspacePath);
     
     default:
       throw new Error(`Unsupported agent mode: ${agentMode}`);
@@ -43,9 +49,11 @@ export function createWorkspaceManager(mode?: AgentMode): WorkspaceManager {
     case "local":
       return new LocalWorkspaceManager();
     
+    case "mock":
+      return new MockRemoteWorkspaceManager();
+    
     case "remote":
-      // TODO: Implement RemoteWorkspaceManager in Phase 2
-      throw new Error("Remote mode not yet implemented");
+      return new RemoteWorkspaceManager();
     
     default:
       throw new Error(`Unsupported agent mode: ${agentMode}`);
@@ -71,6 +79,13 @@ export function isRemoteMode(): boolean {
  */
 export function isLocalMode(): boolean {
   return config.agentMode === "local";
+}
+
+/**
+ * Check if the current mode is mock
+ */
+export function isMockMode(): boolean {
+  return config.agentMode === "mock";
 }
 
 // Re-export types and interfaces for convenience

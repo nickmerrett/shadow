@@ -23,7 +23,7 @@ export interface WorkspaceManager {
   /**
    * Clean up a task's workspace
    */
-  cleanupWorkspace(taskId: string): Promise<void>;
+  cleanupWorkspace(taskId: string): Promise<{ success: boolean; message: string }>;
 
   /**
    * Get the current status of a workspace

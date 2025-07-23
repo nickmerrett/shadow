@@ -1,0 +1,747 @@
+openapi: 3.0.3
+info:
+  title: Shadow Sidecar API
+  description: REST API for the Shadow sidecar service that runs inside task pods
+  version: 1.0.0
+  contact:
+    name: Shadow Team
+servers:
+  - url: http://localhost:8080
+    description: Local development sidecar
+  - url: http://sidecar:8080
+    description: Pod-internal sidecar service
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Check if the sidecar service is healthy and ready
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /status:
+    get:
+      summary: Get workspace status
+      description: Get detailed status information about the workspace
+      responses:
+        '200':
+          description: Workspace status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceStatusResponse'
+        '500':
+          description: Failed to get workspace status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /files/{path}:
+    get:
+      summary: Read file contents
+      description: Read the contents of a file with optional line range
+      parameters:
+        - name: path
+          in: path
+          required: true
+          description: Relative path to the file from workspace root
+          schema:
+            type: string
+        - name: shouldReadEntireFile
+          in: query
+          description: Whether to read the entire file
+          schema:
+            type: boolean
+            default: true
+        - name: startLineOneIndexed
+          in: query
+          description: Starting line number (1-indexed)
+          schema:
+            type: integer
+            minimum: 1
+        - name: endLineOneIndexedInclusive
+          in: query
+          description: Ending line number (1-indexed, inclusive)
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: File contents retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileReadResponse'
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Write file contents
+      description: Create or update a file with new contents
+      parameters:
+        - name: path
+          in: path
+          required: true
+          description: Relative path to the file from workspace root
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileWriteRequest'
+      responses:
+        '200':
+          description: File written successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileWriteResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to write file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete file
+      description: Delete a file from the workspace
+      parameters:
+        - name: path
+          in: path
+          required: true
+          description: Relative path to the file from workspace root
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileDeleteResponse'
+        '404':
+          description: File not found (treated as success)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileDeleteResponse'
+        '500':
+          description: Failed to delete file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /files/{path}/replace:
+    post:
+      summary: Search and replace in file
+      description: Replace one occurrence of a string in a file
+      parameters:
+        - name: path
+          in: path
+          required: true
+          description: Relative path to the file from workspace root
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchReplaceRequest'
+      responses:
+        '200':
+          description: Text replaced successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchReplaceResponse'
+        '400':
+          description: Invalid request or text not found/not unique
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to perform replacement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /directory/{path}:
+    get:
+      summary: List directory contents
+      description: Get a list of files and directories in the specified path
+      parameters:
+        - name: path
+          in: path
+          required: true
+          description: Relative path to the directory from workspace root
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Directory contents retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DirectoryListResponse'
+        '404':
+          description: Directory not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to list directory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /search/files:
+    post:
+      summary: Search for files by name
+      description: Find files matching a name pattern
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileSearchRequest'
+      responses:
+        '200':
+          description: File search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileSearchResponse'
+        '400':
+          description: Invalid search request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Search operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /search/grep:
+    post:
+      summary: Search file contents using grep
+      description: Search for text patterns within files using ripgrep
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrepSearchRequest'
+      responses:
+        '200':
+          description: Grep search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrepSearchResponse'
+        '400':
+          description: Invalid search request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Search operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /search/codebase:
+    post:
+      summary: Semantic codebase search
+      description: Find relevant code snippets using semantic search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodebaseSearchRequest'
+      responses:
+        '200':
+          description: Codebase search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodebaseSearchResponse'
+        '400':
+          description: Invalid search request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Search operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /execute/command:
+    post:
+      summary: Execute a terminal command
+      description: Execute a command and return the result
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandRequest'
+      responses:
+        '200':
+          description: Command executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandResponse'
+        '400':
+          description: Invalid command request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Command execution failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /execute/command/stream:
+    post:
+      summary: Execute command with streaming output
+      description: Execute a command and stream stdout/stderr in real-time via Server-Sent Events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandRequest'
+      responses:
+        '200':
+          description: Command streaming started
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-Sent Events stream
+              examples:
+                stdout:
+                  value: |
+                    event: stdout
+                    data: {"content": "Hello World\n"}
+                    
+                stderr:
+                  value: |
+                    event: stderr
+                    data: {"content": "Warning: something happened\n"}
+                    
+                exit:
+                  value: |
+                    event: exit
+                    data: {"code": 0}
+                    
+                error:
+                  value: |
+                    event: error
+                    data: {"message": "Command failed"}
+        '400':
+          description: Invalid command request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - healthy
+        - message
+      properties:
+        healthy:
+          type: boolean
+          description: Whether the service is healthy
+        message:
+          type: string
+          description: Health status message
+        details:
+          type: object
+          description: Additional health details
+
+    WorkspaceStatusResponse:
+      type: object
+      required:
+        - exists
+        - path
+        - isReady
+      properties:
+        exists:
+          type: boolean
+          description: Whether workspace directory exists
+        path:
+          type: string
+          description: Workspace path
+        isReady:
+          type: boolean
+          description: Whether workspace is ready for operations
+        sizeBytes:
+          type: integer
+          description: Workspace size in bytes
+        error:
+          type: string
+          description: Error message if status check failed
+
+    FileReadResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+        content:
+          type: string
+          description: File contents
+        totalLines:
+          type: integer
+          description: Total number of lines in file
+        startLine:
+          type: integer
+          description: Starting line number (if range read)
+        endLine:
+          type: integer
+          description: Ending line number (if range read)
+        message:
+          type: string
+        error:
+          type: string
+
+    FileWriteRequest:
+      type: object
+      required:
+        - content
+        - instructions
+      properties:
+        content:
+          type: string
+          description: File contents to write
+        instructions:
+          type: string
+          description: Description of what is being written
+
+    FileWriteResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        isNewFile:
+          type: boolean
+        linesAdded:
+          type: integer
+        linesRemoved:
+          type: integer
+        error:
+          type: string
+
+    FileDeleteResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        wasAlreadyDeleted:
+          type: boolean
+        error:
+          type: string
+
+    SearchReplaceRequest:
+      type: object
+      required:
+        - oldString
+        - newString
+      properties:
+        oldString:
+          type: string
+          description: Text to find and replace (must be unique)
+        newString:
+          type: string
+          description: Replacement text
+
+    SearchReplaceResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        error:
+          type: string
+
+    DirectoryListResponse:
+      type: object
+      required:
+        - success
+        - path
+        - message
+      properties:
+        success:
+          type: boolean
+        path:
+          type: string
+        contents:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - type
+              - isDirectory
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [file, directory]
+              isDirectory:
+                type: boolean
+        message:
+          type: string
+        error:
+          type: string
+
+    FileSearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: Filename pattern to search for
+
+    FileSearchResponse:
+      type: object
+      required:
+        - success
+        - query
+        - count
+        - message
+      properties:
+        success:
+          type: boolean
+        files:
+          type: array
+          items:
+            type: string
+        query:
+          type: string
+        count:
+          type: integer
+        message:
+          type: string
+        error:
+          type: string
+
+    GrepSearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: Regex pattern to search for
+        includePattern:
+          type: string
+          description: Glob pattern for files to include
+        excludePattern:
+          type: string
+          description: Glob pattern for files to exclude
+        caseSensitive:
+          type: boolean
+          default: false
+
+    GrepSearchResponse:
+      type: object
+      required:
+        - success
+        - query
+        - matchCount
+        - message
+      properties:
+        success:
+          type: boolean
+        matches:
+          type: array
+          items:
+            type: string
+        query:
+          type: string
+        matchCount:
+          type: integer
+        message:
+          type: string
+        error:
+          type: string
+
+    CodebaseSearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: Search query for semantic code search
+        targetDirectories:
+          type: array
+          items:
+            type: string
+          description: Directories to search in
+
+    CodebaseSearchResponse:
+      type: object
+      required:
+        - success
+        - query
+        - searchTerms
+        - message
+      properties:
+        success:
+          type: boolean
+        results:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - content
+              - relevance
+            properties:
+              id:
+                type: integer
+              content:
+                type: string
+              relevance:
+                type: number
+                format: float
+        query:
+          type: string
+        searchTerms:
+          type: array
+          items:
+            type: string
+        message:
+          type: string
+        error:
+          type: string
+
+    CommandRequest:
+      type: object
+      required:
+        - command
+      properties:
+        command:
+          type: string
+          description: Command to execute
+        isBackground:
+          type: boolean
+          default: false
+          description: Whether to run command in background
+        timeout:
+          type: integer
+          description: Timeout in milliseconds
+
+    CommandResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+        stdout:
+          type: string
+        stderr:
+          type: string
+        message:
+          type: string
+        isBackground:
+          type: boolean
+        requiresApproval:
+          type: boolean
+        command:
+          type: string
+        error:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type or code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details

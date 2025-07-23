@@ -139,7 +139,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
     }
   }
 
-  async cleanupWorkspace(taskId: string): Promise<void> {
+  async cleanupWorkspace(taskId: string): Promise<{ success: boolean; message: string }> {
     const workspacePath = this.getTaskWorkspaceDir(taskId);
 
     try {
@@ -153,7 +153,10 @@ export class LocalWorkspaceManager implements WorkspaceManager {
         console.log(
           `[LOCAL_WORKSPACE] Workspace ${workspacePath} doesn't exist, nothing to clean`
         );
-        return;
+        return {
+          success: true,
+          message: `Workspace for task ${taskId} doesn't exist, nothing to clean`,
+        };
       }
 
       // Remove the entire workspace directory
@@ -162,12 +165,23 @@ export class LocalWorkspaceManager implements WorkspaceManager {
       console.log(
         `[LOCAL_WORKSPACE] Successfully cleaned up workspace for task ${taskId}`
       );
+      
+      return {
+        success: true,
+        message: `Successfully cleaned up workspace for task ${taskId}`,
+      };
     } catch (error) {
       console.error(
         `[LOCAL_WORKSPACE] Failed to cleanup workspace for task ${taskId}:`,
         error
       );
-      // Don't throw error for cleanup failures, just log them
+      
+      return {
+        success: false,
+        message: `Failed to cleanup workspace for task ${taskId}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      };
     }
   }
 

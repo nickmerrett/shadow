@@ -26,7 +26,7 @@ const configSchema = z
       .transform((val) => val === "true"),
     
     // Dual-mode execution configuration
-    AGENT_MODE: z.enum(["local", "remote"]).default("local"),
+    AGENT_MODE: z.enum(["local", "remote", "mock"]).default("local"),
     
     // Remote mode configuration (optional, only needed when AGENT_MODE=remote)
     KUBERNETES_NAMESPACE: z.string().optional(),
