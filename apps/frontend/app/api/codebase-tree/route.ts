@@ -76,7 +76,7 @@ async function walkDir(dir: string, basePath: string): Promise<FileNode[]> {
       }
 
       // Read file content (limited to 50 KB to avoid huge payloads)
-      let content: string | undefined = undefined;
+      let content: string | undefined;
       try {
         const data = await fs.readFile(absolutePath, "utf8");
         content = data.length > 50_000 ? data.slice(0, 50_000) + "\n/* truncated */" : data;
