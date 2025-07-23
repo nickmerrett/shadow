@@ -32,6 +32,7 @@ prompts/
 .venv/
 
 test-workspace/
+shadow-worktree/*
 
 # Indexing stuff (Rajan)
 .shadow/
