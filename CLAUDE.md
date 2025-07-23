@@ -260,10 +260,11 @@ Services use Turborepo's `turbo prune` pattern for efficient builds with minimal
 
 ### Important Notes
 
-- **DO NOT** run `npm run dev` or `turbo dev` without filters - causes chat to hang
+- Do NOT run `npm run dev` or `turbo dev` without filters - causes chat to hang
 - The system is designed for both local development and cloud deployment
 - Future plans include Kubernetes deployment with Firecracker microVMs for enhanced isolation
 
 ## Development Practices
 
-- **Maintenance**: When making big codebase changes, keep Claude.md updated
+- **Maintenance**: When making big codebase changes, keep Claude.md updated with a high-level overview of the codebase.
+- **No Context Poisoning**: Do NOT update Claude.md with minor details about implementation progress or details that are very specific to individual tasks.
