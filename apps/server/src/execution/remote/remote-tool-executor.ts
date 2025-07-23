@@ -95,14 +95,22 @@ export class RemoteToolExecutor implements ToolExecutor {
     options?: ReadFileOptions
   ): Promise<FileResult> {
     try {
-      const response = await this.makeRequest<FileResult>("/api/files/read", {
-        method: "POST",
-        body: JSON.stringify({
-          path: targetFile,
-          shouldReadEntireFile: options?.shouldReadEntireFile,
-          startLineOneIndexed: options?.startLineOneIndexed,
-          endLineOneIndexedInclusive: options?.endLineOneIndexedInclusive,
-        }),
+      const params = new URLSearchParams();
+      if (options?.shouldReadEntireFile !== undefined) {
+        params.set('shouldReadEntireFile', options.shouldReadEntireFile.toString());
+      }
+      if (options?.startLineOneIndexed) {
+        params.set('startLineOneIndexed', options.startLineOneIndexed.toString());
+      }
+      if (options?.endLineOneIndexedInclusive) {
+        params.set('endLineOneIndexedInclusive', options.endLineOneIndexedInclusive.toString());
+      }
+      
+      const queryString = params.toString();
+      const endpoint = `/files/${encodeURIComponent(targetFile)}${queryString ? '?' + queryString : ''}`;
+      
+      const response = await this.makeRequest<FileResult>(endpoint, {
+        method: "GET",
       });
 
       return response;
@@ -121,10 +129,9 @@ export class RemoteToolExecutor implements ToolExecutor {
     instructions: string
   ): Promise<WriteResult> {
     try {
-      const response = await this.makeRequest<WriteResult>("/api/files/write", {
+      const response = await this.makeRequest<WriteResult>(`/files/${encodeURIComponent(targetFile)}`, {
         method: "POST",
         body: JSON.stringify({
-          path: targetFile,
           content,
           instructions,
         }),
@@ -142,11 +149,8 @@ export class RemoteToolExecutor implements ToolExecutor {
 
   async deleteFile(targetFile: string): Promise<DeleteResult> {
     try {
-      const response = await this.makeRequest<DeleteResult>("/api/files/delete", {
-        method: "POST",
-        body: JSON.stringify({
-          path: targetFile,
-        }),
+      const response = await this.makeRequest<DeleteResult>(`/files/${encodeURIComponent(targetFile)}`, {
+        method: "DELETE",
       });
 
       return response;
@@ -165,10 +169,9 @@ export class RemoteToolExecutor implements ToolExecutor {
     newString: string
   ): Promise<WriteResult> {
     try {
-      const response = await this.makeRequest<WriteResult>("/api/files/search-replace", {
+      const response = await this.makeRequest<WriteResult>(`/files/${encodeURIComponent(filePath)}/replace`, {
         method: "POST",
         body: JSON.stringify({
-          path: filePath,
           oldString,
           newString,
         }),
@@ -186,11 +189,8 @@ export class RemoteToolExecutor implements ToolExecutor {
 
   async listDirectory(relativeWorkspacePath: string): Promise<DirectoryListing> {
     try {
-      const response = await this.makeRequest<DirectoryListing>("/api/files/list", {
-        method: "POST",
-        body: JSON.stringify({
-          path: relativeWorkspacePath,
-        }),
+      const response = await this.makeRequest<DirectoryListing>(`/directory/${encodeURIComponent(relativeWorkspacePath)}`, {
+        method: "GET",
       });
 
       return response;
@@ -291,12 +291,12 @@ export class RemoteToolExecutor implements ToolExecutor {
         return await this.executeBackgroundCommand(command);
       }
 
-      const response = await this.makeRequest<CommandResult>("/api/commands/execute", {
+      const response = await this.makeRequest<CommandResult>("/execute/command", {
         method: "POST",
         body: JSON.stringify({
           command,
           timeout: options?.timeout,
-          cwd: options?.cwd,
+          isBackground: false,
         }),
       });
 
@@ -344,9 +344,9 @@ export class RemoteToolExecutor implements ToolExecutor {
    */
   async healthCheck(): Promise<{ healthy: boolean; message: string }> {
     try {
-      const response = await this.makeRequest<{ status: string; message: string }>("/api/health");
+      const response = await this.makeRequest<{ healthy: boolean; message: string }>("/health");
       return {
-        healthy: response.status === "healthy",
+        healthy: response.healthy,
         message: response.message,
       };
     } catch (error) {
