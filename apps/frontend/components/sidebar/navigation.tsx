@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { statusColorsConfig } from "./status";
 import { useTask } from "@/hooks/use-task";
 import { useMemo } from "react";
+import "./logo-animation.css";
 
 export function SidebarNavigation({
   sidebarView,
@@ -41,11 +42,11 @@ export function SidebarNavigation({
 
   const agentViewTrigger = (
     <div className="relative z-0 h-7">
-      <div className="bg-card pointer-events-none absolute -top-1.5 -right-1.5 z-10 rounded-full p-1">
+      <div className="bg-card pointer-events-none absolute -right-1.5 -top-1.5 z-10 rounded-full p-1">
         <div className={cn("relative size-2 rounded-full", statusColor)}>
           <div
             className={cn(
-              "absolute -top-px -left-px size-2.5 animate-ping rounded-full opacity-25",
+              "absolute -left-px -top-px size-2.5 animate-ping rounded-full opacity-25",
               statusColor
             )}
           />
@@ -85,7 +86,7 @@ export function SidebarNavigation({
           className="flex size-7 items-center justify-center"
           aria-label="Home"
         >
-          <img src="/shadow.svg" alt="Logo" width={22} height={22} />
+          <div className="logo-container h-5 w-5" role="img" aria-label="Logo" />
         </Link>
         <div className="flex flex-col gap-4">
           <Tooltip>
