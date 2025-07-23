@@ -1,8 +1,6 @@
-import { prisma } from "@repo/db";
+import { InitializationStatus, InitStepType, prisma } from "@repo/db";
 import {
-  InitStepType,
   InitializationProgress,
-  InitializationStatus,
 } from "@repo/types";
 import { emitStreamChunk } from "../socket";
 import { WorkspaceManager } from "../workspace";
@@ -440,7 +438,7 @@ export class TaskInitializationEngine {
       // For now, this is handled by the workspace manager during pod creation
       // In the future, this could be separated if we want different clone strategies
       console.log(`[TASK_INIT] ${taskId}: Repository cloning handled by workspace manager`);
-      
+
       // Verify the clone was successful by checking workspace contents
       const listing = await executor.listDirectory(".");
       if (!listing.success || listing.contents.length === 0) {
@@ -525,7 +523,7 @@ export class TaskInitializationEngine {
         case "microvm":
           return [
             "CREATE_POD",
-            "WAIT_SIDECAR_READY", 
+            "WAIT_SIDECAR_READY",
             "CLONE_TO_POD",
             "SETUP_ENVIRONMENT"
           ];
@@ -574,7 +572,7 @@ export class TaskInitializationEngine {
    */
   getCleanupSteps(): InitStepType[] {
     const agentMode = getAgentMode();
-    
+
     if (agentMode === "remote") {
       return ["CLEANUP_POD"];
     } else {
