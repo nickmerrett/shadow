@@ -398,7 +398,7 @@ export class RemoteToolExecutor implements ToolExecutor {
     return this.withErrorHandling(
       `searchFiles(${query})`,
       async () => {
-        return await this.makeRequest<FileSearchResult>("/api/search/files", {
+        return await this.makeRequest<FileSearchResult>("/search/files", {
           method: "POST",
           body: JSON.stringify({
             query,
@@ -423,7 +423,7 @@ export class RemoteToolExecutor implements ToolExecutor {
     return this.withErrorHandling(
       `grepSearch(${query})`,
       async () => {
-        return await this.makeRequest<GrepResult>("/api/search/grep", {
+        return await this.makeRequest<GrepResult>("/search/grep", {
           method: "POST",
           body: JSON.stringify({
             query,
@@ -453,7 +453,7 @@ export class RemoteToolExecutor implements ToolExecutor {
     return this.withErrorHandling(
       `codebaseSearch(${query})`,
       async () => {
-        return await this.makeRequest<CodebaseSearchResult>("/api/search/codebase", {
+        return await this.makeRequest<CodebaseSearchResult>("/search/codebase", {
           method: "POST",
           body: JSON.stringify({
             query,
@@ -510,7 +510,7 @@ export class RemoteToolExecutor implements ToolExecutor {
       `executeBackgroundCommand(${command})`,
       async () => {
         // Start the background command
-        const response = await this.makeRequest<{ commandId: string }>("/api/commands/background", {
+        const response = await this.makeRequest<{ commandId: string }>("/commands/background", {
           method: "POST",
           body: JSON.stringify({ command }),
         });
@@ -523,7 +523,7 @@ export class RemoteToolExecutor implements ToolExecutor {
           success: true,
           message: `Background command started: ${command}`,
           isBackground: true,
-        };
+        } as CommandResult;
       },
       fallback
     );

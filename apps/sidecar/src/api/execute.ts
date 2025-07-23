@@ -81,5 +81,37 @@ export function createExecuteRouter(commandService: CommandService): Router {
     })
   );
 
+  /**
+   * POST /commands/background
+   * Start a background command and return command ID
+   */
+  router.post(
+    "/commands/background",
+    asyncHandler(async (req, res) => {
+      const body = CommandRequestSchema.parse(req.body);
+
+      const result = await commandService.executeCommand(
+        body.command,
+        true, // isBackground = true
+        body.timeout
+      );
+
+      if (!result.success) {
+        if (result.requiresApproval) {
+          res.status(400).json(result);
+        } else {
+          res.status(500).json(result);
+        }
+      } else {
+        // Return command ID for background command tracking
+        const commandId = `background-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        res.json({
+          commandId,
+          success: true,
+        });
+      }
+    })
+  );
+
   return router;
 }
