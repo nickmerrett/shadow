@@ -272,4 +272,5 @@ Services use Turborepo's `turbo prune` pattern for efficient builds with minimal
 ## Development Practices
 
 - **Maintenance**: When making big codebase changes, keep Claude.md updated with a high-level overview of the codebase.
+- **README Maintenance**: Keep README.md updated when setup instructions, environment variables, or development workflows change. The README should always reflect the current state of the project setup.
 - **No Context Poisoning**: Do NOT update Claude.md with minor details about implementation progress or details that are very specific to individual tasks.
