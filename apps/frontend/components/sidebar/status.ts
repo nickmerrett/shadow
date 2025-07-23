@@ -9,8 +9,8 @@ import {
 } from "lucide-react";
 
 export const statusOrder = {
-  COMPLETED: 0,
-  RUNNING: 1,
+  RUNNING: 0,
+  COMPLETED: 1,
   INITIALIZING: 2,
   STOPPED: 3,
   FAILED: 4,

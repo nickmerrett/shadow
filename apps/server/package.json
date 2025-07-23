@@ -13,7 +13,9 @@
     "check-types": "tsc --noEmit",
     "format": "prettier --write 'src/**/*.ts'",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "docker:build": "docker build -f Dockerfile -t shadow-server ../../",
+    "docker:run": "docker run -p 3001:3001 --env-file .env shadow-server"
   },
   "author": "",
   "license": "ISC",

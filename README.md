@@ -136,26 +136,25 @@ To run the Prisma Studio GUI, you can run:
 npm run db:studio
 ```
 
-### Local Workspace Terminal Agent
+## Docker Development
 
-The coding agent can be run locally in the terminal for testing on a local workspace.
+For containerized development, use Docker Compose:
 
-First, create a local workspace directory, we have a script to make one for you:
+```bash
+# Start all services
+docker-compose up -d
 
-```
-./create-local-workspace.sh
-```
-
-Ensure you set the absolute path of the workspace in the server's .env file:
-
-```
-WORKSPACE_DIR=...
+# Include database admin tool (Adminer)
+docker-compose --profile admin up -d
 ```
 
-Then, run the terminal agent:
+When using the `admin` profile, Adminer will be available at http://localhost:8081 for database administration:
+- Server: `db`
+- Username: `postgres` 
+- Password: `postgres`
+- Database: `shadow`
 
-```
-cd apps/server
-npm run validate
-npm run agent
+Stop services:
+```bash
+docker-compose down
 ```

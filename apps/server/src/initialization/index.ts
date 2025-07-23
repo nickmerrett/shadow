@@ -1,11 +1,10 @@
-import { prisma } from "@repo/db";
+import { InitializationStatus, InitStepType, prisma } from "@repo/db";
 import {
-  InitStepType,
   InitializationProgress,
-  InitializationStatus,
 } from "@repo/types";
 import { emitStreamChunk } from "../socket";
-import { WorkspaceManager } from "../workspace";
+import { createWorkspaceManager, createToolExecutor, getAgentMode } from "../execution";
+import type { WorkspaceManager as AbstractWorkspaceManager } from "../execution";
 
 // Helper for async delays
 const delay = (ms: number) =>
@@ -40,13 +39,30 @@ const STEP_DEFINITIONS: Record<
     name: "Validating Setup",
     description: "Verify environment is ready for development",
   },
+  // Remote mode specific steps
+  CREATE_POD: {
+    name: "Creating Pod",
+    description: "Create Kubernetes pod for task execution",
+  },
+  WAIT_SIDECAR_READY: {
+    name: "Waiting for Sidecar",
+    description: "Wait for sidecar service to become ready",
+  },
+  VERIFY_WORKSPACE: {
+    name: "Verifying Workspace",
+    description: "Verify workspace is ready and contains repository",
+  },
+  CLEANUP_POD: {
+    name: "Cleaning up Pod",
+    description: "Destroy Kubernetes pod and cleanup resources",
+  },
 };
 
 export class TaskInitializationEngine {
-  private workspaceManager: WorkspaceManager;
+  private abstractWorkspaceManager: AbstractWorkspaceManager;
 
   constructor() {
-    this.workspaceManager = new WorkspaceManager();
+    this.abstractWorkspaceManager = createWorkspaceManager(); // Abstraction layer for all modes
   }
 
   /**
@@ -182,6 +198,23 @@ export class TaskInitializationEngine {
         await this.executeValidateSetup(taskId);
         break;
 
+      // Remote mode specific steps
+      case "CREATE_POD":
+        await this.executeCreatePod(taskId, userId);
+        break;
+
+      case "WAIT_SIDECAR_READY":
+        await this.executeWaitSidecarReady(taskId);
+        break;
+
+      case "VERIFY_WORKSPACE":
+        await this.executeVerifyWorkspace(taskId, userId);
+        break;
+
+      case "CLEANUP_POD":
+        await this.executeCleanupPod(taskId);
+        break;
+
       default:
         throw new Error(`Unknown initialization step: ${step}`);
     }
@@ -204,13 +237,12 @@ export class TaskInitializationEngine {
       throw new Error(`Task ${taskId} not found`);
     }
 
-    // Use existing workspace manager to clone
-    const workspaceResult = await this.workspaceManager.prepareTaskWorkspace(
-      taskId,
-      task.repoUrl,
-      task.branch,
-      userId
-    );
+    const workspaceResult = await this.abstractWorkspaceManager.prepareWorkspace({
+      id: taskId,
+      repoUrl: task.repoUrl,
+      branch: task.branch,
+      userId,
+    });
 
     if (!workspaceResult.success) {
       throw new Error(workspaceResult.error || "Failed to clone repository");
@@ -288,6 +320,166 @@ export class TaskInitializationEngine {
   }
 
   /**
+   * Create pod step - Create Kubernetes pod for remote execution
+   */
+  private async executeCreatePod(taskId: string, userId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Creating Kubernetes pod for remote execution`);
+
+    try {
+      // Get task info
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { repoUrl: true, branch: true },
+      });
+
+      if (!task) {
+        throw new Error(`Task not found: ${taskId}`);
+      }
+
+      // Use abstract workspace manager to prepare workspace (creates pod in remote mode)
+      const workspaceInfo = await this.abstractWorkspaceManager.prepareWorkspace({
+        id: taskId,
+        repoUrl: task.repoUrl,
+        branch: task.branch,
+        userId,
+      });
+
+      if (!workspaceInfo.success) {
+        throw new Error(`Failed to create pod: ${workspaceInfo.error}`);
+      }
+
+      // Create or update TaskSession with pod information
+      if (workspaceInfo.podName && workspaceInfo.podNamespace) {
+        await prisma.taskSession.create({
+          data: {
+            taskId,
+            podName: workspaceInfo.podName,
+            podNamespace: workspaceInfo.podNamespace,
+            isActive: true,
+          },
+        });
+      }
+
+      // Update task with workspace path (CRITICAL FIX)
+      await prisma.task.update({
+        where: { id: taskId },
+        data: {
+          workspacePath: workspaceInfo.workspacePath,
+          commitSha: workspaceInfo.cloneResult?.commitSha,
+        },
+      });
+
+      console.log(`[TASK_INIT] ${taskId}: Successfully created pod ${workspaceInfo.podName}`);
+    } catch (error) {
+      console.error(`[TASK_INIT] ${taskId}: Failed to create pod:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Wait for sidecar ready step - Wait for sidecar API to become healthy and repository to be cloned
+   */
+  private async executeWaitSidecarReady(taskId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Waiting for sidecar service and repository clone to complete`);
+
+    try {
+      // Get the tool executor for this task (will contain sidecar endpoint info)
+      const executor = createToolExecutor(taskId);
+
+      // Wait for both sidecar to be healthy AND repository to be cloned
+      const maxRetries = 30; // 30 * 2s = 60s timeout
+      const retryDelay = 2000; // 2 seconds between retries
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          // Test sidecar connectivity AND verify workspace has content
+          const listing = await executor.listDirectory(".");
+
+          // Check that both sidecar is responding AND workspace has content
+          if (listing.success && listing.contents && listing.contents.length > 0) {
+            console.log(`[TASK_INIT] ${taskId}: Sidecar ready and repository cloned (attempt ${attempt})`);
+            return;
+          } else {
+            throw new Error("Sidecar responding but workspace appears empty");
+          }
+        } catch (error) {
+          if (attempt === maxRetries) {
+            throw new Error(`Sidecar/clone failed to become ready after ${maxRetries} attempts: ${error}`);
+          }
+          console.log(`[TASK_INIT] ${taskId}: Sidecar or clone not ready yet (attempt ${attempt}/${maxRetries}), retrying...`);
+          await delay(retryDelay);
+        }
+      }
+    } catch (error) {
+      console.error(`[TASK_INIT] ${taskId}: Failed waiting for sidecar and clone:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify workspace step - Verify workspace is ready and contains repository
+   */
+  private async executeVerifyWorkspace(taskId: string, userId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Verifying workspace is ready and contains repository`);
+
+    try {
+      // Get task info
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { repoUrl: true, branch: true },
+      });
+
+      if (!task) {
+        throw new Error(`Task not found: ${taskId}`);
+      }
+
+      // Get the tool executor for remote operations
+      const executor = createToolExecutor(taskId);
+
+      // Final verification that workspace is fully ready with repository content
+      console.log(`[TASK_INIT] ${taskId}: Performing final workspace verification`);
+
+      // Verify the workspace is ready by checking contents
+      const listing = await executor.listDirectory(".");
+      if (!listing.success || !listing.contents || listing.contents.length === 0) {
+        throw new Error("Workspace verification failed - workspace appears empty");
+      }
+
+      console.log(`[TASK_INIT] ${taskId}: Successfully verified workspace is ready with repository content`);
+    } catch (error) {
+      console.error(`[TASK_INIT] ${taskId}: Failed to verify workspace:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cleanup pod step - Destroy Kubernetes pod and cleanup resources
+   */
+  private async executeCleanupPod(taskId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Cleaning up Kubernetes pod`);
+
+    try {
+      // Cleanup through abstract workspace manager
+      await this.abstractWorkspaceManager.cleanupWorkspace(taskId);
+
+      // Update TaskSession to mark as inactive
+      await prisma.taskSession.updateMany({
+        where: { taskId, isActive: true },
+        data: {
+          isActive: false,
+          endedAt: new Date(),
+        },
+      });
+
+      console.log(`[TASK_INIT] ${taskId}: Successfully cleaned up pod`);
+    } catch (error) {
+      console.error(`[TASK_INIT] ${taskId}: Failed to cleanup pod:`, error);
+      // Don't throw error for cleanup failures, just log them
+      // We don't want cleanup failures to break the overall flow
+    }
+  }
+
+  /**
    * Update task initialization status in database
    */
   private async updateTaskInit(
@@ -315,30 +507,76 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Get default initialization steps for a task type
+   * Get default initialization steps based on agent mode and task type
    */
   getDefaultStepsForTask(
     taskType: "simple" | "microvm" | "full" = "simple"
   ): InitStepType[] {
-    switch (taskType) {
-      case "simple":
-        return ["CLONE_REPOSITORY"];
+    const agentMode = getAgentMode();
 
-      case "microvm":
-        return ["CLONE_REPOSITORY", "PROVISION_MICROVM", "SETUP_ENVIRONMENT"];
+    if (agentMode === "remote") {
+      // Remote mode uses pod-based execution
+      switch (taskType) {
+        case "simple":
+          return ["CREATE_POD", "WAIT_SIDECAR_READY", "VERIFY_WORKSPACE"];
 
-      case "full":
-        return [
-          "CLONE_REPOSITORY",
-          "PROVISION_MICROVM",
-          "SETUP_ENVIRONMENT",
-          "INSTALL_DEPENDENCIES",
-          "CONFIGURE_TOOLS",
-          "VALIDATE_SETUP",
-        ];
+        case "microvm":
+          return [
+            "CREATE_POD",
+            "WAIT_SIDECAR_READY",
+            "VERIFY_WORKSPACE",
+            "SETUP_ENVIRONMENT"
+          ];
 
-      default:
-        return ["CLONE_REPOSITORY"];
+        case "full":
+          return [
+            "CREATE_POD",
+            "WAIT_SIDECAR_READY",
+            "VERIFY_WORKSPACE",
+            "SETUP_ENVIRONMENT",
+            "INSTALL_DEPENDENCIES",
+            "CONFIGURE_TOOLS",
+            "VALIDATE_SETUP",
+          ];
+
+        default:
+          return ["CREATE_POD", "WAIT_SIDECAR_READY", "VERIFY_WORKSPACE"];
+      }
+    } else {
+      // Local/mock mode uses traditional local execution
+      switch (taskType) {
+        case "simple":
+          return ["CLONE_REPOSITORY"];
+
+        case "microvm":
+          return ["CLONE_REPOSITORY", "PROVISION_MICROVM", "SETUP_ENVIRONMENT"];
+
+        case "full":
+          return [
+            "CLONE_REPOSITORY",
+            "PROVISION_MICROVM",
+            "SETUP_ENVIRONMENT",
+            "INSTALL_DEPENDENCIES",
+            "CONFIGURE_TOOLS",
+            "VALIDATE_SETUP",
+          ];
+
+        default:
+          return ["CLONE_REPOSITORY"];
+      }
+    }
+  }
+
+  /**
+   * Get cleanup steps for task completion
+   */
+  getCleanupSteps(): InitStepType[] {
+    const agentMode = getAgentMode();
+
+    if (agentMode === "remote") {
+      return ["CLEANUP_POD"];
+    } else {
+      return []; // Local mode cleanup is handled automatically
     }
   }
 }

@@ -1,17 +1,22 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import config from "../config";
-import { CloneResult, GitHubService } from "../github";
-import { execAsync } from "../utils/exec";
+import config from "../../config";
+import { GitHubService } from "../../github";
+import { execAsync } from "../../utils/exec";
+import { WorkspaceManager } from "../interfaces/workspace-manager";
+import { ToolExecutor } from "../interfaces/tool-executor";
+import {
+  WorkspaceInfo,
+  WorkspaceStatus,
+  HealthStatus,
+  TaskConfig,
+} from "../interfaces/types";
+import { LocalToolExecutor } from "./local-tool-executor";
 
-export interface WorkspaceSetupResult {
-  success: boolean;
-  workspacePath: string;
-  cloneResult?: CloneResult;
-  error?: string;
-}
-
-export class WorkspaceManager {
+/**
+ * LocalWorkspaceManager implements workspace management for local filesystem execution
+ */
+export class LocalWorkspaceManager implements WorkspaceManager {
   private githubService: GitHubService;
 
   constructor() {
@@ -65,20 +70,13 @@ export class WorkspaceManager {
     }
   }
 
-  /**
-   * Prepare a workspace for a task by cloning the specified repository
-   */
-  async prepareTaskWorkspace(
-    taskId: string,
-    repoUrl: string,
-    branch: string,
-    userId: string
-  ): Promise<WorkspaceSetupResult> {
+  async prepareWorkspace(taskConfig: TaskConfig): Promise<WorkspaceInfo> {
+    const { id: taskId, repoUrl, branch, userId } = taskConfig;
     const workspacePath = this.getTaskWorkspaceDir(taskId);
 
     try {
       console.log(
-        `[WORKSPACE] Preparing workspace for task ${taskId} at ${workspacePath}`
+        `[LOCAL_WORKSPACE] Preparing workspace for task ${taskId} at ${workspacePath}`
       );
 
       // Ensure workspace directory exists and is clean
@@ -115,7 +113,7 @@ export class WorkspaceManager {
       }
 
       console.log(
-        `[WORKSPACE] Successfully prepared workspace for task ${taskId}`
+        `[LOCAL_WORKSPACE] Successfully prepared workspace for task ${taskId}`
       );
 
       return {
@@ -125,7 +123,7 @@ export class WorkspaceManager {
       };
     } catch (error) {
       console.error(
-        `[WORKSPACE] Failed to prepare workspace for task ${taskId}:`,
+        `[LOCAL_WORKSPACE] Failed to prepare workspace for task ${taskId}:`,
         error
       );
 
@@ -138,14 +136,11 @@ export class WorkspaceManager {
     }
   }
 
-  /**
-   * Clean up a task's workspace directory
-   */
-  async cleanupTaskWorkspace(taskId: string): Promise<void> {
+  async cleanupWorkspace(taskId: string): Promise<{ success: boolean; message: string }> {
     const workspacePath = this.getTaskWorkspaceDir(taskId);
 
     try {
-      console.log(`[WORKSPACE] Cleaning up workspace for task ${taskId}`);
+      console.log(`[LOCAL_WORKSPACE] Cleaning up workspace for task ${taskId}`);
 
       // Check if workspace exists
       try {
@@ -153,36 +148,67 @@ export class WorkspaceManager {
       } catch (error) {
         // Workspace doesn't exist, nothing to clean
         console.log(
-          `[WORKSPACE] Workspace ${workspacePath} doesn't exist, nothing to clean`
+          `[LOCAL_WORKSPACE] Workspace ${workspacePath} doesn't exist, nothing to clean`
         );
-        return;
+        return {
+          success: true,
+          message: `Workspace for task ${taskId} doesn't exist, nothing to clean`,
+        };
       }
 
       // Remove the entire workspace directory
       await fs.rm(workspacePath, { recursive: true, force: true });
 
       console.log(
-        `[WORKSPACE] Successfully cleaned up workspace for task ${taskId}`
+        `[LOCAL_WORKSPACE] Successfully cleaned up workspace for task ${taskId}`
       );
+      
+      return {
+        success: true,
+        message: `Successfully cleaned up workspace for task ${taskId}`,
+      };
     } catch (error) {
       console.error(
-        `[WORKSPACE] Failed to cleanup workspace for task ${taskId}:`,
+        `[LOCAL_WORKSPACE] Failed to cleanup workspace for task ${taskId}:`,
         error
       );
-      // Don't throw error for cleanup failures, just log them
+      
+      return {
+        success: false,
+        message: `Failed to cleanup workspace for task ${taskId}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      };
     }
   }
 
-  /**
-   * Get the workspace path for a task (without creating it)
-   */
+  async getWorkspaceStatus(taskId: string): Promise<WorkspaceStatus> {
+    const workspacePath = this.getTaskWorkspaceDir(taskId);
+
+    try {
+      const stat = await fs.stat(workspacePath);
+      const sizeBytes = await this.getWorkspaceSize(taskId);
+
+      return {
+        exists: stat.isDirectory(),
+        path: workspacePath,
+        sizeBytes,
+        isReady: true, // Local workspaces are always ready once they exist
+      };
+    } catch (error) {
+      return {
+        exists: false,
+        path: workspacePath,
+        isReady: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
   getWorkspacePath(taskId: string): string {
     return this.getTaskWorkspaceDir(taskId);
   }
 
-  /**
-   * Check if a workspace exists for a task
-   */
   async workspaceExists(taskId: string): Promise<boolean> {
     const workspacePath = this.getTaskWorkspaceDir(taskId);
 
@@ -194,9 +220,6 @@ export class WorkspaceManager {
     }
   }
 
-  /**
-   * Get workspace size in bytes
-   */
   async getWorkspaceSize(taskId: string): Promise<number> {
     const workspacePath = this.getTaskWorkspaceDir(taskId);
 
@@ -208,5 +231,48 @@ export class WorkspaceManager {
       console.warn(`Could not get workspace size for ${taskId}:`, error);
       return 0;
     }
+  }
+
+  async getExecutor(taskId: string): Promise<ToolExecutor> {
+    const workspacePath = this.getWorkspacePath(taskId);
+    return new LocalToolExecutor(taskId, workspacePath);
+  }
+
+  async healthCheck(taskId: string): Promise<HealthStatus> {
+    const exists = await this.workspaceExists(taskId);
+    
+    if (!exists) {
+      return {
+        healthy: false,
+        message: "Workspace does not exist",
+      };
+    }
+
+    try {
+      // Basic health check: verify we can list the workspace directory
+      const workspacePath = this.getWorkspacePath(taskId);
+      await fs.readdir(workspacePath);
+      
+      return {
+        healthy: true,
+        message: "Workspace is healthy and accessible",
+        details: {
+          path: workspacePath,
+          mode: "local",
+        },
+      };
+    } catch (error) {
+      return {
+        healthy: false,
+        message: "Workspace exists but is not accessible",
+        details: {
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      };
+    }
+  }
+
+  isRemote(): boolean {
+    return false;
   }
 }

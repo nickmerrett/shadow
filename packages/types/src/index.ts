@@ -2,6 +2,7 @@
 
 import type { CoreMessage } from "ai";
 import { randomUUID } from "crypto";
+import type { InitStepType } from "@repo/db";
 
 // AI SDK message parts for structured assistant content
 export interface TextPart {
@@ -110,16 +111,16 @@ export function fromCoreMessage(
         ? coreMessage.content
         : Array.isArray(coreMessage.content)
           ? coreMessage.content
-              .map((part) =>
-                typeof part === "string"
-                  ? part
-                  : "text" in part
-                    ? part.text
-                    : "image" in part
-                      ? "[image]"
-                      : JSON.stringify(part)
-              )
-              .join("")
+            .map((part) =>
+              typeof part === "string"
+                ? part
+                : "text" in part
+                  ? part.text
+                  : "image" in part
+                    ? "[image]"
+                    : JSON.stringify(part)
+            )
+            .join("")
           : JSON.stringify(coreMessage.content),
   };
 }
@@ -128,15 +129,15 @@ export function fromCoreMessage(
 
 export interface StreamChunk {
   type:
-    | "content"
-    | "thinking"
-    | "usage"
-    | "complete"
-    | "error"
-    | "tool-call"
-    | "tool-result"
-    | "init-progress"
-    | "file-change";
+  | "content"
+  | "thinking"
+  | "usage"
+  | "complete"
+  | "error"
+  | "tool-call"
+  | "tool-result"
+  | "init-progress"
+  | "file-change";
 
   // For content chunks
   content?: string;
@@ -156,12 +157,12 @@ export interface StreamChunk {
 
   // For completion/error
   finishReason?:
-    | "stop"
-    | "length"
-    | "content-filter"
-    | "function_call"
-    | "tool_calls"
-    | "error";
+  | "stop"
+  | "length"
+  | "content-filter"
+  | "function_call"
+  | "tool_calls"
+  | "error";
   error?: string;
 
   // For tool calls
@@ -210,22 +211,6 @@ export interface InitializationProgress {
 
   error?: string;
 }
-
-// Initialization step types
-export type InitStepType =
-  | "CLONE_REPOSITORY"
-  | "PROVISION_MICROVM"
-  | "SETUP_ENVIRONMENT"
-  | "INSTALL_DEPENDENCIES"
-  | "CONFIGURE_TOOLS"
-  | "VALIDATE_SETUP";
-
-// Initialization status
-export type InitializationStatus =
-  | "PENDING"
-  | "IN_PROGRESS"
-  | "COMPLETED"
-  | "FAILED";
 
 // === Tool Execution Status ===
 // This is specifically for tool execution status, separate from database TaskStatus
