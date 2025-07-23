@@ -33,7 +33,7 @@ export class WorkspaceService {
   async getStatus(): Promise<WorkspaceStatusResponse> {
     try {
       const stats = await fs.stat(this.workspaceDir);
-      
+
       // Get workspace size using du command
       let sizeBytes = 0;
       try {
@@ -65,18 +65,20 @@ export class WorkspaceService {
    */
   resolvePath(relativePath: string): string {
     // Remove leading slash if present
-    const cleanPath = relativePath.startsWith("/") 
-      ? relativePath.slice(1) 
+    const cleanPath = relativePath.startsWith("/")
+      ? relativePath.slice(1)
       : relativePath;
-    
+
     // Resolve and normalize the path
     const resolvedPath = path.resolve(this.workspaceDir, cleanPath);
-    
-    // Security check: ensure path is within workspace
-    if (!resolvedPath.startsWith(this.workspaceDir)) {
+
+    // Security check: ensure path is within workspace directory
+    // Use path.relative() to detect traversal attempts, including via symlinks
+    const relativeToWorkspace = path.relative(this.workspaceDir, resolvedPath);
+    if (relativeToWorkspace.startsWith('..') || path.isAbsolute(relativeToWorkspace)) {
       throw new Error("Path traversal detected");
     }
-    
+
     return resolvedPath;
   }
 

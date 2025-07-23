@@ -248,6 +248,11 @@ const manager = createWorkspaceManager("remote");
 
 A separate Express.js service (`apps/sidecar/`) provides REST APIs for file operations and command execution within Kubernetes pods. This enables secure, isolated execution environments.
 
+**Security Features:**
+- Path traversal protection using `path.relative()` to prevent directory escape attacks
+- Workspace isolation ensuring all operations stay within designated directories
+- Protection against symlink-based bypass attempts
+
 ## Docker Support
 
 The monorepo includes Docker support for containerized deployment:
