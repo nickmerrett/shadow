@@ -4,7 +4,7 @@ import {
 } from "@repo/types";
 import { emitStreamChunk } from "../socket";
 import { createWorkspaceManager, createToolExecutor, getAgentMode } from "../execution";
-import type { WorkspaceManager as AbstractWorkspaceManager, ToolExecutor } from "../execution";
+import type { WorkspaceManager as AbstractWorkspaceManager } from "../execution";
 
 // Helper for async delays
 const delay = (ms: number) =>
