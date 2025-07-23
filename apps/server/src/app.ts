@@ -10,11 +10,10 @@ import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";
 import { getGitHubAccessToken } from "./utils/github-account";
 import { updateTaskStatus } from "./utils/task-status";
-import { WorkspaceManager } from "./workspace";
 
 const app = express();
 const chatService = new ChatService();
-const workspaceManager = new WorkspaceManager();
+// const workspaceManager = new WorkspaceManager();
 const initializationEngine = new TaskInitializationEngine();
 
 const socketIOServer = http.createServer(app);
@@ -214,37 +213,37 @@ app.get("/api/tasks/:taskId/messages", async (req, res) => {
   }
 });
 
-// Cleanup workspace for a task
-app.post("/api/tasks/:taskId/cleanup", async (req, res) => {
-  try {
-    const { taskId } = req.params;
+// // Cleanup workspace for a task
+// app.post("/api/tasks/:taskId/cleanup", async (req, res) => {
+//   try {
+//     const { taskId } = req.params;
 
-    // Verify task exists
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-    });
+//     // Verify task exists
+//     const task = await prisma.task.findUnique({
+//       where: { id: taskId },
+//     });
 
-    if (!task) {
-      return res.status(404).json({ error: "Task not found" });
-    }
+//     if (!task) {
+//       return res.status(404).json({ error: "Task not found" });
+//     }
 
-    console.log(`[TASK_CLEANUP] Cleaning up workspace for task ${taskId}`);
+//     console.log(`[TASK_CLEANUP] Cleaning up workspace for task ${taskId}`);
 
-    // Clean up workspace
-    await workspaceManager.cleanupTaskWorkspace(taskId);
+//     // Clean up workspace
+//     await workspaceManager.cleanupTaskWorkspace(taskId);
 
-    // Update task to mark workspace as cleaned up
-    await prisma.task.update({
-      where: { id: taskId },
-      data: { workspaceCleanedUp: true },
-    });
+//     // Update task to mark workspace as cleaned up
+//     await prisma.task.update({
+//       where: { id: taskId },
+//       data: { workspaceCleanedUp: true },
+//     });
 
-    res.json({ status: "cleaned" });
-  } catch (error) {
-    console.error("Error cleaning up task:", error);
-    res.status(500).json({ error: "Failed to cleanup task" });
-  }
-});
+//     res.json({ status: "cleaned" });
+//   } catch (error) {
+//     console.error("Error cleaning up task:", error);
+//     res.status(500).json({ error: "Failed to cleanup task" });
+//   }
+// });
 
 app.use(errorHandler);
 

@@ -3,7 +3,6 @@ import {
   InitializationProgress,
 } from "@repo/types";
 import { emitStreamChunk } from "../socket";
-import { WorkspaceManager } from "../workspace";
 import { createWorkspaceManager, createToolExecutor, getAgentMode } from "../execution";
 import type { WorkspaceManager as AbstractWorkspaceManager, ToolExecutor } from "../execution";
 
@@ -49,9 +48,9 @@ const STEP_DEFINITIONS: Record<
     name: "Waiting for Sidecar",
     description: "Wait for sidecar service to become ready",
   },
-  CLONE_TO_POD: {
-    name: "Cloning to Pod",
-    description: "Clone repository into pod workspace",
+  VERIFY_WORKSPACE: {
+    name: "Verifying Workspace",
+    description: "Verify workspace is ready and contains repository",
   },
   CLEANUP_POD: {
     name: "Cleaning up Pod",
@@ -60,12 +59,10 @@ const STEP_DEFINITIONS: Record<
 };
 
 export class TaskInitializationEngine {
-  private workspaceManager: WorkspaceManager;
   private abstractWorkspaceManager: AbstractWorkspaceManager;
 
   constructor() {
-    this.workspaceManager = new WorkspaceManager(); // Legacy local workspace manager
-    this.abstractWorkspaceManager = createWorkspaceManager(); // New abstraction layer
+    this.abstractWorkspaceManager = createWorkspaceManager(); // Abstraction layer for all modes
   }
 
   /**
@@ -210,8 +207,8 @@ export class TaskInitializationEngine {
         await this.executeWaitSidecarReady(taskId);
         break;
 
-      case "CLONE_TO_POD":
-        await this.executeCloneToPod(taskId, userId);
+      case "VERIFY_WORKSPACE":
+        await this.executeVerifyWorkspace(taskId, userId);
         break;
 
       case "CLEANUP_POD":
@@ -240,13 +237,12 @@ export class TaskInitializationEngine {
       throw new Error(`Task ${taskId} not found`);
     }
 
-    // Use existing workspace manager to clone
-    const workspaceResult = await this.workspaceManager.prepareTaskWorkspace(
-      taskId,
-      task.repoUrl,
-      task.branch,
-      userId
-    );
+    const workspaceResult = await this.abstractWorkspaceManager.prepareWorkspace({
+      id: taskId,
+      repoUrl: task.repoUrl,
+      branch: task.branch,
+      userId,
+    });
 
     if (!workspaceResult.success) {
       throw new Error(workspaceResult.error || "Failed to clone repository");
@@ -364,6 +360,15 @@ export class TaskInitializationEngine {
         });
       }
 
+      // Update task with workspace path (CRITICAL FIX)
+      await prisma.task.update({
+        where: { id: taskId },
+        data: {
+          workspacePath: workspaceInfo.workspacePath,
+          commitSha: workspaceInfo.cloneResult?.commitSha,
+        },
+      });
+
       console.log(`[TASK_INIT] ${taskId}: Successfully created pod ${workspaceInfo.podName}`);
     } catch (error) {
       console.error(`[TASK_INIT] ${taskId}: Failed to create pod:`, error);
@@ -372,49 +377,50 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Wait for sidecar ready step - Wait for sidecar API to become healthy
+   * Wait for sidecar ready step - Wait for sidecar API to become healthy and repository to be cloned
    */
   private async executeWaitSidecarReady(taskId: string): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Waiting for sidecar service to become ready`);
+    console.log(`[TASK_INIT] ${taskId}: Waiting for sidecar service and repository clone to complete`);
 
     try {
       // Get the tool executor for this task (will contain sidecar endpoint info)
       const executor = createToolExecutor(taskId);
 
-      if (!executor.isRemote()) {
-        console.log(`[TASK_INIT] ${taskId}: Not in remote mode, skipping sidecar check`);
-        return;
-      }
-
-      // Wait for sidecar to be healthy with timeout and retries
+      // Wait for both sidecar to be healthy AND repository to be cloned
       const maxRetries = 30; // 30 * 2s = 60s timeout
       const retryDelay = 2000; // 2 seconds between retries
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          // Try a simple file operation to test sidecar connectivity
-          await executor.listDirectory(".");
-          console.log(`[TASK_INIT] ${taskId}: Sidecar is ready (attempt ${attempt})`);
-          return;
+          // Test sidecar connectivity AND verify workspace has content
+          const listing = await executor.listDirectory(".");
+
+          // Check that both sidecar is responding AND workspace has content
+          if (listing.success && listing.contents && listing.contents.length > 0) {
+            console.log(`[TASK_INIT] ${taskId}: Sidecar ready and repository cloned (attempt ${attempt})`);
+            return;
+          } else {
+            throw new Error("Sidecar responding but workspace appears empty");
+          }
         } catch (error) {
           if (attempt === maxRetries) {
-            throw new Error(`Sidecar failed to become ready after ${maxRetries} attempts`);
+            throw new Error(`Sidecar/clone failed to become ready after ${maxRetries} attempts: ${error}`);
           }
-          console.log(`[TASK_INIT] ${taskId}: Sidecar not ready yet (attempt ${attempt}/${maxRetries}), retrying...`);
+          console.log(`[TASK_INIT] ${taskId}: Sidecar or clone not ready yet (attempt ${attempt}/${maxRetries}), retrying...`);
           await delay(retryDelay);
         }
       }
     } catch (error) {
-      console.error(`[TASK_INIT] ${taskId}: Failed waiting for sidecar:`, error);
+      console.error(`[TASK_INIT] ${taskId}: Failed waiting for sidecar and clone:`, error);
       throw error;
     }
   }
 
   /**
-   * Clone to pod step - Clone repository into the pod workspace
+   * Verify workspace step - Verify workspace is ready and contains repository
    */
-  private async executeCloneToPod(taskId: string, userId: string): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Cloning repository into pod workspace`);
+  private async executeVerifyWorkspace(taskId: string, userId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Verifying workspace is ready and contains repository`);
 
     try {
       // Get task info
@@ -430,24 +436,18 @@ export class TaskInitializationEngine {
       // Get the tool executor for remote operations
       const executor = createToolExecutor(taskId);
 
-      if (!executor.isRemote()) {
-        console.log(`[TASK_INIT] ${taskId}: Not in remote mode, skipping pod clone`);
-        return;
-      }
+      // Final verification that workspace is fully ready with repository content
+      console.log(`[TASK_INIT] ${taskId}: Performing final workspace verification`);
 
-      // For now, this is handled by the workspace manager during pod creation
-      // In the future, this could be separated if we want different clone strategies
-      console.log(`[TASK_INIT] ${taskId}: Repository cloning handled by workspace manager`);
-
-      // Verify the clone was successful by checking workspace contents
+      // Verify the workspace is ready by checking contents
       const listing = await executor.listDirectory(".");
       if (!listing.success || !listing.contents || listing.contents.length === 0) {
-        throw new Error("Repository clone verification failed - workspace appears empty");
+        throw new Error("Workspace verification failed - workspace appears empty");
       }
 
-      console.log(`[TASK_INIT] ${taskId}: Successfully verified repository in pod workspace`);
+      console.log(`[TASK_INIT] ${taskId}: Successfully verified workspace is ready with repository content`);
     } catch (error) {
-      console.error(`[TASK_INIT] ${taskId}: Failed to clone to pod:`, error);
+      console.error(`[TASK_INIT] ${taskId}: Failed to verify workspace:`, error);
       throw error;
     }
   }
@@ -518,13 +518,13 @@ export class TaskInitializationEngine {
       // Remote mode uses pod-based execution
       switch (taskType) {
         case "simple":
-          return ["CREATE_POD", "WAIT_SIDECAR_READY", "CLONE_TO_POD"];
+          return ["CREATE_POD", "WAIT_SIDECAR_READY", "VERIFY_WORKSPACE"];
 
         case "microvm":
           return [
             "CREATE_POD",
             "WAIT_SIDECAR_READY",
-            "CLONE_TO_POD",
+            "VERIFY_WORKSPACE",
             "SETUP_ENVIRONMENT"
           ];
 
@@ -532,7 +532,7 @@ export class TaskInitializationEngine {
           return [
             "CREATE_POD",
             "WAIT_SIDECAR_READY",
-            "CLONE_TO_POD",
+            "VERIFY_WORKSPACE",
             "SETUP_ENVIRONMENT",
             "INSTALL_DEPENDENCIES",
             "CONFIGURE_TOOLS",
@@ -540,7 +540,7 @@ export class TaskInitializationEngine {
           ];
 
         default:
-          return ["CREATE_POD", "WAIT_SIDECAR_READY", "CLONE_TO_POD"];
+          return ["CREATE_POD", "WAIT_SIDECAR_READY", "VERIFY_WORKSPACE"];
       }
     } else {
       // Local/mock mode uses traditional local execution

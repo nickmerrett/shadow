@@ -295,6 +295,6 @@ enum InitStepType {
   // Remote mode specific steps
   CREATE_POD
   WAIT_SIDECAR_READY
-  CLONE_TO_POD
+  VERIFY_WORKSPACE
   CLEANUP_POD
 }
