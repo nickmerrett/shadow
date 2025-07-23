@@ -8,7 +8,7 @@ alwaysApply: true
 
 1. **Task Submission**
    - User picks a GitHub repo and branch
-   - Chooses the LLM model (e.g. Claude v4)
+   - Chooses the LLM model
    - Enters natural-language instructions for the coding task
 
 2. **Live Session View**
@@ -69,7 +69,7 @@ alwaysApply: true
   - **S3** for completed artifacts (zips, logs, binaries)
 
 - **LLM Integration**
-  - Backend (or agent inside VM) sends prompts to Claude v4 API
+  - Backend sends prompts to LLM wiht AI SDK
   - Receives streaming tokens, broadcasts them live, then writes the final text to the database
 
 ---
@@ -83,4 +83,3 @@ alwaysApply: true
 | Storage             | AWS EFS (NFS), AWS S3                   |
 | Database            | PostgreSQL                              |
 | Real-time Streaming | WebSockets + in-memory buffers          |
-| AI Model            | Anthropic Claude v4 (hosted API)        |
