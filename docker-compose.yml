@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # Backend Server
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/shadow}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      - db
+    volumes:
+      # Mount source code for development hot-reload (optional)
+      - ./apps/server/src:/app/apps/server/src:ro
+    networks:
+      - shadow-network
+    restart: unless-stopped
+
+  # Sidecar Service
+  sidecar:
+    build:
+      context: .
+      dockerfile: apps/sidecar/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - PORT=8080
+      - WORKSPACE_DIR=/workspace
+    volumes:
+      # Mount workspace for file operations
+      - sidecar-workspace:/workspace
+      # Mount source code for development (optional)
+      - ./apps/sidecar/src:/app/apps/sidecar/src:ro
+    networks:
+      - shadow-network
+    restart: unless-stopped
+
+  # Database (PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=shadow
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - shadow-network
+    restart: unless-stopped
+
+  # Database Admin (optional)
+  adminer:
+    image: adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
+    networks:
+      - shadow-network
+    restart: unless-stopped
+    profiles:
+      - admin
+
+volumes:
+  postgres-data:
+  sidecar-workspace:
+
+networks:
+  shadow-network:
+    driver: bridge

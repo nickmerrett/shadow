@@ -1,5 +1,5 @@
 {
-  "name": "@shadow/sidecar",
+  "name": "sidecar",
   "version": "1.0.0",
   "description": "Shadow sidecar service for remote task execution",
   "main": "dist/server.js",
@@ -11,7 +11,9 @@
     "test:integration": "tsx tests/integration.test.ts",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "docker:build": "docker build -f Dockerfile -t shadow-sidecar ../../",
+    "docker:run": "docker run -p 8080:8080 -v $(pwd)/workspace:/workspace shadow-sidecar"
   },
   "dependencies": {
     "express": "^4.21.1",

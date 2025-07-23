@@ -1,26 +1,36 @@
-# Build stage
-FROM node:20-alpine AS builder
+# Sidecar Dockerfile - Optimized for Turborepo monorepo
+FROM node:20-alpine AS base
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
-
+# Builder stage - prunes monorepo and builds application
+FROM base AS builder
+RUN apk update && apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY tsconfig.json ./
+# Install turbo globally
+RUN npm install -g turbo@^2
 
-# Install dependencies
-RUN npm ci
+# Copy entire monorepo for pruning
+COPY . .
 
-# Copy source code
-COPY src ./src
+# Generate a partial monorepo with pruned lockfile for sidecar workspace
+RUN turbo prune sidecar --docker
 
-# Build the application
-RUN npm run build
+# Installer stage - installs dependencies from pruned workspace
+FROM base AS installer
+RUN apk update && apk add --no-cache libc6-compat python3 make g++
+WORKDIR /app
+
+# Copy lockfile and package.json files from pruned workspace
+COPY --from=builder /app/out/json/ .
+RUN npm install
+
+# Copy source files and build
+COPY --from=builder /app/out/full/ .
+WORKDIR /app/apps/sidecar
+RUN npx tsc -p tsconfig.docker.json
 
 # Runtime stage
-FROM node:20-alpine
+FROM base AS runner
 
 # Install runtime dependencies
 RUN apk add --no-cache \
@@ -30,7 +40,8 @@ RUN apk add --no-cache \
     ripgrep \
     findutils \
     coreutils \
-    shadow
+    curl \
+    && rm -rf /var/cache/apk/*
 
 # Create non-root user
 RUN addgroup -g 1001 sidecar && \
@@ -38,15 +49,10 @@ RUN addgroup -g 1001 sidecar && \
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install production dependencies only
-RUN npm ci --only=production && \
-    npm cache clean --force
-
-# Copy built application
-COPY --from=builder /app/dist ./dist
+# Copy built application and dependencies from installer stage
+COPY --from=installer --chown=sidecar:sidecar /app/apps/sidecar/dist ./apps/sidecar/dist
+COPY --from=installer --chown=sidecar:sidecar /app/apps/sidecar/package.json ./apps/sidecar/package.json
+COPY --from=installer --chown=sidecar:sidecar /app/node_modules ./node_modules
 
 # Create workspace directory
 RUN mkdir -p /workspace && \
@@ -65,7 +71,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8080/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"
+    CMD curl -f http://localhost:8080/health || exit 1
 
 # Start the application
-CMD ["node", "dist/server.js"]
+CMD ["node", "apps/sidecar/dist/server.js"]

@@ -43,6 +43,30 @@ npm run db:migrate:dev
 npm run db:migrate:deploy
 ```
 
+**Docker Commands:**
+```bash
+# Build and run all services with Docker Compose
+npm run docker:build
+npm run docker:up
+
+# Build individual services  
+npm run docker:server    # Backend server (Note: has TypeScript build issues)
+npm run docker:sidecar   # Sidecar service (working)
+
+# Individual Docker operations
+npm run docker:down      # Stop all services
+npm run docker:logs      # View logs
+
+# Alternative individual builds
+docker build -f apps/server/Dockerfile -t shadow-server .
+docker build -f apps/sidecar/Dockerfile -t shadow-sidecar .
+
+# Run with docker-compose
+docker-compose up -d     # Start all services
+docker-compose down      # Stop all services
+docker-compose logs -f   # Follow logs
+```
+
 **Local Terminal Agent:**
 ```bash
 # Create test workspace
@@ -245,9 +269,15 @@ const manager = createWorkspaceManager("remote");
 - ✅ Phase 2.2: Mock implementations with network simulation
 - ✅ Phase 2.3: Real remote implementations with HTTP client and K8s client
 
+**Phase 3 Implementation Status: ✅ COMPLETE**
+- ✅ Phase 3.1: Sidecar service implementation (Express.js + TypeScript)
+- ✅ Phase 3.2: Docker containerization with Turborepo optimization
+- ✅ Phase 3.3: Integration testing with existing RemoteToolExecutor
+- ✅ Phase 3.4: Docker Compose development environment setup
+
 **Next Phase (Future):**
-- Phase 2.4: Actual sidecar service implementation
-- Phase 2.5: Production Kubernetes deployment configurations
+- Phase 3.5: Backend server Docker fixes (TypeScript build issues)
+- Phase 3.6: Production Kubernetes deployment configurations
 
 **Backwards Compatibility:**
 - All existing functionality works identically in local mode
@@ -255,12 +285,52 @@ const manager = createWorkspaceManager("remote");
 - Zero configuration required - defaults to local mode
 - Original workspace and tool logic preserved in LocalToolExecutor
 
+## Docker Containerization Setup
+
+### Overview
+The monorepo includes Docker support for both the backend server and sidecar service, optimized using Turborepo's `turbo prune` pattern for efficient builds and caching.
+
+### Current Status
+- ✅ **Sidecar Service**: Fully containerized and working
+- ⚠️ **Backend Server**: Dockerfile created but has TypeScript build issues (needs fixing)
+- ✅ **Docker Compose**: Full development environment setup
+
+### Architecture
+Both services use multi-stage Docker builds:
+1. **Builder stage**: Uses `turbo prune` to create minimal monorepo subset
+2. **Installer stage**: Installs dependencies and builds the application  
+3. **Runtime stage**: Minimal production image with only built artifacts
+
+### Files Created
+- `apps/sidecar/Dockerfile` - Sidecar service Docker build
+- `apps/sidecar/tsconfig.docker.json` - Standalone TypeScript config for Docker
+- `apps/server/Dockerfile` - Backend server Docker build (needs TS fixes)
+- `apps/server/tsconfig.docker.json` - Lenient TypeScript config for Docker
+- `docker-compose.yml` - Full development environment
+- Updated `package.json` files with Docker build scripts
+
+### Usage Examples
+```bash
+# Test sidecar container
+docker run -p 8080:8080 -v $(pwd)/workspace:/workspace shadow-sidecar
+
+# Full development environment
+docker-compose up -d
+docker-compose logs -f sidecar
+```
+
+### Next Steps for Server Containerization
+The server Dockerfile needs TypeScript issues resolved:
+- Fix unused variable errors (noUnusedLocals/noUnusedParameters)
+- Resolve path alias imports (`@/` references)
+- Handle monorepo package references properly
+
 ### Important Notes
 
 - **DO NOT** run `npm run dev` or `turbo dev` without filters - causes chat to hang
 - The system is architected for both current local development and future cloud deployment with Kubernetes + Firecracker microVMs
 - Local development uses a simplified terminal agent for testing
-- **Phase 1 Complete**: Abstraction layer ready for Phase 2 remote mode implementation
+- **Phases 1-3 Complete**: Full dual-mode architecture with containerized sidecar service
 
 ## Development Practices
 
