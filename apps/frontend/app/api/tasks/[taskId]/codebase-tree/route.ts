@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse, NextRequest } from "next/server";
-import { promises as fs } from "fs";
+import { promises as fs, Dirent } from "node:fs";
 import path from "path";
 import { db } from "@repo/db";
 
@@ -32,6 +32,8 @@ const KNOWN_EXTENSIONS = new Set([
   "java",
   "rs",
   "cpp",
+  "cc",
+  "cxx",
   "c",
   "h",
 ]);
@@ -45,7 +47,7 @@ type FileNode = {
 };
 
 async function walkDir(dir: string, basePath: string): Promise<FileNode[]> {
-  let entries: fs.Dirent[] = [];
+  let entries: Dirent[] = [];
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
   } catch (err) {

@@ -33,6 +33,8 @@ const KNOWN_EXTENSIONS = new Set([
   "java",
   "rs",
   "cpp",
+  "cc",
+  "cxx",
   "c",
   "h",
 ]);

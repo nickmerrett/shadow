@@ -54,6 +54,16 @@ export function Editor({
         return "css";
       case "html":
         return "html";
+      case "c":
+        return "c";
+      case "h":
+        return "cpp"; // treat headers as C++ for highlighting
+      case "cpp":
+        return "cpp";
+      case "cc":
+        return "cpp";
+      case "cxx":
+        return "cpp";
       default:
         return "plaintext";
     }
@@ -85,17 +95,17 @@ export function Editor({
           <div className="text-muted-foreground flex items-center gap-0.5 text-[13px]">
             {selectedFile
               ? selectedFile.path.split("/").map((part, index) => (
-                  <Fragment key={index}>
-                    {index > 1 && (
-                      <span className="text-muted-foreground">
-                        <ChevronRight className="size-3" />
-                      </span>
-                    )}
-                    <span className="text-muted-foreground leading-tight">
-                      {part}
+                <Fragment key={index}>
+                  {index > 1 && (
+                    <span className="text-muted-foreground">
+                      <ChevronRight className="size-3" />
                     </span>
-                  </Fragment>
-                ))
+                  )}
+                  <span className="text-muted-foreground leading-tight">
+                    {part}
+                  </span>
+                </Fragment>
+              ))
               : "No file selected"}
           </div>
         </div>
