@@ -8,18 +8,27 @@ const sizes = {
     height: 20,
   },
   lg: {
-    width: 30,
-    height: 30,
+    width: 25,
+    height: 25,
   },
-}
+};
 
-export function LogoHover({ forceAnimate, size = "sm" }: { forceAnimate?: boolean, size?: keyof typeof sizes }) {
+export function LogoHover({
+  forceAnimate,
+  size = "sm",
+}: {
+  forceAnimate?: boolean;
+  size?: keyof typeof sizes;
+}) {
   const [isAnimating, setIsAnimating] = useState(false);
 
   const shouldAnimate = forceAnimate !== undefined ? forceAnimate : isAnimating;
 
   return (
-    <div className="overflow-hidden" style={{ width: sizes[size].width, height: sizes[size].height }}>
+    <div
+      className="overflow-hidden"
+      style={{ width: sizes[size].width, height: sizes[size].height }}
+    >
       <div
         className={cn("logo-container", size === "sm" ? "logo-sm" : "logo-lg")}
         role="img"
@@ -27,15 +36,15 @@ export function LogoHover({ forceAnimate, size = "sm" }: { forceAnimate?: boolea
         data-animate={shouldAnimate.toString()}
         onMouseEnter={() => {
           if (forceAnimate === undefined) {
-            setIsAnimating(true)
+            setIsAnimating(true);
           }
         }}
         onMouseLeave={() => {
           if (forceAnimate === undefined) {
-            setIsAnimating(false)
+            setIsAnimating(false);
           }
         }}
       />
     </div>
-  )
+  );
 }

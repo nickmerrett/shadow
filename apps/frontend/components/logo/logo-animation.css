@@ -29,12 +29,12 @@
 }
 
 .logo-lg {
-  width: 30px;
-  height: 30px;
+  width: 25px;
+  height: 25px;
 }
 
 .logo-lg[data-animate="true"] {
-  width: 450px;
-  height: 30px;
+  width: 375px;
+  height: 25px;
   animation: logo-slideshow 2s steps(15) infinite;
 }
