@@ -9,24 +9,35 @@ import { Button } from "../ui/button";
 import { useSidebar } from "../ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { statusColorsConfig } from "./status";
+import { useTask } from "@/hooks/use-task";
+import { useMemo } from "react";
 
 export function SidebarNavigation({
   sidebarView,
   setSidebarView,
   doesCurrentTaskExist,
+  currentTaskId,
   currentTaskStatus,
 }: {
   sidebarView: SidebarView;
   setSidebarView: (view: SidebarView) => void;
   doesCurrentTaskExist: boolean;
+  currentTaskId: string | null;
   currentTaskStatus: TaskStatus | null;
 }) {
   const { open, toggleSidebar } = useSidebar();
+  const { data: taskData } = useTask(currentTaskId || "");
 
-  // Get status color from config, default to blue if no current task
-  const statusColor = currentTaskStatus
-    ? statusColorsConfig[currentTaskStatus].bg
-    : "";
+  // Status dot color (if current task exists)
+  const statusColor = useMemo(() => {
+    if (taskData) {
+      return statusColorsConfig[taskData.status].bg;
+    }
+
+    return currentTaskStatus
+      ? statusColorsConfig[currentTaskStatus].bg
+      : "";
+  }, [taskData, currentTaskStatus]);
 
   const agentViewTrigger = (
     <div className="relative z-0 h-7">

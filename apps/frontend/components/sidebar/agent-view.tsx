@@ -96,7 +96,7 @@ function FileNode({
       case "CREATE":
         return "text-green-400";
       case "UPDATE":
-        return "text-blue-400";
+        return "text-yellow-500";
       case "DELETE":
         return "text-red-400";
       default:
@@ -276,7 +276,7 @@ export function SidebarAgentView({
                     className={cn(
                       "flex h-8 items-center gap-2 px-2 text-sm",
                       todo.status === "COMPLETED" &&
-                        "text-muted-foreground line-through"
+                      "text-muted-foreground line-through"
                     )}
                   >
                     <TodoIcon className={cn("size-4", iconClass)} />
