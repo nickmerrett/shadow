@@ -24,6 +24,24 @@ const configSchema = z
       .string()
       .optional()
       .transform((val) => val === "true"),
+    
+    // Dual-mode execution configuration
+    AGENT_MODE: z.enum(["local", "remote"]).default("local"),
+    
+    // Remote mode configuration (optional, only needed when AGENT_MODE=remote)
+    KUBERNETES_NAMESPACE: z.string().optional(),
+    SIDECAR_IMAGE: z.string().optional(),
+    SIDECAR_PORT: z.coerce.number().optional(),
+    SIDECAR_HEALTH_PATH: z.string().default("/health"),
+    
+    // Remote storage configuration
+    EFS_VOLUME_ID: z.string().optional(),
+    S3_BUCKET: z.string().optional(),
+    
+    // Resource limits for remote mode
+    REMOTE_CPU_LIMIT: z.string().default("1000m"),
+    REMOTE_MEMORY_LIMIT: z.string().default("2Gi"),
+    REMOTE_STORAGE_LIMIT: z.string().default("10Gi"),
   })
   .refine((data) => data.ANTHROPIC_API_KEY || data.OPENAI_API_KEY, {
     message:
@@ -53,6 +71,24 @@ const config = {
   pineconeIndexName: parsed.data.PINECONE_INDEX_NAME,
   embeddingModel: parsed.data.EMBEDDING_MODEL,
   debug: parsed.data.DEBUG,
+  
+  // Dual-mode execution
+  agentMode: parsed.data.AGENT_MODE,
+  
+  // Remote mode configuration
+  kubernetesNamespace: parsed.data.KUBERNETES_NAMESPACE,
+  sidecarImage: parsed.data.SIDECAR_IMAGE,
+  sidecarPort: parsed.data.SIDECAR_PORT,
+  sidecarHealthPath: parsed.data.SIDECAR_HEALTH_PATH,
+  
+  // Remote storage
+  efsVolumeId: parsed.data.EFS_VOLUME_ID,
+  s3Bucket: parsed.data.S3_BUCKET,
+  
+  // Remote resource limits
+  remoteCpuLimit: parsed.data.REMOTE_CPU_LIMIT,
+  remoteMemoryLimit: parsed.data.REMOTE_MEMORY_LIMIT,
+  remoteStorageLimit: parsed.data.REMOTE_STORAGE_LIMIT,
 };
 
 export default config;
