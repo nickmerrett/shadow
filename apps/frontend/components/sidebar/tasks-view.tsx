@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Task } from "@repo/db";
 import { ChevronDown, Folder, GitBranch } from "lucide-react";
+import { truncateBranchName } from "@/lib/utils";
 import {
   Collapsible,
   CollapsibleContent,
@@ -114,7 +115,7 @@ export function SidebarTasksView({
                               <span className="text-xs capitalize">
                                 {task.status.toLowerCase().replace("_", " ")}
                               </span>
-                              <GitBranch className="size-3" /> {task.branch}
+                              <GitBranch className="size-3" /> {truncateBranchName(task.branch, 20)}
                             </div>
                           </a>
                         </SidebarMenuButton>

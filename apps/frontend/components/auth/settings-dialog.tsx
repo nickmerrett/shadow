@@ -11,10 +11,28 @@ import {
 import { useSettings } from "@/hooks/use-settings";
 import { Loader2, Settings, X } from "lucide-react";
 import { useState } from "react";
+import { useAuthSession } from "./session-provider";
+import { authClient } from "@/lib/auth/auth-client";
 
 export function SettingsDialog() {
   const [open, setOpen] = useState(false);
   const { data, isLoading, error } = useSettings(open);
+
+  const { session } = useAuthSession();
+
+  const handleSignOut = async () => {
+    try {
+      await authClient.signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            window.location.href = "/auth";
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Sign out error:", error);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -99,6 +117,19 @@ export function SettingsDialog() {
                 </div>
               </div>
             )}
+
+            {/* add sign out button */}
+            <div className="flex w-full pt-2">
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  handleSignOut();
+                  setOpen(false);
+                }}
+              >
+                Sign Out
+              </Button>
+            </div>
           </div>
         ) : (
           <p>You are not signed in.</p>
