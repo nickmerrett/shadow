@@ -74,14 +74,23 @@ export const AgentEnvironment: React.FC = () => {
   );
 };
 
-// Helper to grab first file node in tree
+// Helper: find README.* else first file in DFS order
 function findFirstFile(nodes: FileNode[]): FileNode | undefined {
+  let firstFile: FileNode | undefined;
+
   for (const n of nodes) {
-    if (n.type === "file") return n;
+    if (n.type === "file") {
+      if (/^readme/i.test(n.name)) return n;
+      if (!firstFile) firstFile = n;
+    }
     if (n.children) {
-      const f = findFirstFile(n.children);
-      if (f) return f;
+      const child = findFirstFile(n.children);
+      if (child) {
+        if (/^readme/i.test(child.name)) return child;
+        if (!firstFile) firstFile = child;
+      }
     }
   }
-  return undefined;
+
+  return firstFile;
 }

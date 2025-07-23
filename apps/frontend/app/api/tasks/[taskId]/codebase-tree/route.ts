@@ -76,13 +76,14 @@ async function walkDir(dir: string, basePath: string): Promise<FileNode[]> {
       }
     } else {
       const ext = nameStr.split(".").pop()?.toLowerCase();
-      if (!ext || !KNOWN_EXTENSIONS.has(ext)) continue;
       let content: string | undefined;
-      try {
-        const data = await fs.readFile(absolutePath, "utf8");
-        content = data.length > 50_000 ? data.slice(0, 50_000) + "\n/* truncated */" : data;
-      } catch (err) {
-        console.warn("[TASK_CODEBASE_TREE_READFILE_ERROR]", absolutePath, err);
+      if (ext && KNOWN_EXTENSIONS.has(ext) || /^readme/i.test(nameStr)) {
+        try {
+          const data = await fs.readFile(absolutePath, "utf8");
+          content = data.length > 50_000 ? data.slice(0, 50_000) + "\n/* truncated */" : data;
+        } catch (err) {
+          console.warn("[TASK_CODEBASE_TREE_READFILE_ERROR]", absolutePath, err);
+        }
       }
       nodes.push({
         name: entry.name,
