@@ -196,7 +196,7 @@ export function TaskPageLayout({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left" shortcut="⌘J">
-                Toggle Agent Environment
+                Toggle Shadow Realm
               </TooltipContent>
             </Tooltip>
           </div>
