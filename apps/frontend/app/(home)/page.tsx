@@ -5,6 +5,7 @@ import {
   getGitHubRepositories,
   getGitHubStatus,
 } from "@/lib/github/github-api";
+import { getModels } from "@/lib/actions/get-models";
 import {
   dehydrate,
   HydrationBoundary,
@@ -15,7 +16,7 @@ export default async function Home() {
   const user = await getUser();
   const queryClient = new QueryClient();
 
-  // Prefetch GitHub data for better UX - each prefetch is independent
+  // Prefetch data for better UX - each prefetch is independent
   // and failures won't break the page render
   const prefetchPromises = [
     queryClient
@@ -39,6 +40,14 @@ export default async function Home() {
           "Could not prefetch GitHub repositories:",
           error?.message || error
         );
+      }),
+    queryClient
+      .prefetchQuery({
+        queryKey: ["models"],
+        queryFn: getModels,
+      })
+      .catch((error) => {
+        console.log("Could not prefetch models:", error?.message || error);
       }),
   ];
 

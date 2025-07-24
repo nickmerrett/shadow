@@ -1,6 +1,7 @@
 import { TaskPageLayout } from "@/components/task/task-layout";
 import { getTask } from "@/lib/db-operations/get-task";
 import { getTaskMessages } from "@/lib/db-operations/get-task-messages";
+import { getModels } from "@/lib/actions/get-models";
 import {
   HydrationBoundary,
   QueryClient,
@@ -44,6 +45,10 @@ export default async function TaskPage({
     queryClient.prefetchQuery({
       queryKey: ["task-messages", taskId],
       queryFn: () => getTaskMessages(taskId),
+    }),
+    queryClient.prefetchQuery({
+      queryKey: ["models"],
+      queryFn: getModels,
     }),
   ]);
 

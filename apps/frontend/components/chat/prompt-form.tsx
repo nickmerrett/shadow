@@ -7,18 +7,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { useModels } from "@/hooks/use-models";
 import { createTask } from "@/lib/actions/create-task";
 import { cn } from "@/lib/utils";
-import {
-  AvailableModels,
-  ModelInfos,
-  type ModelInfo,
-  type ModelType,
-} from "@repo/types";
+import { AvailableModels, ModelInfos, type ModelType } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, Layers, Loader2, Square } from "lucide-react";
 import { redirect } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
 
@@ -38,7 +34,6 @@ export function PromptForm({
   onBlur?: () => void;
 }) {
   const [message, setMessage] = useState("");
-  const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelType>(
     AvailableModels.GPT_4O
   );
@@ -47,24 +42,7 @@ export function PromptForm({
   const [isPending, startTransition] = useTransition();
 
   const queryClient = useQueryClient();
-
-  // TODO: initial fetch on server and use useQuery
-  useEffect(() => {
-    async function fetchModels() {
-      try {
-        const baseUrl =
-          process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
-        const res = await fetch(`${baseUrl}/api/models`);
-        if (!res.ok) throw new Error(await res.text());
-        const data = (await res.json()) as { models: ModelInfo[] };
-        setAvailableModels(data.models);
-      } catch (err) {
-        console.error("Failed to fetch available models", err);
-      }
-    }
-
-    fetchModels();
-  }, []);
+  const { data: availableModels = [] } = useModels();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,12 +102,12 @@ export function PromptForm({
       {/* Wrapper div with textarea styling */}
       <div
         className={cn(
-          "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border shadow-xs relative flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t transition-[color,box-shadow,border] focus-within:ring-4",
+          "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border relative flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow,border] focus-within:ring-4",
           isPending && "opacity-50"
         )}
       >
         {!isHome && (
-          <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-16 -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
+          <div className="from-background via-background/60 pointer-events-none absolute -top-16 -left-px -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
         )}
 
         {/* Textarea without border/background since wrapper handles it */}
@@ -141,7 +119,7 @@ export function PromptForm({
           onFocus={onFocus}
           onBlur={onBlur}
           placeholder="Build a cool new feature..."
-          className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none rounded-lg border-0 shadow-none focus-visible:ring-0"
+          className="placeholder:text-muted-foreground/50 max-h-48 flex-1 resize-none rounded-lg border-0 bg-transparent! shadow-none focus-visible:ring-0"
         />
 
         {/* Buttons inside the container */}
