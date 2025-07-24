@@ -103,6 +103,12 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
     try {
       console.log(`[REMOTE_WORKSPACE] Preparing workspace for task ${taskId}`);
 
+      // Create EFS PVC if using persistent storage
+      await this.createWorkspacePVC(taskId);
+      
+      // Ensure shared cache PVC exists
+      await this.ensureSharedCachePVC();
+
       // Create pod specification for the agent
       const podSpec = this.createAgentPodSpec(taskId, repoUrl, branch, userId);
 
@@ -199,6 +205,9 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       } catch (error) {
         console.warn(`[REMOTE_WORKSPACE] Failed to delete pod ${podName}:`, error);
       }
+
+      // Delete workspace PVC if using EFS
+      await this.cleanupWorkspacePVC(taskId);
 
       return {
         success: true,
@@ -345,12 +354,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
                 value: "/workspace",
               },
             ],
-            volumeMounts: [
-              {
-                name: "workspace",
-                mountPath: "/workspace",
-              },
-            ],
+            volumeMounts: this.createVolumeMounts(),
             resources: {
               requests: {
                 cpu: "250m",
@@ -381,14 +385,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
             },
           },
         ],
-        volumes: [
-          {
-            name: "workspace",
-            emptyDir: {
-              sizeLimit: "10Gi", // 10GB limit for workspace
-            },
-          },
-        ],
+        volumes: this.createWorkspaceVolumes(taskId),
         // Security context
         securityContext: {
           runAsNonRoot: true,
@@ -397,6 +394,196 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
         },
       },
     };
+  }
+
+  /**
+   * Create volume mounts for the container
+   */
+  private createVolumeMounts(): any[] {
+    const efsVolumeId = config.efsVolumeId;
+    
+    const mounts = [
+      {
+        name: "workspace",
+        mountPath: "/workspace",
+      },
+    ];
+
+    // Add shared cache mount if using EFS
+    if (efsVolumeId) {
+      mounts.push({
+        name: "shared-cache",
+        mountPath: "/shared-cache",
+      });
+    }
+
+    return mounts;
+  }
+
+  /**
+   * Create workspace volumes based on configuration
+   * Uses EFS for persistence if configured, otherwise emptyDir
+   */
+  private createWorkspaceVolumes(taskId: string): any[] {
+    const efsVolumeId = config.efsVolumeId;
+    
+    if (efsVolumeId) {
+      // Use EFS persistent storage
+      return [
+        {
+          name: "workspace",
+          persistentVolumeClaim: {
+            claimName: `shadow-workspace-${taskId}`,
+          },
+        },
+        {
+          name: "shared-cache",
+          persistentVolumeClaim: {
+            claimName: "shadow-shared-cache",
+          },
+        },
+      ];
+    } else {
+      // Fallback to emptyDir (current behavior)
+      return [
+        {
+          name: "workspace",
+          emptyDir: {
+            sizeLimit: "10Gi", // 10GB limit for workspace
+          },
+        },
+      ];
+    }
+  }
+
+  /**
+   * Create EFS PersistentVolumeClaim for workspace if using persistent storage
+   */
+  private async createWorkspacePVC(taskId: string): Promise<void> {
+    const efsVolumeId = config.efsVolumeId;
+    if (!efsVolumeId) {
+      return; // Skip if not using EFS
+    }
+
+    const pvcName = `shadow-workspace-${taskId}`;
+    
+    const pvcSpec = {
+      apiVersion: "v1",
+      kind: "PersistentVolumeClaim",
+      metadata: {
+        name: pvcName,
+        namespace: this.namespace,
+        labels: {
+          app: "shadow-agent",
+          taskId,
+        },
+        annotations: {
+          "shadow.ai/task-id": taskId,
+          "shadow.ai/created-at": new Date().toISOString(),
+        },
+      },
+      spec: {
+        accessModes: ["ReadWriteMany"], // EFS supports multiple readers/writers
+        storageClassName: "efs-sc", // EFS storage class
+        resources: {
+          requests: {
+            storage: config.remoteStorageLimit || "10Gi",
+          },
+        },
+      },
+    };
+
+    try {
+      await this.makeK8sRequest<any>(`/api/v1/namespaces/${this.namespace}/persistentvolumeclaims`, {
+        method: "POST",
+        body: JSON.stringify(pvcSpec),
+      });
+      
+      console.log(`[REMOTE_WORKSPACE] Created EFS PVC ${pvcName} for task ${taskId}`);
+    } catch (error) {
+      console.error(`[REMOTE_WORKSPACE] Failed to create PVC ${pvcName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create shared cache PVC if it doesn't exist
+   */
+  private async ensureSharedCachePVC(): Promise<void> {
+    const efsVolumeId = config.efsVolumeId;
+    if (!efsVolumeId) {
+      return; // Skip if not using EFS
+    }
+
+    const pvcName = "shadow-shared-cache";
+    
+    try {
+      // Check if shared cache PVC already exists
+      await this.makeK8sRequest<any>(`/api/v1/namespaces/${this.namespace}/persistentvolumeclaims/${pvcName}`);
+      console.log(`[REMOTE_WORKSPACE] Shared cache PVC ${pvcName} already exists`);
+      return;
+    } catch (error) {
+      // PVC doesn't exist, create it
+    }
+
+    const pvcSpec = {
+      apiVersion: "v1",
+      kind: "PersistentVolumeClaim",
+      metadata: {
+        name: pvcName,
+        namespace: this.namespace,
+        labels: {
+          app: "shadow-shared-cache",
+          component: "cache",
+        },
+        annotations: {
+          "shadow.ai/purpose": "shared-build-cache",
+          "shadow.ai/created-at": new Date().toISOString(),
+        },
+      },
+      spec: {
+        accessModes: ["ReadWriteMany"], // Shared across multiple pods
+        storageClassName: "efs-sc",
+        resources: {
+          requests: {
+            storage: "50Gi", // Larger shared cache
+          },
+        },
+      },
+    };
+
+    try {
+      await this.makeK8sRequest<any>(`/api/v1/namespaces/${this.namespace}/persistentvolumeclaims`, {
+        method: "POST",
+        body: JSON.stringify(pvcSpec),
+      });
+      
+      console.log(`[REMOTE_WORKSPACE] Created shared cache PVC ${pvcName}`);
+    } catch (error) {
+      console.error(`[REMOTE_WORKSPACE] Failed to create shared cache PVC:`, error);
+      // Don't throw - shared cache is optional
+    }
+  }
+
+  /**
+   * Delete workspace PVC on cleanup
+   */
+  private async cleanupWorkspacePVC(taskId: string): Promise<void> {
+    const efsVolumeId = config.efsVolumeId;
+    if (!efsVolumeId) {
+      return; // Skip if not using EFS
+    }
+
+    const pvcName = `shadow-workspace-${taskId}`;
+    
+    try {
+      await this.makeK8sRequest(`/api/v1/namespaces/${this.namespace}/persistentvolumeclaims/${pvcName}`, {
+        method: "DELETE",
+      });
+      console.log(`[REMOTE_WORKSPACE] Deleted workspace PVC ${pvcName}`);
+    } catch (error) {
+      console.warn(`[REMOTE_WORKSPACE] Failed to delete workspace PVC ${pvcName}:`, error);
+    }
   }
 
   /**

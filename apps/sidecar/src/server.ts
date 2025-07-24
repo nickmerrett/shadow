@@ -10,6 +10,7 @@ import { WorkspaceService } from "./services/workspace-service";
 import { FileService } from "./services/file-service";
 import { SearchService } from "./services/search-service";
 import { CommandService } from "./services/command-service";
+import { TerminalBuffer } from "./services/terminal-buffer";
 import { createHealthRouter } from "./api/health";
 import { createFilesRouter } from "./api/files";
 import { createSearchRouter } from "./api/search";
@@ -23,6 +24,11 @@ async function startServer() {
   const fileService = new FileService(workspaceService);
   const searchService = new SearchService(workspaceService);
   const commandService = new CommandService(workspaceService);
+  const terminalBuffer = new TerminalBuffer({
+    maxSize: 10000,
+    maxMemory: 50 * 1024 * 1024, // 50MB
+    flushInterval: 60000, // 1 minute
+  });
 
   // Ensure workspace exists
   await workspaceService.ensureWorkspace();
@@ -53,11 +59,18 @@ async function startServer() {
   // Request logging
   app.use(requestLogger);
 
+  // Try to restore terminal buffer from previous session
+  try {
+    await terminalBuffer.restore('/tmp/terminal-buffer.json');
+  } catch (error) {
+    logger.info("No previous terminal buffer found, starting fresh");
+  }
+
   // API routes
   app.use(createHealthRouter(workspaceService));
   app.use(createFilesRouter(fileService));
   app.use(createSearchRouter(searchService));
-  app.use(createExecuteRouter(commandService));
+  app.use(createExecuteRouter(commandService, terminalBuffer));
 
   // 404 handler
   app.use((req, res) => {
@@ -85,6 +98,17 @@ async function startServer() {
 
     // Kill all running processes
     commandService.killAllProcesses();
+
+    // Persist terminal buffer
+    try {
+      await terminalBuffer.persist('/tmp/terminal-buffer.json');
+      logger.info("Terminal buffer persisted");
+    } catch (error) {
+      logger.error("Failed to persist terminal buffer", { error });
+    }
+
+    // Destroy terminal buffer
+    terminalBuffer.destroy();
 
     // Close server
     server.close(() => {

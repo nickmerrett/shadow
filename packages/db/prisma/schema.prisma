@@ -106,7 +106,6 @@ model Task {
   messages    ChatMessage[]
   commands    TerminalCommand[]
   fileChanges FileChange[]
-  artifacts   Artifact[]
   sessions    TaskSession[]
   todos       Todo[]
 }
@@ -192,25 +191,6 @@ model FileChange {
   @@index([taskId, createdAt])
 }
 
-model Artifact {
-  id          String       @id @default(cuid())
-  name        String
-  type        ArtifactType
-  description String?
-
-  // Storage info
-  s3Key    String? // S3 object key
-  efsPath  String? // EFS file path
-  size     Int? // Size in bytes
-  mimeType String?
-
-  createdAt DateTime @default(now())
-
-  taskId String
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@index([taskId, createdAt])
-}
 
 model TaskSession {
   id           String  @id @default(cuid())
@@ -262,14 +242,6 @@ enum FileOp {
   MOVE
 }
 
-enum ArtifactType {
-  CODE_SNAPSHOT // Full workspace zip
-  DIFF_PATCH // Git patch file
-  LOG_FILE // Execution logs
-  TEST_REPORT // Test results
-  BUILD_OUTPUT // Compiled artifacts
-  BINARY // Executables, images, etc
-}
 
 enum TodoStatus {
   PENDING

@@ -88,7 +88,7 @@ This is a Turborepo monorepo for an AI coding agent platform that allows users t
 1. **Task Creation**: User selects GitHub repo/branch, chooses LLM model, enters instructions
 2. **Live Session**: Real-time chat interface shows agent reasoning, terminal output, and file diffs
 3. **Agent Execution**: Backend coordinates between LLM API calls and sandbox environment
-4. **Storage**: Chat history in PostgreSQL, workspace files in EFS, artifacts in S3
+4. **Storage**: Chat history in PostgreSQL, workspace files in EFS during execution, persistent state in GitHub branches
 
 ### Authentication & Security
 
@@ -156,6 +156,13 @@ PostgreSQL with Prisma ORM. Schema location: `packages/db/prisma/schema.prisma`
 - **Operations**: CREATE, UPDATE, DELETE, RENAME, MOVE
 - **Diff Generation**: Git-style patches with addition/deletion counts
 - **Real-time Streaming**: File changes broadcast via WebSocket immediately
+
+**Git-First Data Persistence**:
+- **GitHub Branches**: Each task works on isolated branch (e.g., `task/abc123`)
+- **Continuous Commits**: Agent commits changes frequently during execution
+- **State Recovery**: Pods can be destroyed and recreated from latest git state
+- **No Long-Term Storage**: Eliminates need for S3 or persistent artifact storage
+- **Cost Effective**: Trade storage costs for compute time (rebuild from source)
 
 ### LLM Integration & Tool System
 

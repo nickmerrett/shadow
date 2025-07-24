@@ -36,7 +36,6 @@ const configSchema = z
     
     // Remote storage configuration
     EFS_VOLUME_ID: z.string().optional(),
-    S3_BUCKET: z.string().optional(),
     
     // Resource limits for remote mode
     REMOTE_CPU_LIMIT: z.string().default("1000m"),
@@ -83,7 +82,6 @@ const config = {
   
   // Remote storage
   efsVolumeId: parsed.data.EFS_VOLUME_ID,
-  s3Bucket: parsed.data.S3_BUCKET,
   
   // Remote resource limits
   remoteCpuLimit: parsed.data.REMOTE_CPU_LIMIT,

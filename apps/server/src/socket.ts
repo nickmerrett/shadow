@@ -6,7 +6,15 @@ import { ChatService, DEFAULT_MODEL } from "./chat";
 import config from "./config";
 import { updateTaskStatus } from "./utils/task-status";
 
-// In-memory stream state
+// Enhanced connection management
+interface ConnectionState {
+  lastSeen: number;
+  taskId?: string;
+  reconnectCount: number;
+  bufferPosition: number; // Track buffer position for incremental updates
+}
+
+const connectionStates = new Map<string, ConnectionState>();
 let currentStreamContent = "";
 let isStreaming = false;
 let io: Server;
@@ -24,19 +32,39 @@ export function createSocketServer(server: http.Server): Server {
   chatService = new ChatService();
 
   io.on("connection", (socket) => {
-    console.log("a user connected");
+    const connectionId = socket.id;
+    console.log(`[SOCKET] User connected: ${connectionId}`);
+
+    // Initialize connection state
+    const existingState = connectionStates.get(connectionId);
+    const connectionState: ConnectionState = {
+      lastSeen: Date.now(),
+      taskId: existingState?.taskId,
+      reconnectCount: existingState ? existingState.reconnectCount + 1 : 0,
+      bufferPosition: existingState?.bufferPosition || 0,
+    };
+    connectionStates.set(connectionId, connectionState);
+
+    // Send connection info
+    socket.emit("connection-info", {
+      connectionId,
+      reconnectCount: connectionState.reconnectCount,
+      timestamp: connectionState.lastSeen,
+    });
 
     // Send current stream state to new connections
     if (isStreaming && currentStreamContent) {
-      console.log("sending stream state", currentStreamContent);
+      console.log(`[SOCKET] Sending stream state to ${connectionId}:`, currentStreamContent.length);
       socket.emit("stream-state", {
         content: currentStreamContent,
         isStreaming: true,
+        bufferPosition: currentStreamContent.length,
       });
     } else {
       socket.emit("stream-state", {
         content: "",
         isStreaming: false,
+        bufferPosition: 0,
       });
     }
 
@@ -105,8 +133,63 @@ export function createSocketServer(server: http.Server): Server {
       }
     });
 
-    socket.on("disconnect", () => {
-      console.log("a user disconnected");
+    // Handle heartbeat/keepalive
+    socket.on("heartbeat", () => {
+      const state = connectionStates.get(connectionId);
+      if (state) {
+        state.lastSeen = Date.now();
+        connectionStates.set(connectionId, state);
+      }
+    });
+
+    // Handle reconnection requests
+    socket.on("request-history", async (data: { taskId: string; fromPosition?: number }) => {
+      try {
+        const state = connectionStates.get(connectionId);
+        if (state) {
+          state.taskId = data.taskId;
+          connectionStates.set(connectionId, state);
+        }
+
+        // Send incremental updates from position
+        const fromPosition = data.fromPosition || 0;
+        if (currentStreamContent.length > fromPosition) {
+          const incrementalContent = currentStreamContent.slice(fromPosition);
+          socket.emit("stream-update", {
+            content: incrementalContent,
+            isIncremental: true,
+            fromPosition,
+            totalLength: currentStreamContent.length,
+          });
+        }
+
+        socket.emit("history-complete", {
+          taskId: data.taskId,
+          totalLength: currentStreamContent.length,
+        });
+      } catch (error) {
+        console.error(`[SOCKET] Error sending history to ${connectionId}:`, error);
+        socket.emit("history-error", { error: "Failed to retrieve history" });
+      }
+    });
+
+    // Handle connection errors
+    socket.on("error", (error) => {
+      console.error(`[SOCKET] Connection error for ${connectionId}:`, error);
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log(`[SOCKET] User disconnected: ${connectionId}, reason: ${reason}`);
+      
+      // Keep connection state for potential reconnection
+      const state = connectionStates.get(connectionId);
+      if (state) {
+        // Mark as disconnected but keep state for 5 minutes
+        setTimeout(() => {
+          connectionStates.delete(connectionId);
+          console.log(`[SOCKET] Cleaned up connection state for ${connectionId}`);
+        }, 5 * 60 * 1000); // 5 minutes
+      }
     });
   });
 
