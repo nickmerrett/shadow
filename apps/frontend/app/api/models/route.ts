@@ -10,7 +10,7 @@ export async function GET() {
   } catch (error) {
     console.error("Error fetching models:", error);
     return NextResponse.json(
-      { models: [] as ModelInfo[] },
+      [] as ModelInfo[],
       { status: 500 }
     );
   }
