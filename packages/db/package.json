@@ -8,6 +8,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:push": "prisma db push",
+    "db:push:reset": "prisma db push --force-reset",
     "db:studio": "prisma studio",
     "dev": "tsup src/* --watch",
     "lint": "eslint 'src/**/*.ts'",
