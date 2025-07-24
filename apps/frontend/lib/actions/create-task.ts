@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { z } from "zod";
+import { saveLayoutCookie } from "./save-sidebar-cookie";
 
 const createTaskSchema = z.object({
   message: z.string().min(1, "Message is required").max(1000, "Message too long"),
@@ -24,6 +25,9 @@ export async function createTask(formData: FormData) {
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
+
+  // Reset the agent environment layout cookie on task creation. This can happen asynchronously so no need to await.
+  saveLayoutCookie("taskLayout", [100, 0]);
 
   // Extract and validate form data
   const rawData = {
