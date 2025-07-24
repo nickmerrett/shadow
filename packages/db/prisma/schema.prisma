@@ -75,7 +75,7 @@ model Verification {
 
 model Task {
   id          String     @id @default(cuid())
-  title       String?
+  title       String
   description String?
   status      TaskStatus @default(INITIALIZING)
 

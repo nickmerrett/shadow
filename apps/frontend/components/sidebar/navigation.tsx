@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { FileChange, Task, TaskStatus, Todo } from "@repo/db";
 import { LayoutGrid, Play, Plus } from "lucide-react";
 import Link from "next/link";
 import { SidebarView } from ".";
@@ -16,36 +15,25 @@ import { LogoHover } from "../logo/logo-hover";
 export function SidebarNavigation({
   sidebarView,
   setSidebarView,
-  doesCurrentTaskExist,
-  currentTask,
+  currentTaskId,
 }: {
   sidebarView: SidebarView;
   setSidebarView: (view: SidebarView) => void;
-  doesCurrentTaskExist: boolean;
-  currentTask: {
-    taskData: Task;
-    todos: Todo[];
-    fileChanges: FileChange[];
-  } | null;
+  currentTaskId: string;
 }) {
   const { open, toggleSidebar } = useSidebar();
+  const { task } = useTask(currentTaskId);
 
-  // Even though we do get initial data, we stil have a useQuery hook to stay up to date on task sttaus, etc.
-  const { data: taskData } = useTask(
-    currentTask?.taskData.id || "",
-    currentTask?.taskData
-  );
-
-  const currentTaskStatus = taskData?.status;
+  const currentTaskStatus = task?.status;
 
   // Status dot color (if current task exists)
   const statusColor = useMemo(() => {
-    if (taskData) {
-      return statusColorsConfig[taskData.status].bg;
+    if (task) {
+      return statusColorsConfig[task.status].bg;
     }
 
     return currentTaskStatus ? statusColorsConfig[currentTaskStatus].bg : "";
-  }, [taskData, currentTaskStatus]);
+  }, [task, currentTaskStatus]);
 
   const agentViewTrigger = (
     <div className="relative z-0 h-7">
@@ -130,7 +118,7 @@ export function SidebarNavigation({
             <TooltipContent side="right">Tasks View</TooltipContent>
           </Tooltip>
 
-          {doesCurrentTaskExist ? (
+          {currentTaskId ? (
             <>
               <div className="bg-border h-px w-full" />
               {agentViewTrigger}

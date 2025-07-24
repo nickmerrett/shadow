@@ -1,4 +1,4 @@
-import { getTask } from "@/lib/db-operations/get-task";
+import { getTaskWithDetails } from "@/lib/db-operations/get-task-with-details";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -7,13 +7,13 @@ export async function GET(
 ) {
   try {
     const { taskId } = await params;
-    const task = await getTask(taskId);
+    const { task, fileChanges, todos } = await getTaskWithDetails(taskId);
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    return NextResponse.json(task);
+    return NextResponse.json({ task, fileChanges, todos });
   } catch (error) {
     console.error("Error fetching task:", error);
     return NextResponse.json(

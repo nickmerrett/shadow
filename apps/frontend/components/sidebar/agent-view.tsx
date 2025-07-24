@@ -5,11 +5,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useFileChanges } from "@/hooks/use-file-changes";
 import { useTask } from "@/hooks/use-task";
-import { useTodos } from "@/hooks/use-todos";
 import { cn } from "@/lib/utils";
-import { FileChange, Task, Todo } from "@repo/db";
 import {
   CircleDashed,
   File,
@@ -171,24 +168,8 @@ function FileNode({
   );
 }
 
-export function SidebarAgentView({
-  taskId,
-  currentTask: {
-    taskData: initialTaskData,
-    todos: initialTodos,
-    fileChanges: initialFileChanges,
-  },
-}: {
-  taskId: string;
-  currentTask: {
-    taskData: Task;
-    todos: Todo[];
-    fileChanges: FileChange[];
-  };
-}) {
-  const { data: currentTaskData } = useTask(taskId, initialTaskData);
-  const { data: todos = [] } = useTodos(taskId, initialTodos);
-  const { fileChanges, diffStats } = useFileChanges(taskId, initialFileChanges);
+export function SidebarAgentView({ taskId }: { taskId: string }) {
+  const { task, todos, fileChanges, diffStats } = useTask(taskId);
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
@@ -196,7 +177,7 @@ export function SidebarAgentView({
     return createFileTree(filePaths);
   }, [fileChanges]);
 
-  if (!currentTaskData) {
+  if (!task) {
     return (
       <SidebarGroup>
         <SidebarGroupLabel>Loading task...</SidebarGroupLabel>
@@ -214,17 +195,17 @@ export function SidebarAgentView({
               {(() => {
                 const StatusIcon =
                   statusColorsConfig[
-                    currentTaskData.status as keyof typeof statusColorsConfig
+                    task.status as keyof typeof statusColorsConfig
                   ]?.icon || CircleDashed;
                 const statusClass =
                   statusColorsConfig[
-                    currentTaskData.status as keyof typeof statusColorsConfig
+                    task.status as keyof typeof statusColorsConfig
                   ]?.className || "text-gray-500";
                 return (
                   <>
                     <StatusIcon className={cn("size-4", statusClass)} />
                     <span className="capitalize">
-                      {currentTaskData.status.toLowerCase().replace("_", " ")}
+                      {task.status.toLowerCase().replace("_", " ")}
                     </span>
                   </>
                 );
@@ -236,9 +217,7 @@ export function SidebarAgentView({
           <SidebarMenuItem>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               <GitBranch className="size-4" />
-              <span className="line-clamp-1">
-                {currentTaskData.shadowBranch}
-              </span>
+              <span className="line-clamp-1">{task.shadowBranch}</span>
             </div>
           </SidebarMenuItem>
 
