@@ -17,7 +17,7 @@ export async function createTask(formData: FormData) {
   const message = formData.get("message") as string;
   const model = formData.get("model") as string;
   const repoUrl = formData.get("repoUrl") as string;
-  const baseBranch = (formData.get("branch") as string);
+  const baseBranch = (formData.get("baseBranch") as string);
   const baseCommitSha = formData.get("baseCommitSha") as string;
 
   if (!message?.trim()) {
@@ -43,9 +43,13 @@ export async function createTask(formData: FormData) {
         baseBranch,
         shadowBranch,
         baseCommitSha,
-        userId: session.user.id,
         status: "INITIALIZING",
         mode: "FULL_AUTO",
+        user: {
+          connect: {
+            id: session.user.id,
+          },
+        },
         messages: {
           create: {
             content: message,
