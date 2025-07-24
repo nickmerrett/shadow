@@ -5,6 +5,17 @@ import { MessageRole, prisma, Task } from "@repo/db";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
+import { z } from "zod";
+
+const createTaskSchema = z.object({
+  message: z.string().min(1, "Message is required").max(1000, "Message too long"),
+  model: z.string().min(1, "Model is required"),
+  repoUrl: z.string().url("Invalid repository URL").refine(
+    (url) => url.includes("github.com"),
+    "Only GitHub repositories are supported"
+  ),
+  baseBranch: z.string().min(1, "Base branch is required").default("main"),
+});
 
 export async function createTask(formData: FormData) {
   const session = await auth.api.getSession({
@@ -14,42 +25,51 @@ export async function createTask(formData: FormData) {
     throw new Error("Unauthorized");
   }
 
-  const message = formData.get("message") as string;
-  const model = formData.get("model") as string;
-  const repoUrl = formData.get("repoUrl") as string;
-  const branch = (formData.get("branch") as string) || "main";
+  // Extract and validate form data
+  const rawData = {
+    message: formData.get("message") as string,
+    model: formData.get("model") as string,
+    repoUrl: formData.get("repoUrl") as string,
+    baseBranch: (formData.get("baseBranch") as string) || "main",
+  };
 
-  if (!message?.trim()) {
-    throw new Error("Message is required");
+  const validation = createTaskSchema.safeParse(rawData);
+  if (!validation.success) {
+    const errorMessage = validation.error.errors.map(err => err.message).join(", ");
+    throw new Error(`Validation failed: ${errorMessage}`);
   }
 
-  if (!model) {
-    throw new Error("Model is required");
-  }
+  const { message, model, repoUrl, baseBranch } = validation.data;
 
+  const taskId = crypto.randomUUID();
+  const shadowBranch = `shadow/task-${taskId}`;
   let task: Task;
 
   try {
     // Create the task
     task = await prisma.task.create({
       data: {
+        id: taskId,
         title: message.slice(0, 50) + (message.length > 50 ? "..." : ""),
         description: message,
-        repoUrl: repoUrl || "",
-        branch,
-        userId: session.user.id,
+        repoUrl,
+        baseBranch,
+        shadowBranch,
+        baseCommitSha: "pending", // Will be updated when workspace is prepared
         status: "INITIALIZING",
         mode: "FULL_AUTO",
-      },
-    });
-
-    // Create the initial user message
-    await prisma.chatMessage.create({
-      data: {
-        content: message,
-        role: MessageRole.USER,
-        taskId: task.id,
-        sequence: 1,
+        user: {
+          connect: {
+            id: session.user.id,
+          },
+        },
+        messages: {
+          create: {
+            content: message,
+            role: MessageRole.USER,
+            sequence: 1,
+          },
+        },
       },
     });
 

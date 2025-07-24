@@ -236,7 +236,7 @@ export function SidebarAgentView({
           <SidebarMenuItem>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               <GitBranch className="size-4" />
-              <span>{currentTask.branch}</span>
+              <span className="line-clamp-1">{currentTask.shadowBranch}</span>
             </div>
           </SidebarMenuItem>
 
@@ -276,7 +276,7 @@ export function SidebarAgentView({
                     className={cn(
                       "flex h-8 items-center gap-2 px-2 text-sm",
                       todo.status === "COMPLETED" &&
-                      "text-muted-foreground line-through"
+                        "text-muted-foreground line-through"
                     )}
                   >
                     <TodoIcon className={cn("size-4", iconClass)} />

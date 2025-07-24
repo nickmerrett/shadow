@@ -81,9 +81,12 @@ model Task {
 
   // Git repo config
   repoUrl       String
-  branch        String  @default("main")
-  commitSha     String? // Track exact commit cloned
   workspacePath String? // Store task-specific workspace path
+
+  // Git-first branch management
+  baseBranch    String // Original branch the task was created from
+  shadowBranch  String // AI working branch (shadow/task-{taskId})
+  baseCommitSha String // Commit SHA when task started
 
   // Simplified initialization tracking
   initializationStatus InitializationStatus @default(PENDING)
@@ -191,7 +194,6 @@ model FileChange {
   @@index([taskId, createdAt])
 }
 
-
 model TaskSession {
   id           String  @id @default(cuid())
   podName      String? // Kubernetes pod name
@@ -241,7 +243,6 @@ enum FileOp {
   RENAME
   MOVE
 }
-
 
 enum TodoStatus {
   PENDING

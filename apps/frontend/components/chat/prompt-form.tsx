@@ -17,6 +17,7 @@ import { redirect } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
+import type { FilteredRepository as Repository } from "@/lib/github/types";
 
 export function PromptForm({
   onSubmit,
@@ -37,8 +38,11 @@ export function PromptForm({
   const [selectedModel, setSelectedModel] = useState<ModelType>(
     AvailableModels.GPT_4O
   );
-  const [repoUrl, setRepoUrl] = useState<string | null>(null);
-  const [branch, setBranch] = useState<string | null>(null);
+  const [repo, setRepo] = useState<Repository | null>(null);
+  const [branch, setBranch] = useState<{
+    name: string;
+    commitSha: string;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const queryClient = useQueryClient();
@@ -50,18 +54,19 @@ export function PromptForm({
 
     if (isHome) {
       // Require repo and branch selection before creating a task
-      if (!repoUrl || !branch) {
+      if (!repo || !branch) {
         toast.error("Select a repository and branch first");
         return;
       }
 
-      const completeRepoUrl = `https://github.com/${repoUrl}`;
+      const completeRepoUrl = `https://github.com/${repo.full_name}`;
 
       const formData = new FormData();
       formData.append("message", message);
       formData.append("model", selectedModel);
       formData.append("repoUrl", completeRepoUrl);
-      formData.append("branch", branch);
+      formData.append("baseBranch", branch.name);
+      formData.append("baseCommitSha", branch.commitSha);
 
       startTransition(async () => {
         let taskId: string | null = null;
@@ -161,10 +166,10 @@ export function PromptForm({
           <div className="flex items-center gap-2">
             {isHome && (
               <GithubConnection
-                onSelect={(repo, br) => {
-                  setRepoUrl(repo);
-                  setBranch(br);
-                }}
+                selectedRepo={repo}
+                selectedBranch={branch}
+                setSelectedRepo={setRepo}
+                setSelectedBranch={setBranch}
               />
             )}
             <Button
@@ -175,7 +180,7 @@ export function PromptForm({
                 (isPending ||
                   !message.trim() ||
                   !selectedModel ||
-                  (isHome && (!repoUrl || !branch)))
+                  (isHome && (!repo || !branch)))
               }
               onClick={isStreaming ? onStopStream : undefined}
               className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"

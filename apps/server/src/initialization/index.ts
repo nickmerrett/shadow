@@ -230,7 +230,7 @@ export class TaskInitializationEngine {
     // Get task info
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { repoUrl: true, branch: true },
+      select: { repoUrl: true, baseBranch: true, shadowBranch: true },
     });
 
     if (!task) {
@@ -240,7 +240,8 @@ export class TaskInitializationEngine {
     const workspaceResult = await this.abstractWorkspaceManager.prepareWorkspace({
       id: taskId,
       repoUrl: task.repoUrl,
-      branch: task.branch,
+      baseBranch: task.baseBranch || 'main',
+      shadowBranch: task.shadowBranch || `shadow/task-${taskId}`,
       userId,
     });
 
@@ -253,7 +254,6 @@ export class TaskInitializationEngine {
       where: { id: taskId },
       data: {
         workspacePath: workspaceResult.workspacePath,
-        commitSha: workspaceResult.cloneResult?.commitSha,
       },
     });
   }
@@ -329,7 +329,7 @@ export class TaskInitializationEngine {
       // Get task info
       const task = await prisma.task.findUnique({
         where: { id: taskId },
-        select: { repoUrl: true, branch: true },
+        select: { repoUrl: true, baseBranch: true, shadowBranch: true },
       });
 
       if (!task) {
@@ -340,7 +340,8 @@ export class TaskInitializationEngine {
       const workspaceInfo = await this.abstractWorkspaceManager.prepareWorkspace({
         id: taskId,
         repoUrl: task.repoUrl,
-        branch: task.branch,
+        baseBranch: task.baseBranch || 'main',
+        shadowBranch: task.shadowBranch || `shadow/task-${taskId}`,
         userId,
       });
 
@@ -365,7 +366,6 @@ export class TaskInitializationEngine {
         where: { id: taskId },
         data: {
           workspacePath: workspaceInfo.workspacePath,
-          commitSha: workspaceInfo.cloneResult?.commitSha,
         },
       });
 
@@ -426,7 +426,7 @@ export class TaskInitializationEngine {
       // Get task info
       const task = await prisma.task.findUnique({
         where: { id: taskId },
-        select: { repoUrl: true, branch: true },
+        select: { repoUrl: true, baseBranch: true },
       });
 
       if (!task) {
