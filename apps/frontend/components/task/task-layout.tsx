@@ -172,7 +172,7 @@ export function TaskPageLayout({
                   onChange={(e) => setEditValue(e.target.value)}
                   onKeyDown={handleInputKeyDown}
                   onBlur={handleInputBlur}
-                  className="focus:ring-ring/10 focus:border-border flex h-7 max-w-48 items-center rounded-md border border-transparent bg-transparent px-2 focus:ring-2 focus:outline-none"
+                  className="focus:ring-ring/10 focus:border-border flex h-7 max-w-48 items-center rounded-md border border-transparent bg-transparent px-2 focus:outline-none focus:ring-2"
                 />
               ) : (
                 <div

@@ -37,11 +37,11 @@ export function SidebarNavigation({
 
   const agentViewTrigger = (
     <div className="relative z-0 h-7">
-      <div className="bg-card pointer-events-none absolute -top-1.5 -right-1.5 z-10 rounded-full p-1">
+      <div className="bg-card pointer-events-none absolute -right-1.5 -top-1.5 z-10 rounded-full p-1">
         <div className={cn("relative size-2 rounded-full", statusColor)}>
           <div
             className={cn(
-              "absolute -top-px -left-px size-2.5 animate-ping rounded-full opacity-25",
+              "absolute -left-px -top-px size-2.5 animate-ping rounded-full opacity-25",
               statusColor
             )}
           />

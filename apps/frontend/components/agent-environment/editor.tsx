@@ -72,7 +72,7 @@ export function Editor({
 
   return (
     <div className="bg-background flex size-full flex-col">
-      <div className="border-sidebar-border bg-card flex h-13 items-center gap-2 border-b px-2">
+      <div className="border-sidebar-border bg-card h-13 flex items-center gap-2 border-b px-2">
         {isExplorerCollapsed && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -92,7 +92,7 @@ export function Editor({
           </Tooltip>
         )}
         <div className="flex flex-col items-start justify-center">
-          <div className="text-sm select-none">Code Editor</div>
+          <div className="select-none text-sm">Code Editor</div>
           <div className="text-muted-foreground flex items-center gap-0.5 text-[13px]">
             {selectedFile
               ? selectedFile.path.split("/").map((part, index) => (

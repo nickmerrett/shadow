@@ -21,7 +21,7 @@ export function UserMessage({
     <button
       className={cn(
         "shadow-highlight/10 relative z-0 w-full cursor-pointer items-center rounded-[calc(var(--radius)+1px)] bg-gradient-to-b p-px text-left shadow-lg transition-[color,box-shadow,opacity,background-color]",
-        "focus-visible:ring-ring/10 focus-visible:ring-4 focus-visible:outline-none",
+        "focus-visible:ring-ring/10 focus-visible:outline-none focus-visible:ring-4",
         "user-message-border hover:shadow-highlight/20",
         className
       )}
