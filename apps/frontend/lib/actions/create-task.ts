@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { z } from "zod";
+import { updateTaskTitle } from "./update-task-title";
 
 const createTaskSchema = z.object({
   message: z.string().min(1, "Message is required").max(1000, "Message too long"),
@@ -73,9 +74,13 @@ export async function createTask(formData: FormData) {
       },
     });
 
-    // Schedule the backend API call to happen after the response is sent
+    // Schedule the backend API call and title generation to happen after the response is sent
     after(async () => {
       try {
+        // Generate AI title for the task
+        await updateTaskTitle(task.id, message);
+
+        // Initiate the task on the backend
         const baseUrl =
           process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
         const response = await fetch(
