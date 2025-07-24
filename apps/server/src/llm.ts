@@ -206,11 +206,11 @@ export class LLMService {
     const models: ModelType[] = [];
 
     if (config.anthropicApiKey) {
-      models.push("claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022");
+      models.push("claude-sonnet-4-20250514", "claude-opus-4-20250514");
     }
 
     if (config.openaiApiKey) {
-      models.push("gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o3", "o4-mini-high");
+      models.push("gpt-4o", "o3", "o4-mini-high");
     }
 
     return models;

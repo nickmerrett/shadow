@@ -36,7 +36,7 @@ export function PromptForm({
 }) {
   const [message, setMessage] = useState("");
   const [selectedModel, setSelectedModel] = useState<ModelType>(
-    AvailableModels.GPT_4O
+    AvailableModels.CLAUDE_SONNET_4
   );
   const [repo, setRepo] = useState<Repository | null>(null);
   const [branch, setBranch] = useState<{
