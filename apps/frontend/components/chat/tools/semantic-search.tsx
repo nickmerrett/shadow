@@ -8,7 +8,6 @@ export function SemanticSearchTool({ message }: { message: Message }) {
 
   const { args, status, result } = toolMeta;
   const query = args.query as string;
-  const targetDirectories = (args.target_directories as string[]) || [];
 
   return (
     <CollapsibleTool
