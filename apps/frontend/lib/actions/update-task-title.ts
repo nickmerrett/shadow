@@ -27,7 +27,10 @@ User prompt: "${userPrompt}"
 Generate only the title, nothing else:`,
     });
 
-    const generatedTitle = text.trim().replace(/^["']|["']$/g, ""); // Remove quotes if present
+    const generatedTitle = text
+      .trim()
+      .replace(/^[`"']|[`"']$/g, "") // Remove leading/trailing quotes or backticks
+      .replace(/[`"']/g, ""); // Remove any remaining quotes or backticks within the string
 
     // Update the task in the database
     await prisma.task.update({
