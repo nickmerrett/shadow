@@ -6,6 +6,9 @@ import {
   getGitHubStatus,
 } from "@/lib/github/github-api";
 import { getModels } from "@/lib/actions/get-models";
+import { clearGitSelectorCookie } from "@/lib/actions/save-sidebar-cookie";
+import { cookies } from "next/headers";
+import type { FilteredRepository } from "@/lib/github/types";
 import {
   dehydrate,
   HydrationBoundary,
@@ -15,6 +18,23 @@ import {
 export default async function Home() {
   const user = await getUser();
   const queryClient = new QueryClient();
+
+  // Get git selector state from cookie
+  const cookieStore = await cookies();
+  const gitSelectorCookie = cookieStore.get("git-selector-state");
+  
+  let initialGitState: {
+    repo: FilteredRepository | null;
+    branch: { name: string; commitSha: string } | null;
+  } | null = null;
+
+  if (gitSelectorCookie?.value) {
+    try {
+      initialGitState = JSON.parse(gitSelectorCookie.value);
+    } catch {
+      // Invalid JSON, ignore
+    }
+  }
 
   // Prefetch data for better UX - each prefetch is independent
   // and failures won't break the page render
@@ -54,10 +74,17 @@ export default async function Home() {
   // Wait for all prefetch attempts to complete (success or failure)
   await Promise.allSettled(prefetchPromises);
 
+  // Check if GitHub is connected and invalidate cookie if not
+  const githubStatus = queryClient.getQueryData(["github", "status"]) as any;
+  if (initialGitState && githubStatus && !githubStatus.isAppInstalled) {
+    await clearGitSelectorCookie();
+    initialGitState = null;
+  }
+
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <HomeLayoutWrapper>
-        <HomePageContent />
+        <HomePageContent initialGitState={initialGitState} />
       </HomeLayoutWrapper>
     </HydrationBoundary>
   );

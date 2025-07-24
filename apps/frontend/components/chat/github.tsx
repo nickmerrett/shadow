@@ -14,6 +14,7 @@ import {
 import { useGitHubBranches } from "@/hooks/use-github-branches";
 import { useGitHubRepositories } from "@/hooks/use-github-repositories";
 import { useGitHubStatus } from "@/hooks/use-github-status";
+import { saveGitSelectorCookie } from "@/lib/actions/save-sidebar-cookie";
 import { cn, formatTimeAgo } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -128,11 +129,25 @@ export function GithubConnection({
     setSelectedRepo(repo);
     setMode("branches");
     setBranchSearch("");
+    // Don't save to cookie yet, wait for branch selection
   };
 
-  const handleBranchSelect = (branchName: string, commitSha: string) => {
-    setSelectedBranch({ name: branchName, commitSha });
+  const handleBranchSelect = async (branchName: string, commitSha: string) => {
+    const branchData = { name: branchName, commitSha };
+    setSelectedBranch(branchData);
     setIsOpen(false);
+    
+    // Save both repo and branch to cookie
+    if (selectedRepo) {
+      try {
+        await saveGitSelectorCookie({
+          repo: selectedRepo,
+          branch: branchData,
+        });
+      } catch (error) {
+        console.error("Failed to save git selector state:", error);
+      }
+    }
   };
 
   const handleBackToRepos = () => {

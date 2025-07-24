@@ -26,6 +26,7 @@ export function PromptForm({
   isHome = false,
   onFocus,
   onBlur,
+  initialGitState,
 }: {
   onSubmit?: (message: string, model: ModelType) => void;
   onStopStream?: () => void;
@@ -33,16 +34,22 @@ export function PromptForm({
   isHome?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
+  initialGitState?: {
+    repo: Repository | null;
+    branch: { name: string; commitSha: string } | null;
+  } | null;
 }) {
   const [message, setMessage] = useState("");
   const [selectedModel, setSelectedModel] = useState<ModelType>(
     AvailableModels.CLAUDE_SONNET_4
   );
-  const [repo, setRepo] = useState<Repository | null>(null);
+  const [repo, setRepo] = useState<Repository | null>(
+    initialGitState?.repo || null
+  );
   const [branch, setBranch] = useState<{
     name: string;
     commitSha: string;
-  } | null>(null);
+  } | null>(initialGitState?.branch || null);
   const [isPending, startTransition] = useTransition();
 
   const queryClient = useQueryClient();
