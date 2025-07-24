@@ -12,11 +12,22 @@ export const LANGUAGES = [
   { id: "typescript" },
   { id: "javascript" },
   { id: "tsx" },
+  { id: "ts" },
   { id: "jsx" },
+  { id: "js" },
   { id: "json" },
   { id: "markdown" },
   { id: "css" },
   { id: "html" },
+  { id: "c" },
+  { id: "cpp" },
+  { id: "cc" },
+  { id: "cxx" },
+  { id: "h" },
+  { id: "python" },
+  { id: "go" },
+  { id: "rust" },
+  { id: "java" },
 ];
 
 export const jsEngine = createJavaScriptRegexEngine({ forgiving: true });
@@ -41,6 +52,7 @@ export async function patchMonacoWithShiki() {
   try {
     const monaco = await loader.init();
 
+    // Register languages
     LANGUAGES.forEach((lang) => {
       if (
         !monaco.languages
@@ -51,10 +63,25 @@ export async function patchMonacoWithShiki() {
       }
     });
 
+    // Define the theme
+    monaco.editor.defineTheme("vesper", {
+      base: "vs-dark",
+      inherit: true,
+      rules: [],
+      colors: theme.colors as any,
+    });
+
+    // Set as default theme
+    monaco.editor.setTheme("vesper");
+
+    // Apply Shiki highlighting
     const highlighter = await getHighlighter();
     shikiToMonaco(highlighter, monaco);
+
     monacoPatched = true;
+    return true;
   } catch (error) {
     console.error("Failed to initialize Shiki with Monaco:", error);
+    return false;
   }
 }
