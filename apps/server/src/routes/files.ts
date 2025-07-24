@@ -7,7 +7,7 @@ const router = Router();
 // Folders to ignore while walking the repository
 const IGNORE_DIRS = [
   "node_modules",
-  ".git", 
+  ".git",
   ".next",
   ".turbo",
   "dist",
@@ -16,7 +16,7 @@ const IGNORE_DIRS = [
 
 // Known text file extensions for viewing
 const KNOWN_EXTENSIONS = new Set([
-  "ts", "tsx", "js", "jsx", "json", "md", "css", "scss", "sass", "less", 
+  "ts", "tsx", "js", "jsx", "json", "md", "css", "scss", "sass", "less",
   "html", "py", "go", "java", "rs", "cpp", "cc", "cxx", "c", "h"
 ]);
 
@@ -30,7 +30,7 @@ type FileNode = {
 async function buildFileTree(executor: ToolExecutor, dirPath: string = "."): Promise<FileNode[]> {
   try {
     const listing = await executor.listDirectory(dirPath);
-    
+
     if (!listing.success) {
       console.error("[FILE_TREE_ERROR]", listing.error);
       return [];
@@ -59,7 +59,7 @@ async function buildFileTree(executor: ToolExecutor, dirPath: string = "."): Pro
       } else {
         nodes.push({
           name: item.name,
-          type: "file",  
+          type: "file",
           path: displayPath,
         });
       }
@@ -86,24 +86,24 @@ router.get("/:taskId/files/tree", async (req, res) => {
     // Verify task exists
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { 
-        id: true, 
-        status: true, 
-        workspacePath: true 
+      select: {
+        id: true,
+        status: true,
+        workspacePath: true
       },
     });
 
     if (!task) {
-      return res.status(404).json({ 
-        success: false, 
-        error: "Task not found" 
+      return res.status(404).json({
+        success: false,
+        error: "Task not found"
       });
     }
 
     // Check if workspace is still initializing
     if (!task.workspacePath || task.status === "INITIALIZING") {
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         tree: [],
         status: "initializing",
         message: "Workspace is being prepared. Please try again in a moment."
@@ -113,19 +113,19 @@ router.get("/:taskId/files/tree", async (req, res) => {
     // Use execution abstraction layer to get file tree
     const { createToolExecutor } = await import("../execution/index.js");
     const executor = createToolExecutor(taskId, task.workspacePath);
-    
+
     const tree = await buildFileTree(executor);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       tree,
       status: "ready"
     });
   } catch (error) {
     console.error("[FILE_TREE_API_ERROR]", error);
-    res.status(500).json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error" 
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error"
     });
   }
 });
@@ -137,33 +137,33 @@ router.get("/:taskId/files/content", async (req, res) => {
     const filePath = req.query.path as string;
 
     if (!filePath) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "File path is required" 
+      return res.status(400).json({
+        success: false,
+        error: "File path is required"
       });
     }
 
     // Verify task exists
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { 
-        id: true, 
-        status: true, 
-        workspacePath: true 
+      select: {
+        id: true,
+        status: true,
+        workspacePath: true
       },
     });
 
     if (!task) {
-      return res.status(404).json({ 
-        success: false, 
-        error: "Task not found" 
+      return res.status(404).json({
+        success: false,
+        error: "Task not found"
       });
     }
 
     // Check if workspace is ready
     if (!task.workspacePath || task.status === "INITIALIZING") {
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         error: "Workspace is still initializing"
       });
     }
@@ -171,15 +171,15 @@ router.get("/:taskId/files/content", async (req, res) => {
     // Use execution abstraction layer to read file
     const { createToolExecutor } = await import("../execution/index.js");
     const executor = createToolExecutor(taskId, task.workspacePath);
-    
+
     // Convert path: remove leading slash and handle relative paths
     const targetPath = filePath.startsWith("/") ? filePath.slice(1) : filePath;
-    
+
     const result = await executor.readFile(targetPath);
 
     if (!result.success || !result.content) {
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         error: result.error || "Failed to read file"
       });
     }
@@ -190,19 +190,19 @@ router.get("/:taskId/files/content", async (req, res) => {
     const isKnownTextFile = (ext && KNOWN_EXTENSIONS.has(ext)) || /^readme/i.test(fileName);
 
     if (!isKnownTextFile) {
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         error: "File type not supported for viewing"
       });
     }
 
     // Truncate large files
-    const content = result.content.length > 50_000 
+    const content = result.content.length > 50_000
       ? result.content.slice(0, 50_000) + "\n/* truncated */"
       : result.content;
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       content,
       path: filePath,
       size: result.content.length,
@@ -210,8 +210,8 @@ router.get("/:taskId/files/content", async (req, res) => {
     });
   } catch (error) {
     console.error("[FILE_CONTENT_API_ERROR]", error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: error instanceof Error ? error.message : "Unknown error"
     });
   }
