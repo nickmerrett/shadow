@@ -25,21 +25,20 @@ import { StickToBottom, type StickToBottomContext } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
 import { TaskPageContent } from "./task-content";
 import { useTask } from "@/hooks/use-task";
-import { Task } from "@repo/db";
+import { useParams } from "next/navigation";
 
 export function TaskPageLayout({
   initialLayout,
-  initialTask,
 }: {
   initialLayout?: number[];
-  initialTask: Task;
 }) {
+  const { taskId } = useParams<{ taskId: string }>();
   const { open } = useSidebar();
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data: task } = useTask(initialTask.id, initialTask);
-  const [editValue, setEditValue] = useState(initialTask.title);
+  const { task } = useTask(taskId);
+  const [editValue, setEditValue] = useState(task?.title || "");
 
   const stickToBottomContextRef = useRef<StickToBottomContext>(null);
   const { isAtTop } = useIsAtTop(0, stickToBottomContextRef.current?.scrollRef);
@@ -124,13 +123,13 @@ export function TaskPageLayout({
       setIsEditing(false);
     } else if (e.key === "Escape") {
       setIsEditing(false);
-      setEditValue(task?.title || initialTask.title);
+      setEditValue(task?.title || "");
     }
   };
 
   const handleInputBlur = () => {
     setIsEditing(false);
-    setEditValue(task?.title || initialTask.title);
+    setEditValue(task?.title || "");
   };
 
   useEffect(() => {
