@@ -105,14 +105,32 @@ async function walkDir(dir: string, basePath: string): Promise<FileNode[]> {
 export async function GET(_req: NextRequest, { params }: { params: { taskId: string } }) {
   const { taskId } = params;
   try {
-    const task = await db.task.findUnique({ where: { id: taskId }, select: { workspacePath: true } });
-    if (!task || !task.workspacePath) {
-      return NextResponse.json({ success: false, error: "Workspace not found for task" }, { status: 404 });
+    const task = await db.task.findUnique({ 
+      where: { id: taskId }, 
+      select: { workspacePath: true, status: true } 
+    });
+    
+    if (!task) {
+      return NextResponse.json({ success: false, error: "Task not found" }, { status: 404 });
+    }
+    
+    // Check if workspace is still initializing
+    if (!task.workspacePath || task.status === "INITIALIZING") {
+      return NextResponse.json({ 
+        success: true, 
+        tree: [],
+        status: "initializing",
+        message: "Workspace is being prepared. Please try again in a moment."
+      }, { status: 200 });
     }
 
     const repoRoot = task.workspacePath;
     const tree = await walkDir(repoRoot, repoRoot);
-    return NextResponse.json({ success: true, tree });
+    return NextResponse.json({ 
+      success: true, 
+      tree,
+      status: "ready"
+    });
   } catch (error: any) {
     console.error("[TASK_CODEBASE_TREE_ERROR]", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

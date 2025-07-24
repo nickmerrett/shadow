@@ -23,29 +23,110 @@ export const AgentEnvironment: React.FC = () => {
   const params = useParams<{ taskId?: string }>();
   const taskId = params?.taskId;
 
+  // State for workspace loading
+  const [workspaceStatus, setWorkspaceStatus] = useState<"loading" | "initializing" | "ready" | "error">("loading");
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+
   // Fetch task-specific codebase tree on mount
   useEffect(() => {
     if (!taskId) return;
-
-    fetch(`/api/tasks/${taskId}/codebase-tree`)
-      .then(async (res) => {
-        console.log("[FETCH_CODEBASE_TREE] status", res.status);
-        const json = await res.json();
-        console.log("[FETCH_CODEBASE_TREE] payload", json);
-        return json;
-      })
-      .then((data) => {
-        if (data.success) {
-          setFileTree(data.tree);
-          const firstFile = findFirstFile(data.tree);
-          setSelectedFile(firstFile);
-        } else {
-          console.error("[CODEBASE_TREE_RESPONSE_ERROR]", data.error);
-        }
-      })
-      .catch((err) => console.error("[FETCH_CODEBASE_TREE_ERROR]", err));
+    
+    let isMounted = true;
+    let retryTimeout: NodeJS.Timeout | null = null;
+    
+    const fetchCodebaseTree = () => {
+      setWorkspaceStatus("loading");
+      
+      fetch(`/api/tasks/${taskId}/codebase-tree`)
+        .then(async (res) => {
+          if (!isMounted) return null;
+          const json = await res.json();
+          return json;
+        })
+        .then((data) => {
+          if (!data || !isMounted) return;
+          
+          if (data.success) {
+            if (data.status === "initializing") {
+              setWorkspaceStatus("initializing");
+              setLoadingMessage(data.message || "Preparing workspace...");
+              
+              // Retry after a delay
+              retryTimeout = setTimeout(fetchCodebaseTree, 3000);
+            } else {
+              setWorkspaceStatus("ready");
+              setLoadingMessage(null);
+              setFileTree(data.tree);
+              const firstFile = findFirstFile(data.tree);
+              setSelectedFile(firstFile);
+            }
+          } else {
+            setWorkspaceStatus("error");
+            setLoadingMessage(data.error || "Failed to load workspace");
+            console.warn("[CODEBASE_TREE_RESPONSE_ERROR]", data.error);
+          }
+        })
+        .catch((err) => {
+          if (!isMounted) return;
+          setWorkspaceStatus("error");
+          setLoadingMessage("Failed to connect to server");
+          console.warn("[FETCH_CODEBASE_TREE_ERROR]", err);
+        });
+    };
+    
+    fetchCodebaseTree();
+    
+    return () => {
+      isMounted = false;
+      if (retryTimeout) clearTimeout(retryTimeout);
+    };
   }, [taskId]);
 
+  // Loading state UI
+  if (workspaceStatus === "loading" || workspaceStatus === "initializing") {
+    return (
+      <div className="flex size-full max-h-svh items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4 p-6 text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary"></div>
+          <h3 className="text-xl font-medium">
+            {workspaceStatus === "initializing" ? "Preparing Workspace" : "Loading Files"}
+          </h3>
+          {loadingMessage && (
+            <p className="text-muted-foreground max-w-md">{loadingMessage}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+  
+  // Error state UI
+  if (workspaceStatus === "error") {
+    return (
+      <div className="flex size-full max-h-svh items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4 p-6 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <h3 className="text-xl font-medium">Failed to Load Workspace</h3>
+          {loadingMessage && (
+            <p className="text-muted-foreground max-w-md">{loadingMessage}</p>
+          )}
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Ready state - normal UI
   return (
     <div className="flex size-full max-h-svh">
       <FileExplorer
