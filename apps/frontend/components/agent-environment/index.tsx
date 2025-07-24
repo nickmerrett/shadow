@@ -85,9 +85,9 @@ export const AgentEnvironment: React.FC = () => {
   // Loading state UI
   if (workspaceStatus === "loading" || workspaceStatus === "initializing") {
     return (
-      <div className="flex size-full max-h-svh items-center justify-center bg-background">
+      <div className="bg-background flex size-full max-h-svh items-center justify-center">
         <div className="flex flex-col items-center gap-4 p-6 text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary"></div>
+          <div className="border-muted border-t-primary h-8 w-8 animate-spin rounded-full border-2"></div>
           <h3 className="text-xl font-medium">
             {workspaceStatus === "initializing" ? "Preparing Workspace" : "Loading Files"}
           </h3>
@@ -102,7 +102,7 @@ export const AgentEnvironment: React.FC = () => {
   // Error state UI
   if (workspaceStatus === "error") {
     return (
-      <div className="flex size-full max-h-svh items-center justify-center bg-background">
+      <div className="bg-background flex size-full max-h-svh items-center justify-center">
         <div className="flex flex-col items-center gap-4 p-6 text-center">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -117,7 +117,7 @@ export const AgentEnvironment: React.FC = () => {
           )}
           <button 
             onClick={() => window.location.reload()}
-            className="mt-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             Try Again
           </button>

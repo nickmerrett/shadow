@@ -237,13 +237,13 @@ export function GithubConnection({
   const renderRepos = (
     <div>
       <div className="relative border-b">
-        <Search className="text-muted-foreground absolute top-1/2 left-2 size-3.5 -translate-y-1/2 transform" />
+        <Search className="text-muted-foreground absolute left-2 top-1/2 size-3.5 -translate-y-1/2 transform" />
         <input
           placeholder="Search repositories..."
           value={repoSearch}
           autoFocus
           onChange={(e) => setRepoSearch(e.target.value)}
-          className="h-9 w-full pr-3 pl-7 text-sm focus:outline-none"
+          className="h-9 w-full pl-7 pr-3 text-sm focus:outline-none"
         />
       </div>
 
@@ -264,7 +264,7 @@ export function GithubConnection({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground w-full gap-2 !px-4.5 text-[13px] font-normal hover:bg-transparent"
+                  className="text-muted-foreground !px-4.5 w-full gap-2 text-[13px] font-normal hover:bg-transparent"
                 >
                   <Folder className="size-3.5" />
                   {group.name}
@@ -311,13 +311,13 @@ export function GithubConnection({
       </button>
 
       <div className="relative border-b">
-        <Search className="text-muted-foreground absolute top-1/2 left-2 size-3.5 -translate-y-1/2 transform" />
+        <Search className="text-muted-foreground absolute left-2 top-1/2 size-3.5 -translate-y-1/2 transform" />
         <input
           placeholder="Search branches..."
           value={branchSearch}
           autoFocus
           onChange={(e) => setBranchSearch(e.target.value)}
-          className="h-9 w-full pr-3 pl-7 text-sm focus:outline-none"
+          className="h-9 w-full pl-7 pr-3 text-sm focus:outline-none"
         />
       </div>
 

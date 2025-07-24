@@ -108,7 +108,7 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
         {/* Command display */}
         <div className="rounded-md border bg-gray-100 p-3 dark:bg-gray-800/50">
           <div className="text-muted-foreground mb-1 text-xs">Command:</div>
-          <code className="text-foreground font-mono text-sm break-all">
+          <code className="text-foreground break-all font-mono text-sm">
             {command}
           </code>
         </div>

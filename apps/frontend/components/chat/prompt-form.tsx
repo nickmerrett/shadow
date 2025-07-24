@@ -107,12 +107,12 @@ export function PromptForm({
       {/* Wrapper div with textarea styling */}
       <div
         className={cn(
-          "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border relative flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow,border] focus-within:ring-4",
+          "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border shadow-xs relative flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t transition-[color,box-shadow,border] focus-within:ring-4",
           isPending && "opacity-50"
         )}
       >
         {!isHome && (
-          <div className="from-background via-background/60 pointer-events-none absolute -top-16 -left-px -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
+          <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-16 -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
         )}
 
         {/* Textarea without border/background since wrapper handles it */}
@@ -124,7 +124,7 @@ export function PromptForm({
           onFocus={onFocus}
           onBlur={onBlur}
           placeholder="Build a cool new feature..."
-          className="placeholder:text-muted-foreground/50 max-h-48 flex-1 resize-none rounded-lg border-0 bg-transparent! shadow-none focus-visible:ring-0"
+          className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none rounded-lg border-0 shadow-none focus-visible:ring-0"
         />
 
         {/* Buttons inside the container */}

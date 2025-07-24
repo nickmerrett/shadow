@@ -102,8 +102,8 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
 
   if (!isCollapsed)
     return (
-      <div className="bg-sidebar border-sidebar-border flex w-52 shrink-0 flex-col border-r select-none">
-        <div className="border-sidebar-border flex h-13 items-center justify-between border-b px-2">
+      <div className="bg-sidebar border-sidebar-border flex w-52 shrink-0 select-none flex-col border-r">
+        <div className="border-sidebar-border h-13 flex items-center justify-between border-b px-2">
           <h3 className="text-sm">Agent Environment</h3>
           <Tooltip>
             <TooltipTrigger asChild>

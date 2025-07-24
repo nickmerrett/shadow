@@ -325,7 +325,7 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
     <StickToBottom.Content className="relative z-0 mx-auto flex min-h-full w-full max-w-lg flex-col items-center px-4 sm:px-6">
       <div
         className={cn(
-          "from-background via-background/60 pointer-events-none sticky top-0 -left-px z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-b to-transparent transition-opacity",
+          "from-background via-background/60 pointer-events-none sticky -left-px top-0 z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-b to-transparent transition-opacity",
           isAtTop ? "opacity-0" : "opacity-100"
         )}
       />
