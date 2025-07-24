@@ -99,7 +99,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
   }
 
   async prepareWorkspace(taskConfig: TaskConfig): Promise<WorkspaceInfo> {
-    const { id: taskId, repoUrl, baseBranch, userId } = taskConfig;
+    const { id: taskId, repoUrl, baseBranch, shadowBranch, userId } = taskConfig;
     
     try {
       console.log(`[REMOTE_WORKSPACE] Preparing workspace for task ${taskId}`);
@@ -111,7 +111,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       await this.ensureSharedCachePVC();
 
       // Create pod specification for the agent
-      const podSpec = this.createAgentPodSpec(taskId, repoUrl, baseBranch, userId);
+      const podSpec = this.createAgentPodSpec(taskId, repoUrl, baseBranch, shadowBranch, userId);
 
       // Create the pod in Kubernetes
       const pod = await this.makeK8sRequest<any>(`/api/v1/namespaces/${this.namespace}/pods`, {
@@ -132,7 +132,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       // Set up git branch tracking in database
       // Note: Actual git operations happen in the pod via sidecar
       try {
-        await this.setupGitBranchTracking(taskId, baseBranch, userId);
+        await this.setupGitBranchTracking(taskId, baseBranch, shadowBranch, userId);
       } catch (error) {
         console.error(`[REMOTE_WORKSPACE] Failed to setup git branch tracking for task ${taskId}:`, error);
         // Don't fail the workspace preparation for this
@@ -307,25 +307,23 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
    */
   private async setupGitBranchTracking(
     taskId: string,
-    baseBranch: string, 
+    baseBranch: string,
+    shadowBranch: string,
     _userId: string
   ): Promise<void> {
     try {
-      const shadowBranchName = `shadow/task-${taskId}`;
-
       // Update task in database with branch information
       // Note: baseCommitSha will be set later by the sidecar after git operations
       await prisma.task.update({
         where: { id: taskId },
         data: {
-          baseBranch,
-          shadowBranch: shadowBranchName,
+          baseCommitSha: "pending", // Will be updated by sidecar once git operations complete
         },
       });
 
       console.log(`[REMOTE_WORKSPACE] Git branch tracking setup for task ${taskId}:`, {
         baseBranch,
-        shadowBranch: shadowBranchName,
+        shadowBranch,
       });
     } catch (error) {
       console.error(`[REMOTE_WORKSPACE] Failed to setup git branch tracking for task ${taskId}:`, error);
@@ -340,6 +338,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
     taskId: string,
     repoUrl: string,
     baseBranch: string,
+    shadowBranch: string,
     userId: string
   ): any {
     const podName = `shadow-agent-${taskId}`;
@@ -384,8 +383,12 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
                 value: repoUrl,
               },
               {
-                name: "BRANCH",
+                name: "BASE_BRANCH",
                 value: baseBranch,
+              },
+              {
+                name: "SHADOW_BRANCH",
+                value: shadowBranch,
               },
               {
                 name: "USER_ID",

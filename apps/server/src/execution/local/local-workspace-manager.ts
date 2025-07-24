@@ -180,12 +180,21 @@ export class LocalWorkspaceManager implements WorkspaceManager {
         email: user.email,
       });
 
-      // Create and checkout shadow branch
-      await gitManager.createShadowBranch(baseBranch, shadowBranch)
+      // Create and checkout shadow branch, get the base commit SHA
+      const baseCommitSha = await gitManager.createShadowBranch(baseBranch, shadowBranch);
+
+      // Update task in database with base commit SHA
+      await prisma.task.update({
+        where: { id: taskId },
+        data: {
+          baseCommitSha,
+        },
+      });
 
       console.log(`[LOCAL_WORKSPACE] Git setup complete for task ${taskId}:`, {
         baseBranch,
         shadowBranch,
+        baseCommitSha,
       });
     } catch (error) {
       console.error(`[LOCAL_WORKSPACE] Git setup failed for task ${taskId}:`, error);

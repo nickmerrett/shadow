@@ -40,16 +40,30 @@ export class GitManager {
   }
 
   /**
-   * Create and checkout a shadow branch for the task
+   * Create and checkout a shadow branch for the task, and publish it to remote
    */
-  async createShadowBranch(baseBranch: string, shadowBranch: string): Promise<void> {
+  async createShadowBranch(baseBranch: string, shadowBranch: string): Promise<string> {
     try {
       // Ensure we're on the base branch first
       await this.execGit(`checkout ${baseBranch}`);
+      
+      // Get the base commit SHA before creating the branch
+      const baseCommitSha = await this.getCurrentCommitSha();
+      
       // Create and checkout the shadow branch
       await this.execGit(`checkout -b ${shadowBranch}`);
 
-      console.log(`[GIT_MANAGER] Created shadow branch: ${shadowBranch} from ${baseBranch}`);
+      // Immediately publish the branch to remote so it's available for collaboration
+      try {
+        await this.pushBranch(shadowBranch, true);
+        console.log(`[GIT_MANAGER] Published shadow branch to remote: ${shadowBranch}`);
+      } catch (pushError) {
+        console.warn(`[GIT_MANAGER] Failed to publish shadow branch (continuing locally):`, pushError);
+        // Don't fail the entire operation if push fails - branch still works locally
+      }
+
+      console.log(`[GIT_MANAGER] Created shadow branch: ${shadowBranch} from ${baseBranch} (${baseCommitSha})`);
+      return baseCommitSha;
     } catch (error) {
       console.error(`[GIT_MANAGER] Failed to create shadow branch:`, error);
       throw error;
