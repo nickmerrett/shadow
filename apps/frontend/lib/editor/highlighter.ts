@@ -1,6 +1,7 @@
 import { loader } from "@monaco-editor/react";
 import { shikiToMonaco } from "@shikijs/monaco";
 import {
+  BundledLanguage,
   createHighlighter,
   createJavaScriptRegexEngine,
   ThemeInput,
@@ -8,7 +9,10 @@ import {
 } from "shiki";
 import theme from "./theme.json";
 
-export const LANGUAGES = [
+
+// Language must satisfy Shiki-supported languages
+// https://shiki.style/languages
+export const LANGUAGES: { id: BundledLanguage }[] = [
   { id: "typescript" },
   { id: "javascript" },
   { id: "tsx" },
@@ -21,9 +25,6 @@ export const LANGUAGES = [
   { id: "html" },
   { id: "c" },
   { id: "cpp" },
-  { id: "cc" },
-  { id: "cxx" },
-  { id: "h" },
   { id: "python" },
   { id: "go" },
   { id: "rust" },

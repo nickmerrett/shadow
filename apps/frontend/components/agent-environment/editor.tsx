@@ -7,6 +7,7 @@ import { Fragment, useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import type { FileNode } from "./file-explorer";
+import { cn } from "@/lib/utils";
 
 // Dynamic import Monaco Editor to avoid SSR issues
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -95,17 +96,17 @@ export function Editor({
           <div className="text-muted-foreground flex items-center gap-0.5 text-[13px]">
             {selectedFile
               ? selectedFile.path.split("/").map((part, index) => (
-                <Fragment key={index}>
-                  {index > 1 && (
-                    <span className="text-muted-foreground">
-                      <ChevronRight className="size-3" />
+                  <Fragment key={index}>
+                    {index > 1 && (
+                      <span className="text-muted-foreground">
+                        <ChevronRight className="size-3" />
+                      </span>
+                    )}
+                    <span className="text-muted-foreground leading-tight">
+                      {part}
                     </span>
-                  )}
-                  <span className="text-muted-foreground leading-tight">
-                    {part}
-                  </span>
-                </Fragment>
-              ))
+                  </Fragment>
+                ))
               : "No file selected"}
           </div>
         </div>
