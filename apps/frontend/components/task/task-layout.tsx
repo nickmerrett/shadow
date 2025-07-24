@@ -24,21 +24,31 @@ import type {
 import { StickToBottom, type StickToBottomContext } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
 import { TaskPageContent } from "./task-content";
+import { useTask } from "@/hooks/use-task";
+import { Task } from "@repo/db";
 
 export function TaskPageLayout({
   initialLayout,
-  taskTitle,
+  initialTask,
 }: {
   initialLayout?: number[];
-  taskTitle: string | null;
+  initialTask: Task;
 }) {
   const { open } = useSidebar();
   const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(taskTitle || "");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const { data: task } = useTask(initialTask.id, initialTask);
+  const [editValue, setEditValue] = useState(initialTask.title);
 
   const stickToBottomContextRef = useRef<StickToBottomContext>(null);
   const { isAtTop } = useIsAtTop(0, stickToBottomContextRef.current?.scrollRef);
+
+  useEffect(() => {
+    if (task) {
+      setEditValue(task.title);
+    }
+  }, [task]);
 
   /* 
   Resizable panel state
@@ -93,7 +103,6 @@ export function TaskPageLayout({
   }, [rightPanelRef]);
 
   useEffect(() => {
-    console.log("rightPanelRef", rightPanelRef.current);
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "j" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
@@ -107,7 +116,6 @@ export function TaskPageLayout({
 
   const handleTitleClick = () => {
     setIsEditing(true);
-    setEditValue(taskTitle || "");
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent) => {
@@ -116,13 +124,13 @@ export function TaskPageLayout({
       setIsEditing(false);
     } else if (e.key === "Escape") {
       setIsEditing(false);
-      setEditValue(taskTitle || "");
+      setEditValue(task?.title || initialTask.title);
     }
   };
 
   const handleInputBlur = () => {
     setIsEditing(false);
-    setEditValue(taskTitle || "");
+    setEditValue(task?.title || initialTask.title);
   };
 
   useEffect(() => {
@@ -172,7 +180,7 @@ export function TaskPageLayout({
                   className="hover:border-border flex h-7 max-w-48 cursor-text items-center rounded-md border border-transparent px-2"
                   onClick={handleTitleClick}
                 >
-                  <span className="truncate">{taskTitle}</span>
+                  <span className="truncate">{task?.title}</span>
                 </div>
               )}
             </div>

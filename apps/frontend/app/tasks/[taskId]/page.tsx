@@ -42,6 +42,7 @@ export default async function TaskPage({
 
   const [initialLayout] = await Promise.all([
     getInitialLayout(),
+    // Prefetch task data
     queryClient.prefetchQuery({
       queryKey: ["task-messages", taskId],
       queryFn: () => getTaskMessages(taskId),
@@ -54,7 +55,7 @@ export default async function TaskPage({
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <TaskPageLayout initialLayout={initialLayout} taskTitle={task.title} />
+      <TaskPageLayout initialLayout={initialLayout} initialTask={task} />
     </HydrationBoundary>
   );
 }

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { TaskStatus } from "@repo/db";
+import { FileChange, Task, TaskStatus, Todo } from "@repo/db";
 import { LayoutGrid, Play, Plus } from "lucide-react";
 import Link from "next/link";
 import { SidebarView } from ".";
@@ -17,17 +17,24 @@ export function SidebarNavigation({
   sidebarView,
   setSidebarView,
   doesCurrentTaskExist,
-  currentTaskId,
-  currentTaskStatus,
+  currentTask,
 }: {
   sidebarView: SidebarView;
   setSidebarView: (view: SidebarView) => void;
   doesCurrentTaskExist: boolean;
-  currentTaskId: string | null;
-  currentTaskStatus: TaskStatus | null;
+  currentTask: {
+    taskData: Task;
+    todos: Todo[];
+    fileChanges: FileChange[];
+  } | null;
 }) {
   const { open, toggleSidebar } = useSidebar();
-  const { data: taskData } = useTask(currentTaskId || "");
+  const { data: taskData } = useTask(
+    currentTask?.taskData.id || "",
+    currentTask?.taskData
+  );
+
+  const currentTaskStatus = taskData?.status;
 
   // Status dot color (if current task exists)
   const statusColor = useMemo(() => {
@@ -35,18 +42,16 @@ export function SidebarNavigation({
       return statusColorsConfig[taskData.status].bg;
     }
 
-    return currentTaskStatus
-      ? statusColorsConfig[currentTaskStatus].bg
-      : "";
+    return currentTaskStatus ? statusColorsConfig[currentTaskStatus].bg : "";
   }, [taskData, currentTaskStatus]);
 
   const agentViewTrigger = (
     <div className="relative z-0 h-7">
-      <div className="bg-card pointer-events-none absolute -right-1.5 -top-1.5 z-10 rounded-full p-1">
+      <div className="bg-card pointer-events-none absolute -top-1.5 -right-1.5 z-10 rounded-full p-1">
         <div className={cn("relative size-2 rounded-full", statusColor)}>
           <div
             className={cn(
-              "absolute -left-px -top-px size-2.5 animate-ping rounded-full opacity-25",
+              "absolute -top-px -left-px size-2.5 animate-ping rounded-full opacity-25",
               statusColor
             )}
           />
