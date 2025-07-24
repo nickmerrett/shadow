@@ -37,6 +37,7 @@ export async function createTask(formData: FormData) {
         description: message,
         repoUrl: repoUrl || "",
         branch,
+        baseBranch: branch, // Track the original branch for git-first workflow
         userId: session.user.id,
         status: "INITIALIZING",
         mode: "FULL_AUTO",

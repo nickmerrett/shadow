@@ -12,6 +12,8 @@ import {
   TaskConfig,
 } from "../interfaces/types";
 import { LocalToolExecutor } from "./local-tool-executor";
+import { GitManager } from "../../services/git-manager";
+import { prisma } from "@repo/db";
 
 /**
  * LocalWorkspaceManager implements workspace management for local filesystem execution
@@ -112,6 +114,19 @@ export class LocalWorkspaceManager implements WorkspaceManager {
         };
       }
 
+      // Set up git configuration and create shadow branch
+      try {
+        await this.setupGitForTask(taskId, workspacePath, branch, userId);
+      } catch (error) {
+        console.error(`[LOCAL_WORKSPACE] Failed to setup git for task ${taskId}:`, error);
+        return {
+          success: false,
+          workspacePath,
+          cloneResult,
+          error: `Git setup failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        };
+      }
+
       console.log(
         `[LOCAL_WORKSPACE] Successfully prepared workspace for task ${taskId}`
       );
@@ -133,6 +148,61 @@ export class LocalWorkspaceManager implements WorkspaceManager {
         error:
           error instanceof Error ? error.message : "Unknown workspace error",
       };
+    }
+  }
+
+  /**
+   * Setup git configuration and create shadow branch for the task
+   */
+  private async setupGitForTask(
+    taskId: string, 
+    workspacePath: string, 
+    baseBranch: string, 
+    userId: string
+  ): Promise<void> {
+    const gitManager = new GitManager(workspacePath, taskId);
+    
+    try {
+      // Get user information from database
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, email: true },
+      });
+
+      if (!user) {
+        throw new Error(`User not found: ${userId}`);
+      }
+
+      // Configure git user
+      await gitManager.configureGitUser({
+        name: user.name,
+        email: user.email,
+      });
+
+      // Get the current commit SHA for tracking
+      const baseCommitSha = await gitManager.getCurrentCommitSha();
+
+      // Create and checkout shadow branch
+      const shadowBranchName = await gitManager.createShadowBranch(baseBranch);
+
+      // Update task in database with branch information
+      await prisma.task.update({
+        where: { id: taskId },
+        data: {
+          baseBranch,
+          shadowBranch: shadowBranchName,
+          baseCommitSha,
+        },
+      });
+
+      console.log(`[LOCAL_WORKSPACE] Git setup complete for task ${taskId}:`, {
+        baseBranch,
+        shadowBranch: shadowBranchName,
+        baseCommitSha,
+      });
+    } catch (error) {
+      console.error(`[LOCAL_WORKSPACE] Git setup failed for task ${taskId}:`, error);
+      throw error;
     }
   }
 

@@ -7,6 +7,7 @@ import {
   TaskConfig,
 } from "../interfaces/types";
 import config from "../../config";
+import { prisma } from "@repo/db";
 
 /**
  * RemoteWorkspaceManager manages Kubernetes pods for remote agent execution
@@ -127,6 +128,15 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       const service = await this.createPodService(taskId);
 
       console.log(`[REMOTE_WORKSPACE] Created service ${service.metadata.name} for task ${taskId}`);
+
+      // Set up git branch tracking in database
+      // Note: Actual git operations happen in the pod via sidecar
+      try {
+        await this.setupGitBranchTracking(taskId, branch, userId);
+      } catch (error) {
+        console.error(`[REMOTE_WORKSPACE] Failed to setup git branch tracking for task ${taskId}:`, error);
+        // Don't fail the workspace preparation for this
+      }
 
       return {
         success: true,
@@ -288,6 +298,38 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
           error instanceof Error ? error.message : "Unknown error"
         }`,
       };
+    }
+  }
+
+  /**
+   * Setup git branch tracking in database for remote tasks
+   * The actual git operations will be handled by the sidecar in the pod
+   */
+  private async setupGitBranchTracking(
+    taskId: string,
+    baseBranch: string, 
+    _userId: string
+  ): Promise<void> {
+    try {
+      const shadowBranchName = `shadow/task-${taskId}`;
+
+      // Update task in database with branch information
+      // Note: baseCommitSha will be set later by the sidecar after git operations
+      await prisma.task.update({
+        where: { id: taskId },
+        data: {
+          baseBranch,
+          shadowBranch: shadowBranchName,
+        },
+      });
+
+      console.log(`[REMOTE_WORKSPACE] Git branch tracking setup for task ${taskId}:`, {
+        baseBranch,
+        shadowBranch: shadowBranchName,
+      });
+    } catch (error) {
+      console.error(`[REMOTE_WORKSPACE] Failed to setup git branch tracking for task ${taskId}:`, error);
+      throw error;
     }
   }
 

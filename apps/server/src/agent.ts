@@ -137,6 +137,7 @@ class LocalCodingAgent {
           description: "Local coding agent session",
           repoUrl: config.workspaceDir, // Use workspace dir as "repo"
           branch: "local",
+          baseBranch: "local", // Track the original branch for git-first workflow
           userId: defaultUser.id,
           mode: "FULL_AUTO",
           status: "RUNNING",
