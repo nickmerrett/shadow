@@ -23,13 +23,13 @@ export interface FileNode {
 export function FileExplorer({
   files,
   onFileSelect,
-  selectedFile,
+  selectedFilePath,
   isCollapsed,
   onToggleCollapse,
 }: {
   files: FileNode[];
   onFileSelect: (file: FileNode) => void;
-  selectedFile?: FileNode;
+  selectedFilePath?: string | null;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
 }) {
@@ -49,7 +49,7 @@ export function FileExplorer({
 
   const renderNode = (node: FileNode, depth = 0) => {
     const isExpanded = expandedFolders.has(node.path);
-    const isSelected = selectedFile?.path === node.path;
+    const isSelected = selectedFilePath === node.path;
 
     return (
       <div key={node.path} className="relative flex flex-col gap-0.5">

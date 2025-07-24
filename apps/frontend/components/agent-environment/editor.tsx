@@ -23,10 +23,14 @@ export function Editor({
   selectedFile,
   isExplorerCollapsed,
   onToggleCollapse,
+  isLoadingContent,
+  contentError,
 }: {
-  selectedFile?: FileNode;
+  selectedFile?: FileNode | null;
   isExplorerCollapsed: boolean;
   onToggleCollapse: () => void;
+  isLoadingContent?: boolean;
+  contentError?: string;
 }) {
   const [isShikiReady, setIsShikiReady] = useState(false);
 
@@ -116,7 +120,11 @@ export function Editor({
             selectedFile ? getLanguageFromPath(selectedFile.path) : "plaintext"
           }
           value={
-            selectedFile?.content || "// Select a file to view its content"
+            isLoadingContent
+              ? "// Loading file content..."
+              : contentError
+              ? `// Error loading file: ${contentError}`
+              : selectedFile?.content || "// Select a file to view its content"
           }
           theme={isShikiReady ? "vesper" : "vs-dark"}
           options={{

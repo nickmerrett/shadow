@@ -11,6 +11,7 @@ import { createSocketServer } from "./socket";
 import { getGitHubAccessToken } from "./utils/github-account";
 import { updateTaskStatus } from "./utils/task-status";
 import { createWorkspaceManager } from "./execution";
+import { filesRouter } from "./routes/files";
 
 const app = express();
 const chatService = new ChatService();
@@ -28,12 +29,15 @@ app.use(
 app.use(express.json());
 
 /* ROUTES */
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
   res.send("<h1>Hello world</h1>");
 });
 
 // Indexing routes
 app.use("/api/indexing", IndexingRouter);
+
+// Files routes
+app.use("/api/tasks", filesRouter);
 
 // Get task details
 app.get("/api/tasks/:taskId", async (req, res) => {
@@ -186,7 +190,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 });
 
 // Get available models
-app.get("/api/models", async (req, res) => {
+app.get("/api/models", async (_req, res) => {
   try {
     const availableModels = chatService.getAvailableModels();
     const modelsWithInfo = availableModels.map((modelId) => ({

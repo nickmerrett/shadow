@@ -6,87 +6,47 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import dynamic from "next/dynamic";
-import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Editor } from "./editor";
-import { FileExplorer, type FileNode } from "./file-explorer";
+import { FileExplorer } from "./file-explorer";
 import { Button } from "../ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-// import { mockFileStructure } from "./mock-data";
+import { useCodebaseTree } from "@/hooks/use-codebase-tree";
+import { useFileContent } from "@/hooks/use-file-content";
 
 const Terminal = dynamic(() => import("./terminal"), { ssr: false });
 
-export const AgentEnvironment: React.FC = () => {
-  const [fileTree, setFileTree] = useState<FileNode[]>([]);
-  const [selectedFile, setSelectedFile] = useState<FileNode | undefined>();
+export function AgentEnvironment() {
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
   const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(false);
 
   const params = useParams<{ taskId?: string }>();
   const taskId = params?.taskId;
 
-  // State for workspace loading
-  const [workspaceStatus, setWorkspaceStatus] = useState<
-    "loading" | "initializing" | "ready" | "error"
-  >("loading");
-  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+  // Use the new hooks for data fetching
+  const treeQuery = useCodebaseTree(taskId || "");
+  const fileContentQuery = useFileContent(
+    taskId || "",
+    selectedFilePath || undefined
+  );
 
-  // Fetch task-specific codebase tree on mount
-  useEffect(() => {
-    if (!taskId) return;
+  // Derive UI state from query results
+  const workspaceStatus = treeQuery.isLoading
+    ? "loading"
+    : treeQuery.isError
+      ? "error"
+      : treeQuery.data?.status === "initializing"
+        ? "initializing"
+        : "ready";
 
-    let isMounted = true;
-    let retryTimeout: NodeJS.Timeout | null = null;
-
-    const fetchCodebaseTree = () => {
-      setWorkspaceStatus("loading");
-
-      fetch(`/api/tasks/${taskId}/codebase-tree`)
-        .then(async (res) => {
-          if (!isMounted) return null;
-          const json = await res.json();
-          return json;
-        })
-        .then((data) => {
-          if (!data || !isMounted) return;
-
-          if (data.success) {
-            if (data.status === "initializing") {
-              setWorkspaceStatus("initializing");
-              setLoadingMessage(data.message || "Preparing workspace...");
-
-              // Retry after a delay
-              retryTimeout = setTimeout(fetchCodebaseTree, 3000);
-            } else {
-              setWorkspaceStatus("ready");
-              setLoadingMessage(null);
-              setFileTree(data.tree);
-              const firstFile = findFirstFile(data.tree);
-              setSelectedFile(firstFile);
-            }
-          } else {
-            setWorkspaceStatus("error");
-            setLoadingMessage(data.error || "Failed to load workspace");
-            console.warn("[CODEBASE_TREE_RESPONSE_ERROR]", data.error);
-          }
-        })
-        .catch((err) => {
-          if (!isMounted) return;
-          setWorkspaceStatus("error");
-          setLoadingMessage("Failed to connect to server");
-          console.warn("[FETCH_CODEBASE_TREE_ERROR]", err);
-        });
-    };
-
-    fetchCodebaseTree();
-
-    return () => {
-      isMounted = false;
-      if (retryTimeout) clearTimeout(retryTimeout);
-    };
-  }, [taskId]);
+  const loadingMessage =
+    treeQuery.data?.message ||
+    (treeQuery.isError
+      ? treeQuery.error?.message || "Failed to load workspace"
+      : null);
 
   // Loading state UI
   if (workspaceStatus === "loading" || workspaceStatus === "initializing") {
@@ -144,13 +104,24 @@ export const AgentEnvironment: React.FC = () => {
     );
   }
 
+  // Create selected file object with content for the editor
+  const selectedFileWithContent =
+    selectedFilePath && fileContentQuery.data?.success
+      ? {
+          name: selectedFilePath.split("/").pop() || "",
+          type: "file" as const,
+          path: selectedFilePath,
+          content: fileContentQuery.data.content,
+        }
+      : null;
+
   // Ready state - normal UI
   return (
     <div className="flex size-full max-h-svh">
       <FileExplorer
-        files={fileTree}
-        onFileSelect={setSelectedFile}
-        selectedFile={selectedFile}
+        files={treeQuery.data?.tree || []}
+        onFileSelect={(file) => setSelectedFilePath(file.path)}
+        selectedFilePath={selectedFilePath}
         isCollapsed={isExplorerCollapsed}
         onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
       />
@@ -158,9 +129,11 @@ export const AgentEnvironment: React.FC = () => {
         <ResizablePanelGroup direction="vertical" className="h-full">
           <ResizablePanel minSize={20} defaultSize={60}>
             <Editor
-              selectedFile={selectedFile}
+              selectedFile={selectedFileWithContent}
               isExplorerCollapsed={isExplorerCollapsed}
               onToggleCollapse={() => setIsExplorerCollapsed((prev) => !prev)}
+              isLoadingContent={fileContentQuery.isLoading}
+              contentError={fileContentQuery.error?.message}
             />
           </ResizablePanel>
           {isTerminalCollapsed ? (
@@ -219,25 +192,4 @@ export const AgentEnvironment: React.FC = () => {
       </div>
     </div>
   );
-};
-
-// Helper: find README.* else first file in DFS order
-function findFirstFile(nodes: FileNode[]): FileNode | undefined {
-  let firstFile: FileNode | undefined;
-
-  for (const n of nodes) {
-    if (n.type === "file") {
-      if (/^readme/i.test(n.name)) return n;
-      if (!firstFile) firstFile = n;
-    }
-    if (n.children) {
-      const child = findFirstFile(n.children);
-      if (child) {
-        if (/^readme/i.test(child.name)) return child;
-        if (!firstFile) firstFile = child;
-      }
-    }
-  }
-
-  return firstFile;
 }
