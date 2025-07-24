@@ -7,18 +7,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { useModels } from "@/hooks/use-models";
 import { createTask } from "@/lib/actions/create-task";
 import { cn } from "@/lib/utils";
-import {
-  AvailableModels,
-  ModelInfos,
-  type ModelInfo,
-  type ModelType,
-} from "@repo/types";
+import { AvailableModels, ModelInfos, type ModelType } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, Layers, Loader2, Square } from "lucide-react";
 import { redirect } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
@@ -39,7 +35,6 @@ export function PromptForm({
   onBlur?: () => void;
 }) {
   const [message, setMessage] = useState("");
-  const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelType>(
     AvailableModels.GPT_4O
   );
@@ -51,24 +46,7 @@ export function PromptForm({
   const [isPending, startTransition] = useTransition();
 
   const queryClient = useQueryClient();
-
-  // TODO: initial fetch on server and use useQuery
-  useEffect(() => {
-    async function fetchModels() {
-      try {
-        const baseUrl =
-          process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
-        const res = await fetch(`${baseUrl}/api/models`);
-        if (!res.ok) throw new Error(await res.text());
-        const data = (await res.json()) as { models: ModelInfo[] };
-        setAvailableModels(data.models);
-      } catch (err) {
-        console.error("Failed to fetch available models", err);
-      }
-    }
-
-    fetchModels();
-  }, []);
+  const { data: availableModels = [] } = useModels();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
