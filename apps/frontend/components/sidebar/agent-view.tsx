@@ -200,7 +200,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 const statusClass =
                   statusColorsConfig[
                     task.status as keyof typeof statusColorsConfig
-                  ]?.className || "text-gray-500";
+                  ]?.className || "text-muted-foreground";
                 return (
                   <>
                     <StatusIcon className={cn("size-4", statusClass)} />

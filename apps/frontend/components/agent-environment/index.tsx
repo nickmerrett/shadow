@@ -11,6 +11,9 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Editor } from "./editor";
 import { FileExplorer, type FileNode } from "./file-explorer";
+import { Button } from "../ui/button";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 // import { mockFileStructure } from "./mock-data";
 
 const Terminal = dynamic(() => import("./terminal"), { ssr: false });
@@ -19,6 +22,7 @@ export const AgentEnvironment: React.FC = () => {
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileNode | undefined>();
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
+  const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(false);
 
   const params = useParams<{ taskId?: string }>();
   const taskId = params?.taskId;
@@ -152,17 +156,65 @@ export const AgentEnvironment: React.FC = () => {
       />
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="vertical" className="h-full">
-          <ResizablePanel minSize={10} defaultSize={60}>
+          <ResizablePanel minSize={20} defaultSize={60}>
             <Editor
               selectedFile={selectedFile}
               isExplorerCollapsed={isExplorerCollapsed}
               onToggleCollapse={() => setIsExplorerCollapsed((prev) => !prev)}
             />
           </ResizablePanel>
-          <ResizableHandle className="bg-sidebar-border" />
-          <ResizablePanel minSize={10} defaultSize={40}>
-            <Terminal />
-          </ResizablePanel>
+          {isTerminalCollapsed ? (
+            <div
+              onClick={() => setIsTerminalCollapsed(false)}
+              className="border-sidebar-border bg-card flex cursor-pointer select-none items-center justify-between border-t p-1 pl-2"
+            >
+              <div className="text-sm">Terminal</div>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="iconSm"
+                    className="hover:bg-sidebar-accent"
+                  >
+                    <ChevronUp className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="end" sideOffset={8}>
+                  Open Terminal
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          ) : (
+            <>
+              <ResizableHandle className="bg-sidebar-border" />
+              <ResizablePanel minSize={20} defaultSize={40}>
+                <div className="bg-sidebar flex h-full flex-col">
+                  <div
+                    onClick={() => setIsTerminalCollapsed(true)}
+                    className="border-sidebar-border flex cursor-pointer select-none items-center justify-between border-b p-1 pl-2"
+                  >
+                    <div className="text-sm">Terminal</div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="iconSm"
+                          className="hover:bg-sidebar-accent"
+                        >
+                          <ChevronDown className="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" align="end" sideOffset={8}>
+                        Close Terminal
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Terminal />
+                </div>
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </div>
     </div>

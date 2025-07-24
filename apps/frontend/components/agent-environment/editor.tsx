@@ -58,7 +58,7 @@ export function Editor({
       case "c":
         return "c";
       case "h":
-        return "cpp"; // treat headers as C++ for highlighting
+        return "cpp";
       case "cpp":
         return "cpp";
       case "cc":
@@ -78,17 +78,15 @@ export function Editor({
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
-                size="icon"
-                className="hover:bg-sidebar-accent size-7 cursor-pointer"
+                size="iconSm"
+                className="hover:bg-sidebar-accent"
                 onClick={onToggleCollapse}
               >
                 <ChevronsRight className="size-4" />
               </Button>
             </TooltipTrigger>
 
-            <TooltipContent side="bottom" align="start">
-              Open File Explorer
-            </TooltipContent>
+            <TooltipContent side="right">Open File Explorer</TooltipContent>
           </Tooltip>
         )}
         <div className="flex flex-col items-start justify-center">
@@ -124,7 +122,7 @@ export function Editor({
           options={{
             readOnly: true,
             minimap: { enabled: false },
-            fontSize: 14,
+            fontSize: 13,
             wordWrap: "on",
             scrollBeyondLastLine: false,
             lineNumbersMinChars: 2,
