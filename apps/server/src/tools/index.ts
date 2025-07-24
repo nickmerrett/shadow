@@ -133,7 +133,7 @@ export function createTools(taskId: string, workspacePath?: string) {
 
     codebase_search: tool({
       description:
-        "Find snippets of code from the codebase most relevant to the search query.",
+        "Find snippets of code from the codebase most relevant to the search query. Try not to use this, use semantic_search instead.",
       parameters: z.object({
         query: z.string().describe("The search query to find relevant code"),
         target_directories: z
@@ -346,6 +346,40 @@ export function createTools(taskId: string, workspacePath?: string) {
         console.log(`[DELETE_FILE] ${explanation}`);
         const result = await executor.deleteFile(target_file);
         return result;
+      },
+    }),
+    semantic_search: tool({
+      description: "Search the codebase for relevant code snippets.",
+      parameters: z.object({
+        query: z.string().describe("The query to search the codebase for"),
+        explanation: z
+          .string()
+          .describe(
+            "One sentence explanation as to why this tool is being used"
+          ),
+      }),
+      execute: async ({ query, explanation }) => {
+        console.log(`[SEMANTIC_SEARCH] ${explanation}`);
+
+        const task = await prisma.task.findUnique({
+          where: { id: taskId },
+          select: { repoUrl: true }
+        });
+
+        if (!task) {
+          throw new Error(`Task ${taskId} not found`);
+        }
+
+        const repoMatch = task.repoUrl.match(/github\.com\/([^\/]+\/[^\/]+)/);
+        const repo = repoMatch ? repoMatch[1] : task.repoUrl;
+        if (!repo) {
+          console.warn(`[SEMANTIC_SEARCH] No repo found for task ${taskId}, falling back to codebase_search`);
+          return await executor.codebaseSearch(query);
+        } else {
+          console.log(`[SEMANTIC_SEARCH] Using repo: ${repo}`);
+          const result = await executor.semanticSearch(query, repo);
+          return result;
+        }
       },
     }),
   };

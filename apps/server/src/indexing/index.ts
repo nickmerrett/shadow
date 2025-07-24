@@ -4,7 +4,7 @@ import TreeSitter from "tree-sitter";
 import PineconeHandler from "./embedding/pineconeService";
 import { getLanguageForPath } from "./languages";
 import { retrieve } from "./retrieval";
-import { isValidRepo } from "./utils/repository";
+import { getNamespaceFromRepo, isValidRepo } from "./utils/repository";
 
 const router = express.Router();
 const pinecone = new PineconeHandler();
@@ -20,25 +20,9 @@ router.get("/", (req, res) => {
 });
 
 router.post(
-  "/tree-sitter",
-  async (req: express.Request<{}, {}, CodeBody>, res) => {
-    const { text, filePath } = req.body;
-    const parser = new TreeSitter();
-    const languageSpec = await getLanguageForPath(filePath);
-    if (!languageSpec || !languageSpec.language) {
-      res.status(400).json({ error: "Unsupported language" });
-      return;
-    }
-    parser.setLanguage(languageSpec.language);
-    const tree = parser.parse(text);
-    res.json({ tree: tree.rootNode, language: languageSpec.id });
-  }
-);
-
-router.post(
   "/index",
   async (
-    req: express.Request<{}, {}, { repo: string; options?: IndexRepoOptions }>,
+    req: express.Request<object, object, { repo: string; options?: IndexRepoOptions }>,
     res,
     next
   ) => {
@@ -66,11 +50,7 @@ router.post(
 router.post(
   "/search",
   async (
-    req: express.Request<
-      {},
-      {},
-      { query: string; namespace: string; topK?: number; fields?: string[] }
-    >,
+    req: express.Request<object, object, { query: string; namespace: string; topK?: number; fields?: string[] }>,
     res,
     next
   ) => {
@@ -81,7 +61,12 @@ router.post(
           .status(400)
           .json({ error: "Missing required parameters: query, namespace" });
       }
-      const response = await retrieve(query, namespace, topK, fields);
+      let namespaceToUse = namespace;
+      if (isValidRepo(namespace)) {
+        namespaceToUse = getNamespaceFromRepo(namespace);
+      }
+      console.log("namespaceToUse", namespaceToUse);
+      const response = await retrieve(query, namespaceToUse, topK, fields);
       // The response from pinecone is { result: { hits: [] } }, let's return a `matches` property as expected by the test
       res.json({ matches: response.result?.hits || [] });
     } catch (error) {
@@ -92,7 +77,7 @@ router.post(
 
 router.delete(
   "/clear-namespace",
-  async (req: express.Request<{}, {}, { namespace: string }>, res, next) => {
+  async (req: express.Request<object, object, { namespace: string }>, res, next) => {
     try {
       const { namespace } = req.body;
       if (!namespace) {

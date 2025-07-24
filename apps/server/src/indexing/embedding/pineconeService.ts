@@ -127,7 +127,6 @@ class PineconeHandler {
         topK: topK,
         inputs: { text: query },
       },
-      fields: fields,
     });
     return response;
   }
