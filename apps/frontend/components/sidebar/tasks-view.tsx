@@ -115,7 +115,8 @@ export function SidebarTasksView({
                               <span className="text-xs capitalize">
                                 {task.status.toLowerCase().replace("_", " ")}
                               </span>
-                              <GitBranch className="size-3" /> {truncateBranchName(task.branch, 20)}
+                              <GitBranch className="size-3" />{" "}
+                              {truncateBranchName(task.shadowBranch, 20)}
                             </div>
                           </a>
                         </SidebarMenuButton>

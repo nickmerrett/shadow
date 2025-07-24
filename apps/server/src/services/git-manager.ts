@@ -42,18 +42,14 @@ export class GitManager {
   /**
    * Create and checkout a shadow branch for the task
    */
-  async createShadowBranch(baseBranch: string): Promise<string> {
-    const shadowBranchName = `shadow/task-${this.taskId}`;
-    
+  async createShadowBranch(baseBranch: string, shadowBranch: string): Promise<void> {
     try {
       // Ensure we're on the base branch first
       await this.execGit(`checkout ${baseBranch}`);
-      
       // Create and checkout the shadow branch
-      await this.execGit(`checkout -b ${shadowBranchName}`);
-      
-      console.log(`[GIT_MANAGER] Created shadow branch: ${shadowBranchName} from ${baseBranch}`);
-      return shadowBranchName;
+      await this.execGit(`checkout -b ${shadowBranch}`);
+
+      console.log(`[GIT_MANAGER] Created shadow branch: ${shadowBranch} from ${baseBranch}`);
     } catch (error) {
       console.error(`[GIT_MANAGER] Failed to create shadow branch:`, error);
       throw error;
@@ -67,7 +63,7 @@ export class GitManager {
     try {
       const { stdout } = await this.execGit("diff --name-only");
       const { stdout: staged } = await this.execGit("diff --cached --name-only");
-      
+
       return stdout.trim().length > 0 || staged.trim().length > 0;
     } catch (error) {
       console.error(`[GIT_MANAGER] Failed to check for changes:`, error);
@@ -83,7 +79,7 @@ export class GitManager {
       // Get both staged and unstaged changes
       const { stdout: unstagedDiff } = await this.execGit("diff");
       const { stdout: stagedDiff } = await this.execGit("diff --cached");
-      
+
       return [unstagedDiff, stagedDiff].filter(diff => diff.trim()).join("\n\n");
     } catch (error) {
       console.error(`[GIT_MANAGER] Failed to get diff:`, error);
@@ -125,7 +121,7 @@ Commit message:`,
     try {
       // Stage all changes
       await this.execGit("add .");
-      
+
       // Get diff for commit message generation if not provided
       let commitMessage = options.message;
       if (!commitMessage) {
@@ -144,7 +140,7 @@ Commit message:`,
       }
 
       const { stdout } = await this.execGit(commitCmd);
-      
+
       console.log(`[GIT_MANAGER] Committed changes: "${commitMessage}"`);
       return stdout;
     } catch (error) {

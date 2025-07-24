@@ -6,7 +6,8 @@ export type Task = {
   description: string | null;
   status: string;
   repoUrl: string;
-  branch: string;
+  baseBranch: string | null;
+  shadowBranch: string | null;
   mode: string;
   createdAt: string;
   updatedAt: string;

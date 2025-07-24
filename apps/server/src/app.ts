@@ -84,7 +84,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
     }
 
     console.log(
-      `[TASK_INITIATE] Starting task ${taskId}: ${task.repoUrl}:${task.branch}`
+      `[TASK_INITIATE] Starting task ${taskId}: ${task.repoUrl}:${task.baseBranch || 'unknown'}`
     );
 
     try {
@@ -115,7 +115,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       // Get updated task with workspace info
       const updatedTask = await prisma.task.findUnique({
         where: { id: taskId },
-        select: { workspacePath: true, commitSha: true },
+        select: { workspacePath: true },
       });
 
       // Update task status to running

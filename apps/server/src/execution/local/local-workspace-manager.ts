@@ -73,7 +73,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
   }
 
   async prepareWorkspace(taskConfig: TaskConfig): Promise<WorkspaceInfo> {
-    const { id: taskId, repoUrl, branch, userId } = taskConfig;
+    const { id: taskId, repoUrl, baseBranch, shadowBranch, userId } = taskConfig;
     const workspacePath = this.getTaskWorkspaceDir(taskId);
 
     try {
@@ -87,7 +87,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
       // Clone the repository
       const cloneResult = await this.githubService.cloneRepository(
         repoUrl,
-        branch,
+        baseBranch,
         workspacePath,
         userId
       );
@@ -116,7 +116,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
 
       // Set up git configuration and create shadow branch
       try {
-        await this.setupGitForTask(taskId, workspacePath, branch, userId);
+        await this.setupGitForTask(taskId, workspacePath, baseBranch, shadowBranch, userId);
       } catch (error) {
         console.error(`[LOCAL_WORKSPACE] Failed to setup git for task ${taskId}:`, error);
         return {
@@ -155,13 +155,14 @@ export class LocalWorkspaceManager implements WorkspaceManager {
    * Setup git configuration and create shadow branch for the task
    */
   private async setupGitForTask(
-    taskId: string, 
-    workspacePath: string, 
-    baseBranch: string, 
+    taskId: string,
+    workspacePath: string,
+    baseBranch: string,
+    shadowBranch: string,
     userId: string
   ): Promise<void> {
     const gitManager = new GitManager(workspacePath, taskId);
-    
+
     try {
       // Get user information from database
       const user = await prisma.user.findUnique({
@@ -179,26 +180,12 @@ export class LocalWorkspaceManager implements WorkspaceManager {
         email: user.email,
       });
 
-      // Get the current commit SHA for tracking
-      const baseCommitSha = await gitManager.getCurrentCommitSha();
-
       // Create and checkout shadow branch
-      const shadowBranchName = await gitManager.createShadowBranch(baseBranch);
-
-      // Update task in database with branch information
-      await prisma.task.update({
-        where: { id: taskId },
-        data: {
-          baseBranch,
-          shadowBranch: shadowBranchName,
-          baseCommitSha,
-        },
-      });
+      await gitManager.createShadowBranch(baseBranch, shadowBranch)
 
       console.log(`[LOCAL_WORKSPACE] Git setup complete for task ${taskId}:`, {
         baseBranch,
-        shadowBranch: shadowBranchName,
-        baseCommitSha,
+        shadowBranch,
       });
     } catch (error) {
       console.error(`[LOCAL_WORKSPACE] Git setup failed for task ${taskId}:`, error);
@@ -232,7 +219,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
       console.log(
         `[LOCAL_WORKSPACE] Successfully cleaned up workspace for task ${taskId}`
       );
-      
+
       return {
         success: true,
         message: `Successfully cleaned up workspace for task ${taskId}`,
@@ -242,12 +229,11 @@ export class LocalWorkspaceManager implements WorkspaceManager {
         `[LOCAL_WORKSPACE] Failed to cleanup workspace for task ${taskId}:`,
         error
       );
-      
+
       return {
         success: false,
-        message: `Failed to cleanup workspace for task ${taskId}: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
+        message: `Failed to cleanup workspace for task ${taskId}: ${error instanceof Error ? error.message : "Unknown error"
+          }`,
       };
     }
   }
@@ -310,7 +296,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
 
   async healthCheck(taskId: string): Promise<HealthStatus> {
     const exists = await this.workspaceExists(taskId);
-    
+
     if (!exists) {
       return {
         healthy: false,
@@ -322,7 +308,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
       // Basic health check: verify we can list the workspace directory
       const workspacePath = this.getWorkspacePath(taskId);
       await fs.readdir(workspacePath);
-      
+
       return {
         healthy: true,
         message: "Workspace is healthy and accessible",

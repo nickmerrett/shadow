@@ -21,6 +21,7 @@ import { redirect } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
+import type { FilteredRepository as Repository } from "@/lib/github/types";
 
 export function PromptForm({
   onSubmit,
@@ -42,8 +43,11 @@ export function PromptForm({
   const [selectedModel, setSelectedModel] = useState<ModelType>(
     AvailableModels.GPT_4O
   );
-  const [repoUrl, setRepoUrl] = useState<string | null>(null);
-  const [branch, setBranch] = useState<string | null>(null);
+  const [repo, setRepo] = useState<Repository | null>(null);
+  const [branch, setBranch] = useState<{
+    name: string;
+    commitSha: string;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const queryClient = useQueryClient();
@@ -72,18 +76,19 @@ export function PromptForm({
 
     if (isHome) {
       // Require repo and branch selection before creating a task
-      if (!repoUrl || !branch) {
+      if (!repo || !branch) {
         toast.error("Select a repository and branch first");
         return;
       }
 
-      const completeRepoUrl = `https://github.com/${repoUrl}`;
+      const completeRepoUrl = `https://github.com/${repo.full_name}`;
 
       const formData = new FormData();
       formData.append("message", message);
       formData.append("model", selectedModel);
       formData.append("repoUrl", completeRepoUrl);
-      formData.append("branch", branch);
+      formData.append("baseBranch", branch.name);
+      formData.append("baseCommitSha", branch.commitSha);
 
       startTransition(async () => {
         let taskId: string | null = null;
@@ -124,12 +129,12 @@ export function PromptForm({
       {/* Wrapper div with textarea styling */}
       <div
         className={cn(
-          "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border shadow-xs relative flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t transition-[color,box-shadow,border] focus-within:ring-4",
+          "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border relative flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t shadow-xs transition-[color,box-shadow,border] focus-within:ring-4",
           isPending && "opacity-50"
         )}
       >
         {!isHome && (
-          <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-16 -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
+          <div className="from-background via-background/60 pointer-events-none absolute -top-16 -left-px -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
         )}
 
         {/* Textarea without border/background since wrapper handles it */}
@@ -141,7 +146,7 @@ export function PromptForm({
           onFocus={onFocus}
           onBlur={onBlur}
           placeholder="Build a cool new feature..."
-          className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none rounded-lg border-0 shadow-none focus-visible:ring-0"
+          className="placeholder:text-muted-foreground/50 max-h-48 flex-1 resize-none rounded-lg border-0 bg-transparent! shadow-none focus-visible:ring-0"
         />
 
         {/* Buttons inside the container */}
@@ -183,10 +188,10 @@ export function PromptForm({
           <div className="flex items-center gap-2">
             {isHome && (
               <GithubConnection
-                onSelect={(repo, br) => {
-                  setRepoUrl(repo);
-                  setBranch(br);
-                }}
+                selectedRepo={repo}
+                selectedBranch={branch}
+                setSelectedRepo={setRepo}
+                setSelectedBranch={setBranch}
               />
             )}
             <Button
@@ -197,7 +202,7 @@ export function PromptForm({
                 (isPending ||
                   !message.trim() ||
                   !selectedModel ||
-                  (isHome && (!repoUrl || !branch)))
+                  (isHome && (!repo || !branch)))
               }
               onClick={isStreaming ? onStopStream : undefined}
               className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"

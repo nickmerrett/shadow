@@ -99,7 +99,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
   }
 
   async prepareWorkspace(taskConfig: TaskConfig): Promise<WorkspaceInfo> {
-    const { id: taskId, repoUrl, branch, userId } = taskConfig;
+    const { id: taskId, repoUrl, baseBranch, userId } = taskConfig;
     
     try {
       console.log(`[REMOTE_WORKSPACE] Preparing workspace for task ${taskId}`);
@@ -111,7 +111,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       await this.ensureSharedCachePVC();
 
       // Create pod specification for the agent
-      const podSpec = this.createAgentPodSpec(taskId, repoUrl, branch, userId);
+      const podSpec = this.createAgentPodSpec(taskId, repoUrl, baseBranch, userId);
 
       // Create the pod in Kubernetes
       const pod = await this.makeK8sRequest<any>(`/api/v1/namespaces/${this.namespace}/pods`, {
@@ -132,7 +132,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       // Set up git branch tracking in database
       // Note: Actual git operations happen in the pod via sidecar
       try {
-        await this.setupGitBranchTracking(taskId, branch, userId);
+        await this.setupGitBranchTracking(taskId, baseBranch, userId);
       } catch (error) {
         console.error(`[REMOTE_WORKSPACE] Failed to setup git branch tracking for task ${taskId}:`, error);
         // Don't fail the workspace preparation for this
@@ -146,7 +146,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
         serviceName: service.metadata.name,
         cloneResult: {
           repoUrl,
-          branch,
+          baseBranch,
           success: true,
         },
       };
@@ -339,7 +339,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
   private createAgentPodSpec(
     taskId: string,
     repoUrl: string,
-    branch: string,
+    baseBranch: string,
     userId: string
   ): any {
     const podName = `shadow-agent-${taskId}`;
@@ -358,7 +358,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
         },
         annotations: {
           "shadow.ai/repo-url": repoUrl,
-          "shadow.ai/branch": branch,
+          "shadow.ai/branch": baseBranch,
           "shadow.ai/created-at": new Date().toISOString(),
         },
       },
@@ -385,7 +385,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
               },
               {
                 name: "BRANCH",
-                value: branch,
+                value: baseBranch,
               },
               {
                 name: "USER_ID",

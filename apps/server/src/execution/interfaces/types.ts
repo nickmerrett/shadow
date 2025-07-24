@@ -115,7 +115,8 @@ export interface CommandOptions {
 export interface TaskConfig {
   id: string;
   repoUrl: string;
-  branch: string;
+  baseBranch: string;
+  shadowBranch: string;
   userId: string;
 }
 

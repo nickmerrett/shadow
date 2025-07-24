@@ -17,7 +17,8 @@ export async function createTask(formData: FormData) {
   const message = formData.get("message") as string;
   const model = formData.get("model") as string;
   const repoUrl = formData.get("repoUrl") as string;
-  const branch = (formData.get("branch") as string) || "main";
+  const baseBranch = (formData.get("branch") as string);
+  const baseCommitSha = formData.get("baseCommitSha") as string;
 
   if (!message?.trim()) {
     throw new Error("Message is required");
@@ -27,30 +28,31 @@ export async function createTask(formData: FormData) {
     throw new Error("Model is required");
   }
 
+  const taskId = crypto.randomUUID();
+  const shadowBranch = `shadow/task-${taskId}`;
   let task: Task;
 
   try {
     // Create the task
     task = await prisma.task.create({
       data: {
+        id: taskId,
         title: message.slice(0, 50) + (message.length > 50 ? "..." : ""),
         description: message,
-        repoUrl: repoUrl || "",
-        branch,
-        baseBranch: branch, // Track the original branch for git-first workflow
+        repoUrl,
+        baseBranch,
+        shadowBranch,
+        baseCommitSha,
         userId: session.user.id,
         status: "INITIALIZING",
         mode: "FULL_AUTO",
-      },
-    });
-
-    // Create the initial user message
-    await prisma.chatMessage.create({
-      data: {
-        content: message,
-        role: MessageRole.USER,
-        taskId: task.id,
-        sequence: 1,
+        messages: {
+          create: {
+            content: message,
+            role: MessageRole.USER,
+            sequence: 1,
+          },
+        },
       },
     });
 
