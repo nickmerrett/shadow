@@ -47,7 +47,7 @@ export class MockRemoteWorkspaceManager implements WorkspaceManager {
   }
 
   async prepareWorkspace(taskConfig: TaskConfig): Promise<WorkspaceInfo> {
-    const { id: taskId, repoUrl, branch, userId } = taskConfig;
+    const { id: taskId, repoUrl, baseBranch, shadowBranch, userId } = taskConfig;
     
     return this.simulateInfrastructureCall("prepareWorkspace", () => {
       // Simulate pod creation and repository cloning
@@ -80,7 +80,7 @@ export class MockRemoteWorkspaceManager implements WorkspaceManager {
         cloneResult: {
           success: true,
           commitSha: `mock-commit-${Math.random().toString(36).substr(2, 9)}`,
-          message: `Successfully cloned ${repoUrl}:${branch}`,
+          message: `Successfully cloned ${repoUrl}:${baseBranch}`,
         },
       };
 
@@ -92,7 +92,7 @@ export class MockRemoteWorkspaceManager implements WorkspaceManager {
       });
 
       console.log(`[MOCK_WORKSPACE] Prepared workspace for task ${taskId}`);
-      console.log(`[MOCK_WORKSPACE] Repo: ${repoUrl}:${branch}, User: ${userId}`);
+      console.log(`[MOCK_WORKSPACE] Repo: ${repoUrl}:${baseBranch} -> ${shadowBranch}, User: ${userId}`);
       
       return workspaceInfo;
     });

@@ -12,6 +12,8 @@ import {
   TaskConfig,
 } from "../interfaces/types";
 import { LocalToolExecutor } from "./local-tool-executor";
+import { GitManager } from "../../services/git-manager";
+import { prisma } from "@repo/db";
 
 /**
  * LocalWorkspaceManager implements workspace management for local filesystem execution
@@ -71,7 +73,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
   }
 
   async prepareWorkspace(taskConfig: TaskConfig): Promise<WorkspaceInfo> {
-    const { id: taskId, repoUrl, branch, userId } = taskConfig;
+    const { id: taskId, repoUrl, baseBranch, shadowBranch, userId } = taskConfig;
     const workspacePath = this.getTaskWorkspaceDir(taskId);
 
     try {
@@ -85,7 +87,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
       // Clone the repository
       const cloneResult = await this.githubService.cloneRepository(
         repoUrl,
-        branch,
+        baseBranch,
         workspacePath,
         userId
       );
@@ -112,6 +114,19 @@ export class LocalWorkspaceManager implements WorkspaceManager {
         };
       }
 
+      // Set up git configuration and create shadow branch
+      try {
+        await this.setupGitForTask(taskId, workspacePath, baseBranch, shadowBranch, userId);
+      } catch (error) {
+        console.error(`[LOCAL_WORKSPACE] Failed to setup git for task ${taskId}:`, error);
+        return {
+          success: false,
+          workspacePath,
+          cloneResult,
+          error: `Git setup failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        };
+      }
+
       console.log(
         `[LOCAL_WORKSPACE] Successfully prepared workspace for task ${taskId}`
       );
@@ -133,6 +148,57 @@ export class LocalWorkspaceManager implements WorkspaceManager {
         error:
           error instanceof Error ? error.message : "Unknown workspace error",
       };
+    }
+  }
+
+  /**
+   * Setup git configuration and create shadow branch for the task
+   */
+  private async setupGitForTask(
+    taskId: string,
+    workspacePath: string,
+    baseBranch: string,
+    shadowBranch: string,
+    userId: string
+  ): Promise<void> {
+    const gitManager = new GitManager(workspacePath, taskId);
+
+    try {
+      // Get user information from database
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, email: true },
+      });
+
+      if (!user) {
+        throw new Error(`User not found: ${userId}`);
+      }
+
+      // Configure git user
+      await gitManager.configureGitUser({
+        name: user.name,
+        email: user.email,
+      });
+
+      // Create and checkout shadow branch, get the base commit SHA
+      const baseCommitSha = await gitManager.createShadowBranch(baseBranch, shadowBranch);
+
+      // Update task in database with base commit SHA
+      await prisma.task.update({
+        where: { id: taskId },
+        data: {
+          baseCommitSha,
+        },
+      });
+
+      console.log(`[LOCAL_WORKSPACE] Git setup complete for task ${taskId}:`, {
+        baseBranch,
+        shadowBranch,
+        baseCommitSha,
+      });
+    } catch (error) {
+      console.error(`[LOCAL_WORKSPACE] Git setup failed for task ${taskId}:`, error);
+      throw error;
     }
   }
 
@@ -162,7 +228,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
       console.log(
         `[LOCAL_WORKSPACE] Successfully cleaned up workspace for task ${taskId}`
       );
-      
+
       return {
         success: true,
         message: `Successfully cleaned up workspace for task ${taskId}`,
@@ -172,12 +238,11 @@ export class LocalWorkspaceManager implements WorkspaceManager {
         `[LOCAL_WORKSPACE] Failed to cleanup workspace for task ${taskId}:`,
         error
       );
-      
+
       return {
         success: false,
-        message: `Failed to cleanup workspace for task ${taskId}: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
+        message: `Failed to cleanup workspace for task ${taskId}: ${error instanceof Error ? error.message : "Unknown error"
+          }`,
       };
     }
   }
@@ -240,7 +305,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
 
   async healthCheck(taskId: string): Promise<HealthStatus> {
     const exists = await this.workspaceExists(taskId);
-    
+
     if (!exists) {
       return {
         healthy: false,
@@ -252,7 +317,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
       // Basic health check: verify we can list the workspace directory
       const workspacePath = this.getWorkspacePath(taskId);
       await fs.readdir(workspacePath);
-      
+
       return {
         healthy: true,
         message: "Workspace is healthy and accessible",

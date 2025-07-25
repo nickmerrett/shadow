@@ -7,6 +7,7 @@ import {
   TaskConfig,
 } from "../interfaces/types";
 import config from "../../config";
+import { prisma } from "@repo/db";
 
 /**
  * RemoteWorkspaceManager manages Kubernetes pods for remote agent execution
@@ -98,7 +99,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
   }
 
   async prepareWorkspace(taskConfig: TaskConfig): Promise<WorkspaceInfo> {
-    const { id: taskId, repoUrl, branch, userId } = taskConfig;
+    const { id: taskId, repoUrl, baseBranch, shadowBranch, userId } = taskConfig;
     
     try {
       console.log(`[REMOTE_WORKSPACE] Preparing workspace for task ${taskId}`);
@@ -110,7 +111,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       await this.ensureSharedCachePVC();
 
       // Create pod specification for the agent
-      const podSpec = this.createAgentPodSpec(taskId, repoUrl, branch, userId);
+      const podSpec = this.createAgentPodSpec(taskId, repoUrl, baseBranch, shadowBranch, userId);
 
       // Create the pod in Kubernetes
       const pod = await this.makeK8sRequest<any>(`/api/v1/namespaces/${this.namespace}/pods`, {
@@ -128,6 +129,15 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
 
       console.log(`[REMOTE_WORKSPACE] Created service ${service.metadata.name} for task ${taskId}`);
 
+      // Set up git branch tracking in database
+      // Note: Actual git operations happen in the pod via sidecar
+      try {
+        await this.setupGitBranchTracking(taskId, baseBranch, shadowBranch, userId);
+      } catch (error) {
+        console.error(`[REMOTE_WORKSPACE] Failed to setup git branch tracking for task ${taskId}:`, error);
+        // Don't fail the workspace preparation for this
+      }
+
       return {
         success: true,
         workspacePath: "/workspace", // Standard path inside the pod
@@ -136,7 +146,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
         serviceName: service.metadata.name,
         cloneResult: {
           repoUrl,
-          branch,
+          baseBranch,
           success: true,
         },
       };
@@ -292,12 +302,43 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
   }
 
   /**
+   * Setup git branch tracking in database for remote tasks
+   * The actual git operations will be handled by the sidecar in the pod
+   */
+  private async setupGitBranchTracking(
+    taskId: string,
+    baseBranch: string,
+    shadowBranch: string,
+    _userId: string
+  ): Promise<void> {
+    try {
+      // Update task in database with branch information
+      // Note: baseCommitSha will be set later by the sidecar after git operations
+      await prisma.task.update({
+        where: { id: taskId },
+        data: {
+          baseCommitSha: "pending", // Will be updated by sidecar once git operations complete
+        },
+      });
+
+      console.log(`[REMOTE_WORKSPACE] Git branch tracking setup for task ${taskId}:`, {
+        baseBranch,
+        shadowBranch,
+      });
+    } catch (error) {
+      console.error(`[REMOTE_WORKSPACE] Failed to setup git branch tracking for task ${taskId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Create Kubernetes pod specification for the agent
    */
   private createAgentPodSpec(
     taskId: string,
     repoUrl: string,
-    branch: string,
+    baseBranch: string,
+    shadowBranch: string,
     userId: string
   ): any {
     const podName = `shadow-agent-${taskId}`;
@@ -316,7 +357,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
         },
         annotations: {
           "shadow.ai/repo-url": repoUrl,
-          "shadow.ai/branch": branch,
+          "shadow.ai/branch": baseBranch,
           "shadow.ai/created-at": new Date().toISOString(),
         },
       },
@@ -342,8 +383,12 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
                 value: repoUrl,
               },
               {
-                name: "BRANCH",
-                value: branch,
+                name: "BASE_BRANCH",
+                value: baseBranch,
+              },
+              {
+                name: "SHADOW_BRANCH",
+                value: shadowBranch,
               },
               {
                 name: "USER_ID",

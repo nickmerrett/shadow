@@ -17,7 +17,8 @@ async function testModeIntegration(mode: AgentMode) {
   const testConfig = {
     id: taskId,
     repoUrl: "https://github.com/anthropics/claude-code",
-    branch: "main",
+    baseBranch: "main",
+    shadowBranch: `shadow/task-${taskId}`,
     userId: "test-user",
   };
 

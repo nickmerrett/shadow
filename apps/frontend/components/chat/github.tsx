@@ -29,19 +29,25 @@ import { toast } from "sonner";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
 
 export function GithubConnection({
-  onSelect,
+  selectedRepo,
+  selectedBranch,
+  setSelectedRepo,
+  setSelectedBranch,
 }: {
-  onSelect?: (repoUrl: string, branch: string) => void;
+  selectedRepo: Repository | null;
+  selectedBranch: { name: string; commitSha: string } | null;
+  setSelectedRepo: (repo: Repository | null) => void;
+  setSelectedBranch: (
+    branch: { name: string; commitSha: string } | null
+  ) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<"repos" | "branches">("repos");
-  const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
-  const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
+
   const [repoSearch, setRepoSearch] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
   const [collapsedOrgs, setCollapsedOrgs] = useState<Set<string>>(new Set());
 
-  // Query for GitHub status
   const {
     data: githubStatus,
     isLoading: isLoadingStatus,
@@ -54,7 +60,6 @@ export function GithubConnection({
     error: reposError,
   } = useGitHubRepositories(isOpen && !!githubStatus?.isAppInstalled);
 
-  // Query for branches
   const {
     data: branches = [],
     isLoading: isLoadingBranches,
@@ -64,10 +69,8 @@ export function GithubConnection({
     !!selectedRepo && mode === "branches" && !!githubStatus?.isAppInstalled
   );
 
-  // Handle errors with toast notifications, but don't break UI
   if (statusError) {
     console.error("GitHub status error:", statusError);
-    // Don't show toast for status errors - these are handled by the UI states
   }
 
   if (reposError) {
@@ -127,14 +130,9 @@ export function GithubConnection({
     setBranchSearch("");
   };
 
-  const handleBranchSelect = (branchName: string) => {
-    setSelectedBranch(branchName);
+  const handleBranchSelect = (branchName: string, commitSha: string) => {
+    setSelectedBranch({ name: branchName, commitSha });
     setIsOpen(false);
-
-    // Notify parent component of the selection
-    if (selectedRepo && onSelect) {
-      onSelect(selectedRepo.full_name, branchName);
-    }
   };
 
   const handleBackToRepos = () => {
@@ -186,8 +184,8 @@ export function GithubConnection({
           <Folder className="size-4" />
           <span>{selectedRepo.full_name}</span>
           <GitBranch className="size-4" />
-          <span title={selectedBranch}>
-            {truncateBranchName(selectedBranch, maxBranchLength)}
+          <span title={selectedBranch.name}>
+            {truncateBranchName(selectedBranch.name, maxBranchLength)}
           </span>
         </>
       );
@@ -239,13 +237,13 @@ export function GithubConnection({
   const renderRepos = (
     <div>
       <div className="relative border-b">
-        <Search className="text-muted-foreground absolute top-1/2 left-2 size-3.5 -translate-y-1/2 transform" />
+        <Search className="text-muted-foreground absolute left-2 top-1/2 size-3.5 -translate-y-1/2 transform" />
         <input
           placeholder="Search repositories..."
           value={repoSearch}
           autoFocus
           onChange={(e) => setRepoSearch(e.target.value)}
-          className="h-9 w-full pr-3 pl-7 text-sm focus:outline-none"
+          className="h-9 w-full pl-7 pr-3 text-sm focus:outline-none"
         />
       </div>
 
@@ -266,7 +264,7 @@ export function GithubConnection({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground w-full gap-2 !px-4.5 text-[13px] font-normal hover:bg-transparent"
+                  className="text-muted-foreground !px-4.5 w-full gap-2 text-[13px] font-normal hover:bg-transparent"
                 >
                   <Folder className="size-3.5" />
                   {group.name}
@@ -313,13 +311,13 @@ export function GithubConnection({
       </button>
 
       <div className="relative border-b">
-        <Search className="text-muted-foreground absolute top-1/2 left-2 size-3.5 -translate-y-1/2 transform" />
+        <Search className="text-muted-foreground absolute left-2 top-1/2 size-3.5 -translate-y-1/2 transform" />
         <input
           placeholder="Search branches..."
           value={branchSearch}
           autoFocus
           onChange={(e) => setBranchSearch(e.target.value)}
-          className="h-9 w-full pr-3 pl-7 text-sm focus:outline-none"
+          className="h-9 w-full pl-7 pr-3 text-sm focus:outline-none"
         />
       </div>
 
@@ -336,7 +334,7 @@ export function GithubConnection({
               variant="ghost"
               size="sm"
               className="hover:bg-accent w-full justify-start text-sm font-normal"
-              onClick={() => handleBranchSelect(branch.name)}
+              onClick={() => handleBranchSelect(branch.name, branch.commit.sha)}
             >
               <span className="truncate">{branch.name}</span>
             </Button>

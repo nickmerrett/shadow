@@ -237,12 +237,10 @@ export interface LLMConfig {
 
 export const AvailableModels = {
   // Anthropic models
-  CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20241022",
-  CLAUDE_3_5_HAIKU: "claude-3-5-haiku-20241022",
+  CLAUDE_SONNET_4: "claude-sonnet-4-20250514",
+  CLAUDE_OPUS_4: "claude-opus-4-20250514",
   // OpenAI models
   GPT_4O: "gpt-4o",
-  GPT_4O_MINI: "gpt-4o-mini",
-  GPT_4_TURBO: "gpt-4-turbo",
   O3: "o3",
   O4_MINI_HIGH: "o4-mini-high",
 } as const;
@@ -262,25 +260,25 @@ export interface ModelInfo {
 }
 
 export const ModelInfos: Record<ModelType, ModelInfo> = {
-  [AvailableModels.CLAUDE_3_5_SONNET]: {
-    id: AvailableModels.CLAUDE_3_5_SONNET,
-    name: "Claude 3.5 Sonnet",
+  [AvailableModels.CLAUDE_SONNET_4]: {
+    id: AvailableModels.CLAUDE_SONNET_4,
+    name: "Claude Sonnet 4",
     provider: "anthropic",
-    description: "Most capable model for complex reasoning and coding",
+    description: "High-performance model with exceptional reasoning capabilities",
     maxTokens: 200000,
     costPer1mTokensInput: 3,
     costPer1mTokensOutput: 15,
     supportsStreaming: true,
     supportsTools: true,
   },
-  [AvailableModels.CLAUDE_3_5_HAIKU]: {
-    id: AvailableModels.CLAUDE_3_5_HAIKU,
-    name: "Claude 3.5 Haiku",
+  [AvailableModels.CLAUDE_OPUS_4]: {
+    id: AvailableModels.CLAUDE_OPUS_4,
+    name: "Claude Opus 4",
     provider: "anthropic",
-    description: "Fastest and most cost-effective model",
+    description: "Most powerful and capable Claude model",
     maxTokens: 200000,
-    costPer1mTokensInput: 1,
-    costPer1mTokensOutput: 5,
+    costPer1mTokensInput: 15,
+    costPer1mTokensOutput: 75,
     supportsStreaming: true,
     supportsTools: true,
   },
@@ -288,32 +286,10 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     id: AvailableModels.GPT_4O,
     name: "GPT-4o",
     provider: "openai",
-    description: "Most advanced multimodal model",
+    description: "Fast, intelligent, flexible GPT model",
     maxTokens: 128000,
     costPer1mTokensInput: 2.5,
     costPer1mTokensOutput: 10,
-    supportsStreaming: true,
-    supportsTools: true,
-  },
-  [AvailableModels.GPT_4O_MINI]: {
-    id: AvailableModels.GPT_4O_MINI,
-    name: "GPT-4o Mini",
-    provider: "openai",
-    description: "Cost-efficient small model for simple tasks",
-    maxTokens: 128000,
-    costPer1mTokensInput: 0.15,
-    costPer1mTokensOutput: 0.6,
-    supportsStreaming: true,
-    supportsTools: true,
-  },
-  [AvailableModels.GPT_4_TURBO]: {
-    id: AvailableModels.GPT_4_TURBO,
-    name: "GPT-4 Turbo",
-    provider: "openai",
-    description: "Previous generation model with large context",
-    maxTokens: 128000,
-    costPer1mTokensInput: 10,
-    costPer1mTokensOutput: 30,
     supportsStreaming: true,
     supportsTools: true,
   },
@@ -321,7 +297,7 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     id: AvailableModels.O3,
     name: "o3",
     provider: "openai",
-    description: "Most advanced model",
+    description: "Most powerful OpenAI reasoning model",
     maxTokens: 128000,
     costPer1mTokensInput: 2.5,
     costPer1mTokensOutput: 10,
@@ -332,7 +308,7 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     id: AvailableModels.O4_MINI_HIGH,
     name: "o4 Mini High",
     provider: "openai",
-    description: "Advanced Reasoning",
+    description: "Faster, more affordable reasoning model",
     maxTokens: 128000,
     costPer1mTokensInput: 2.5,
     costPer1mTokensOutput: 10,
@@ -398,3 +374,58 @@ export interface TaskStatusUpdateEvent {
   status: string; // Will match TaskStatus from database
   timestamp: string;
 }
+
+// === File Type Definitions ===
+
+// Constants for file size limits
+export const FILE_SIZE_LIMITS = {
+  MAX_FILE_SIZE_BYTES: 10 * 1024 * 1024, // 10MB - single limit for both memory and client
+} as const;
+
+// Language mapping for editor syntax highlighting
+export const LANGUAGE_MAP = {
+  tsx: "tsx",
+  ts: "typescript",
+  js: "javascript",
+  jsx: "jsx",
+  json: "json",
+  md: "markdown",
+  css: "css",
+  scss: "css",
+  sass: "css",
+  less: "css",
+  html: "html",
+  py: "python",
+  go: "go",
+  java: "java",
+  rs: "rust",
+  cpp: "cpp",
+  cc: "cpp",
+  cxx: "cpp",
+  c: "c",
+  h: "cpp",
+} as const;
+
+export type SupportedExtension = keyof typeof LANGUAGE_MAP;
+export type EditorLanguage = typeof LANGUAGE_MAP[SupportedExtension];
+
+// Supported extensions as a Set for fast lookup
+export const SUPPORTED_EXTENSIONS = new Set<string>(Object.keys(LANGUAGE_MAP));
+
+// Function to get editor language from file path (for editor component)
+export const getLanguageFromPath = (path: string): EditorLanguage | "plaintext" => {
+  const extension = path.split(".").pop()?.toLowerCase() as SupportedExtension;
+  return LANGUAGE_MAP[extension] || "plaintext";
+};
+
+// Function to check if file extension is supported (for files.ts)
+export const isSupportedFileType = (path: string): boolean => {
+  const extension = path.split(".").pop()?.toLowerCase();
+  if (!extension) return false;
+
+  // Also support README files without extension
+  const fileName = path.split("/").pop()?.toLowerCase() || "";
+  if (/^readme/i.test(fileName)) return true;
+
+  return SUPPORTED_EXTENSIONS.has(extension);
+};

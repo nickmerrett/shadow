@@ -6,7 +6,8 @@ import {
   DirectoryListing,
   FileResult,
   FileSearchResult,
-  GrepOptions,  
+  FileStatsResult,
+  GrepOptions,
   GrepResult,
   ReadFileOptions,
   WriteResult,
@@ -26,7 +27,7 @@ export class MockRemoteToolExecutor implements ToolExecutor {
   private latencyMs: number;
 
   constructor(
-    taskId: string, 
+    taskId: string,
     workspacePath: string = "/mock/workspace",
     options: {
       simulateFailures?: boolean;
@@ -97,6 +98,26 @@ export class MockRemoteToolExecutor implements ToolExecutor {
     });
   }
 
+  async getFileStats(targetFile: string): Promise<FileStatsResult> {
+    return this.simulateNetworkCall("getFileStats", () => {
+      // Generate mock file stats
+      const mockSize = Math.floor(Math.random() * 100000) + 1000; // 1KB to 100KB
+      const mockMtime = new Date(Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000)); // Up to 30 days ago
+      const isDirectory = targetFile.endsWith('/') || !targetFile.includes('.');
+
+      return {
+        success: true,
+        stats: {
+          size: mockSize,
+          mtime: mockMtime,
+          isFile: !isDirectory,
+          isDirectory: isDirectory,
+        },
+        message: `Retrieved stats for: ${targetFile} (${mockSize} bytes)`,
+      };
+    });
+  }
+
   async writeFile(
     targetFile: string,
     content: string,
@@ -109,8 +130,8 @@ export class MockRemoteToolExecutor implements ToolExecutor {
       return {
         success: true,
         isNewFile,
-        message: isNewFile 
-          ? `Created new file: ${targetFile}` 
+        message: isNewFile
+          ? `Created new file: ${targetFile}`
           : `Modified file: ${targetFile}`,
         linesAdded: isNewFile ? linesAdded : Math.floor(linesAdded * 0.8),
         linesRemoved: isNewFile ? 0 : Math.floor(linesAdded * 0.2),
@@ -146,7 +167,7 @@ export class MockRemoteToolExecutor implements ToolExecutor {
     return this.simulateNetworkCall("searchReplace", () => {
       // Simulate different scenarios
       const scenario = Math.random();
-      
+
       if (scenario < 0.1) {
         // 10% chance text not found
         return {
@@ -284,7 +305,7 @@ export class MockRemoteToolExecutor implements ToolExecutor {
   ): Promise<CodebaseSearchResult> {
     return this.simulateNetworkCall("codebaseSearch", () => {
       const searchTerms = query.split(" ").filter(term => term.length > 2);
-      
+
       // Generate mock code search results
       const mockResults = [
         {
@@ -329,7 +350,7 @@ export class MockRemoteToolExecutor implements ToolExecutor {
 
       // Simulate different command scenarios
       const scenario = Math.random();
-      
+
       if (scenario < 0.1) {
         // 10% chance of command failure
         return {

@@ -14,17 +14,17 @@ export default async function NotFound() {
       <SidebarViews initialTasks={initialTasks} currentTask={null} />
 
       {/* Fallback content */}
-      <div className="flex flex-col grow items-center justify-center gap-6 p-6">
+      <div className="flex grow flex-col items-center justify-center gap-6 p-6">
         <div className="flex items-center gap-4">
           <LogoHover size="lg" forceAnimate />
-          <h2 className="text-4xl font-bold font-departureMono">Not Found</h2>
+          <h2 className="font-departureMono text-4xl font-bold">Not Found</h2>
         </div>
-        <p className="text-lg font-departureMono">
+        <p className="font-departureMono text-lg">
           We couldn't find the page you were looking for.
         </p>
         <Link
           href="/"
-          className="text-lg text-blue-500/50 font-departureMono hover:text-blue-500 transition-colors"
+          className="font-departureMono text-lg text-blue-500/50 transition-colors hover:text-blue-500"
         >
           Return Home
         </Link>

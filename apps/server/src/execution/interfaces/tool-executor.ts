@@ -5,6 +5,7 @@ import {
   DirectoryListing,
   FileResult,
   FileSearchResult,
+  FileStatsResult,
   GrepOptions,
   GrepResult,
   ReadFileOptions,
@@ -22,6 +23,8 @@ export interface ToolExecutor {
     targetFile: string,
     options?: ReadFileOptions
   ): Promise<FileResult>;
+
+  getFileStats(targetFile: string): Promise<FileStatsResult>;
 
   writeFile(
     targetFile: string,

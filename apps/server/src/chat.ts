@@ -18,6 +18,8 @@ import {
   handleStreamError,
   startStream,
 } from "./socket";
+import { GitManager } from "./services/git-manager";
+import config from "./config";
 import { updateTaskStatus } from "./utils/task-status";
 
 export const DEFAULT_MODEL: ModelType = "gpt-4o";
@@ -109,6 +111,71 @@ export class ChatService {
         } as any,
       },
     });
+  }
+
+  /**
+   * Commit changes to git if there are any changes after an LLM response
+   */
+  private async commitChangesIfAny(taskId: string, workspacePath?: string): Promise<void> {
+    try {
+      // Get task info including user and workspace details
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        include: { user: true },
+      });
+
+      if (!task) {
+        console.warn(`[CHAT] Task not found for git commit: ${taskId}`);
+        return;
+      }
+
+      if (!task.shadowBranch) {
+        console.warn(`[CHAT] No shadow branch configured for task ${taskId}, skipping git commit`);
+        return;
+      }
+
+      // Determine workspace path - use provided path or fall back to task workspace path
+      const resolvedWorkspacePath = workspacePath || task.workspacePath;
+      if (!resolvedWorkspacePath) {
+        console.warn(`[CHAT] No workspace path available for task ${taskId}, skipping git commit`);
+        return;
+      }
+
+      // For remote mode, we would need to make API calls to the sidecar
+      // For now, only handle local mode
+      if (config.agentMode === "local") {
+        const gitManager = new GitManager(resolvedWorkspacePath, taskId);
+
+        // Check if there are changes to commit
+        const hasChanges = await gitManager.hasChanges();
+        if (!hasChanges) {
+          console.log(`[CHAT] No changes to commit for task ${taskId}`);
+          return;
+        }
+
+        // Commit changes with user and Shadow co-author
+        const committed = await gitManager.commitChangesIfAny(
+          {
+            name: task.user.name,
+            email: task.user.email,
+          },
+          {
+            name: "Shadow",
+            email: "noreply@shadow.ai",
+          }
+        );
+
+        if (committed) {
+          console.log(`[CHAT] Successfully committed changes for task ${taskId}`);
+        }
+      } else {
+        console.log(`[CHAT] Git commits for remote mode not yet implemented`);
+        // TODO: Implement remote mode git commits via sidecar API
+      }
+    } catch (error) {
+      console.error(`[CHAT] Failed to commit changes for task ${taskId}:`, error);
+      throw error;
+    }
   }
 
   async getChatHistory(taskId: string): Promise<Message[]> {
@@ -453,6 +520,14 @@ export class ChatService {
         await updateTaskStatus(taskId, "STOPPED", "CHAT");
       } else {
         await updateTaskStatus(taskId, "COMPLETED", "CHAT");
+        
+        // Commit changes if there are any (only for successfully completed responses)
+        try {
+          await this.commitChangesIfAny(taskId, workspacePath);
+        } catch (error) {
+          console.error(`[CHAT] Failed to commit changes for task ${taskId}:`, error);
+          // Don't fail the entire response for git commit failures
+        }
       }
 
       // Clean up stream tracking

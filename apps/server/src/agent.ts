@@ -136,7 +136,9 @@ class LocalCodingAgent {
           title: "Local Agent Session",
           description: "Local coding agent session",
           repoUrl: config.workspaceDir, // Use workspace dir as "repo"
-          branch: "local",
+          baseBranch: "local", // Track the original branch for git-first workflow
+          shadowBranch: `shadow/task-${this.taskId}`,
+          baseCommitSha: "local", // Track the original branch for git-first workflow
           userId: defaultUser.id,
           mode: "FULL_AUTO",
           status: "RUNNING",
@@ -363,7 +365,7 @@ async function main() {
 }
 
 // Run if called directly
-// eslint-disable-next-line
+
 if (require.main === module) {
   main().catch(console.error);
 }

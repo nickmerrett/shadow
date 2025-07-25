@@ -24,27 +24,37 @@ import type {
 import { StickToBottom, type StickToBottomContext } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
 import { TaskPageContent } from "./task-content";
+import { useTask } from "@/hooks/use-task";
+import { useParams } from "next/navigation";
+import { useAgentEnvironment } from "../agent-environment/agent-environment-context";
 
 export function TaskPageLayout({
   initialLayout,
-  taskTitle,
 }: {
   initialLayout?: number[];
-  taskTitle: string | null;
 }) {
+  const { taskId } = useParams<{ taskId: string }>();
   const { open } = useSidebar();
   const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(taskTitle || "");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const { task } = useTask(taskId);
+  const [editValue, setEditValue] = useState(task?.title || "");
 
   const stickToBottomContextRef = useRef<StickToBottomContext>(null);
   const { isAtTop } = useIsAtTop(0, stickToBottomContextRef.current?.scrollRef);
+
+  useEffect(() => {
+    if (task) {
+      setEditValue(task.title);
+    }
+  }, [task]);
 
   /* 
   Resizable panel state
   */
 
-  const rightPanelRef = useRef<ImperativePanelHandle>(null);
+  const { rightPanelRef } = useAgentEnvironment();
   const resizablePanelGroupRef = useRef<ImperativePanelGroupHandle>(null);
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
@@ -86,14 +96,12 @@ export function TaskPageLayout({
     if (!panel) return;
     if (panel.isCollapsed()) {
       panel.expand();
-      resizablePanelGroupRef.current?.setLayout([40, 60]);
     } else {
       panel.collapse();
     }
   }, [rightPanelRef]);
 
   useEffect(() => {
-    console.log("rightPanelRef", rightPanelRef.current);
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "j" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
@@ -105,9 +113,10 @@ export function TaskPageLayout({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleToggleRightPanel]);
 
+  const titleRef = useRef<HTMLDivElement>(null);
+
   const handleTitleClick = () => {
     setIsEditing(true);
-    setEditValue(taskTitle || "");
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent) => {
@@ -116,13 +125,13 @@ export function TaskPageLayout({
       setIsEditing(false);
     } else if (e.key === "Escape") {
       setIsEditing(false);
-      setEditValue(taskTitle || "");
+      setEditValue(task?.title || "");
     }
   };
 
   const handleInputBlur = () => {
     setIsEditing(false);
-    setEditValue(taskTitle || "");
+    setEditValue(task?.title || "");
   };
 
   useEffect(() => {
@@ -146,8 +155,8 @@ export function TaskPageLayout({
           initial="smooth"
           contextRef={stickToBottomContextRef}
         >
-          <div className="bg-background sticky top-0 z-10 flex w-full items-center justify-between p-3">
-            <div className="flex items-center gap-1">
+          <div className="bg-background sticky top-0 z-10 flex w-full items-center justify-between">
+            <div className="flex grow items-center gap-1 overflow-hidden p-3 pr-0">
               {!open && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -158,40 +167,47 @@ export function TaskPageLayout({
                   </TooltipContent>
                 </Tooltip>
               )}
-              {isEditing ? (
-                <input
-                  ref={inputRef}
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onKeyDown={handleInputKeyDown}
-                  onBlur={handleInputBlur}
-                  className="focus:ring-ring/10 focus:border-border flex h-7 max-w-48 items-center rounded-md border border-transparent bg-transparent px-2 focus:ring-2 focus:outline-none"
-                />
-              ) : (
-                <div
-                  className="hover:border-border flex h-7 max-w-48 cursor-text items-center rounded-md border border-transparent px-2"
-                  onClick={handleTitleClick}
-                >
-                  <span className="truncate">{taskTitle}</span>
-                </div>
-              )}
+              <input
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={handleInputKeyDown}
+                onBlur={handleInputBlur}
+                style={{ width: titleRef.current?.clientWidth }}
+                className={cn(
+                  "focus:ring-ring/10 focus:border-border h-7 w-full items-center rounded-md border border-transparent bg-transparent px-2 focus:outline-none focus:ring-2",
+                  isEditing ? "flex" : "hidden"
+                )}
+              />
+              <div
+                className={cn(
+                  "hover:border-border flex h-7 cursor-text items-center truncate rounded-md border border-transparent px-2",
+                  isEditing ? "pointer-events-none opacity-0" : "opacity-100"
+                )}
+                onClick={handleTitleClick}
+                ref={titleRef}
+              >
+                <span className="truncate">{task?.title}</span>
+              </div>
             </div>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("size-7 cursor-pointer")}
-                  onClick={handleToggleRightPanel}
-                >
-                  <AppWindowMac className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left" shortcut="⌘J">
-                Toggle Agent Environment
-              </TooltipContent>
-            </Tooltip>
+            <div className="p-3">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("size-7 cursor-pointer")}
+                    onClick={handleToggleRightPanel}
+                  >
+                    <AppWindowMac className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" shortcut="⌘J">
+                  Toggle Shadow Realm
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
           <TaskPageContent isAtTop={isAtTop} />
         </StickToBottom>

@@ -12,7 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useTasks } from "@/hooks/use-tasks";
-import { FileChange, Task, Todo } from "@repo/db";
+import { Task } from "@repo/db";
 import { useEffect, useRef, useState } from "react";
 import { SidebarAgentView } from "./agent-view";
 import { SidebarNavigation } from "./navigation";
@@ -22,19 +22,15 @@ export type SidebarView = "tasks" | "agent";
 
 export function SidebarViews({
   initialTasks,
-  currentTask,
+  currentTaskId,
 }: {
   initialTasks: Task[];
-  currentTask: {
-    taskData: Task;
-    todos: Todo[];
-    fileChanges: FileChange[];
-  } | null;
+  currentTaskId: string;
 }) {
   const { data: tasks, isLoading: loading, error } = useTasks(initialTasks);
 
   const [sidebarView, setSidebarView] = useState<SidebarView>(
-    currentTask ? "agent" : "tasks"
+    currentTaskId ? "agent" : "tasks"
   );
 
   // Initial render trick to avoid hydration issues on navigation
@@ -45,21 +41,19 @@ export function SidebarViews({
       isInitialRender.current = false;
       return;
     }
-    if (currentTask) {
+    if (currentTaskId) {
       setSidebarView("agent");
     } else {
       setSidebarView("tasks");
     }
-  }, [currentTask]);
+  }, [currentTaskId]);
 
   return (
     <div className="flex">
       <SidebarNavigation
-        doesCurrentTaskExist={!!currentTask}
+        currentTaskId={currentTaskId}
         sidebarView={sidebarView}
         setSidebarView={setSidebarView}
-        currentTaskId={currentTask?.taskData.id || null}
-        currentTaskStatus={currentTask?.taskData.status || null}
       />
       <Sidebar>
         <SidebarContent>
@@ -77,11 +71,8 @@ export function SidebarViews({
             </Tooltip>
           </SidebarGroup>
           <div className="mt-6 flex flex-col gap-4">
-            {currentTask && sidebarView === "agent" ? (
-              <SidebarAgentView
-                taskId={currentTask.taskData.id}
-                currentTask={currentTask}
-              />
+            {currentTaskId && sidebarView === "agent" ? (
+              <SidebarAgentView taskId={currentTaskId} />
             ) : (
               <SidebarTasksView tasks={tasks} loading={loading} error={error} />
             )}

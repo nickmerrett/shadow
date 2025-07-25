@@ -93,13 +93,8 @@ export default function Terminal() {
   }, []);
 
   return (
-    <div className="bg-sidebar flex h-full flex-col">
-      <div className="border-sidebar-border border-b p-2 select-none">
-        <div className="text-sm">Terminal</div>
-      </div>
-      <div className="bg-background flex-1 overflow-hidden p-2">
-        <div ref={terminalRef} className="h-full" />
-      </div>
+    <div className="bg-background flex-1 overflow-hidden p-2">
+      <div ref={terminalRef} className="h-full" />
     </div>
   );
 }

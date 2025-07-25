@@ -6,6 +6,7 @@ import {
   DirectoryListing,
   FileResult,
   FileSearchResult,
+  FileStatsResult,
   GrepOptions,
   GrepResult,
   ReadFileOptions,
@@ -26,7 +27,7 @@ export class RemoteToolExecutor implements ToolExecutor {
   private timeout: number;
   private maxRetries: number;
   private retryDelay: number;
-  
+
   // Circuit breaker state
   private consecutiveFailures: number = 0;
   private lastFailureTime: number = 0;
@@ -80,14 +81,14 @@ export class RemoteToolExecutor implements ToolExecutor {
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
         const result = await this.makeRequestAttempt<T>(endpoint, options);
-        
+
         // Reset circuit breaker on successful request
         this.resetCircuitBreaker();
-        
+
         return result;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error("Unknown error");
-        
+
         // Log the attempt failure
         console.warn(
           `[REMOTE_TOOL] Request attempt ${attempt}/${this.maxRetries} failed for ${endpoint}:`,
@@ -142,7 +143,7 @@ export class RemoteToolExecutor implements ToolExecutor {
   private recordFailure(): void {
     this.consecutiveFailures++;
     this.lastFailureTime = Date.now();
-    
+
     if (this.consecutiveFailures >= this.circuitBreakerThreshold) {
       console.warn(
         `[REMOTE_TOOL] Circuit breaker opened after ${this.consecutiveFailures} consecutive failures. ` +
@@ -195,7 +196,7 @@ export class RemoteToolExecutor implements ToolExecutor {
       return await response.json();
     } catch (error) {
       clearTimeout(timeoutId);
-      
+
       if (error instanceof Error) {
         if (error.name === "AbortError") {
           throw new Error(`Request timeout after ${this.timeout}ms`);
@@ -211,22 +212,22 @@ export class RemoteToolExecutor implements ToolExecutor {
    */
   private isNonRetryableError(error: Error): boolean {
     const message = error.message.toLowerCase();
-    
+
     // Don't retry on client errors (4xx status codes)
     if (message.includes("http 4")) {
       return true;
     }
-    
+
     // Don't retry on authentication/authorization errors
     if (message.includes("unauthorized") || message.includes("forbidden")) {
       return true;
     }
-    
+
     // Don't retry on bad request errors
     if (message.includes("bad request") || message.includes("invalid")) {
       return true;
     }
-    
+
     // Retry on network errors, timeouts, and server errors (5xx)
     return false;
   }
@@ -246,13 +247,13 @@ export class RemoteToolExecutor implements ToolExecutor {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       console.error(`[REMOTE_TOOL] ${operation} failed for task ${this.taskId}:`, errorMessage);
-      
+
       // If a fallback value is provided, use it instead of throwing
       if (fallbackValue !== undefined) {
         console.warn(`[REMOTE_TOOL] Using fallback value for ${operation}`);
         return fallbackValue;
       }
-      
+
       // Re-throw with additional context
       throw new Error(`Remote ${operation} failed: ${errorMessage}`);
     }
@@ -281,13 +282,38 @@ export class RemoteToolExecutor implements ToolExecutor {
         if (options?.endLineOneIndexedInclusive) {
           params.set('endLineOneIndexedInclusive', options.endLineOneIndexedInclusive.toString());
         }
-        
+
         const queryString = params.toString();
         const endpoint = `/files/${encodeURIComponent(targetFile)}${queryString ? '?' + queryString : ''}`;
-        
+
         return await this.makeRequest<FileResult>(endpoint, {
           method: "GET",
         });
+      },
+      fallback
+    );
+  }
+
+  async getFileStats(targetFile: string): Promise<FileStatsResult> {
+    const fallback: FileStatsResult = {
+      success: false,
+      error: "Remote execution unavailable",
+      message: `Failed to get file stats: ${targetFile}`,
+    };
+
+    return this.withErrorHandling(
+      `getFileStats(${targetFile})`,
+      async () => {
+        const response = await this.makeRequest<any>(`/files/${encodeURIComponent(targetFile)}/stats`, {
+          method: "GET",
+        });
+
+        // Convert mtime string back to Date object
+        if (response.success && response.stats) {
+          response.stats.mtime = new Date(response.stats.mtime);
+        }
+
+        return response;
       },
       fallback
     );
