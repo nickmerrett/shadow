@@ -5,6 +5,7 @@ import PineconeHandler from "./embedding/pineconeService";
 import { getLanguageForPath } from "./languages";
 import { retrieve } from "./retrieval";
 import { isValidRepo } from "./utils/repository";
+import { markdownRouter } from "./shallowwiki/markdown-routes";
 
 const router = express.Router();
 const pinecone = new PineconeHandler();
@@ -18,6 +19,9 @@ interface CodeBody {
 router.get("/", (req, res) => {
   res.json({ message: "Hello from indexing API!" });
 });
+
+// Mount the markdown router
+router.use("/markdown", markdownRouter);
 
 router.post(
   "/tree-sitter",
