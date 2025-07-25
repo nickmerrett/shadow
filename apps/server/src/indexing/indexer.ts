@@ -149,6 +149,8 @@ async function indexRepo(
       if (!spec || !spec.language) {
         logger.warn(`Skipping unsupported: ${file.path}`);
         continue;
+      } else {
+        console.log("Parsing", file.path);
       }
       const parser = new TreeSitter();
       parser.setLanguage(spec.language);
