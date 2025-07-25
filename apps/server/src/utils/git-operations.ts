@@ -52,7 +52,7 @@ export async function getFileChanges(taskId: string): Promise<FileChange[]> {
     for (const line of statsLines) {
       if (!line.trim()) continue;
       const parts = line.split('\t');
-      if (parts.length >= 3) {
+      if (parts.length >= 3 && parts[0] && parts[1] && parts[2]) {
         const additions = parseInt(parts[0]) || 0;
         const deletions = parseInt(parts[1]) || 0;
         const filePath = parts[2];
@@ -67,7 +67,7 @@ export async function getFileChanges(taskId: string): Promise<FileChange[]> {
       if (!line.trim()) continue;
       
       const parts = line.split('\t');
-      if (parts.length < 2) continue;
+      if (parts.length < 2 || !parts[0] || !parts[1]) continue;
       
       const status = parts[0];
       const filePath = parts[1];
@@ -91,7 +91,7 @@ export async function getFileChanges(taskId: string): Promise<FileChange[]> {
           break;
         default:
           // Handle copy, rename with percentage, etc.
-          if (status.startsWith('R')) {
+          if (status && status.startsWith('R')) {
             operation = 'RENAME';
           } else {
             operation = 'UPDATE'; // Default to update for unknown status
@@ -140,7 +140,7 @@ export async function getDiffStats(taskId: string): Promise<DiffStats> {
       if (!line.trim()) continue;
       
       const parts = line.split('\t');
-      if (parts.length >= 3) {
+      if (parts.length >= 3 && parts[0] && parts[1]) {
         const additions = parseInt(parts[0]) || 0;
         const deletions = parseInt(parts[1]) || 0;
         

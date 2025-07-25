@@ -24,13 +24,12 @@ export function useTask(taskId: string) {
       todos: Todo[];
       fileChanges: FileChange[];
     }> => {
+      console.log(`[TASK_FETCH] Fetching task data (including fileChanges) for task ${taskId}`);
       const res = await fetch(`/api/tasks/${taskId}`);
       if (!res.ok) throw new Error("Failed to fetch task");
-      return res.json() as Promise<{
-        task: Task;
-        todos: Todo[];
-        fileChanges: FileChange[];
-      }>;
+      const data = await res.json();
+      console.log(`[TASK_FETCH] Found ${data.fileChanges?.length || 0} file changes`);
+      return data;
     },
     enabled: !!taskId,
   });
@@ -39,10 +38,13 @@ export function useTask(taskId: string) {
   const diffStatsQuery = useQuery({
     queryKey: ["task-diff-stats", taskId],
     queryFn: async (): Promise<DiffStats> => {
+      console.log(`[DIFF_STATS_FETCH] Fetching diff stats for task ${taskId}`);
       const res = await fetch(`/api/tasks/${taskId}/diff-stats`);
       if (!res.ok) throw new Error("Failed to fetch diff stats");
       const data = await res.json();
-      return data.success ? data.diffStats : { additions: 0, deletions: 0, totalFiles: 0 };
+      const result = data.success ? data.diffStats : { additions: 0, deletions: 0, totalFiles: 0 };
+      console.log(`[DIFF_STATS_FETCH] Result:`, result);
+      return result;
     },
     enabled: !!taskId,
     // Cache for 30 seconds to avoid too frequent expensive git operations

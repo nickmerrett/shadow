@@ -2,7 +2,7 @@ import { getTaskWithDetails } from "@/lib/db-operations/get-task-with-details";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
