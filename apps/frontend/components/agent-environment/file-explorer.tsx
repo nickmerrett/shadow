@@ -9,6 +9,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
@@ -20,36 +21,90 @@ export interface FileNode {
   children?: FileNode[];
 }
 
+interface FileChange {
+  filePath: string;
+  operation: string;
+}
+
 export function FileExplorer({
   files,
   onFileSelect,
   selectedFilePath,
   isCollapsed,
   onToggleCollapse,
+  showDiffOperation = false,
+  fileChanges = [],
+  defaultExpanded = false,
 }: {
   files: FileNode[];
-  onFileSelect: (file: FileNode) => void;
+  onFileSelect?: (file: FileNode) => void;
   selectedFilePath?: string | null;
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+  showDiffOperation?: boolean;
+  fileChanges?: FileChange[];
+  defaultExpanded?: boolean;
 }) {
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set(["/src", "/src/components"])
-  );
+  // We use a single Set to track folder state.
+  // If defaultExpanded is true, the Set tracks collapsed folders (all open by default).
+  // If defaultExpanded is false, the Set tracks expanded folders (all closed by default).
+  // This avoids up-front tree traversal and is efficient for both modes.
+  const [folderState, setFolderState] = useState<Set<string>>(new Set());
 
   const toggleFolder = (path: string) => {
-    const newExpanded = new Set(expandedFolders);
-    if (newExpanded.has(path)) {
-      newExpanded.delete(path);
-    } else {
-      newExpanded.add(path);
+    setFolderState((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  };
+
+  // Determine expansion based on defaultExpanded mode and folderState
+  // If defaultExpanded: open unless in set; else: closed unless in set
+  const isNodeExpanded = (path: string) =>
+    defaultExpanded ? !folderState.has(path) : folderState.has(path);
+
+  const getOperationColor = (op: string) => {
+    switch (op) {
+      case "CREATE":
+        return "text-green-400";
+      case "UPDATE":
+        return "text-yellow-500";
+      case "DELETE":
+        return "text-red-400";
+      default:
+        return "text-neutral-500";
     }
-    setExpandedFolders(newExpanded);
+  };
+
+  const getOperationLetter = (op: string) => {
+    switch (op) {
+      case "CREATE":
+        return "A";
+      case "UPDATE":
+        return "M";
+      case "DELETE":
+        return "D";
+      case "RENAME":
+        return "R";
+      case "MOVE":
+        return "M";
+      default:
+        return "?";
+    }
   };
 
   const renderNode = (node: FileNode, depth = 0) => {
-    const isExpanded = expandedFolders.has(node.path);
+    const isExpanded = isNodeExpanded(node.path);
     const isSelected = selectedFilePath === node.path;
+    const fileChange = showDiffOperation
+      ? fileChanges.find((change) => change.filePath === node.path)
+      : null;
+    const operation = fileChange?.operation;
 
     return (
       <div key={node.path} className="relative flex flex-col gap-0.5">
@@ -62,32 +117,44 @@ export function FileExplorer({
         <div
           className={`group/item text-foreground/80 hover:text-foreground flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 hover:bg-white/10 ${
             isSelected ? "bg-white/5" : ""
-          }`}
+          } ${showDiffOperation ? "justify-between" : ""}`}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
           onClick={() => {
             if (node.type === "folder") {
               toggleFolder(node.path);
-            } else {
+            } else if (onFileSelect) {
               onFileSelect(node);
             }
           }}
         >
-          {node.type === "folder" ? (
-            isExpanded ? (
-              <>
-                <FolderOpen className="size-4 group-hover/item:hidden" />
-                <ChevronDown className="hidden size-4 group-hover/item:block" />
-              </>
+          <div className="flex items-center gap-1.5">
+            {node.type === "folder" ? (
+              isExpanded ? (
+                <>
+                  <FolderOpen className="size-4 group-hover/item:hidden" />
+                  <ChevronDown className="hidden size-4 group-hover/item:block" />
+                </>
+              ) : (
+                <>
+                  <Folder className="size-4 group-hover/item:hidden" />
+                  <ChevronRight className="hidden size-4 group-hover/item:block" />
+                </>
+              )
             ) : (
-              <>
-                <Folder className="size-4 group-hover/item:hidden" />
-                <ChevronRight className="hidden size-4 group-hover/item:block" />
-              </>
-            )
-          ) : (
-            <File className="size-4" />
+              <File className="size-4" />
+            )}
+            <span className="text-sm">{node.name}</span>
+          </div>
+          {showDiffOperation && node.type === "file" && operation && (
+            <span
+              className={cn(
+                "text-xs font-medium",
+                getOperationColor(operation)
+              )}
+            >
+              {getOperationLetter(operation)}
+            </span>
           )}
-          <span className="text-sm">{node.name}</span>
         </div>
         {node.type === "folder" && isExpanded && node.children && (
           <div className="flex flex-col gap-0.5">
@@ -98,33 +165,42 @@ export function FileExplorer({
     );
   };
 
-  if (!isCollapsed)
-    return (
-      <div className="bg-sidebar border-sidebar-border flex w-52 shrink-0 select-none flex-col border-r">
-        <div className="border-sidebar-border h-13 flex items-center justify-between border-b px-2">
-          <h3 className="font-departureMono tracking-tight">Shadow Realm</h3>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hover:bg-sidebar-accent size-7 cursor-pointer"
-                onClick={onToggleCollapse}
-              >
-                <ChevronsLeft className="size-4" />
-              </Button>
-            </TooltipTrigger>
-
-            <TooltipContent side="bottom" align="end">
-              Close File Explorer
-            </TooltipContent>
-          </Tooltip>
+  // If this is being used as a collapsible sidebar (with header)
+  if (isCollapsed !== undefined && onToggleCollapse) {
+    if (!isCollapsed) {
+      return (
+        <div className="bg-sidebar border-sidebar-border flex w-52 shrink-0 select-none flex-col border-r">
+          <div className="border-sidebar-border h-13 flex items-center justify-between border-b px-2">
+            <h3 className="font-departureMono tracking-tight">Shadow Realm</h3>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hover:bg-sidebar-accent size-7 cursor-pointer"
+                  onClick={onToggleCollapse}
+                >
+                  <ChevronsLeft className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                Close File Explorer
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <div className="group/files flex flex-1 flex-col gap-0.5 overflow-auto p-1">
+            {files.map((file) => renderNode(file))}
+          </div>
         </div>
-        <div className="group/files flex flex-1 flex-col gap-0.5 overflow-auto p-1">
-          {files.map((file) => renderNode(file))}
-        </div>
-      </div>
-    );
+      );
+    }
+    return null;
+  }
 
-  return null;
+  // If this is being used without the sidebar header
+  return (
+    <div className="group/files flex flex-col gap-0.5">
+      {files.map((file) => renderNode(file))}
+    </div>
+  );
 }
