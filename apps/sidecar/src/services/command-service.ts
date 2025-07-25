@@ -3,12 +3,11 @@ import { EventEmitter } from "events";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import { WorkspaceService } from "./workspace-service";
-import { CommandResponse } from "../types";
+import { CommandResponse, CommandSecurityLevel } from "../types";
 import {
   validateCommand,
   parseCommand,
   logCommandSecurityEvent,
-  requiresApproval,
 } from "../utils/command-security";
 
 export interface CommandStreamEvent {
@@ -44,30 +43,29 @@ export class CommandService extends EventEmitter {
 
     // Parse and validate the command
     const { command: baseCommand, args } = parseCommand(command);
-    const validation = validateCommand(baseCommand, args);
+    const validation = validateCommand(baseCommand, args, workspaceDir);
 
     if (!validation.isValid) {
       logCommandSecurityEvent("Command validation failed", {
         command,
         error: validation.error,
+        securityLevel: validation.securityLevel,
       });
       return {
         success: false,
         message: `Security validation failed: ${validation.error}`,
         error: "VALIDATION_FAILED",
         command,
+        securityLevel: validation.securityLevel,
       };
     }
 
-    // Check if command approval is required
-    if (config.enableCommandApproval || requiresApproval(command)) {
-      logger.warn("Command requires approval", { command });
-      return {
-        success: false,
-        requiresApproval: true,
-        message: `Command "${command}" requires user approval before execution.`,
+    // Log if this was a potentially dangerous command (but still execute it)
+    if (validation.securityLevel === CommandSecurityLevel.APPROVAL_REQUIRED) {
+      logger.info("Executing potentially dangerous command", {
         command,
-      };
+        securityLevel: validation.securityLevel,
+      });
     }
 
     const sanitizedCommand = validation.sanitizedCommand!;
@@ -148,18 +146,27 @@ export class CommandService extends EventEmitter {
 
     // Parse and validate the command
     const { command: baseCommand, args } = parseCommand(command);
-    const validation = validateCommand(baseCommand, args);
+    const validation = validateCommand(baseCommand, args, workspaceDir);
 
     if (!validation.isValid) {
       logCommandSecurityEvent("Streaming command validation failed", {
         command,
         error: validation.error,
+        securityLevel: validation.securityLevel,
       });
       onData({
         type: "error",
         message: `Security validation failed: ${validation.error}`,
       });
       return;
+    }
+
+    // Log if this was a potentially dangerous command (but still execute it)
+    if (validation.securityLevel === CommandSecurityLevel.APPROVAL_REQUIRED) {
+      logger.info("Streaming potentially dangerous command", {
+        command,
+        securityLevel: validation.securityLevel,
+      });
     }
 
     const sanitizedCommand = validation.sanitizedCommand!;

@@ -96,7 +96,6 @@ export interface CommandResult {
   message: string;
   error?: string;
   isBackground?: boolean;
-  requiresApproval?: boolean;
   command?: string;
 }
 

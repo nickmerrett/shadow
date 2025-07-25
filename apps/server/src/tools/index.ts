@@ -3,15 +3,6 @@ import { tool } from "ai";
 import { z } from "zod";
 import { createToolExecutor } from "../execution";
 
-// Terminal command approval queue (still needed for approval system)
-const pendingCommands = new Map<
-  string,
-  {
-    command: string;
-    resolve: (result: any) => void;
-    reject: (error: any) => void;
-  }
->();
 
 // Factory function to create tools with task context using abstraction layer
 export function createTools(taskId: string, workspacePath?: string) {
@@ -351,33 +342,6 @@ export function createTools(taskId: string, workspacePath?: string) {
   };
 }
 
-// Helper function to approve pending terminal commands (maintained for compatibility)
-export function approveTerminalCommand(commandId: string, approved: boolean) {
-  const pending = pendingCommands.get(commandId);
-  if (!pending) {
-    console.warn(`No pending command found for ID: ${commandId}`);
-    return false;
-  }
-
-  if (approved) {
-    pending.resolve({ approved: true });
-  } else {
-    pending.reject(new Error("Command was rejected by user"));
-  }
-
-  pendingCommands.delete(commandId);
-  return true;
-}
-
-export function getPendingCommands() {
-  return Array.from(pendingCommands.entries()).map(([id, cmd]) => ({
-    id,
-    command: cmd.command,
-  }));
-}
-
-// Export configuration for backwards compatibility
-export const REQUIRE_TERMINAL_APPROVAL = false;
 
 // Default tools export for backward compatibility (without todo_write)
 // Made lazy to avoid circular dependencies

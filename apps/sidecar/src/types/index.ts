@@ -125,9 +125,9 @@ export interface CommandResponse extends SuccessResponse {
   stdout?: string;
   stderr?: string;
   isBackground?: boolean;
-  requiresApproval?: boolean;
   command?: string;
   error?: string;
+  securityLevel?: CommandSecurityLevel;
 }
 
 export interface HealthResponse {
@@ -223,4 +223,11 @@ export interface GitCommitResponse extends SuccessResponse {
 export interface GitPushResponse extends SuccessResponse {
   branchName: string;
   error?: string;
+}
+
+// Command security types
+export enum CommandSecurityLevel {
+  SAFE = "SAFE",
+  APPROVAL_REQUIRED = "APPROVAL_REQUIRED", 
+  BLOCKED = "BLOCKED"
 }

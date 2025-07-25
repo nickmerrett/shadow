@@ -23,8 +23,6 @@ import {
   SearchOptions,
 } from "../interfaces/types";
 
-// Configuration flag for terminal command approval
-export const REQUIRE_TERMINAL_APPROVAL = false; // Set to true to require approval
 
 /**
  * LocalToolExecutor implements tool operations for local filesystem execution
@@ -449,15 +447,6 @@ export class LocalToolExecutor implements ToolExecutor {
     command: string,
     options?: CommandOptions
   ): Promise<CommandResult> {
-    if (REQUIRE_TERMINAL_APPROVAL) {
-      return {
-        success: false,
-        requiresApproval: true,
-        message: `Command "${command}" requires user approval before execution.`,
-        command,
-      };
-    }
-
     try {
       const execOptions = {
         cwd: this.workspacePath,
