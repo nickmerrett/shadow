@@ -23,11 +23,7 @@ export function createExecuteRouter(commandService: CommandService, terminalBuff
       );
 
       if (!result.success) {
-        if (result.requiresApproval) {
-          res.status(400).json(result);
-        } else {
-          res.status(500).json(result);
-        }
+        res.status(500).json(result);
       } else {
         res.json(result);
       }
@@ -117,12 +113,7 @@ export function createExecuteRouter(commandService: CommandService, terminalBuff
 
       if (!result.success) {
         terminalBuffer.addEntry(`Error: ${result.error || result.message}`, 'stderr');
-        
-        if (result.requiresApproval) {
-          res.status(400).json(result);
-        } else {
-          res.status(500).json(result);
-        }
+        res.status(500).json(result);
       } else {
         // Return command ID for background command tracking
         res.json({
@@ -164,7 +155,7 @@ export function createExecuteRouter(commandService: CommandService, terminalBuff
    */
   router.get(
     "/terminal/stats",
-    asyncHandler(async (req, res) => {
+    asyncHandler(async (_req, res) => {
       res.json({
         success: true,
         stats: terminalBuffer.getStats(),
@@ -178,7 +169,7 @@ export function createExecuteRouter(commandService: CommandService, terminalBuff
    */
   router.post(
     "/terminal/clear",
-    asyncHandler(async (req, res) => {
+    asyncHandler(async (_req, res) => {
       terminalBuffer.clear();
       terminalBuffer.addSystemMessage("Terminal history cleared");
       

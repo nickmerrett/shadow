@@ -16,6 +16,13 @@ export class WorkspaceService {
   }
 
   /**
+   * Get the workspace directory path
+   */
+  getWorkspacePath(): string {
+    return this.workspaceDir;
+  }
+
+  /**
    * Ensure the workspace directory exists
    */
   async ensureWorkspace(): Promise<void> {
@@ -37,7 +44,7 @@ export class WorkspaceService {
       // Get workspace size using du command
       let sizeBytes = 0;
       try {
-        const { stdout } = await execAsync(`du -sb "${this.workspaceDir}"`);
+        const { stdout } = await execAsync("du -sb .", { cwd: this.workspaceDir });
         const match = stdout.match(/^(\d+)/);
         sizeBytes = match?.[1] ? parseInt(match[1], 10) : 0;
       } catch (error) {
