@@ -49,16 +49,17 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
             <p className="mb-4 text-foreground leading-relaxed">{children}</p>
           ),
           // Style code blocks
-          code: ({ children, ...props }: any) => {
-            const inline = 'inline' in props ? props.inline : false;
-            if (inline) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          code: ({ inline, children, ...props }: any) => {
+            const isInline = inline ?? !props.className;
+            if (isInline) {
               return (
                 <code
-                  className="bg-muted text-muted-foreground px-1.5 py-0.5 rounded text-sm font-mono"
-                  {...props}
-                >
-                  {children}
-                </code>
+                className="bg-muted text-muted-foreground px-1 py-0.5 rounded font-mono text-sm inline"
+                {...props}
+              >
+                {children}
+              </code>
               );
             }
             return (
