@@ -15,7 +15,7 @@ export function SemanticSearchTool({ message }: { message: Message }) {
       type={ToolType.SEMANTIC_SEARCH}
       title={`"${query}"`}
     >
-      {args.targetDirectories.length > 0 && (
+      {args.targetDirectories?.length > 0 && (
         <div className="flex items-center gap-1">
           <Folder className="text-muted-foreground size-3" />
           <div className="text-muted-foreground text-xs">

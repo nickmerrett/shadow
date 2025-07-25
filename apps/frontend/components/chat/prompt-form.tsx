@@ -73,19 +73,10 @@ export function PromptForm({
       startTransition(async () => {
         let taskId: string | null = null;
         try {
-          // Show indexing state
-          setIsIndexing(true);
-
-          // Index the repo first (blocking)
-          await indexRepo(repo.full_name);
-
-          // Then create the task
           taskId = await createTask(formData);
-
-          if (taskId) {
-            queryClient.invalidateQueries({ queryKey: ["tasks"] });
-            redirect(`/tasks/${taskId}`);
-          }
+          setIsIndexing(true);
+          await indexRepo(repo.full_name);
+          console.log("Repo indexed successfully");
         } catch (error) {
           toast.error("Failed to create task", {
             description:
@@ -93,6 +84,10 @@ export function PromptForm({
           });
         } finally {
           setIsIndexing(false);
+        }
+        if (taskId) {
+          queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          redirect(`/tasks/${taskId}`);
         }
       });
     } else {
@@ -232,15 +227,18 @@ export function PromptForm({
           </div>
         </div>
       </fieldset>
-
-      {/* Blocking overlay */}
       {isIndexing && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-4 w-4" />
-              <span>Indexing repository...</span>
-            </div>
+      <div className="flex flex-row items-center justify-between mt-2 px-2">
+        <div className="flex flex-row items-center gap-2">
+          <span
+            className={cn(
+              "text-sm",
+              "animate-pulse",
+              "text-muted-foreground/50"
+            )}
+          >
+            Indexing repository...
+          </span>
           </div>
         </div>
       )}
