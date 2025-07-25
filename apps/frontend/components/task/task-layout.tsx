@@ -113,6 +113,8 @@ export function TaskPageLayout({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleToggleRightPanel]);
 
+  const titleRef = useRef<HTMLDivElement>(null);
+
   const handleTitleClick = () => {
     setIsEditing(true);
   };
@@ -153,8 +155,8 @@ export function TaskPageLayout({
           initial="smooth"
           contextRef={stickToBottomContextRef}
         >
-          <div className="bg-background sticky top-0 z-10 flex w-full items-center justify-between p-3">
-            <div className="flex items-center gap-1">
+          <div className="bg-background sticky top-0 z-10 flex w-full items-center justify-between">
+            <div className="flex grow items-center gap-1 overflow-hidden p-3 pr-0">
               {!open && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -165,40 +167,47 @@ export function TaskPageLayout({
                   </TooltipContent>
                 </Tooltip>
               )}
-              {isEditing ? (
-                <input
-                  ref={inputRef}
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onKeyDown={handleInputKeyDown}
-                  onBlur={handleInputBlur}
-                  className="focus:ring-ring/10 focus:border-border flex h-7 max-w-48 items-center rounded-md border border-transparent bg-transparent px-2 focus:outline-none focus:ring-2"
-                />
-              ) : (
-                <div
-                  className="hover:border-border flex h-7 max-w-48 cursor-text items-center rounded-md border border-transparent px-2"
-                  onClick={handleTitleClick}
-                >
-                  <span className="truncate">{task?.title}</span>
-                </div>
-              )}
+              <input
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={handleInputKeyDown}
+                onBlur={handleInputBlur}
+                style={{ width: titleRef.current?.clientWidth }}
+                className={cn(
+                  "focus:ring-ring/10 focus:border-border h-7 w-full items-center rounded-md border border-transparent bg-transparent px-2 focus:outline-none focus:ring-2",
+                  isEditing ? "flex" : "hidden"
+                )}
+              />
+              <div
+                className={cn(
+                  "hover:border-border flex h-7 cursor-text items-center truncate rounded-md border border-transparent px-2",
+                  isEditing ? "pointer-events-none opacity-0" : "opacity-100"
+                )}
+                onClick={handleTitleClick}
+                ref={titleRef}
+              >
+                <span className="truncate">{task?.title}</span>
+              </div>
             </div>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("size-7 cursor-pointer")}
-                  onClick={handleToggleRightPanel}
-                >
-                  <AppWindowMac className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left" shortcut="⌘J">
-                Toggle Shadow Realm
-              </TooltipContent>
-            </Tooltip>
+            <div className="p-3">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("size-7 cursor-pointer")}
+                    onClick={handleToggleRightPanel}
+                  >
+                    <AppWindowMac className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" shortcut="⌘J">
+                  Toggle Shadow Realm
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
           <TaskPageContent isAtTop={isAtTop} />
         </StickToBottom>

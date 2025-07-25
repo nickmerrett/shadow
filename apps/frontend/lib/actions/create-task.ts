@@ -5,7 +5,7 @@ import { MessageRole, prisma, Task } from "@repo/db";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { z } from "zod";
-import { updateTaskTitle } from "./update-task-title";
+import { generateTaskTitleAndBranch } from "./generate-title-branch";
 import { saveLayoutCookie } from "./save-sidebar-cookie";
 
 const createTaskSchema = z.object({
@@ -46,15 +46,17 @@ export async function createTask(formData: FormData) {
   const { message, model, repoUrl, baseBranch } = validation.data;
 
   const taskId = crypto.randomUUID();
-  const shadowBranch = `shadow/task-${taskId}`;
   let task: Task;
 
   try {
+    // Generate a title for the task
+    const { title, shadowBranch } = await generateTaskTitleAndBranch(taskId, message);
+
     // Create the task
     task = await prisma.task.create({
       data: {
         id: taskId,
-        title: message.slice(0, 50) + (message.length > 50 ? "..." : ""),
+        title,
         description: message,
         repoUrl,
         baseBranch,
@@ -80,8 +82,6 @@ export async function createTask(formData: FormData) {
     // Schedule the backend API call and title generation to happen after the response is sent
     after(async () => {
       try {
-        updateTaskTitle(task.id, message);
-
         // Initiate the task on the backend
         const baseUrl =
           process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
