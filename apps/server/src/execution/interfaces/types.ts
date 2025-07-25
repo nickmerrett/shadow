@@ -88,6 +88,19 @@ export interface CodebaseSearchResult {
   error?: string;
 }
 
+export interface WebSearchResult {
+  success: boolean;
+  results: Array<{
+    text: string;
+    url: string;
+    title?: string;
+  }>;
+  query: string;
+  domain?: string;
+  message: string;
+  error?: string;
+}
+
 import { CommandSecurityLevel } from "@repo/command-security";
 
 // Command execution results

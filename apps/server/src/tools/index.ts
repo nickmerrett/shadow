@@ -339,6 +339,24 @@ export function createTools(taskId: string, workspacePath?: string) {
         return result;
       },
     }),
+
+    web_search: tool({
+      description: "Search the web for information about a given query.",
+      parameters: z.object({
+        query: z.string().describe("The search query"),
+        domain: z.string().optional().describe("Optional domain to filter results to"),
+        explanation: z
+          .string()
+          .describe(
+            "One sentence explanation as to why this tool is being used"
+          ),
+      }),
+      execute: async ({ query, domain, explanation }) => {
+        console.log(`[WEB_SEARCH] ${explanation}`);
+        const result = await executor.webSearch(query, domain);
+        return result;
+      },
+    }),
   };
 }
 

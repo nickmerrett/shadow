@@ -12,6 +12,7 @@ import {
   SearchOptions,
   WriteResult,
   CodebaseSearchResult,
+  WebSearchResult,
 } from "./types";
 
 /**
@@ -55,6 +56,11 @@ export interface ToolExecutor {
     query: string,
     options?: SearchOptions
   ): Promise<CodebaseSearchResult>;
+
+  webSearch(
+    query: string,
+    domain?: string
+  ): Promise<WebSearchResult>;
 
   // Command execution
   executeCommand(
