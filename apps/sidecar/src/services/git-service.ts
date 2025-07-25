@@ -10,6 +10,12 @@ import {
   GitCommitResponse,
   GitPushResponse,
 } from "../types";
+import {
+  validateGitOperation,
+  validateGitUser,
+  validateBranchName,
+  logSecurityEvent,
+} from "../utils/security";
 
 export interface GitUser {
   name: string;
@@ -50,7 +56,7 @@ export class GitService {
         cloneUrl = `https://${githubToken}@github.com/${urlParts}.git`;
       }
 
-      await this.execGit(`clone --branch ${branch} --single-branch ${cloneUrl} .`);
+      await this.execGitSecure(["clone", "--branch", branch, "--single-branch", cloneUrl, "."]);
 
       logger.info("[GIT_SERVICE] Repository cloned successfully", {
         repoUrl: this.sanitizeUrl(repoUrl),
@@ -91,8 +97,8 @@ export class GitService {
         email: user.email,
       });
 
-      await this.execGit(`config user.name "${user.name}"`);
-      await this.execGit(`config user.email "${user.email}"`);
+      await this.execGitSecure(["config", "user.name", user.name]);
+      await this.execGitSecure(["config", "user.email", user.email]);
 
       return {
         success: true,
@@ -126,14 +132,14 @@ export class GitService {
       });
 
       // Ensure we're on the base branch first
-      await this.execGit(`checkout ${baseBranch}`);
+      await this.execGitSecure(["checkout", baseBranch]);
 
       // Get the base commit SHA before creating the branch
-      const baseCommitResult = await this.execGit("rev-parse HEAD");
+      const baseCommitResult = await this.execGitSecure(["rev-parse", "HEAD"]);
       const baseCommitSha = baseCommitResult.stdout.trim();
 
       // Create and checkout the shadow branch
-      await this.execGit(`checkout -b ${shadowBranch}`);
+      await this.execGitSecure(["checkout", "-b", shadowBranch]);
 
       logger.info("[GIT_SERVICE] Shadow branch created successfully", {
         baseBranch,
@@ -171,8 +177,8 @@ export class GitService {
    */
   async hasChanges(): Promise<GitStatusResponse> {
     try {
-      const diffResult = await this.execGit("diff --name-only");
-      const stagedResult = await this.execGit("diff --cached --name-only");
+      const diffResult = await this.execGitSecure(["diff", "--name-only"]);
+      const stagedResult = await this.execGitSecure(["diff", "--cached", "--name-only"]);
 
       const hasUnstagedChanges = diffResult.stdout.trim().length > 0;
       const hasStagedChanges = stagedResult.stdout.trim().length > 0;
@@ -208,8 +214,8 @@ export class GitService {
   async getDiff(): Promise<GitDiffResponse> {
     try {
       // Get both staged and unstaged changes
-      const unstagedResult = await this.execGit("diff");
-      const stagedResult = await this.execGit("diff --cached");
+      const unstagedResult = await this.execGitSecure(["diff"]);
+      const stagedResult = await this.execGitSecure(["diff", "--cached"]);
 
       const unstagedDiff = unstagedResult.stdout;
       const stagedDiff = stagedResult.stdout;
@@ -261,18 +267,43 @@ export class GitService {
         };
       }
 
+      const validation = validateGitOperation({
+        user: options.user,
+        message: options.message,
+      });
+      if (!validation.isValid) {
+        return {
+          success: false,
+          message: `Invalid input: ${validation.error}`,
+          error: "VALIDATION_FAILED",
+        };
+      }
+
+      // Validate co-author if provided
+      if (options.coAuthor) {
+        const coAuthorValidation = validateGitUser(options.coAuthor);
+        if (!coAuthorValidation.isValid) {
+          return {
+            success: false,
+            message: `Invalid co-author: ${coAuthorValidation.error}`,
+            error: "VALIDATION_FAILED",
+          };
+        }
+      }
+
       // Stage all changes
-      await this.execGit("add .");
+      await this.execGitSecure(["add", "."]);
 
       const commitMessage = options.message;
 
-      // Build commit command with co-author if provided
-      let commitCmd = `commit -m "${commitMessage}"`;
+      // Build commit arguments with co-author if provided
+      const commitArgs = ["commit", "-m", commitMessage];
       if (options.coAuthor) {
-        commitCmd += ` -m "" -m "Co-authored-by: ${options.coAuthor.name} <${options.coAuthor.email}>"`;
+        commitArgs.push("-m", "");
+        commitArgs.push("-m", `Co-authored-by: ${options.coAuthor.name} <${options.coAuthor.email}>`);
       }
 
-      await this.execGit(commitCmd);
+      await this.execGitSecure(commitArgs);
 
       logger.info("[GIT_SERVICE] Commit successful", {
         commitMessage,
@@ -310,14 +341,25 @@ export class GitService {
         setUpstream,
       });
 
-      let pushCmd = "push";
-      if (setUpstream) {
-        pushCmd += ` --set-upstream origin ${branchName}`;
-      } else {
-        pushCmd += ` origin ${branchName}`;
+      // Validate branch name
+      const validation = validateBranchName(branchName);
+      if (!validation.isValid) {
+        return {
+          success: false,
+          message: `Invalid branch name: ${validation.error}`,
+          error: "VALIDATION_FAILED",
+          branchName,
+        };
       }
 
-      await this.execGit(pushCmd);
+      const pushArgs = ["push"];
+      if (setUpstream) {
+        pushArgs.push("--set-upstream", "origin", branchName);
+      } else {
+        pushArgs.push("origin", branchName);
+      }
+
+      await this.execGitSecure(pushArgs);
 
       logger.info("[GIT_SERVICE] Push successful", { branchName });
 
@@ -347,7 +389,7 @@ export class GitService {
    */
   private async getCurrentCommitSha(): Promise<string> {
     try {
-      const result = await this.execGit("rev-parse HEAD");
+      const result = await this.execGitSecure(["rev-parse", "HEAD"]);
       return result.stdout.trim();
     } catch (error) {
       logger.error("[GIT_SERVICE] Failed to get current commit SHA", { error });
@@ -356,21 +398,37 @@ export class GitService {
   }
 
   /**
-   * Execute git command in workspace directory
+   * Execute git command securely using argument arrays
+   * This prevents command injection by avoiding shell interpretation
    */
-  private async execGit(gitArgs: string): Promise<{ stdout: string; stderr: string }> {
+  private async execGitSecure(gitArgs: string[]): Promise<{ stdout: string; stderr: string }> {
     return new Promise((resolve, reject) => {
       const workspacePath = this.workspaceService.getWorkspacePath();
-      const command = `git ${gitArgs}`;
+
+      // Validate that all arguments are strings and don't contain dangerous characters
+      for (const arg of gitArgs) {
+        if (typeof arg !== "string") {
+          reject(new Error("Git arguments must be strings"));
+          return;
+        }
+        // Check for null bytes and dangerous characters
+        if (arg.includes("\0") || arg.includes(";") || arg.includes("|") || arg.includes("&")) {
+          logSecurityEvent("Dangerous git argument detected", { argument: arg, gitArgs });
+          reject(new Error("Dangerous characters detected in git arguments"));
+          return;
+        }
+      }
 
       logger.debug("[GIT_SERVICE] Executing git command", {
-        command,
+        args: gitArgs,
         workspacePath,
       });
 
-      const process = spawn("git", gitArgs.split(" "), {
+      const process = spawn("git", gitArgs, {
         cwd: workspacePath,
         stdio: ["pipe", "pipe", "pipe"],
+        // Explicitly disable shell to prevent command injection
+        shell: false,
       });
 
       let stdout = "";
@@ -390,7 +448,7 @@ export class GitService {
         } else {
           const error = new Error(`Git command failed with exit code ${code}: ${stderr || stdout}`);
           logger.error("[GIT_SERVICE] Git command failed", {
-            command,
+            args: gitArgs,
             exitCode: code,
             stdout,
             stderr,
@@ -401,13 +459,14 @@ export class GitService {
 
       process.on("error", (error) => {
         logger.error("[GIT_SERVICE] Git process error", {
-          command,
+          args: gitArgs,
           error: error.message,
         });
         reject(error);
       });
     });
   }
+
 
   /**
    * Sanitize URL for logging (remove tokens)
