@@ -27,13 +27,13 @@ export function createToolExecutor(
   switch (agentMode) {
     case "local":
       return new LocalToolExecutor(taskId, workspacePath);
-    
+
     case "mock":
       return new MockRemoteToolExecutor(taskId, workspacePath);
-    
+
     case "remote":
       return new RemoteToolExecutor(taskId, workspacePath);
-    
+
     default:
       throw new Error(`Unsupported agent mode: ${agentMode}`);
   }
@@ -48,13 +48,13 @@ export function createWorkspaceManager(mode?: AgentMode): WorkspaceManager {
   switch (agentMode) {
     case "local":
       return new LocalWorkspaceManager();
-    
+
     case "mock":
       return new MockRemoteWorkspaceManager();
-    
+
     case "remote":
       return new RemoteWorkspaceManager();
-    
+
     default:
       throw new Error(`Unsupported agent mode: ${agentMode}`);
   }

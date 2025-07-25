@@ -6,122 +6,89 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import dynamic from "next/dynamic";
-import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Editor } from "./editor";
-import { FileExplorer, type FileNode } from "./file-explorer";
-// import { mockFileStructure } from "./mock-data";
+import { FileExplorer } from "./file-explorer";
+import { Button } from "../ui/button";
+import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { useCodebaseTree } from "@/hooks/use-codebase-tree";
+import { useAgentEnvironment } from "./agent-environment-context";
+import { LogoHover } from "../logo/logo-hover";
 
 const Terminal = dynamic(() => import("./terminal"), { ssr: false });
 
-export const AgentEnvironment: React.FC = () => {
-  const [fileTree, setFileTree] = useState<FileNode[]>([]);
-  const [selectedFile, setSelectedFile] = useState<FileNode | undefined>();
+export function AgentEnvironment() {
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
+  const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(false);
 
   const params = useParams<{ taskId?: string }>();
   const taskId = params?.taskId;
 
-  // State for workspace loading
-  const [workspaceStatus, setWorkspaceStatus] = useState<"loading" | "initializing" | "ready" | "error">("loading");
-  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+  // Use context for file selection state
+  const {
+    selectedFilePath,
+    selectedFileWithContent,
+    setSelectedFilePath,
+    isLoadingContent,
+    contentError,
+  } = useAgentEnvironment();
 
-  // Fetch task-specific codebase tree on mount
-  useEffect(() => {
-    if (!taskId) return;
-    
-    let isMounted = true;
-    let retryTimeout: NodeJS.Timeout | null = null;
-    
-    const fetchCodebaseTree = () => {
-      setWorkspaceStatus("loading");
-      
-      fetch(`/api/tasks/${taskId}/codebase-tree`)
-        .then(async (res) => {
-          if (!isMounted) return null;
-          const json = await res.json();
-          return json;
-        })
-        .then((data) => {
-          if (!data || !isMounted) return;
-          
-          if (data.success) {
-            if (data.status === "initializing") {
-              setWorkspaceStatus("initializing");
-              setLoadingMessage(data.message || "Preparing workspace...");
-              
-              // Retry after a delay
-              retryTimeout = setTimeout(fetchCodebaseTree, 3000);
-            } else {
-              setWorkspaceStatus("ready");
-              setLoadingMessage(null);
-              setFileTree(data.tree);
-              const firstFile = findFirstFile(data.tree);
-              setSelectedFile(firstFile);
-            }
-          } else {
-            setWorkspaceStatus("error");
-            setLoadingMessage(data.error || "Failed to load workspace");
-            console.warn("[CODEBASE_TREE_RESPONSE_ERROR]", data.error);
-          }
-        })
-        .catch((err) => {
-          if (!isMounted) return;
-          setWorkspaceStatus("error");
-          setLoadingMessage("Failed to connect to server");
-          console.warn("[FETCH_CODEBASE_TREE_ERROR]", err);
-        });
-    };
-    
-    fetchCodebaseTree();
-    
-    return () => {
-      isMounted = false;
-      if (retryTimeout) clearTimeout(retryTimeout);
-    };
-  }, [taskId]);
+  // Use the new hooks for data fetching
+  const treeQuery = useCodebaseTree(taskId || "");
+
+  // Derive UI state from query results
+  const workspaceStatus = treeQuery.isLoading
+    ? "loading"
+    : treeQuery.isError
+      ? "error"
+      : treeQuery.data?.status === "initializing"
+        ? "initializing"
+        : "ready";
+
+  const loadingMessage =
+    treeQuery.data?.message ||
+    (treeQuery.isError
+      ? treeQuery.error?.message || "Failed to load workspace"
+      : null);
 
   // Loading state UI
   if (workspaceStatus === "loading" || workspaceStatus === "initializing") {
     return (
-      <div className="bg-background flex size-full max-h-svh items-center justify-center">
-        <div className="flex flex-col items-center gap-4 p-6 text-center">
-          <div className="border-muted border-t-primary h-8 w-8 animate-spin rounded-full border-2"></div>
-          <h3 className="text-xl font-medium">
-            {workspaceStatus === "initializing" ? "Preparing Workspace" : "Loading Files"}
-          </h3>
-          {loadingMessage && (
-            <p className="text-muted-foreground max-w-md">{loadingMessage}</p>
-          )}
+      <div className="bg-background flex size-full max-h-svh select-none flex-col items-center justify-center gap-4 p-4 text-center">
+        <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
+          <LogoHover forceAnimate />
+          {workspaceStatus === "initializing"
+            ? "Initializing Shadow Realm"
+            : "Loading Shadow Realm"}
         </div>
+        {loadingMessage && (
+          <p className="text-muted-foreground max-w-md">{loadingMessage}</p>
+        )}
       </div>
     );
   }
-  
+
   // Error state UI
   if (workspaceStatus === "error") {
     return (
-      <div className="bg-background flex size-full max-h-svh items-center justify-center">
-        <div className="flex flex-col items-center gap-4 p-6 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-          </div>
-          <h3 className="text-xl font-medium">Failed to Load Workspace</h3>
-          {loadingMessage && (
-            <p className="text-muted-foreground max-w-md">{loadingMessage}</p>
-          )}
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            Try Again
-          </button>
+      <div className="bg-background flex size-full max-h-svh select-none flex-col items-center justify-center gap-4 p-4 text-center">
+        <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
+          <AlertTriangle className="text-destructive size-5 shrink-0" />
+          Failed to Load Workspace
         </div>
+        {loadingMessage && (
+          <p className="text-muted-foreground max-w-md">{loadingMessage}</p>
+        )}
+        <Button
+          size="lg"
+          onClick={() => window.location.reload()}
+          variant="secondary"
+          className="border-sidebar-border hover:border-sidebar-border"
+        >
+          Try Again
+        </Button>
       </div>
     );
   }
@@ -130,48 +97,79 @@ export const AgentEnvironment: React.FC = () => {
   return (
     <div className="flex size-full max-h-svh">
       <FileExplorer
-        files={fileTree}
-        onFileSelect={setSelectedFile}
-        selectedFile={selectedFile}
+        files={treeQuery.data?.tree || []}
+        onFileSelect={(file) => setSelectedFilePath(file.path)}
+        selectedFilePath={selectedFilePath}
         isCollapsed={isExplorerCollapsed}
         onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
+        autoExpandToSelectedPath={true}
       />
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="vertical" className="h-full">
-          <ResizablePanel minSize={10} defaultSize={60}>
+          <ResizablePanel minSize={20} defaultSize={75}>
             <Editor
-              selectedFile={selectedFile}
+              selectedFilePath={selectedFilePath}
+              selectedFileContent={selectedFileWithContent?.content || ""}
               isExplorerCollapsed={isExplorerCollapsed}
               onToggleCollapse={() => setIsExplorerCollapsed((prev) => !prev)}
+              isLoadingContent={isLoadingContent}
+              contentError={contentError}
             />
           </ResizablePanel>
-          <ResizableHandle className="bg-sidebar-border" />
-          <ResizablePanel minSize={10} defaultSize={40}>
-            <Terminal />
-          </ResizablePanel>
+          {isTerminalCollapsed ? (
+            <div
+              onClick={() => setIsTerminalCollapsed(false)}
+              className="border-sidebar-border bg-card flex cursor-pointer select-none items-center justify-between border-t p-1 pl-2"
+            >
+              <div className="text-sm">Terminal</div>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="iconSm"
+                    className="hover:bg-sidebar-accent"
+                  >
+                    <ChevronUp className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="end" sideOffset={8}>
+                  Open Terminal
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          ) : (
+            <>
+              <ResizableHandle className="bg-sidebar-border" />
+              <ResizablePanel minSize={20} defaultSize={25}>
+                <div className="bg-sidebar flex h-full flex-col">
+                  <div
+                    onClick={() => setIsTerminalCollapsed(true)}
+                    className="border-sidebar-border flex cursor-pointer select-none items-center justify-between border-b p-1 pl-2"
+                  >
+                    <div className="text-sm">Terminal</div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="iconSm"
+                          className="hover:bg-sidebar-accent"
+                        >
+                          <ChevronDown className="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" align="end" sideOffset={8}>
+                        Close Terminal
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Terminal />
+                </div>
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </div>
     </div>
   );
-};
-
-// Helper: find README.* else first file in DFS order
-function findFirstFile(nodes: FileNode[]): FileNode | undefined {
-  let firstFile: FileNode | undefined;
-
-  for (const n of nodes) {
-    if (n.type === "file") {
-      if (/^readme/i.test(n.name)) return n;
-      if (!firstFile) firstFile = n;
-    }
-    if (n.children) {
-      const child = findFirstFile(n.children);
-      if (child) {
-        if (/^readme/i.test(child.name)) return child;
-        if (!firstFile) firstFile = child;
-      }
-    }
-  }
-
-  return firstFile;
 }

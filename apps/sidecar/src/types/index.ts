@@ -72,6 +72,16 @@ export interface FileDeleteResponse extends SuccessResponse {
   error?: string;
 }
 
+export interface FileStatsResponse extends SuccessResponse {
+  stats?: {
+    size: number;
+    mtime: string; // ISO string for JSON serialization
+    isFile: boolean;
+    isDirectory: boolean;
+  };
+  error?: string;
+}
+
 export interface DirectoryEntry {
   name: string;
   type: "file" | "directory";
