@@ -117,6 +117,7 @@ export function AgentEnvironment() {
         selectedFilePath={selectedFilePath}
         isCollapsed={isExplorerCollapsed}
         onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
+        autoExpandToSelectedPath={true}
       />
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="vertical" className="h-full">

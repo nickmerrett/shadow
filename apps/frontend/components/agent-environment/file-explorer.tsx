@@ -8,7 +8,7 @@ import {
   Folder,
   FolderOpen,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
@@ -35,6 +35,7 @@ export function FileExplorer({
   showDiffOperation = false,
   fileChanges = [],
   defaultExpanded = false,
+  autoExpandToSelectedPath = false,
 }: {
   files: FileNode[];
   onFileSelect?: (file: FileNode) => void;
@@ -44,9 +45,8 @@ export function FileExplorer({
   showDiffOperation?: boolean;
   fileChanges?: FileChange[];
   defaultExpanded?: boolean;
+  autoExpandToSelectedPath?: boolean;
 }) {
-  console.log(selectedFilePath);
-
   // We use a single Set to track folder state.
   // If defaultExpanded is true, the Set tracks collapsed folders (all open by default).
   // If defaultExpanded is false, the Set tracks expanded folders (all closed by default).
@@ -64,6 +64,43 @@ export function FileExplorer({
       return next;
     });
   };
+
+  // Auto-expand folders leading to the selected file path
+  useEffect(() => {
+    if (autoExpandToSelectedPath && selectedFilePath) {
+      // Get all parent folder paths for the selected file
+      const pathParts = selectedFilePath.split("/");
+      const parentPaths: string[] = [];
+      
+      // Build all parent paths (excluding the file itself)
+      for (let i = 1; i < pathParts.length; i++) {
+        parentPaths.push(pathParts.slice(0, i).join("/"));
+      }
+
+      // Expand each parent folder if it's not already expanded
+      setFolderState((prev) => {
+        const next = new Set(prev);
+        let hasChanges = false;
+
+        parentPaths.forEach((parentPath) => {
+          const shouldBeExpanded = defaultExpanded ? !next.has(parentPath) : next.has(parentPath);
+          
+          if (!shouldBeExpanded) {
+            hasChanges = true;
+            if (defaultExpanded) {
+              // In defaultExpanded mode, remove from set to expand
+              next.delete(parentPath);
+            } else {
+              // In normal mode, add to set to expand
+              next.add(parentPath);
+            }
+          }
+        });
+
+        return hasChanges ? next : prev;
+      });
+    }
+  }, [selectedFilePath, autoExpandToSelectedPath, defaultExpanded]);
 
   // Determine expansion based on defaultExpanded mode and folderState
   // If defaultExpanded: open unless in set; else: closed unless in set
