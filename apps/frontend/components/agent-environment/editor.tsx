@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import type { FileNode } from "./file-explorer";
 import { getLanguageFromPath } from "@repo/types";
 import { LogoHover } from "../logo/logo-hover";
+import { MarkdownRenderer } from "./markdown-renderer";
 
 // Dynamic import Monaco Editor to avoid SSR issues
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -36,6 +37,9 @@ export function Editor({
   contentError?: string;
 }) {
   const [isShikiReady, setIsShikiReady] = useState(false);
+
+  // Check if the selected file is a markdown file
+  const isMarkdownFile = selectedFilePath?.endsWith('.md') || selectedFilePath?.endsWith('.markdown');
 
   useEffect(() => {
     patchMonacoWithShiki().then(() => {
@@ -100,28 +104,34 @@ export function Editor({
             )}
           </div>
         )}
-        <MonacoEditor
-          height="100%"
-          language={
-            selectedFilePath
-              ? getLanguageFromPath(selectedFilePath)
-              : "plaintext"
-          }
-          value={selectedFileContent}
-          theme={isShikiReady ? "vesper" : "vs-dark"}
-          options={{
-            readOnly: true,
-            minimap: { enabled: false },
-            fontSize: 13,
-            wordWrap: "on",
-            scrollBeyondLastLine: false,
-            lineNumbersMinChars: 2,
-            padding: {
-              top: 8,
-              bottom: 8,
-            },
-          }}
-        />
+        {isMarkdownFile && selectedFileContent ? (
+          <div className="h-full overflow-auto p-4">
+            <MarkdownRenderer content={selectedFileContent} />
+          </div>
+        ) : (
+          <MonacoEditor
+            height="100%"
+            language={
+              selectedFilePath
+                ? getLanguageFromPath(selectedFilePath)
+                : "plaintext"
+            }
+            value={selectedFileContent}
+            theme={isShikiReady ? "vesper" : "vs-dark"}
+            options={{
+              readOnly: true,
+              minimap: { enabled: false },
+              fontSize: 13,
+              wordWrap: "on",
+              scrollBeyondLastLine: false,
+              lineNumbersMinChars: 2,
+              padding: {
+                top: 8,
+                bottom: 8,
+              },
+            }}
+          />
+        )}
       </div>
     </div>
   );
