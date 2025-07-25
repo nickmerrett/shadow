@@ -12,13 +12,13 @@ import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import { systemPrompt } from "./prompt/system";
+import { GitManager } from "./services/git-manager";
 import {
   emitStreamChunk,
   endStream,
   handleStreamError,
   startStream,
 } from "./socket";
-import { GitManager } from "./services/git-manager";
 import config from "./config";
 import { updateTaskStatus } from "./utils/task-status";
 
@@ -169,12 +169,135 @@ export class ChatService {
           console.log(`[CHAT] Successfully committed changes for task ${taskId}`);
         }
       } else {
-        console.log(`[CHAT] Git commits for remote mode not yet implemented`);
-        // TODO: Implement remote mode git commits via sidecar API
+        // Remote mode: Use sidecar git APIs instead of direct git operations
+        await this.commitChangesRemoteMode(taskId, task);
       }
     } catch (error) {
       console.error(`[CHAT] Failed to commit changes for task ${taskId}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Commit changes in remote mode using sidecar git APIs
+   */
+  private async commitChangesRemoteMode(taskId: string, task: { user: { name: string; email: string }; shadowBranch: string | null }): Promise<void> {
+    try {
+      console.log(`[CHAT] Checking for changes to commit in remote mode for task ${taskId}`);
+
+      // Build sidecar URL
+      const namespace = config.kubernetesNamespace || "shadow";
+      const sidecarPort = config.sidecarPort || 8080;
+      const sidecarUrl = `http://shadow-agent-${taskId}.${namespace}.svc.cluster.local:${sidecarPort}`;
+
+      // Check if there are any uncommitted changes
+      const statusResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/status");
+      
+      if (!statusResponse.success) {
+        console.error(`[CHAT] Failed to check git status for task ${taskId}: ${statusResponse.message}`);
+        return;
+      }
+
+      if (!statusResponse.hasChanges) {
+        console.log(`[CHAT] No changes to commit for task ${taskId} in remote mode`);
+        return;
+      }
+
+      // Get diff from sidecar to generate commit message on server side
+      const diffResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/diff");
+      
+      let commitMessage = "Update code via Shadow agent";
+      if (diffResponse.success && diffResponse.diff) {
+        // Generate commit message using server-side GitManager (which has AI integration)
+        const tempGitManager = new GitManager("", taskId);
+        commitMessage = await tempGitManager.generateCommitMessage(diffResponse.diff);
+      }
+
+      // Commit changes with user and Shadow co-author
+      const commitResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user: {
+            name: task.user.name,
+            email: task.user.email,
+          },
+          coAuthor: {
+            name: "Shadow",
+            email: "noreply@shadow.ai",
+          },
+          message: commitMessage,
+        }),
+      });
+
+      if (!commitResponse.success) {
+        console.error(`[CHAT] Failed to commit changes for task ${taskId}: ${commitResponse.message}`);
+        return;
+      }
+
+      // Push the commit
+      if (!task.shadowBranch) {
+        console.warn(`[CHAT] No shadow branch configured for task ${taskId}, skipping push`);
+        return;
+      }
+
+      const pushResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          branchName: task.shadowBranch,
+          setUpstream: false,
+        }),
+      });
+
+      if (!pushResponse.success) {
+        console.warn(`[CHAT] Failed to push changes for task ${taskId}: ${pushResponse.message}`);
+        // Don't throw here - commit succeeded even if push failed
+      }
+
+      console.log(`[CHAT] Successfully committed changes for task ${taskId} in remote mode`);
+    } catch (error) {
+      console.error(`[CHAT] Error in remote mode git commit for task ${taskId}:`, error);
+      // Don't throw here - we don't want git failures to break the chat flow
+    }
+  }
+
+  /**
+   * Make HTTP request to sidecar API
+   */
+  private async makeSidecarRequest(
+    sidecarUrl: string,
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<any> {
+    const url = `${sidecarUrl}${endpoint}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Sidecar API error ${response.status}: ${response.statusText}. ${errorText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error instanceof Error) {
+        if (error.name === "AbortError") {
+          throw new Error(`Sidecar API request timeout after 30s: ${endpoint}`);
+        }
+        throw error;
+      }
+      throw new Error("Unknown sidecar API error");
     }
   }
 

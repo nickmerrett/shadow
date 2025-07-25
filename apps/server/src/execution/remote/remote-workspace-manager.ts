@@ -8,6 +8,7 @@ import {
 } from "../interfaces/types";
 import config from "../../config";
 import { prisma } from "@repo/db";
+import { GitManager } from "../../services/git-manager";
 
 /**
  * RemoteWorkspaceManager manages Kubernetes pods for remote agent execution
@@ -129,13 +130,43 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
 
       console.log(`[REMOTE_WORKSPACE] Created service ${service.metadata.name} for task ${taskId}`);
 
-      // Set up git branch tracking in database
-      // Note: Actual git operations happen in the pod via sidecar
+      // Step 1: Clone repository to pod workspace
+      const sidecarUrl = this.getSidecarUrl(taskId);
+      try {
+        const cloneResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/clone", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            repoUrl,
+            branch: baseBranch,
+            githubToken: process.env.GITHUB_TOKEN, // GitHub token from environment
+          }),
+        });
+
+        if (!cloneResponse.success) {
+          throw new Error(`Repository clone failed: ${cloneResponse.message}`);
+        }
+
+        console.log(`[REMOTE_WORKSPACE] Repository cloned successfully for task ${taskId}`);
+      } catch (error) {
+        console.error(`[REMOTE_WORKSPACE] Failed to clone repository for task ${taskId}:`, error);
+        return {
+          success: false,
+          workspacePath: "",
+          error: `Repository clone failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        };
+      }
+
+      // Step 2: Set up git configuration and shadow branch
       try {
         await this.setupGitBranchTracking(taskId, baseBranch, shadowBranch, userId);
       } catch (error) {
-        console.error(`[REMOTE_WORKSPACE] Failed to setup git branch tracking for task ${taskId}:`, error);
-        // Don't fail the workspace preparation for this
+        console.error(`[REMOTE_WORKSPACE] Failed to setup git for task ${taskId}:`, error);
+        return {
+          success: false,
+          workspacePath: "",
+          error: `Git setup failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        };
       }
 
       return {
@@ -196,7 +227,15 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       const podName = `shadow-agent-${taskId}`;
       const serviceName = `shadow-agent-${taskId}`;
 
-      // Delete the service first
+      // Step 1: Commit any final changes before destroying the pod
+      try {
+        await this.commitFinalChanges(taskId);
+      } catch (error) {
+        console.warn(`[REMOTE_WORKSPACE] Failed to commit final changes for task ${taskId}:`, error);
+        // Continue with cleanup even if final commit fails
+      }
+
+      // Step 2: Delete the service first
       try {
         await this.makeK8sRequest(`/api/v1/namespaces/${this.namespace}/services/${serviceName}`, {
           method: "DELETE",
@@ -206,7 +245,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
         console.warn(`[REMOTE_WORKSPACE] Failed to delete service ${serviceName}:`, error);
       }
 
-      // Delete the pod
+      // Step 3: Delete the pod
       try {
         await this.makeK8sRequest(`/api/v1/namespaces/${this.namespace}/pods/${podName}`, {
           method: "DELETE",
@@ -216,7 +255,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
         console.warn(`[REMOTE_WORKSPACE] Failed to delete pod ${podName}:`, error);
       }
 
-      // Delete workspace PVC if using EFS
+      // Step 4: Delete workspace PVC if using EFS
       await this.cleanupWorkspacePVC(taskId);
 
       return {
@@ -230,6 +269,85 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
           error instanceof Error ? error.message : "Unknown error"
         }`,
       };
+    }
+  }
+
+  /**
+   * Commit any final changes before pod termination
+   */
+  private async commitFinalChanges(taskId: string): Promise<void> {
+    try {
+      const sidecarUrl = this.getSidecarUrl(taskId);
+
+      // Check if there are any uncommitted changes
+      const statusResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/status");
+      
+      if (!statusResponse.success || !statusResponse.hasChanges) {
+        console.log(`[REMOTE_WORKSPACE] No final changes to commit for task ${taskId}`);
+        return;
+      }
+
+      // Get user information for the commit
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        include: { user: true },
+      });
+
+      if (!task || !task.user) {
+        console.warn(`[REMOTE_WORKSPACE] Cannot find user for final commit of task ${taskId}`);
+        return;
+      }
+
+      // Get diff from sidecar to generate commit message on server side
+      const diffResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/diff");
+      
+      let commitMessage = "Final commit before task completion";
+      if (diffResponse.success && diffResponse.diff) {
+        // Generate commit message using server-side GitManager (which has AI integration)
+        const tempGitManager = new GitManager("", taskId);
+        commitMessage = await tempGitManager.generateCommitMessage(diffResponse.diff);
+      }
+
+      // Commit the final changes
+      const commitResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user: {
+            name: task.user.name,
+            email: task.user.email,
+          },
+          coAuthor: {
+            name: "Shadow",
+            email: "noreply@shadow.ai",
+          },
+          message: commitMessage,
+        }),
+      });
+
+      if (!commitResponse.success) {
+        throw new Error(`Final commit failed: ${commitResponse.message}`);
+      }
+
+      // Push the final commit
+      const pushResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          branchName: task.shadowBranch,
+          setUpstream: false,
+        }),
+      });
+
+      if (!pushResponse.success) {
+        console.warn(`[REMOTE_WORKSPACE] Failed to push final commit for task ${taskId}: ${pushResponse.message}`);
+        // Don't throw here - commit succeeded even if push failed
+      }
+
+      console.log(`[REMOTE_WORKSPACE] Final changes committed and pushed for task ${taskId}`);
+    } catch (error) {
+      console.error(`[REMOTE_WORKSPACE] Error in final commit for task ${taskId}:`, error);
+      throw error;
     }
   }
 
@@ -302,32 +420,121 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
   }
 
   /**
-   * Setup git branch tracking in database for remote tasks
-   * The actual git operations will be handled by the sidecar in the pod
+   * Setup git operations in remote pod via sidecar APIs
+   * This mirrors the local mode git setup workflow
    */
   private async setupGitBranchTracking(
     taskId: string,
     baseBranch: string,
     shadowBranch: string,
-    _userId: string
+    userId: string
   ): Promise<void> {
     try {
-      // Update task in database with branch information
-      // Note: baseCommitSha will be set later by the sidecar after git operations
+      console.log(`[REMOTE_WORKSPACE] Setting up git for task ${taskId} via sidecar APIs`);
+
+      // Get user information from database for git configuration
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, email: true },
+      });
+
+      if (!user) {
+        throw new Error(`User not found: ${userId}`);
+      }
+
+      const sidecarUrl = this.getSidecarUrl(taskId);
+
+      // Step 1: Configure git user in the pod
+      const configResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: user.name,
+          email: user.email,
+        }),
+      });
+
+      if (!configResponse.success) {
+        throw new Error(`Failed to configure git user: ${configResponse.message}`);
+      }
+
+      // Step 2: Create shadow branch
+      const branchResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/branch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          baseBranch,
+          shadowBranch,
+        }),
+      });
+
+      if (!branchResponse.success) {
+        throw new Error(`Failed to create shadow branch: ${branchResponse.message}`);
+      }
+
+      // Step 3: Update task in database with actual base commit SHA
       await prisma.task.update({
         where: { id: taskId },
         data: {
-          baseCommitSha: "pending", // Will be updated by sidecar once git operations complete
+          baseCommitSha: branchResponse.baseCommitSha || "unknown",
         },
       });
 
-      console.log(`[REMOTE_WORKSPACE] Git branch tracking setup for task ${taskId}:`, {
+      console.log(`[REMOTE_WORKSPACE] Git setup complete for task ${taskId}:`, {
         baseBranch,
         shadowBranch,
+        baseCommitSha: branchResponse.baseCommitSha,
       });
     } catch (error) {
-      console.error(`[REMOTE_WORKSPACE] Failed to setup git branch tracking for task ${taskId}:`, error);
+      console.error(`[REMOTE_WORKSPACE] Failed to setup git for task ${taskId}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Get sidecar service URL for a task
+   */
+  private getSidecarUrl(taskId: string): string {
+    const sidecarPort = config.sidecarPort || 8080;
+    return `http://shadow-agent-${taskId}.${this.namespace}.svc.cluster.local:${sidecarPort}`;
+  }
+
+  /**
+   * Make HTTP request to sidecar API
+   */
+  private async makeSidecarRequest(
+    sidecarUrl: string,
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<any> {
+    const url = `${sidecarUrl}${endpoint}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Sidecar API error ${response.status}: ${response.statusText}. ${errorText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error instanceof Error) {
+        if (error.name === "AbortError") {
+          throw new Error(`Sidecar API request timeout after 30s: ${endpoint}`);
+        }
+        throw error;
+      }
+      throw new Error("Unknown sidecar API error");
     }
   }
 

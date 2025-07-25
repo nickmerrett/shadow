@@ -143,3 +143,84 @@ export interface WorkspaceStatusResponse {
   sizeBytes?: number;
   error?: string;
 }
+
+// Git-related request schemas
+export const GitCloneRequestSchema = z.object({
+  repoUrl: z.string(),
+  branch: z.string(),
+  githubToken: z.string().optional(),
+});
+
+export const GitConfigRequestSchema = z.object({
+  name: z.string(),
+  email: z.string(),
+});
+
+export const GitBranchRequestSchema = z.object({
+  baseBranch: z.string(),
+  shadowBranch: z.string(),
+});
+
+export const GitCommitRequestSchema = z.object({
+  user: z.object({
+    name: z.string(),
+    email: z.string(),
+  }),
+  coAuthor: z.object({
+    name: z.string(),
+    email: z.string(),
+  }).optional(),
+  message: z.string().min(1, "Commit message is required"),
+});
+
+export const GitPushRequestSchema = z.object({
+  branchName: z.string(),
+  setUpstream: z.boolean().default(true),
+});
+
+// Git response types
+export interface GitCloneResponse extends SuccessResponse {
+  repoUrl: string;
+  branch: string;
+  error?: string;
+}
+
+export interface GitConfigResponse extends SuccessResponse {
+  user: {
+    name: string;
+    email: string;
+  };
+  error?: string;
+}
+
+export interface GitBranchResponse extends SuccessResponse {
+  baseBranch: string;
+  shadowBranch: string;
+  baseCommitSha?: string;
+  error?: string;
+}
+
+export interface GitStatusResponse extends SuccessResponse {
+  hasChanges: boolean;
+  hasUnstagedChanges?: boolean;
+  hasStagedChanges?: boolean;
+  error?: string;
+}
+
+export interface GitDiffResponse extends SuccessResponse {
+  diff: string;
+  unstagedDiff?: string;
+  stagedDiff?: string;
+  error?: string;
+}
+
+export interface GitCommitResponse extends SuccessResponse {
+  commitMessage?: string;
+  commitSha?: string;
+  error?: string;
+}
+
+export interface GitPushResponse extends SuccessResponse {
+  branchName: string;
+  error?: string;
+}

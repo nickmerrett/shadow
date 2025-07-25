@@ -16,6 +16,13 @@ export class WorkspaceService {
   }
 
   /**
+   * Get the workspace directory path
+   */
+  getWorkspacePath(): string {
+    return this.workspaceDir;
+  }
+
+  /**
    * Ensure the workspace directory exists
    */
   async ensureWorkspace(): Promise<void> {
