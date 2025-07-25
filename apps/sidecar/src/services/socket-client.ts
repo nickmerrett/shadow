@@ -22,20 +22,23 @@ export class SocketClient {
   private connected = false;
   private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 10;
+  private readonly reconnectionDelay = 1000;
+  private readonly reconnectionDelayMax = 5000;
+  private readonly timeout = 20000;
 
   constructor(serverUrl: string, taskId: string) {
     this.taskId = taskId;
-    
+
     logger.info(`[SOCKET_CLIENT] Initializing connection to ${serverUrl}/sidecar for task ${taskId}`);
-    
+
     this.socket = io(`${serverUrl}/sidecar`, {
       transports: ['websocket'],
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
+      reconnectionDelay: this.reconnectionDelay,
+      reconnectionDelayMax: this.reconnectionDelayMax,
+      timeout: this.timeout,
     });
 
     this.setupEventHandlers();
@@ -48,11 +51,11 @@ export class SocketClient {
     this.socket.on('connect', () => {
       this.connected = true;
       this.reconnectAttempts = 0;
-      
+
       logger.info(`[SOCKET_CLIENT] Connected to server, joining task ${this.taskId}`);
-      
+
       // Join the task room
-      this.socket.emit('join-task', { 
+      this.socket.emit('join-task', {
         taskId: this.taskId,
         podId: process.env.HOSTNAME || 'unknown-pod'
       });
@@ -73,17 +76,17 @@ export class SocketClient {
 
     this.socket.on('disconnect', (reason) => {
       this.connected = false;
-      logger.warn(`[SOCKET_CLIENT] Disconnected from server`, { 
+      logger.warn(`[SOCKET_CLIENT] Disconnected from server`, {
         reason,
-        taskId: this.taskId 
+        taskId: this.taskId
       });
     });
 
     this.socket.on('connect_error', (error) => {
       this.reconnectAttempts++;
-      logger.error(`[SOCKET_CLIENT] Connection error (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`, { 
+      logger.error(`[SOCKET_CLIENT] Connection error (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`, {
         error: error.message,
-        taskId: this.taskId 
+        taskId: this.taskId
       });
 
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
@@ -142,7 +145,7 @@ export class SocketClient {
    */
   disconnect(): void {
     logger.info(`[SOCKET_CLIENT] Disconnecting from server for task ${this.taskId}`);
-    
+
     if (this.socket) {
       this.socket.disconnect();
     }

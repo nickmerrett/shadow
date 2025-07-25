@@ -3,9 +3,33 @@ import { tool } from "ai";
 import { z } from "zod";
 import { createToolExecutor, isLocalMode } from "../execution";
 import { LocalFileSystemWatcher } from "../services/local-filesystem-watcher";
+import { emitTerminalOutput } from "../socket";
+import type { TerminalEntry } from "@repo/types";
 
 // Map to track active filesystem watchers by task ID
 const activeFileSystemWatchers = new Map<string, LocalFileSystemWatcher>();
+
+// Terminal entry counter for unique IDs
+let terminalEntryId = 1;
+
+// Helper function to create and emit terminal entries
+function createAndEmitTerminalEntry(
+  taskId: string,
+  type: TerminalEntry['type'],
+  data: string,
+  processId?: number
+): void {
+  const entry: TerminalEntry = {
+    id: terminalEntryId++,
+    timestamp: Date.now(),
+    data,
+    type,
+    processId,
+  };
+
+  console.log(`[TERMINAL_OUTPUT] Emitting ${type} for task ${taskId}:`, data.slice(0, 100));
+  emitTerminalOutput(taskId, entry);
+}
 
 // Factory function to create tools with task context using abstraction layer
 export function createTools(taskId: string, workspacePath?: string) {
@@ -218,9 +242,39 @@ export function createTools(taskId: string, workspacePath?: string) {
       }),
       execute: async ({ command, is_background, explanation }) => {
         console.log(`[TERMINAL_CMD] ${explanation}`);
+
+        // Emit the command being executed to the terminal
+        createAndEmitTerminalEntry(taskId, "command", command);
+
         const result = await executor.executeCommand(command, {
           isBackground: is_background,
         });
+
+        // Emit stdout output if present
+        if (result.success && result.stdout) {
+          createAndEmitTerminalEntry(taskId, "stdout", result.stdout);
+        }
+
+        // Emit stderr output if present
+        if (result.stderr) {
+          createAndEmitTerminalEntry(taskId, "stderr", result.stderr);
+        }
+
+        // Emit system message for command completion
+        if (result.success) {
+          createAndEmitTerminalEntry(
+            taskId,
+            "system",
+            `Command completed successfully`
+          );
+        } else if (result.error) {
+          createAndEmitTerminalEntry(
+            taskId,
+            "system",
+            `Command failed: ${result.error}`
+          );
+        }
+
         return result;
       },
     }),
@@ -379,12 +433,12 @@ export function stopFileSystemWatcher(taskId: string): void {
  */
 export function stopAllFileSystemWatchers(): void {
   console.log(`[TOOLS] Stopping ${activeFileSystemWatchers.size} active filesystem watchers`);
-  
+
   for (const [taskId, watcher] of activeFileSystemWatchers.entries()) {
     watcher.stop();
     console.log(`[TOOLS] Stopped filesystem watcher for task ${taskId}`);
   }
-  
+
   activeFileSystemWatchers.clear();
 }
 
