@@ -93,14 +93,6 @@ export class SocketClient {
         logger.error(`[SOCKET_CLIENT] Max reconnection attempts reached, giving up`);
       }
     });
-
-    this.socket.on('reconnect', (attemptNumber) => {
-      logger.info(`[SOCKET_CLIENT] Reconnected to server after ${attemptNumber} attempts`);
-    });
-
-    this.socket.on('reconnect_failed', () => {
-      logger.error(`[SOCKET_CLIENT] Failed to reconnect after ${this.maxReconnectAttempts} attempts`);
-    });
   }
 
   /**

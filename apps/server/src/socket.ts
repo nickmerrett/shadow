@@ -1,11 +1,12 @@
 import { prisma } from "@repo/db";
-import { ModelType, StreamChunk, ServerToClientEvents, ClientToServerEvents } from "@repo/types";
+import { StreamChunk, ServerToClientEvents, ClientToServerEvents, TerminalEntry } from "@repo/types";
 import http from "http";
 import { Server, Socket } from "socket.io";
 import { ChatService, DEFAULT_MODEL } from "./chat";
 import config from "./config";
 import { updateTaskStatus } from "./utils/task-status";
 import { createToolExecutor } from "./execution";
+import { AgentMode } from "./execution/interfaces/types";
 import { setupSidecarNamespace } from "./services/sidecar-socket-handler";
 
 // Enhanced connection management
@@ -26,7 +27,7 @@ let io: Server<ClientToServerEvents, ServerToClientEvents>;
 let chatService: ChatService;
 
 // Terminal helper functions
-async function getTerminalHistory(taskId: string): Promise<any[]> {
+async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
   try {
     // Get task to determine execution mode and workspace
     const task = await prisma.task.findUnique({
@@ -39,8 +40,8 @@ async function getTerminalHistory(taskId: string): Promise<any[]> {
     }
 
     // Create executor based on current mode
-    const agentMode = process.env.AGENT_MODE || "local";
-    const executor = createToolExecutor(taskId, task.workspacePath || undefined, agentMode as any);
+    const agentMode = (process.env.AGENT_MODE || "local") as AgentMode;
+    const executor = createToolExecutor(taskId, task.workspacePath || undefined, agentMode);
 
     // For remote mode, we'd call the sidecar terminal API
     // For local mode, we'd need to implement local terminal buffer
@@ -75,8 +76,8 @@ async function clearTerminal(taskId: string): Promise<void> {
       throw new Error(`Task ${taskId} not found`);
     }
 
-    const agentMode = process.env.AGENT_MODE || "local";
-    const executor = createToolExecutor(taskId, task.workspacePath || undefined, agentMode as any);
+    const agentMode = (process.env.AGENT_MODE || "local") as AgentMode;
+    const executor = createToolExecutor(taskId, task.workspacePath || undefined, agentMode);
 
     if (executor.isRemote()) {
       // Call sidecar terminal clear API
@@ -120,8 +121,8 @@ function startTerminalPolling(taskId: string) {
         return;
       }
 
-      const agentMode = process.env.AGENT_MODE || "local";
-      const executor = createToolExecutor(taskId, task.workspacePath || undefined, agentMode as any);
+      const agentMode = (process.env.AGENT_MODE || "local") as AgentMode;
+      const executor = createToolExecutor(taskId, task.workspacePath || undefined, agentMode);
 
       if (executor.isRemote()) {
         // Poll sidecar for new entries
@@ -131,7 +132,7 @@ function startTerminalPolling(taskId: string) {
           const newEntries = data.entries || [];
 
           // Emit new entries to connected clients in the task room
-          newEntries.forEach((entry: any) => {
+          newEntries.forEach((entry: TerminalEntry) => {
             if (entry.id > lastSeenId) {
               lastSeenId = entry.id;
               emitToTask(taskId, "terminal-output", { taskId, entry });
@@ -158,7 +159,7 @@ function stopTerminalPolling(taskId: string) {
 }
 
 // Helper function to verify task access (basic implementation)
-async function verifyTaskAccess(socketId: string, taskId: string): Promise<boolean> {
+async function verifyTaskAccess(_socketId: string, taskId: string): Promise<boolean> {
   try {
     // For now, just check if task exists
     // TODO: Add proper user authentication and authorization
@@ -173,6 +174,7 @@ async function verifyTaskAccess(socketId: string, taskId: string): Promise<boole
 }
 
 // Emit to specific task room
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function emitToTask(taskId: string, event: keyof ServerToClientEvents, data: any) {
   io.to(`task-${taskId}`).emit(event, data);
 }
@@ -492,7 +494,7 @@ export function endStream(taskId?: string) {
   }
 }
 
-export function handleStreamError(error: any, taskId?: string) {
+export function handleStreamError(error: unknown, taskId?: string) {
   isStreaming = false;
   // Only emit if socket server is initialized (not in terminal mode)
   if (io) {
@@ -596,7 +598,7 @@ export function emitStreamChunk(chunk: StreamChunk, taskId?: string) {
 }
 
 // Helper function to emit terminal output to task room
-export function emitTerminalOutput(taskId: string, entry: any) {
+export function emitTerminalOutput(taskId: string, entry: TerminalEntry) {
   if (io) {
     emitToTask(taskId, "terminal-output", { taskId, entry });
   }

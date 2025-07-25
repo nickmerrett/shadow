@@ -1,4 +1,4 @@
-import { prisma } from "@repo/db";
+import { prisma, TodoStatus } from "@repo/db";
 import { tool } from "ai";
 import { z } from "zod";
 import { createToolExecutor, isLocalMode } from "../execution";
@@ -114,7 +114,7 @@ export function createTools(taskId: string, workspacePath?: string) {
                 where: { id: existingTodo.id },
                 data: {
                   content: todo.content,
-                  status: todo.status.toUpperCase() as any,
+                  status: todo.status.toUpperCase() as TodoStatus,
                   sequence: i,
                 },
               });
@@ -130,7 +130,7 @@ export function createTools(taskId: string, workspacePath?: string) {
                 data: {
                   id: todo.id,
                   content: todo.content,
-                  status: todo.status.toUpperCase() as any,
+                  status: todo.status.toUpperCase() as TodoStatus,
                   sequence: i,
                   taskId,
                 },
@@ -465,7 +465,7 @@ export function stopAllFileSystemWatchers(): void {
  */
 export function getFileSystemWatcherStats() {
   const stats = [];
-  for (const [taskId, watcher] of activeFileSystemWatchers.entries()) {
+  for (const [_taskId, watcher] of activeFileSystemWatchers.entries()) {
     stats.push(watcher.getStats());
   }
   return {
@@ -482,6 +482,6 @@ export const tools = new Proxy({} as ReturnType<typeof createTools>, {
     if (!_defaultTools) {
       _defaultTools = createTools("placeholder-task-id");
     }
-    return (_defaultTools as any)[prop];
+    return _defaultTools![prop as keyof ReturnType<typeof createTools>];
   }
 });
