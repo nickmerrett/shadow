@@ -106,7 +106,7 @@ export function AgentEnvironment() {
       />
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="vertical" className="h-full">
-          <ResizablePanel minSize={20} defaultSize={60}>
+          <ResizablePanel minSize={20} defaultSize={75}>
             <Editor
               selectedFilePath={selectedFilePath}
               selectedFileContent={selectedFileWithContent?.content || ""}
@@ -141,7 +141,7 @@ export function AgentEnvironment() {
           ) : (
             <>
               <ResizableHandle className="bg-sidebar-border" />
-              <ResizablePanel minSize={20} defaultSize={40}>
+              <ResizablePanel minSize={20} defaultSize={25}>
                 <div className="bg-sidebar flex h-full flex-col">
                   <div
                     onClick={() => setIsTerminalCollapsed(true)}

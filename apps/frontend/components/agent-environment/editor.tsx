@@ -83,18 +83,20 @@ export function Editor({
         </div>
       </div>
       <div className="code-editor relative z-0 flex-1 overflow-hidden pl-2">
-        {(isLoadingContent || contentError) && (
+        {(isLoadingContent || contentError || !selectedFilePath) && (
           <div className="bg-background text-muted-foreground absolute inset-0 z-10 flex select-none items-center justify-center gap-2 text-sm">
             {isLoadingContent ? (
               <div className="flex items-center gap-2">
                 <LogoHover size="sm" forceAnimate className="opacity-60" />
-                Loading file content...
+                Loading file content
               </div>
-            ) : (
+            ) : contentError ? (
               <div className="justfiy-center flex items-center gap-2 break-words leading-none">
                 <AlertTriangle className="text-destructive size-4 shrink-0" />
                 Error loading file: {contentError || "Unknown error"}
               </div>
+            ) : (
+              <div>No file selected</div>
             )}
           </div>
         )}
