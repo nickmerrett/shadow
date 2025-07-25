@@ -21,13 +21,15 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 });
 
 export function Editor({
-  selectedFile,
+  selectedFilePath,
+  selectedFileContent,
   isExplorerCollapsed,
   onToggleCollapse,
   isLoadingContent,
   contentError,
 }: {
-  selectedFile?: FileNode | null;
+  selectedFilePath?: string | null;
+  selectedFileContent?: string;
   isExplorerCollapsed: boolean;
   onToggleCollapse: () => void;
   isLoadingContent?: boolean;
@@ -63,8 +65,8 @@ export function Editor({
         <div className="flex flex-col items-start justify-center">
           <div className="select-none text-sm">Code Editor</div>
           <div className="text-muted-foreground flex items-center gap-0.5 text-[13px]">
-            {selectedFile
-              ? selectedFile.path.split("/").map((part, index) => (
+            {selectedFilePath
+              ? selectedFilePath.split("/").map((part, index) => (
                   <Fragment key={index}>
                     {index > 1 && (
                       <span className="text-muted-foreground">
@@ -99,9 +101,11 @@ export function Editor({
         <MonacoEditor
           height="100%"
           language={
-            selectedFile ? getLanguageFromPath(selectedFile.path) : "plaintext"
+            selectedFilePath
+              ? getLanguageFromPath(selectedFilePath)
+              : "plaintext"
           }
-          value={selectedFile?.content}
+          value={selectedFileContent}
           theme={isShikiReady ? "vesper" : "vs-dark"}
           options={{
             readOnly: true,

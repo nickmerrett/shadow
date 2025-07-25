@@ -45,6 +45,8 @@ export function FileExplorer({
   fileChanges?: FileChange[];
   defaultExpanded?: boolean;
 }) {
+  console.log(selectedFilePath);
+
   // We use a single Set to track folder state.
   // If defaultExpanded is true, the Set tracks collapsed folders (all open by default).
   // If defaultExpanded is false, the Set tracks expanded folders (all closed by default).
@@ -196,7 +198,6 @@ export function FileExplorer({
     }
     return null;
   }
-
   // If this is being used without the sidebar header
   return (
     <div className="group/files flex flex-col gap-0.5">

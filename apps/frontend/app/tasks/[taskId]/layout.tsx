@@ -1,4 +1,5 @@
 import { SidebarViews } from "@/components/sidebar";
+import { AgentEnvironmentProvider } from "@/components/agent-environment/agent-environment-context";
 import { getModels } from "@/lib/actions/get-models";
 import { getUser } from "@/lib/auth/get-user";
 import { getTaskMessages } from "@/lib/db-operations/get-task-messages";
@@ -56,8 +57,10 @@ export default async function TaskLayout({
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <SidebarViews initialTasks={initialTasks} currentTaskId={task.id} />
-      {children}
+      <AgentEnvironmentProvider taskId={taskId}>
+        <SidebarViews initialTasks={initialTasks} currentTaskId={task.id} />
+        {children}
+      </AgentEnvironmentProvider>
     </HydrationBoundary>
   );
 }

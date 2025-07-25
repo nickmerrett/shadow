@@ -23,6 +23,7 @@ import {
   FileExplorer,
   type FileNode,
 } from "@/components/agent-environment/file-explorer";
+import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 
 // Todo status config - aligned with main status colors
 const todoStatusConfig = {
@@ -75,6 +76,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
 
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
+  const { setSelectedFilePath } = useAgentEnvironment();
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
@@ -188,6 +190,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               showDiffOperation={true}
               fileChanges={fileChanges}
               defaultExpanded={true}
+              onFileSelect={(file) => setSelectedFilePath(file.path)}
             />
           </SidebarGroupContent>
         </SidebarGroup>

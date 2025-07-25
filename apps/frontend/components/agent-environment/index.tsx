@@ -14,24 +14,28 @@ import { Button } from "../ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { useCodebaseTree } from "@/hooks/use-codebase-tree";
-import { useFileContent } from "@/hooks/use-file-content";
+import { useAgentEnvironment } from "./agent-environment-context";
 
 const Terminal = dynamic(() => import("./terminal"), { ssr: false });
 
 export function AgentEnvironment() {
-  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
   const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(false);
 
   const params = useParams<{ taskId?: string }>();
   const taskId = params?.taskId;
 
+  // Use context for file selection state
+  const {
+    selectedFilePath,
+    selectedFileWithContent,
+    setSelectedFilePath,
+    isLoadingContent,
+    contentError,
+  } = useAgentEnvironment();
+
   // Use the new hooks for data fetching
   const treeQuery = useCodebaseTree(taskId || "");
-  const fileContentQuery = useFileContent(
-    taskId || "",
-    selectedFilePath || undefined
-  );
 
   // Derive UI state from query results
   const workspaceStatus = treeQuery.isLoading
@@ -104,17 +108,6 @@ export function AgentEnvironment() {
     );
   }
 
-  // Create selected file object with content for the editor
-  const selectedFileWithContent =
-    selectedFilePath && fileContentQuery.data?.success
-      ? {
-          name: selectedFilePath.split("/").pop() || "",
-          type: "file" as const,
-          path: selectedFilePath,
-          content: fileContentQuery.data.content,
-        }
-      : null;
-
   // Ready state - normal UI
   return (
     <div className="flex size-full max-h-svh">
@@ -129,11 +122,12 @@ export function AgentEnvironment() {
         <ResizablePanelGroup direction="vertical" className="h-full">
           <ResizablePanel minSize={20} defaultSize={60}>
             <Editor
-              selectedFile={selectedFileWithContent}
+              selectedFilePath={selectedFilePath}
+              selectedFileContent={selectedFileWithContent?.content || ""}
               isExplorerCollapsed={isExplorerCollapsed}
               onToggleCollapse={() => setIsExplorerCollapsed((prev) => !prev)}
-              isLoadingContent={fileContentQuery.isLoading}
-              contentError={fileContentQuery.error?.message}
+              isLoadingContent={isLoadingContent}
+              contentError={contentError}
             />
           </ResizablePanel>
           {isTerminalCollapsed ? (
