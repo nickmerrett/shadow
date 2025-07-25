@@ -18,7 +18,7 @@ export interface TaskWithDetails {
 async function fetchFileChanges(taskId: string): Promise<FileChange[]> {
   try {
     // Internal API call to our server
-    const response = await fetch(`http://localhost:4000/api/files/${taskId}/file-changes`);
+    const response = await fetch(`http://localhost:4000/api/tasks/${taskId}/file-changes`);
     if (!response.ok) {
       console.warn(`Failed to fetch file changes for task ${taskId}: ${response.status}`);
       return [];

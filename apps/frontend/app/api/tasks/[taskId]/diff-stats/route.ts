@@ -9,7 +9,7 @@ export async function GET(
 
     // Forward to backend server
     const backendUrl = process.env.BACKEND_URL || "http://localhost:4000";
-    const response = await fetch(`${backendUrl}/api/files/${taskId}/diff-stats`);
+    const response = await fetch(`${backendUrl}/api/tasks/${taskId}/diff-stats`);
 
     if (!response.ok) {
       return NextResponse.json(
