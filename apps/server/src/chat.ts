@@ -21,6 +21,7 @@ import {
 } from "./socket";
 import config from "./config";
 import { updateTaskStatus } from "./utils/task-status";
+import { SidecarClient } from "./execution/remote/sidecar-client";
 
 export const DEFAULT_MODEL: ModelType = "gpt-4o";
 
@@ -185,13 +186,11 @@ export class ChatService {
     try {
       console.log(`[CHAT] Checking for changes to commit in remote mode for task ${taskId}`);
 
-      // Build sidecar URL
-      const namespace = config.kubernetesNamespace || "shadow";
-      const sidecarPort = config.sidecarPort || 8080;
-      const sidecarUrl = `http://shadow-agent-${taskId}.${namespace}.svc.cluster.local:${sidecarPort}`;
+      // Create sidecar client for this task
+      const sidecarClient = new SidecarClient(taskId);
 
       // Check if there are any uncommitted changes
-      const statusResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/status");
+      const statusResponse = await sidecarClient.getGitStatus();
       
       if (!statusResponse.success) {
         console.error(`[CHAT] Failed to check git status for task ${taskId}: ${statusResponse.message}`);
@@ -204,7 +203,7 @@ export class ChatService {
       }
 
       // Get diff from sidecar to generate commit message on server side
-      const diffResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/diff");
+      const diffResponse = await sidecarClient.getGitDiff();
       
       let commitMessage = "Update code via Shadow agent";
       if (diffResponse.success && diffResponse.diff) {
@@ -214,21 +213,17 @@ export class ChatService {
       }
 
       // Commit changes with user and Shadow co-author
-      const commitResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/commit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user: {
-            name: task.user.name,
-            email: task.user.email,
-          },
-          coAuthor: {
-            name: "Shadow",
-            email: "noreply@shadow.ai",
-          },
-          message: commitMessage,
-        }),
-      });
+      const commitResponse = await sidecarClient.commitChanges(
+        {
+          name: task.user.name,
+          email: task.user.email,
+        },
+        {
+          name: "Shadow",
+          email: "noreply@shadow.ai",
+        },
+        commitMessage
+      );
 
       if (!commitResponse.success) {
         console.error(`[CHAT] Failed to commit changes for task ${taskId}: ${commitResponse.message}`);
@@ -241,14 +236,7 @@ export class ChatService {
         return;
       }
 
-      const pushResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/push", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          branchName: task.shadowBranch,
-          setUpstream: false,
-        }),
-      });
+      const pushResponse = await sidecarClient.pushBranch(task.shadowBranch, false);
 
       if (!pushResponse.success) {
         console.warn(`[CHAT] Failed to push changes for task ${taskId}: ${pushResponse.message}`);
@@ -262,44 +250,6 @@ export class ChatService {
     }
   }
 
-  /**
-   * Make HTTP request to sidecar API
-   */
-  private async makeSidecarRequest(
-    sidecarUrl: string,
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<any> {
-    const url = `${sidecarUrl}${endpoint}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Sidecar API error ${response.status}: ${response.statusText}. ${errorText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      clearTimeout(timeoutId);
-      
-      if (error instanceof Error) {
-        if (error.name === "AbortError") {
-          throw new Error(`Sidecar API request timeout after 30s: ${endpoint}`);
-        }
-        throw error;
-      }
-      throw new Error("Unknown sidecar API error");
-    }
-  }
 
   async getChatHistory(taskId: string): Promise<Message[]> {
     const dbMessages = await prisma.chatMessage.findMany({
