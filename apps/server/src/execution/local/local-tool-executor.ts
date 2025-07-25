@@ -467,7 +467,16 @@ export class LocalToolExecutor implements ToolExecutor {
         throw new Error("EXA_API_KEY is not configured");
       }
 
-      const requestBody: any = {
+      interface ExaApiRequestBody {
+        query: string;
+        contents: {
+          text: boolean;
+        };
+        num_results: number;
+        include_domains?: string[];
+      }
+
+      const requestBody: ExaApiRequestBody = {
         query,
         contents: {
           text: true
