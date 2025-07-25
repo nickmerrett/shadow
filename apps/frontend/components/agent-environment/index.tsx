@@ -11,10 +11,11 @@ import { useState } from "react";
 import { Editor } from "./editor";
 import { FileExplorer } from "./file-explorer";
 import { Button } from "../ui/button";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { useCodebaseTree } from "@/hooks/use-codebase-tree";
 import { useAgentEnvironment } from "./agent-environment-context";
+import { LogoHover } from "../logo/logo-hover";
 
 const Terminal = dynamic(() => import("./terminal"), { ssr: false });
 
@@ -55,18 +56,16 @@ export function AgentEnvironment() {
   // Loading state UI
   if (workspaceStatus === "loading" || workspaceStatus === "initializing") {
     return (
-      <div className="bg-background flex size-full max-h-svh items-center justify-center">
-        <div className="flex flex-col items-center gap-4 p-6 text-center">
-          <div className="border-muted border-t-primary h-8 w-8 animate-spin rounded-full border-2"></div>
-          <h3 className="text-xl font-medium">
-            {workspaceStatus === "initializing"
-              ? "Preparing Workspace"
-              : "Loading Files"}
-          </h3>
-          {loadingMessage && (
-            <p className="text-muted-foreground max-w-md">{loadingMessage}</p>
-          )}
+      <div className="bg-background flex size-full max-h-svh select-none flex-col items-center justify-center gap-4 p-4 text-center">
+        <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
+          <LogoHover forceAnimate />
+          {workspaceStatus === "initializing"
+            ? "Initializing Shadow Realm"
+            : "Loading Shadow Realm"}
         </div>
+        {loadingMessage && (
+          <p className="text-muted-foreground max-w-md">{loadingMessage}</p>
+        )}
       </div>
     );
   }
@@ -74,36 +73,22 @@ export function AgentEnvironment() {
   // Error state UI
   if (workspaceStatus === "error") {
     return (
-      <div className="bg-background flex size-full max-h-svh items-center justify-center">
-        <div className="flex flex-col items-center gap-4 p-6 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-          </div>
-          <h3 className="text-xl font-medium">Failed to Load Workspace</h3>
-          {loadingMessage && (
-            <p className="text-muted-foreground max-w-md">{loadingMessage}</p>
-          )}
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            Try Again
-          </button>
+      <div className="bg-background flex size-full max-h-svh select-none flex-col items-center justify-center gap-4 p-4 text-center">
+        <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
+          <AlertTriangle className="text-destructive size-5 shrink-0" />
+          Failed to Load Workspace
         </div>
+        {loadingMessage && (
+          <p className="text-muted-foreground max-w-md">{loadingMessage}</p>
+        )}
+        <Button
+          size="lg"
+          onClick={() => window.location.reload()}
+          variant="secondary"
+          className="border-sidebar-border hover:border-sidebar-border"
+        >
+          Try Again
+        </Button>
       </div>
     );
   }
