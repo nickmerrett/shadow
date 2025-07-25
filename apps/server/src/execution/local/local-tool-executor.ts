@@ -469,6 +469,7 @@ export class LocalToolExecutor implements ToolExecutor {
 
       interface ExaApiRequestBody {
         query: string;
+        type: "fast" | "auto" | "keyword" | "neural";
         contents: {
           text: boolean;
         };
@@ -478,6 +479,7 @@ export class LocalToolExecutor implements ToolExecutor {
 
       const requestBody: ExaApiRequestBody = {
         query,
+        type: "fast",
         contents: {
           text: true
         },
@@ -510,7 +512,7 @@ export class LocalToolExecutor implements ToolExecutor {
       }
 
       const data = await response.json() as { results?: ExaSearchResult[] };
-      
+
       const results = data.results?.map((result: ExaSearchResult) => ({
         text: result.text || "",
         url: result.url || "",
