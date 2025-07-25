@@ -506,3 +506,6 @@ export interface ClientToServerEvents {
 
 // === Sidecar Socket Types ===
 export * from './socket';
+
+// === Sidecar API Types ===
+export * from './sidecar';

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "./middleware";
 import { CommandService, CommandStreamEvent } from "../services/command-service";
 import { TerminalBuffer } from "../services/terminal-buffer";
-import { CommandRequestSchema } from "../types";
+import { CommandRequestSchema } from "@repo/types";
 
 export function createExecuteRouter(commandService: CommandService, terminalBuffer: TerminalBuffer): Router {
   const router = Router();
@@ -84,7 +84,7 @@ export function createExecuteRouter(commandService: CommandService, terminalBuff
           if (event.message) {
             terminalBuffer.addSystemMessage(event.message);
           }
-          
+
           clearInterval(keepAlive);
           res.end();
         }
@@ -133,7 +133,7 @@ export function createExecuteRouter(commandService: CommandService, terminalBuff
     asyncHandler(async (req, res) => {
       const count = req.query.count ? parseInt(req.query.count as string) : undefined;
       const sinceId = req.query.sinceId ? parseInt(req.query.sinceId as string) : undefined;
-      
+
       let entries;
       if (sinceId) {
         entries = terminalBuffer.getEntriesSince(sinceId);
@@ -172,7 +172,7 @@ export function createExecuteRouter(commandService: CommandService, terminalBuff
     asyncHandler(async (_req, res) => {
       terminalBuffer.clear();
       terminalBuffer.addSystemMessage("Terminal history cleared");
-      
+
       res.json({
         success: true,
         message: "Terminal history cleared",

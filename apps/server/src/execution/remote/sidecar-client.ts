@@ -23,7 +23,7 @@ import {
   GitPushRequest,
   GitPushResponse,
   HealthResponse,
-} from "./sidecar-types";
+} from "@repo/types";
 
 export class SidecarClient {
   private taskId: string;
@@ -32,7 +32,7 @@ export class SidecarClient {
   private timeout: number;
   private maxRetries: number;
   private retryDelay: number;
-  
+
   // Circuit breaker state
   private consecutiveFailures: number = 0;
   private lastFailureTime: number = 0;
@@ -94,14 +94,14 @@ export class SidecarClient {
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
         const result = await this.makeRequestAttempt<T>(endpoint, options);
-        
+
         // Reset circuit breaker on successful request
         this.resetCircuitBreaker();
-        
+
         return result;
       } catch (error) {
         lastError = this.classifyError(error);
-        
+
         console.warn(
           `[SIDECAR_CLIENT] Request attempt ${attempt}/${this.maxRetries} failed for ${this.taskId}${endpoint}:`,
           lastError.message
@@ -178,7 +178,7 @@ export class SidecarClient {
    */
   private classifyError(error: any): SidecarError {
     let sidecarError: SidecarError;
-    
+
     if (error instanceof Error) {
       sidecarError = error as SidecarError;
     } else {
@@ -191,7 +191,7 @@ export class SidecarClient {
 
     if (error instanceof Error) {
       const message = error.message.toLowerCase();
-      
+
       if (error.name === "AbortError" || message.includes("timeout")) {
         sidecarError.type = SidecarErrorType.TIMEOUT_ERROR;
         sidecarError.message = `Sidecar API request timeout after ${this.timeout}ms: ${error.message}`;

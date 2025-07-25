@@ -13,6 +13,7 @@ import {
   WriteResult,
   CodebaseSearchResult,
   SearchOptions,
+  WebSearchResult,
 } from "../interfaces/types";
 
 /**
@@ -283,6 +284,45 @@ export class MockRemoteToolExecutor implements ToolExecutor {
         query,
         searchTerms,
         message: `Found ${mockResults.length} relevant code snippets for "${query}"`,
+      };
+    });
+  }
+
+  async webSearch(query: string, domain?: string): Promise<WebSearchResult> {
+    return this.simulateNetworkCall("webSearch", () => {
+      // Generate mock web search results
+      const mockResults = [
+        {
+          text: `This is a mock search result for "${query}". It contains detailed information about the topic you're searching for.`,
+          url: `https://example.com/search-result-1?q=${encodeURIComponent(query)}`,
+          title: `${query} - Comprehensive Guide`,
+        },
+        {
+          text: `Another mock result showing how ${query} is used in practice with real-world examples and best practices.`,
+          url: `https://docs.example.com/${query.toLowerCase().replace(/\s+/g, '-')}`,
+          title: `Understanding ${query}: Documentation`,
+        },
+        {
+          text: `Latest news and updates about ${query}. Stay informed about recent developments and trends.`,
+          url: `https://news.example.com/articles/${query.toLowerCase().replace(/\s+/g, '-')}`,
+          title: `${query} News & Updates`,
+        },
+      ];
+
+      // Filter by domain if specified
+      const filteredResults = domain
+        ? mockResults.filter(result => result.url.includes(domain))
+        : mockResults;
+
+      // Randomly return 1-3 results
+      const selectedResults = filteredResults.slice(0, Math.floor(Math.random() * 3) + 1);
+
+      return {
+        success: true,
+        results: selectedResults,
+        query,
+        domain,
+        message: `Found ${selectedResults.length} web search results for "${query}"${domain ? ` from ${domain}` : ''}`,
       };
     });
   }

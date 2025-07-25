@@ -4,7 +4,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { config } from "../config";
 import { logger } from "../utils/logger";
-import { WorkspaceStatusResponse } from "../types";
+import { WorkspaceStatusResponse } from "@repo/types";
 
 const execAsync = promisify(exec);
 
@@ -52,6 +52,7 @@ export class WorkspaceService {
       }
 
       return {
+        success: true,
         exists: true,
         path: this.workspaceDir,
         isReady: stats.isDirectory(),
@@ -59,6 +60,7 @@ export class WorkspaceService {
       };
     } catch (error) {
       return {
+        success: false,
         exists: false,
         path: this.workspaceDir,
         isReady: false,
