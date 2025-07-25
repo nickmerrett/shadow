@@ -1,4 +1,3 @@
-import { prisma } from "@repo/db";
 import {
   validateCommand,
   parseCommand,
@@ -6,11 +5,9 @@ import {
   SecurityLogger
 } from "@repo/command-security";
 import { spawn } from "child_process";
-import { createPatch } from "diff";
 import * as fs from "fs/promises";
 import * as path from "path";
 import config from "../../config";
-import { emitStreamChunk } from "../../socket";
 import { execAsync } from "../../utils/exec";
 import { ToolExecutor } from "../interfaces/tool-executor";
 import {
@@ -148,13 +145,6 @@ export class LocalToolExecutor implements ToolExecutor {
       // Write the new content
       await fs.writeFile(filePath, content);
 
-      // Save file change to database
-      await this.saveFileChange(
-        targetFile,
-        isNewFile ? "CREATE" : "UPDATE",
-        isNewFile ? undefined : existingContent,
-        content
-      );
 
       if (isNewFile) {
         return {
@@ -188,23 +178,9 @@ export class LocalToolExecutor implements ToolExecutor {
     try {
       const filePath = path.resolve(this.workspacePath, targetFile);
 
-      // Get existing content before deletion for database record
-      let existingContent: string | undefined;
-      try {
-        existingContent = await fs.readFile(filePath, "utf-8");
-      } catch {
-        // File doesn't exist, that's fine
-      }
 
       await fs.unlink(filePath);
 
-      // Save file change to database
-      await this.saveFileChange(
-        targetFile,
-        "DELETE",
-        existingContent,
-        undefined
-      );
 
       return {
         success: true,
@@ -255,8 +231,6 @@ export class LocalToolExecutor implements ToolExecutor {
       const newContent = existingContent.replace(oldString, newString);
       await fs.writeFile(resolvedPath, newContent);
 
-      // Save file change to database
-      await this.saveFileChange(filePath, "UPDATE", existingContent, newContent);
 
       return {
         success: true,
@@ -605,83 +579,4 @@ export class LocalToolExecutor implements ToolExecutor {
     return this.taskId;
   }
 
-  /**
-   * Save file change to database (same as original implementation)
-   */
-  private async saveFileChange(
-    filePath: string,
-    operation: "CREATE" | "UPDATE" | "DELETE" | "RENAME" | "MOVE",
-    oldContent?: string,
-    newContent?: string
-  ): Promise<void> {
-    try {
-      // Generate git-style diff if both old and new content exist
-      let diffPatch: string | undefined;
-      let additions = 0;
-      let deletions = 0;
-
-      if (oldContent !== undefined && newContent !== undefined) {
-        diffPatch = createPatch(
-          filePath,
-          oldContent,
-          newContent,
-          undefined, // oldHeader
-          undefined, // newHeader
-          { context: 3 } // 3 lines of context like git
-        );
-
-        // Calculate diff stats efficiently on server
-        const lines = diffPatch.split("\n");
-        lines.forEach((line) => {
-          if (line.startsWith("+") && !line.startsWith("+++")) {
-            additions++;
-          } else if (line.startsWith("-") && !line.startsWith("---")) {
-            deletions++;
-          }
-        });
-      } else if (operation === "CREATE" && newContent) {
-        // New file: count all lines as additions
-        additions = newContent.split("\n").length;
-      } else if (operation === "DELETE" && oldContent) {
-        // Deleted file: count all lines as deletions
-        deletions = oldContent.split("\n").length;
-      }
-
-      const savedFileChange = await prisma.fileChange.create({
-        data: {
-          taskId: this.taskId,
-          filePath,
-          operation,
-          oldContent,
-          newContent,
-          diffPatch,
-          additions,
-          deletions,
-        },
-      });
-
-      console.log(
-        `[FILE_CHANGE] Recorded ${operation} for ${filePath} (+${additions} -${deletions})`
-      );
-
-      // Stream the file change in real-time
-      emitStreamChunk({
-        type: "file-change",
-        fileChange: {
-          id: savedFileChange.id,
-          filePath,
-          operation,
-          oldContent,
-          newContent,
-          diffPatch,
-          additions,
-          deletions,
-          createdAt: savedFileChange.createdAt.toISOString(),
-        },
-      });
-    } catch (error) {
-      console.error(`[FILE_CHANGE_ERROR] Failed to save file change:`, error);
-      // Don't throw error - file operation succeeded, logging is secondary
-    }
-  }
 }

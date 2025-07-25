@@ -1,10 +1,34 @@
-import type { FileChange, Task, Todo } from "@repo/db";
+import type { Task, Todo } from "@repo/db";
 import { db } from "@repo/db";
+
+export interface FileChange {
+  filePath: string;
+  operation: 'CREATE' | 'UPDATE' | 'DELETE' | 'RENAME';
+  additions: number;
+  deletions: number;
+  createdAt: string;
+}
 
 export interface TaskWithDetails {
   task: Task | null;
   todos: Todo[];
   fileChanges: FileChange[];
+}
+
+async function fetchFileChanges(taskId: string): Promise<FileChange[]> {
+  try {
+    // Internal API call to our server
+    const response = await fetch(`http://localhost:4000/api/files/${taskId}/file-changes`);
+    if (!response.ok) {
+      console.warn(`Failed to fetch file changes for task ${taskId}: ${response.status}`);
+      return [];
+    }
+    const data = await response.json();
+    return data.success ? data.fileChanges : [];
+  } catch (error) {
+    console.error(`Error fetching file changes for task ${taskId}:`, error);
+    return [];
+  }
 }
 
 export async function getTaskWithDetails(
@@ -20,10 +44,7 @@ export async function getTaskWithDetails(
         where: { taskId },
         orderBy: { sequence: "asc" },
       }),
-      db.fileChange.findMany({
-        where: { taskId },
-        orderBy: { createdAt: "desc" },
-      }),
+      fetchFileChanges(taskId),
     ]);
 
     return {

@@ -6,6 +6,7 @@ import { ChatService, DEFAULT_MODEL } from "./chat";
 import config from "./config";
 import { updateTaskStatus } from "./utils/task-status";
 import { createToolExecutor } from "./execution";
+import { setupSidecarNamespace } from "./services/sidecar-socket-handler";
 
 // Enhanced connection management
 interface ConnectionState {
@@ -186,6 +187,9 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
 
   // Initialize chat service
   chatService = new ChatService();
+
+  // Set up sidecar namespace for filesystem watching
+  setupSidecarNamespace(io);
 
   io.on("connection", (socket: TypedSocket) => {
     const connectionId = socket.id;
@@ -545,12 +549,12 @@ export function emitStreamChunk(chunk: StreamChunk, taskId?: string) {
     } else if (chunk.type === "tool-result" && chunk.toolResult) {
       console.log(`\n✅ [TOOL_RESULT] ${chunk.toolResult.id}:`);
       console.log(`   ${chunk.toolResult.result}`);
-    } else if (chunk.type === "file-change" && chunk.fileChange) {
+    } else if (chunk.type === "fs-change" && chunk.fsChange) {
       console.log(
-        `\n📝 [FILE_CHANGE] ${chunk.fileChange.operation} ${chunk.fileChange.filePath}`
+        `\n📁 [FS_CHANGE] ${chunk.fsChange.operation} ${chunk.fsChange.filePath}`
       );
       console.log(
-        `   Changes: +${chunk.fileChange.additions} -${chunk.fileChange.deletions}`
+        `   Source: ${chunk.fsChange.source}, Directory: ${chunk.fsChange.isDirectory}`
       );
     } else if (chunk.type === "usage" && chunk.usage) {
       console.log(

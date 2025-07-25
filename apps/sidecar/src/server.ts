@@ -12,6 +12,8 @@ import { SearchService } from "./services/search-service";
 import { CommandService } from "./services/command-service";
 import { GitService } from "./services/git-service";
 import { TerminalBuffer } from "./services/terminal-buffer";
+import { FileSystemWatcher } from "./services/filesystem-watcher";
+import { SocketClient } from "./services/socket-client";
 import { createHealthRouter } from "./api/health";
 import { createFilesRouter } from "./api/files";
 import { createSearchRouter } from "./api/search";
@@ -96,9 +98,57 @@ async function startServer() {
     });
   });
 
+  // Initialize filesystem watching (only if environment variables are provided)
+  let fileSystemWatcher: FileSystemWatcher | null = null;
+  let socketClient: SocketClient | null = null;
+
+  const taskId = process.env.TASK_ID;
+  const serverUrl = process.env.SHADOW_SERVER_URL;
+  const filesystemWatchEnabled = process.env.FILESYSTEM_WATCH_ENABLED !== 'false';
+
+  if (taskId && serverUrl && filesystemWatchEnabled) {
+    try {
+      logger.info("Initializing filesystem watcher", {
+        taskId,
+        serverUrl,
+        workspaceDir: config.workspaceDir
+      });
+
+      // Initialize Socket.IO client
+      socketClient = new SocketClient(serverUrl, taskId);
+
+      // Initialize filesystem watcher
+      fileSystemWatcher = new FileSystemWatcher(taskId, socketClient);
+      await fileSystemWatcher.startWatching(config.workspaceDir);
+
+      logger.info("Filesystem watcher initialized successfully");
+    } catch (error) {
+      logger.error("Failed to initialize filesystem watcher", { error });
+      // Continue without filesystem watching - not critical for basic operation
+    }
+  } else {
+    logger.info("Filesystem watcher disabled or missing configuration", {
+      hasTaskId: !!taskId,
+      hasServerUrl: !!serverUrl,
+      filesystemWatchEnabled
+    });
+  }
+
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, starting graceful shutdown...`);
+
+    // Stop filesystem watcher
+    if (fileSystemWatcher) {
+      fileSystemWatcher.stop();
+      logger.info("Filesystem watcher stopped");
+    }
+
+    // Disconnect socket client
+    if (socketClient) {
+      socketClient.disconnect();
+      logger.info("Socket client disconnected");
+    }
 
     // Kill all running processes
     commandService.killAllProcesses();

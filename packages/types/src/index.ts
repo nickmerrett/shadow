@@ -137,7 +137,7 @@ export interface StreamChunk {
   | "tool-call"
   | "tool-result"
   | "init-progress"
-  | "file-change";
+  | "fs-change";
 
   // For content chunks
   content?: string;
@@ -181,17 +181,13 @@ export interface StreamChunk {
   // For initialization progress
   initProgress?: InitializationProgress;
 
-  // For file changes
-  fileChange?: {
-    id: string;
+  // For filesystem changes
+  fsChange?: {
+    operation: 'file-created' | 'file-modified' | 'file-deleted' | 'directory-created' | 'directory-deleted';
     filePath: string;
-    operation: "CREATE" | "UPDATE" | "DELETE" | "RENAME" | "MOVE";
-    oldContent?: string;
-    newContent?: string;
-    diffPatch?: string;
-    additions: number;
-    deletions: number;
-    createdAt: string;
+    timestamp: number;
+    source: 'local' | 'remote';
+    isDirectory: boolean;
   };
 }
 

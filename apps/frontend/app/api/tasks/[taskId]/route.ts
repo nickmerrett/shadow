@@ -7,13 +7,13 @@ export async function GET(
 ) {
   try {
     const { taskId } = await params;
-    const { task, fileChanges, todos } = await getTaskWithDetails(taskId);
+    const { task, todos, fileChanges } = await getTaskWithDetails(taskId);
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ task, fileChanges, todos });
+    return NextResponse.json({ task, todos, fileChanges });
   } catch (error) {
     console.error("Error fetching task:", error);
     return NextResponse.json(

@@ -14,6 +14,58 @@ import type {
   ModelType
 } from "@repo/types";
 
+interface FileChange {
+  filePath: string;
+  operation: 'CREATE' | 'UPDATE' | 'DELETE' | 'RENAME';
+  additions: number;
+  deletions: number;
+  createdAt: string;
+}
+
+interface FsChangeEvent {
+  operation: 'file-created' | 'file-modified' | 'file-deleted' | 'directory-created' | 'directory-deleted';
+  filePath: string;
+  timestamp: number;
+  source: 'local' | 'remote';
+  isDirectory: boolean;
+}
+
+/**
+ * Optimistically update file changes array based on filesystem events
+ */
+function updateFileChangesOptimistically(
+  existingChanges: FileChange[],
+  fsChange: FsChangeEvent
+): FileChange[] {
+  const { operation, filePath, isDirectory } = fsChange;
+  
+  // Skip directory changes for now (we focus on files)
+  if (isDirectory) {
+    return existingChanges;
+  }
+  
+  // Remove existing entry for this file
+  const filtered = existingChanges.filter(change => change.filePath !== filePath);
+  
+  // Add new entry (except for deletions) 
+  if (operation !== 'file-deleted') {
+    const fileOperation: FileChange['operation'] = 
+      operation === 'file-created' ? 'CREATE' : 
+      operation === 'file-modified' ? 'UPDATE' : 'UPDATE';
+      
+    return [...filtered, {
+      filePath,
+      operation: fileOperation,
+      additions: 0, // Will be updated by background diff stats refresh
+      deletions: 0,
+      createdAt: new Date().toISOString()
+    }];
+  }
+  
+  // For deletions, just return filtered array (file removed)
+  return filtered;
+}
+
 export function useTaskSocket(taskId: string | undefined) {
   const { socket, isConnected } = useSocket();
   const queryClient = useQueryClient();
@@ -123,35 +175,31 @@ export function useTaskSocket(taskId: string | undefined) {
           }
           break;
 
-        case "file-change":
-          if (chunk.fileChange && taskId) {
-            console.log("File change:", chunk.fileChange);
-
-            // Optimistic update: Use chunk data directly instead of invalidating query
-            queryClient.setQueryData<any[]>(
-              ["file-changes", taskId],
-              (oldData = []) => {
-                const chunkFileChange = chunk.fileChange!;
-
-                // Transform chunk data to match file change type
-                const newFileChange: any = {
-                  ...chunkFileChange,
-                  taskId,
-                  oldContent: chunkFileChange.oldContent ?? null,
-                  newContent: chunkFileChange.newContent ?? null,
-                  diffPatch: chunkFileChange.diffPatch ?? null,
-                  createdAt: new Date(chunkFileChange.createdAt),
-                };
-
-                // Handle deduplication - replace existing entry for same file
-                const filteredData = oldData.filter(
-                  (change: any) => change.filePath !== newFileChange.filePath
+        case "fs-change":
+          if (chunk.fsChange) {
+            console.log("File system change:", chunk.fsChange);
+            
+            // Optimistically update file changes in React Query cache
+            queryClient.setQueryData(
+              ["task", taskId],
+              (oldData: any) => {
+                if (!oldData) return oldData;
+                
+                // Add/update/remove from fileChanges array based on operation
+                const updatedFileChanges = updateFileChangesOptimistically(
+                  oldData.fileChanges || [],
+                  chunk.fsChange!
                 );
-
-                // Add the new/updated file change
-                return [...filteredData, newFileChange];
+                
+                return {
+                  ...oldData,
+                  fileChanges: updatedFileChanges
+                };
               }
             );
+            
+            // Invalidate diff stats to trigger background refresh
+            queryClient.invalidateQueries({ queryKey: ["task-diff-stats", taskId] });
           }
           break;
 
@@ -194,7 +242,6 @@ export function useTaskSocket(taskId: string | undefined) {
         socket.emit("get-chat-history", { taskId: taskId as string });
       }
 
-      queryClient.invalidateQueries({ queryKey: ["file-changes", taskId] });
       queryClient.invalidateQueries({ queryKey: ["task", taskId] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
     }
