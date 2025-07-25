@@ -58,13 +58,13 @@ function trackTokenUsage(usage: TokenUsage, modelName: string, operationType: 'f
   tokenUsage.promptTokens += usage.promptTokens;
   tokenUsage.completionTokens += usage.completionTokens;
   tokenUsage.totalTokens += usage.totalTokens;
-  
+
   if (modelName.includes('gpt-4o-mini')) {
     tokenUsage.gpt4MiniCalls++;
   } else {
     tokenUsage.gpt4Calls++;
   }
-  
+
   if (operationType === 'file') tokenUsage.fileAnalyses++;
   else if (operationType === 'directory') tokenUsage.directorySummaries++;
   else if (operationType === 'root') tokenUsage.rootSummary++;
@@ -340,7 +340,7 @@ async function buildTree(ignore: string[]): Promise<IndexFile> {
     const parts = rel.split(path.sep);
     let curPath = ".";
     let parent = "root";
-    
+
     // Handle files in subdirectories
     for (let d = 0; d < parts.length - 1; d++) {
       curPath = path.join(curPath, parts[d]!);
@@ -359,14 +359,14 @@ async function buildTree(ignore: string[]): Promise<IndexFile> {
       }
       parent = nid;
     }
-    
+
     // Add the file to the appropriate parent (either root or a subdirectory)
     nodes[parent]?.files.push(rel);
   }
-  
+
   // Post-process to collapse single-child directories with no files
   postProcessTree(nodes);
-  
+
   return { root: "root", nodes };
 }
 
@@ -376,51 +376,51 @@ function postProcessTree(nodes: Record<NodeId, TreeNode>): void {
   const nodesToCollapse = Object.values(nodes).filter(
     node => node.files.length === 0 && node.children.length === 1
   );
-  
+
   // Process each node that could be collapsed
   for (const node of nodesToCollapse) {
     if (node.id === "root") continue; // Don't collapse root
-    
+
     // Find the parent of this node
     const parentNode = Object.values(nodes).find(
       n => n.children.includes(node.id)
     );
-    
+
     if (!parentNode) continue;
-    
+
     // Get the child
     const childId = node.children[0];
     if (!childId) continue;
-    
+
     const childNode = nodes[childId];
     if (!childNode) continue;
-    
+
     // Remove current node from parent's children list
     const parentChildIdx = parentNode.children.findIndex(id => id === node.id);
     if (parentChildIdx !== -1) {
       parentNode.children.splice(parentChildIdx, 1);
-      
+
       // Add the child node directly to parent
       parentNode.children.push(childId);
-      
+
       // Update the child's name to reflect collapsed path
       childNode.name = `${node.name}/${childNode.name}`; // Both names are defined at this point
-      
+
       console.log(` Collapsing empty directory: ${node.relPath}`);
     }
   }
-  
+
   // Remove directories with no files and no children (empty leaves)
   const emptyNodes = Object.values(nodes).filter(
     node => node.files.length === 0 && node.children.length === 0 && node.id !== "root"
   );
-  
+
   for (const node of emptyNodes) {
     // Find the parent
     const parentNode = Object.values(nodes).find(
       n => n.children.includes(node.id)
     );
-    
+
     if (parentNode) {
       // Remove this empty node from parent's children
       const idx = parentNode.children.findIndex(id => id === node.id);
@@ -429,7 +429,7 @@ function postProcessTree(nodes: Record<NodeId, TreeNode>): void {
         console.log(` Removing empty directory: ${node.relPath}`);
       }
     }
-    
+
     // Remove the node from nodes collection
     delete nodes[node.id];
   }
@@ -460,7 +460,7 @@ function isDataFolder(relPath: string): boolean {
     /\bmnist\b/i,               // mnist (specific dataset)
     /\bcifar\b/i,               // cifar (specific dataset)
   ];
-  
+
   // Check if path matches any data folder patterns
   return dataFolderPatterns.some(pattern => pattern.test(relPath));
 }
@@ -471,24 +471,24 @@ function analyzeFileComplexity(symbols: Symbols, fileSize: number): { needsDeepA
   const defCount = symbols.defs.size;
   const importCount = symbols.imports.size;
   const callCount = symbols.calls.size;
-  
+
   // Files with many symbols or large size might benefit from deeper analysis
   if (defCount > 15) {
     return { needsDeepAnalysis: true, reason: `High symbol count (${defCount} definitions)` };
   }
-  
+
   if (importCount > 10 && defCount > 5) {
     return { needsDeepAnalysis: true, reason: `Complex dependencies (${importCount} imports, ${defCount} definitions)` };
   }
-  
+
   if (fileSize > 10000 && defCount > 3) { // 10KB with multiple definitions
-    return { needsDeepAnalysis: true, reason: `Large file (${Math.round(fileSize/1024)}KB) with multiple definitions` };
+    return { needsDeepAnalysis: true, reason: `Large file (${Math.round(fileSize / 1024)}KB) with multiple definitions` };
   }
-  
+
   if (callCount > 30 && defCount > 0) {
     return { needsDeepAnalysis: true, reason: `High call complexity (${callCount} calls)` };
   }
-  
+
   return { needsDeepAnalysis: false, reason: "Basic symbol extraction sufficient" };
 }
 
@@ -497,12 +497,12 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
   const abs = path.join(ROOT, rel);
   const src = readFileSync(abs, "utf8");
   const fp = fingerprint(abs);
-  
+
   // Check cache first
   if (cache[rel] && cache[rel]!.fingerprint === fp) {
     return cache[rel]!.summary;
   }
-  
+
   // Determine the language based on file extension
   const fileExt = path.extname(rel);
   // Find appropriate language spec based on file extension
@@ -514,22 +514,22 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
       break;
     }
   }
-  
+
   // Default to JavaScript if no match (or handle differently if needed)
   if (!langSpec) {
     langSpec = LANGUAGES.js;
   }
-  
+
   // Extract symbols using Tree-sitter with the correct language spec
   const symbols = extractSymbols(src, langSpec);
-  
+
   // Analyze file complexity to decide if we need deep analysis
   const complexity = analyzeFileComplexity(symbols, src.length);
-  
+
   let summary: string;
   let detailedAnalysis: string | undefined;
   let tokenUsage: any;
-  
+
   if (complexity.needsDeepAnalysis) {
     console.log(`🔍 Deep analysis: ${rel} (${complexity.reason})`);
     // Use GPT for detailed analysis
@@ -539,7 +539,7 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
     }) || "unknown";
     detailedAnalysis = await analyzeFileWithGPT(rel, src, symbols, langKey);
     summary = detailedAnalysis;
-    
+
     // Get token usage for this analysis
     tokenUsage = {
       promptTokens: estimateTokens(src),
@@ -550,7 +550,7 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
     // Use basic symbol extraction
     summary = symbolsToMarkdown(symbols) || "_(no symbols found)_";
   }
-  
+
   // Store in Pinecone if enabled
   if (storage && USE_PINECONE) {
     const symbolNames = Array.from(symbols.defs);
@@ -559,7 +559,7 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
       const langSpec = LANGUAGES[k as keyof typeof LANGUAGES];
       return langSpec && langSpec.extensions && langSpec.extensions.some((ext: string) => rel.endsWith(ext));
     });
-    
+
     await storage.storeFileSummary(
       ROOT,
       rel,
@@ -571,15 +571,15 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
       tokenUsage
     );
   }
-  
+
   // Update cache
-  cache[rel] = { 
-    fingerprint: fp, 
+  cache[rel] = {
+    fingerprint: fp,
     summary,
     detailedAnalysis,
-    complexity 
+    complexity
   };
-  
+
   return summary;
 }
 
@@ -587,14 +587,14 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
 async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, langKey: string): Promise<string> {
   // Use a smaller context model (GPT-4o-mini) for file analysis
   const MODEL_MINI = process.env.MODEL_MINI || "gpt-4o-mini";
-  
+
   // Get basic symbol information
   const basicSymbols = symbolsToMarkdown(symbols);
-  
+
   // Check file extension for data files
   const ext = path.extname(rel).toLowerCase();
   const isDataFile = /\.(csv|json|txt|md|png|jpg|jpeg|gif|svg|ico|xlsx|xls|tsv|yaml|yml)$/i.test(ext);
-  
+
   // Adjust the prompt based on file type
   let systemPrompt = '';
   if (isDataFile) {
@@ -602,7 +602,7 @@ async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, la
   } else {
     systemPrompt = `Analyze this ${langKey} file. Be ultra-concise, no extra words. Grammar isn't important.\n\nInclude:\n1. Purpose (1 line)\n2. Main symbols with line numbers\n3. Key dependencies\n4. Critical algorithms/patterns (if any)\n5. Brief code snippets ONLY if essential\n\nUse bullet points, abbreviations, and fragments. No complete sentences needed. Prioritize technical accuracy over readability.\n\nFile: ${path.basename(rel)}`;
   }
-  
+
   const messages = [
     { role: "system" as const, content: systemPrompt },
     { role: "user" as const, content: src }
@@ -612,33 +612,33 @@ async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, la
     // Estimate input tokens
     const inputText = messages.map(m => m.content).join(' ');
     const estimatedInputTokens = estimateTokens(inputText);
-    
-    const res = await openai.chat.completions.create({ 
-      model: MODEL_MINI, 
-      temperature: 0.1, 
-      messages, 
+
+    const res = await openai.chat.completions.create({
+      model: MODEL_MINI,
+      temperature: 0.1,
+      messages,
       max_tokens: 800 // Reduced token limit for more concise analysis
     });
-    
+
     // Track token usage
     const usage = res.usage || {
       prompt_tokens: estimatedInputTokens,
       completion_tokens: estimateTokens(res.choices[0]?.message?.content || ''),
       total_tokens: estimatedInputTokens + estimateTokens(res.choices[0]?.message?.content || '')
     };
-    
+
     trackTokenUsage({
       promptTokens: usage.prompt_tokens,
       completionTokens: usage.completion_tokens,
       totalTokens: usage.total_tokens
     }, MODEL_MINI, 'file');
-    
+
     const analysis = res.choices[0]?.message?.content?.trim();
     if (!analysis) {
       // Fall back to basic symbol extraction if GPT analysis failed or returned empty
       return basicSymbols || "_(no symbols found)_";
     }
-    
+
     return analysis;
   } catch (err) {
     console.error(`Error analyzing ${rel} with GPT:`, err);
@@ -654,31 +654,31 @@ const openai = new OpenAI();
 
 async function chat(messages: any[], budget: number, operationType: 'file' | 'directory' | 'root' = 'directory'): Promise<string> {
   const MODEL = process.env.MODEL || "gpt-4o";
-  
+
   // Estimate input tokens
   const inputText = messages.map(m => m.content).join(' ');
   const estimatedInputTokens = estimateTokens(inputText);
-  
-  const res = await openai.chat.completions.create({ 
-    model: MODEL, 
-    temperature: TEMP, 
-    messages, 
-    max_tokens: budget 
+
+  const res = await openai.chat.completions.create({
+    model: MODEL,
+    temperature: TEMP,
+    messages,
+    max_tokens: budget
   });
-  
+
   // Track actual or estimated token usage
   const usage = res.usage || {
     prompt_tokens: estimatedInputTokens,
     completion_tokens: estimateTokens(res.choices[0]?.message?.content || ''),
     total_tokens: estimatedInputTokens + estimateTokens(res.choices[0]?.message?.content || '')
   };
-  
+
   trackTokenUsage({
     promptTokens: usage.prompt_tokens,
     completionTokens: usage.completion_tokens,
     totalTokens: usage.total_tokens
   }, MODEL, operationType);
-  
+
   return res.choices[0]?.message?.content?.trim() || "_(no response)_";
 }
 
@@ -691,7 +691,7 @@ function rootBudget(childCount: number) {
 async function summariseDir(node: TreeNode, blocks: string[]): Promise<string> {
   // Check if this appears to be a data directory
   const isData = isDataFolder(node.relPath);
-  
+
   // Extract only the most important analyses from files in this directory
   const fileAnalyses: string[] = [];
   for (const filePath of node.files) {
@@ -705,17 +705,17 @@ async function summariseDir(node: TreeNode, blocks: string[]): Promise<string> {
       }
     }
   }
-  
+
   // Combine analyses with regular blocks
   const allContent = [...blocks];
   if (fileAnalyses.length > 0) {
     allContent.push("\n## Files");
     allContent.push(...fileAnalyses);
   }
-  
+
   const budget = dirBudget(blocks.length);
   let systemPrompt = "";
-  
+
   if (isData) {
     // Data directory - ultra concise summary
     systemPrompt = `Give a 1-3 line description of this data directory. No grammar needed, just key facts. 
@@ -734,19 +734,20 @@ Use bullet points, fragments, abbreviations. No complete sentences needed.
 
 Directory: ${node.relPath}`;
   }
-  
+
   const messages = [
     { role: "system" as const, content: systemPrompt },
     { role: "user" as const, content: allContent.join("\n---\n") },
   ];
-  
+
   // Use the main model (GPT-4o) for directory summaries
   return chat(messages, budget, 'directory');
 }
 async function summariseRoot(node: TreeNode, blocks: string[]): Promise<string> {
   const budget = rootBudget(blocks.length);
   const messages = [
-    { role: "system" as const, content: `Create a concise architecture overview for ${node.name}. 
+    {
+      role: "system" as const, content: `Create a concise architecture overview for ${node.name}. 
 
 Include only the most essential:
 1. Core components and their roles (very brief)
@@ -757,7 +758,7 @@ Include only the most essential:
 Use bullet points and fragments. Grammar not important. Ultra-concise technical descriptions only.` },
     { role: "user" as const, content: blocks.join("\n---\n") },
   ];
-  
+
   // Use the main model (GPT-4o) for root summaries
   return chat(messages, budget, 'root');
 }
@@ -766,7 +767,7 @@ Use bullet points and fragments. Grammar not important. Ultra-concise technical 
 export async function run() {
   // Initialize storage
   const storage = USE_PINECONE ? new DeepWikiStorage(ROOT) : null;
-  
+
   if (USE_PINECONE) {
     console.log(bold(`💾 Using Pinecone storage (namespace: ${storage!.getNamespace()})`));
     // Clear existing data for this repository
@@ -775,7 +776,7 @@ export async function run() {
     console.log(bold("📁 Using legacy file storage"));
     ensureDir(OUT_DIR);
   }
-  
+
   loadCache();
 
   // build ignore list
@@ -824,10 +825,10 @@ export async function run() {
     }
   }
   await Promise.all(fileTasks);
-  
+
   // Update processing stats
   processingStats.filesProcessed = totalFiles;
-  
+
   console.log(bold("✅ File summaries complete"));
 
   //----------------------------------------------
@@ -838,22 +839,22 @@ export async function run() {
     if (nid === "root") continue;
     const node = tree.nodes[nid]!;
     const blocks: string[] = [];
-    
+
     // Add child directory summaries
     node.children.forEach((cid) => {
       const c = tree.nodes[cid]!;
       blocks.push(`## Directory: ${c.name}\n${c.summary_md || "_missing_"}`);
     });
-    
+
     // Check if this is a data folder
     const isDataDir = isDataFolder(node.relPath);
-  
+
     // Collect file analyses for this directory - much more concise now
     const fileBlocks: string[] = [];
     for (const filePath of node.files) {
       const fileEntry = cache[filePath];
       if (!fileEntry) continue;
-      
+
       // Keep file summaries ultra-brief, especially for data files
       const fileName = path.basename(filePath);
       if (isDataDir) {
@@ -867,10 +868,10 @@ export async function run() {
         fileBlocks.push(`### ${fileName}\n${briefSummary}`);
       }
     }
-  
+
     // Generate directory summary
     node.summary_md = await summariseDir(node, blocks);
-    
+
     // Store in Pinecone if enabled
     if (storage && USE_PINECONE) {
       await storage.storeDirectorySummary(
@@ -881,19 +882,19 @@ export async function run() {
         node.children.map(cid => tree.nodes[cid]?.name || cid)
       );
     }
-    
+
     // Legacy file output (optional)
     if (!USE_PINECONE) {
       const front = `---\nid: ${node.id}\ntitle: ${node.name}\nlevel: ${node.level}\n---\n\n`;
       const fullContent = isDataDir
         ? `${node.summary_md}\n\n## Files\n${fileBlocks.join('\n')}`
         : `${node.summary_md}\n\n## Files\n${fileBlocks.join('\n\n')}`;
-      
+
       const dirPath = path.dirname(path.join(OUT_DIR, `${node.id}.md`));
       ensureDir(dirPath);
       writeFileSync(path.join(OUT_DIR, `${node.id}.md`), front + fullContent + "\n");
     }
-    
+
     console.log(bold(`✅ Dir: ${node.relPath}`));
     processingStats.directoriesProcessed++;
   }
@@ -906,10 +907,10 @@ export async function run() {
     const c = tree.nodes[cid]!;
     return `## ${c.name}\n${c.summary_md || "_missing_"}`;
   });
-  
+
   // Generate comprehensive root summary
   root.summary_md = await summariseRoot(root, topBlocks);
-  
+
   // Store in Pinecone if enabled
   if (storage && USE_PINECONE) {
     await storage.storeRootOverview(
@@ -920,7 +921,7 @@ export async function run() {
     );
     console.log(bold(`\n🎉 DeepWiki stored in Pinecone (namespace: ${storage.getNamespace()})`));
   }
-  
+
   // Legacy file output (optional)
   if (!USE_PINECONE) {
     const toc = ['## Project Structure'];
@@ -930,24 +931,24 @@ export async function run() {
         toc.push(`- [${child.name}](${child.id}.md)`);
       }
     });
-    
+
     const fullContent = [
       root.summary_md,
       '\n\n---\n',
       toc.join('\n')
     ].join('\n');
-    
+
     ensureDir(OUT_DIR);
     writeFileSync(
-      path.join(OUT_DIR, "00_OVERVIEW.md"), 
+      path.join(OUT_DIR, "00_OVERVIEW.md"),
       `---\nid: ${root.id}\ntitle: ${root.name}\nlevel: 0\n---\n\n${fullContent}\n`
     );
     writeFileSync(path.join(OUT_DIR, "index.json"), JSON.stringify(tree, null, 2));
     console.log(bold(`\n🎉 DeepWiki (comprehensive) generated at ${OUT_DIR}`));
   }
-  
+
   saveCache();
-  
+
   // Print token usage summary
   printTokenUsage();
 }

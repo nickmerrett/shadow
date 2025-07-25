@@ -8,6 +8,32 @@ const markdownRouter = express.Router();
  * Provides endpoints for storing and searching markdown files only.
  */
 
+import { resolveRepoPath } from "./resolveRepoPath";
+
+// Index a repository (owner/repo or absolute path) of markdown files
+markdownRouter.post(
+  "/index-repo",
+  async (
+    req: express.Request<{}, {}, { repo: string; includePatterns?: string[]; namespacePrefix?: string }>,
+    res,
+    next
+  ) => {
+    const { repo, includePatterns = ["**/*.md"], namespacePrefix } = req.body;
+    if (!repo) {
+      return res.status(400).json({ error: "Missing required parameter: repo" });
+    }
+    try {
+      const repoPath = await resolveRepoPath(repo);
+      const api = new MarkdownAPI(repoPath, namespacePrefix);
+      const result = await api.indexDirectory({ includePatterns });
+      return res.json({ message: "Markdown files indexed successfully", ...result });
+    } catch (error) {
+      console.error("Error indexing markdown repo:", error);
+      next(error);
+    }
+  }
+);
+
 // Index a directory of markdown files
 markdownRouter.post(
   "/index",
@@ -131,6 +157,32 @@ markdownRouter.post(
       });
     } catch (error: any) {
       console.error("Error searching markdown files:", error);
+      next(error);
+    }
+  }
+);
+
+// List all markdown files for a repo
+markdownRouter.post(
+  "/list-files",
+  async (
+    req: express.Request<{}, {}, { repo: string; namespacePrefix?: string }>,
+    res,
+    next
+  ) => {
+    const { repo, namespacePrefix } = req.body;
+    if (!repo) {
+      return res.status(400).json({ error: "Missing required parameter: repo" });
+    }
+    try {
+      const repoPath = await resolveRepoPath(repo);
+      const api = new MarkdownAPI(repoPath, namespacePrefix);
+      // naive approach: list .md files under repo dir
+      const fg = await import("fast-glob");
+      const files = await fg.default(["**/*.md"], { cwd: repoPath, dot: true });
+      return res.json({ namespace: api.getNamespace(), count: files.length, files });
+    } catch (error) {
+      console.error("Error listing markdown files:", error);
       next(error);
     }
   }

@@ -5,7 +5,7 @@ import PineconeHandler from "./embedding/pineconeService";
 import { getLanguageForPath } from "./languages";
 import { retrieve } from "./retrieval";
 import { isValidRepo } from "./utils/repository";
-import { markdownRouter } from "./shallowwiki/markdown-routes";
+import { shallowwikiRouter } from "./shallowwiki/routes";
 
 const router = express.Router();
 const pinecone = new PineconeHandler();
@@ -20,8 +20,8 @@ router.get("/", (req, res) => {
   res.json({ message: "Hello from indexing API!" });
 });
 
-// Mount the markdown router
-router.use("/markdown", markdownRouter);
+// Mount the ShallowWiki router
+router.use("/shallowwiki", shallowwikiRouter);
 
 router.post(
   "/tree-sitter",
@@ -121,7 +121,7 @@ router.post(
     next
   ) => {
     const { repoPath, concurrency, model, modelMini } = req.body;
-    
+
     if (!repoPath) {
       return res
         .status(400)
@@ -131,13 +131,13 @@ router.post(
     try {
       // Dynamically import the DeepWiki indexer
       const { runDeepWiki } = await import("./shallowwiki/api.js");
-      
+
       const result = await runDeepWiki(repoPath, {
         concurrency: concurrency || 12,
         model: model || "gpt-4o",
         modelMini: modelMini || "gpt-4o-mini"
       });
-      
+
       res.json({
         message: "DeepWiki indexing complete",
         ...result
@@ -158,7 +158,7 @@ router.post(
     next
   ) => {
     const { repoPath, query, topK, type } = req.body;
-    
+
     if (!repoPath || !query) {
       return res
         .status(400)
@@ -168,17 +168,17 @@ router.post(
     try {
       // Dynamically import the DeepWiki storage
       const { DeepWikiStorage } = await import("./shallowwiki/storage.js");
-      
+
       const storage = new DeepWikiStorage(repoPath);
-      
+
       // Build search query with type filter if specified
       let searchQuery = query;
       if (type) {
         searchQuery = `${query} type:${type}`;
       }
-      
+
       const results = await storage.searchSummaries(searchQuery, topK || 10);
-      
+
       res.json({
         message: "Search complete",
         namespace: storage.getNamespace(),
@@ -201,15 +201,15 @@ router.post(
 );
 
 // DeepWiki get specific summary endpoint
-router.get(
-  "/deepwiki/:repoHash/:type/:path(*)",
+router.post(
+  "/deepwiki/get",
   async (
-    req: express.Request<{ repoHash: string; type: string; path: string }>,
+    req: express.Request<{}, {}, { repoHash: string; type: string; path: string }>,
     res,
     next
   ) => {
-    const { repoHash, type, path } = req.params;
-    
+    const { repoHash, type, path } = req.body;
+
     if (!repoHash || !type) {
       return res
         .status(400)
@@ -219,7 +219,7 @@ router.get(
     try {
       // Dynamically import the DeepWiki storage
       const { DeepWikiStorage } = await import("./shallowwiki/storage.js");
-      
+
       // Create storage with dummy repo path (we'll use the hash directly)
       const storage = new (class extends DeepWikiStorage {
         constructor() {
@@ -227,7 +227,7 @@ router.get(
           this.namespace = `deepwiki_${repoHash}`;
         }
       })();
-      
+
       let result;
       switch (type) {
         case 'file':
@@ -242,11 +242,11 @@ router.get(
         default:
           return res.status(400).json({ error: "Invalid type. Must be 'file', 'directory', or 'root'" });
       }
-      
+
       if (!result) {
         return res.status(404).json({ error: "Summary not found" });
       }
-      
+
       res.json({
         message: "Summary retrieved",
         namespace: storage.getNamespace(),
