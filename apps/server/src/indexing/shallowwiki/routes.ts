@@ -13,17 +13,18 @@ const shallowwikiRouter = express.Router();
 shallowwikiRouter.post(
   "/generate-summaries",
   async (
-    req: express.Request<{}, {}, { repo: string }>,
+    req: express.Request<{}, {}, { repo: string; forceRefresh?: boolean }>,
     res,
     next
   ) => {
-    const { repo } = req.body;
+    const { repo, forceRefresh = false } = req.body;
     if (!repo) {
       return res.status(400).json({ error: "Missing required parameter: repo" });
     }
 
     try {
-      const repoPath = await resolveRepoPath(repo);
+      console.log(`Processing repo ${repo} with forceRefresh=${forceRefresh}`);
+      const repoPath = await resolveRepoPath(repo, forceRefresh);
       
       // Set environment to disable Pinecone for pure ShallowWiki
       const originalUsePinecone = process.env.USE_PINECONE;
