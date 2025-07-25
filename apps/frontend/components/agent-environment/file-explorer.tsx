@@ -51,6 +51,7 @@ export function FileExplorer({
   // If defaultExpanded is true, the Set tracks collapsed folders (all open by default).
   // If defaultExpanded is false, the Set tracks expanded folders (all closed by default).
   // This avoids up-front tree traversal and is efficient for both modes.
+  // Note that these are prefixed with a slash.
   const [folderState, setFolderState] = useState<Set<string>>(new Set());
 
   const toggleFolder = (path: string) => {
@@ -71,7 +72,7 @@ export function FileExplorer({
       // Get all parent folder paths for the selected file
       const pathParts = selectedFilePath.split("/");
       const parentPaths: string[] = [];
-      
+
       // Build all parent paths (excluding the file itself)
       for (let i = 1; i < pathParts.length; i++) {
         parentPaths.push(pathParts.slice(0, i).join("/"));
@@ -83,8 +84,10 @@ export function FileExplorer({
         let hasChanges = false;
 
         parentPaths.forEach((parentPath) => {
-          const shouldBeExpanded = defaultExpanded ? !next.has(parentPath) : next.has(parentPath);
-          
+          const shouldBeExpanded = defaultExpanded
+            ? !next.has(parentPath)
+            : next.has(parentPath);
+
           if (!shouldBeExpanded) {
             hasChanges = true;
             if (defaultExpanded) {

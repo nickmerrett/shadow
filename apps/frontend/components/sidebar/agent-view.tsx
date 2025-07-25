@@ -94,7 +94,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   const handleFileSelect = useCallback(
     (file: FileNode) => {
-      setSelectedFilePath(file.path);
+      setSelectedFilePath("/" + file.path);
 
       const panel = rightPanelRef.current;
       if (!panel) return;
