@@ -89,15 +89,13 @@ export default function Terminal() {
 
     // Open terminal
     xterm.open(terminalRef.current);
-    fitAddon.fit();
 
     // Store references
     xtermRef.current = xterm;
     fitAddonRef.current = fitAddon;
 
     // Write initial welcome message
-    xterm.writeln("Shadow Agent Terminal");
-    xterm.writeln("Waiting for agent commands...");
+    xterm.writeln("\x1b[1m=== Shadow Agent Terminal ===\x1b[0m");
     xterm.writeln("");
 
     // Handle terminal resize
