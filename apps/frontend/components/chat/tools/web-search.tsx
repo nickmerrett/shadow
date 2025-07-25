@@ -19,8 +19,8 @@ export function WebSearchTool({ message }: { message: Message }) {
   if (result && status === "COMPLETED") {
     try {
       const parsedResult = JSON.parse(result);
-      if (parsedResult && Array.isArray(parsedResult)) {
-        parsedResults = parsedResult;
+      if (parsedResult && Array.isArray(parsedResult.results)) {
+        parsedResults = parsedResult.results;
       }
     } catch (e) {
       console.error("Failed to parse Exa search results", e);
