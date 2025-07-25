@@ -1,6 +1,13 @@
-import { FileChange, Task, Todo } from "@repo/db";
+import { Task, Todo } from "@repo/db";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+
+export interface FileChange {
+  filePath: string;
+  operation: 'CREATE' | 'UPDATE' | 'DELETE' | 'RENAME';
+  additions: number;
+  deletions: number;
+  createdAt: string;
+}
 
 export interface DiffStats {
   additions: number;
@@ -8,61 +15,48 @@ export interface DiffStats {
   totalFiles: number;
 }
 
-export interface FileChangesData {
-  fileChanges: FileChange[];
-  diffStats: DiffStats;
-}
-
 export function useTask(taskId: string) {
-  const query = useQuery({
+  // Main task data query (includes fileChanges now)
+  const taskQuery = useQuery({
     queryKey: ["task", taskId],
     queryFn: async (): Promise<{
       task: Task;
       todos: Todo[];
       fileChanges: FileChange[];
     }> => {
+      console.log(`[TASK_FETCH] Fetching task data (including fileChanges) for task ${taskId}`);
       const res = await fetch(`/api/tasks/${taskId}`);
       if (!res.ok) throw new Error("Failed to fetch task");
-      return res.json() as Promise<{
-        task: Task;
-        todos: Todo[];
-        fileChanges: FileChange[];
-      }>;
+      const data = await res.json();
+      console.log(`[TASK_FETCH] Found ${data.fileChanges?.length || 0} file changes`);
+      return data;
     },
     enabled: !!taskId,
   });
 
-  const fileChanges = query.data?.fileChanges || [];
-
-  const diffStats = useMemo((): DiffStats => {
-    // Group by file path and keep only the most recent change per file
-    const latestChangePerFile = new Map<string, FileChange>();
-
-    fileChanges.forEach((change) => {
-      const existing = latestChangePerFile.get(change.filePath);
-      if (
-        !existing ||
-        new Date(change.createdAt) > new Date(existing.createdAt)
-      ) {
-        latestChangePerFile.set(change.filePath, change);
-      }
-    });
-
-    // Calculate diff stats from latest changes only
-    return Array.from(latestChangePerFile.values()).reduce(
-      (acc, change) => ({
-        additions: acc.additions + change.additions,
-        deletions: acc.deletions + change.deletions,
-        totalFiles: acc.totalFiles,
-      }),
-      { additions: 0, deletions: 0, totalFiles: latestChangePerFile.size }
-    );
-  }, [fileChanges]);
+  // Separate query for diff stats (more expensive, updated less frequently)
+  const diffStatsQuery = useQuery({
+    queryKey: ["task-diff-stats", taskId],
+    queryFn: async (): Promise<DiffStats> => {
+      console.log(`[DIFF_STATS_FETCH] Fetching diff stats for task ${taskId}`);
+      const res = await fetch(`/api/tasks/${taskId}/diff-stats`);
+      if (!res.ok) throw new Error("Failed to fetch diff stats");
+      const data = await res.json();
+      const result = data.success ? data.diffStats : { additions: 0, deletions: 0, totalFiles: 0 };
+      console.log(`[DIFF_STATS_FETCH] Result:`, result);
+      return result;
+    },
+    enabled: !!taskId,
+    // Cache for 30 seconds to avoid too frequent expensive git operations
+    staleTime: 30 * 1000,
+  });
 
   return {
-    task: query.data?.task || null,
-    todos: query.data?.todos || [],
-    fileChanges,
-    diffStats,
+    task: taskQuery.data?.task || null,
+    todos: taskQuery.data?.todos || [],
+    fileChanges: taskQuery.data?.fileChanges || [],
+    diffStats: diffStatsQuery.data || { additions: 0, deletions: 0, totalFiles: 0 },
+    isLoading: taskQuery.isLoading || diffStatsQuery.isLoading,
+    error: taskQuery.error || diffStatsQuery.error,
   };
 }

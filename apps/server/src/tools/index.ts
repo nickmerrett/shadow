@@ -1,8 +1,35 @@
 import { prisma } from "@repo/db";
 import { tool } from "ai";
 import { z } from "zod";
-import { createToolExecutor } from "../execution";
+import { createToolExecutor, isLocalMode } from "../execution";
+import { LocalFileSystemWatcher } from "../services/local-filesystem-watcher";
+import { emitTerminalOutput } from "../socket";
+import type { TerminalEntry } from "@repo/types";
 
+// Map to track active filesystem watchers by task ID
+const activeFileSystemWatchers = new Map<string, LocalFileSystemWatcher>();
+
+// Terminal entry counter for unique IDs
+let terminalEntryId = 1;
+
+// Helper function to create and emit terminal entries
+function createAndEmitTerminalEntry(
+  taskId: string,
+  type: TerminalEntry['type'],
+  data: string,
+  processId?: number
+): void {
+  const entry: TerminalEntry = {
+    id: terminalEntryId++,
+    timestamp: Date.now(),
+    data,
+    type,
+    processId,
+  };
+
+  console.log(`[TERMINAL_OUTPUT] Emitting ${type} for task ${taskId}:`, data.slice(0, 100));
+  emitTerminalOutput(taskId, entry);
+}
 
 // Factory function to create tools with task context using abstraction layer
 export function createTools(taskId: string, workspacePath?: string) {
@@ -12,6 +39,22 @@ export function createTools(taskId: string, workspacePath?: string) {
 
   // Create tool executor through abstraction layer
   const executor = createToolExecutor(taskId, workspacePath);
+
+  // Initialize filesystem watcher for local mode
+  if (isLocalMode() && workspacePath) {
+    // Check if we already have a watcher for this task
+    if (!activeFileSystemWatchers.has(taskId)) {
+      try {
+        const watcher = new LocalFileSystemWatcher(taskId);
+        watcher.startWatching(workspacePath);
+        activeFileSystemWatchers.set(taskId, watcher);
+        console.log(`[TOOLS] Started local filesystem watcher for task ${taskId}`);
+      } catch (error) {
+        console.error(`[TOOLS] Failed to start filesystem watcher for task ${taskId}:`, error);
+        // Continue without filesystem watching - not critical for basic operation
+      }
+    }
+  }
 
   return {
     todo_write: tool({
@@ -199,9 +242,39 @@ export function createTools(taskId: string, workspacePath?: string) {
       }),
       execute: async ({ command, is_background, explanation }) => {
         console.log(`[TERMINAL_CMD] ${explanation}`);
+
+        // Emit the command being executed to the terminal
+        createAndEmitTerminalEntry(taskId, "command", command);
+
         const result = await executor.executeCommand(command, {
           isBackground: is_background,
         });
+
+        // Emit stdout output if present
+        if (result.success && result.stdout) {
+          createAndEmitTerminalEntry(taskId, "stdout", result.stdout);
+        }
+
+        // Emit stderr output if present
+        if (result.stderr) {
+          createAndEmitTerminalEntry(taskId, "stderr", result.stderr);
+        }
+
+        // Emit system message for command completion
+        if (result.success) {
+          createAndEmitTerminalEntry(
+            taskId,
+            "system",
+            `Command completed successfully`
+          );
+        } else if (result.error) {
+          createAndEmitTerminalEntry(
+            taskId,
+            "system",
+            `Command failed: ${result.error}`
+          );
+        }
+
         return result;
       },
     }),
@@ -360,6 +433,46 @@ export function createTools(taskId: string, workspacePath?: string) {
   };
 }
 
+
+/**
+ * Stop filesystem watcher for a specific task
+ */
+export function stopFileSystemWatcher(taskId: string): void {
+  const watcher = activeFileSystemWatchers.get(taskId);
+  if (watcher) {
+    watcher.stop();
+    activeFileSystemWatchers.delete(taskId);
+    console.log(`[TOOLS] Stopped filesystem watcher for task ${taskId}`);
+  }
+}
+
+/**
+ * Stop all active filesystem watchers (for graceful shutdown)
+ */
+export function stopAllFileSystemWatchers(): void {
+  console.log(`[TOOLS] Stopping ${activeFileSystemWatchers.size} active filesystem watchers`);
+
+  for (const [taskId, watcher] of activeFileSystemWatchers.entries()) {
+    watcher.stop();
+    console.log(`[TOOLS] Stopped filesystem watcher for task ${taskId}`);
+  }
+
+  activeFileSystemWatchers.clear();
+}
+
+/**
+ * Get statistics about active filesystem watchers
+ */
+export function getFileSystemWatcherStats() {
+  const stats = [];
+  for (const [taskId, watcher] of activeFileSystemWatchers.entries()) {
+    stats.push(watcher.getStats());
+  }
+  return {
+    activeWatchers: activeFileSystemWatchers.size,
+    watcherDetails: stats
+  };
+}
 
 // Default tools export for backward compatibility (without todo_write)
 // Made lazy to avoid circular dependencies

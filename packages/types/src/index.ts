@@ -137,7 +137,7 @@ export interface StreamChunk {
   | "tool-call"
   | "tool-result"
   | "init-progress"
-  | "file-change";
+  | "fs-change";
 
   // For content chunks
   content?: string;
@@ -181,17 +181,13 @@ export interface StreamChunk {
   // For initialization progress
   initProgress?: InitializationProgress;
 
-  // For file changes
-  fileChange?: {
-    id: string;
+  // For filesystem changes
+  fsChange?: {
+    operation: 'file-created' | 'file-modified' | 'file-deleted' | 'directory-created' | 'directory-deleted';
     filePath: string;
-    operation: "CREATE" | "UPDATE" | "DELETE" | "RENAME" | "MOVE";
-    oldContent?: string;
-    newContent?: string;
-    diffPatch?: string;
-    additions: number;
-    deletions: number;
-    createdAt: string;
+    timestamp: number;
+    source: 'local' | 'remote';
+    isDirectory: boolean;
   };
 }
 
@@ -429,3 +425,81 @@ export const isSupportedFileType = (path: string): boolean => {
 
   return SUPPORTED_EXTENSIONS.has(extension);
 };
+
+// === Terminal Types ===
+
+export interface TerminalEntry {
+  id: number;
+  timestamp: number;
+  data: string;
+  type: 'stdout' | 'stderr' | 'command' | 'system';
+  processId?: number;
+}
+
+// === Socket.IO Event Types ===
+
+export interface ServerToClientEvents {
+  // Connection events
+  'connection-info': (data: { 
+    connectionId: string; 
+    reconnectCount: number; 
+    timestamp: number;
+  }) => void;
+
+  // Chat events
+  'chat-history': (data: { taskId: string; messages: Message[] }) => void;
+  'chat-history-error': (data: { error: string }) => void;
+  'stream-state': (state: { 
+    content: string; 
+    isStreaming: boolean; 
+    bufferPosition: number;
+  }) => void;
+  'stream-chunk': (chunk: StreamChunk) => void;
+  'stream-complete': () => void;
+  'stream-error': (error: any) => void;
+  'stream-update': (data: {
+    content: string;
+    isIncremental: boolean;
+    fromPosition: number;
+    totalLength: number;
+  }) => void;
+  'message-error': (data: { error: string }) => void;
+  'history-complete': (data: { taskId: string; totalLength: number }) => void;
+  'history-error': (data: { error: string }) => void;
+  
+  // Terminal events
+  'terminal-history': (data: { taskId: string; entries: TerminalEntry[] }) => void;
+  'terminal-history-error': (data: { error: string }) => void;
+  'terminal-output': (data: { taskId: string; entry: TerminalEntry }) => void;
+  'terminal-cleared': (data: { taskId: string }) => void;
+  'terminal-error': (data: { error: string }) => void;
+  
+  // Task events
+  'task-status-updated': (data: TaskStatusUpdateEvent) => void;
+}
+
+export interface ClientToServerEvents {
+  // Task room management
+  'join-task': (data: { taskId: string }) => void;
+  'leave-task': (data: { taskId: string }) => void;
+  
+  // Chat events
+  'user-message': (data: { 
+    taskId: string; 
+    message: string; 
+    llmModel?: ModelType;
+  }) => void;
+  'get-chat-history': (data: { taskId: string }) => void;
+  'stop-stream': (data: { taskId: string }) => void;
+  'request-history': (data: { 
+    taskId: string; 
+    fromPosition?: number;
+  }) => void;
+  
+  // Terminal events
+  'get-terminal-history': (data: { taskId: string }) => void;
+  'clear-terminal': (data: { taskId: string }) => void;
+  
+  // Connection events  
+  'heartbeat': () => void;
+}
