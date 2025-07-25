@@ -75,7 +75,7 @@ export function PromptForm({
         try {
           taskId = await createTask(formData);
           setIsIndexing(true);
-          await indexRepo(repo.full_name);
+          await indexRepo(repo.full_name, true);
           console.log("Repo indexed successfully");
         } catch (error) {
           toast.error("Failed to create task", {
@@ -103,7 +103,7 @@ export function PromptForm({
     }
   };
 
-  const indexRepo = async (repo: string) => {
+  const indexRepo = async (repo: string, clearNamespace: boolean = true) => {
     try {
       console.log("Indexing repo", repo);
       console.log("NEXT_PUBLIC_API_URL", process.env.NEXT_PUBLIC_API_URL);
@@ -114,7 +114,7 @@ export function PromptForm({
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ repo: repo, options: { embed: true } }),
+          body: JSON.stringify({ repo: repo, options: { embed: true, clearNamespace: clearNamespace } }),
         }
       );
       const data = await response.json();

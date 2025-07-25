@@ -22,11 +22,12 @@ router.get("/", (req, res) => {
 router.post(
   "/index",
   async (
-    req: express.Request<object, object, { repo: string; options?: IndexRepoOptions }>,
+    req: express.Request<object, object, { repo: string; options: IndexRepoOptions }>,
     res,
     next
   ) => {
     const { repo, options } = req.body;
+    const clearNamespace = options.clearNamespace;
     if (!repo || !isValidRepo(repo)) {
       return res
         .status(400)
@@ -34,7 +35,7 @@ router.post(
     }
 
     try {
-      const result = await indexRepo(repo, { ...options });
+      const result = await indexRepo(repo, { ...options, clearNamespace: clearNamespace });
       res.json({ message: "Indexing complete", ...result });
     } catch (error: any) {
       if (error.message.includes("Not Found")) {

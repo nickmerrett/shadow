@@ -23,6 +23,7 @@ export interface FileContentResponse {
 }
 
 export interface IndexRepoOptions {
+  clearNamespace: boolean;
   maxLines?: number;
   embed?: boolean;
   outDir?: string;
@@ -99,14 +100,14 @@ async function fetchRepoFiles(
 // Modified indexRepo to accept GitHub repo
 async function indexRepo(
   repoName: string,
-  options: IndexRepoOptions | null = {}
+  options: IndexRepoOptions
 ): Promise<{
   graph: Graph;
   graphJSON: any;
   invertedIndex: any;
   embeddings?: { index: any; binary: Buffer };
 }> {
-  const { maxLines = 200, embed = false, paths = null } = options || {};
+  const { maxLines = 200, embed = false, paths = null, clearNamespace = true } = options;
 
   logger.info(
     `Indexing ${repoName}${paths ? " (filtered)" : ""}${embed ? " + embeddings" : ""}`
@@ -369,7 +370,8 @@ async function indexRepo(
       logger.info("Embedding and uploading to Pinecone...");
       await embedAndUpsertToPinecone(
         Array.from(graph.nodes.values()),
-        repoName
+        repoName,
+        clearNamespace
       );
     } else {
       logger.info("Embedding skipped (embed=false).");
