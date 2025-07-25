@@ -19,11 +19,11 @@ export function useFileContent(taskId: string, filePath?: string) {
 
       const params = new URLSearchParams({ path: filePath });
       const res = await fetch(`/api/tasks/${taskId}/files/content?${params}`);
-      
+
       if (!res.ok) {
         throw new Error("Failed to fetch file content");
       }
-      
+
       return res.json();
     },
     enabled: !!taskId && !!filePath,

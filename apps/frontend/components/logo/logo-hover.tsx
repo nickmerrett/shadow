@@ -6,21 +6,30 @@ import "./logo-animation.css";
 
 const sizes = {
   sm: {
+    width: 16,
+    height: 16,
+    className: "logo-sm",
+  },
+  md: {
     width: 20,
     height: 20,
+    className: "logo-md",
   },
   lg: {
     width: 25,
     height: 25,
+    className: "logo-lg",
   },
 };
 
 export function LogoHover({
   forceAnimate,
-  size = "sm",
+  size = "md",
+  className,
 }: {
   forceAnimate?: boolean;
   size?: keyof typeof sizes;
+  className?: string;
 }) {
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -28,11 +37,11 @@ export function LogoHover({
 
   return (
     <div
-      className="overflow-hidden"
+      className={cn("overflow-hidden", className)}
       style={{ width: sizes[size].width, height: sizes[size].height }}
     >
       <div
-        className={cn("logo-container", size === "sm" ? "logo-sm" : "logo-lg")}
+        className={cn("logo-container", sizes[size].className)}
         role="img"
         aria-label="Logo"
         data-animate={shouldAnimate.toString()}

@@ -32,6 +32,18 @@ export interface DeleteResult {
   wasAlreadyDeleted?: boolean;
 }
 
+export interface FileStatsResult {
+  success: boolean;
+  stats?: {
+    size: number;
+    mtime: Date;
+    isFile: boolean;
+    isDirectory: boolean;
+  };
+  message: string;
+  error?: string;
+}
+
 export interface DirectoryListing {
   success: boolean;
   contents?: Array<{

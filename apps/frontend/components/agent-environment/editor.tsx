@@ -1,13 +1,14 @@
 "use client";
 
 import { patchMonacoWithShiki } from "@/lib/editor/highlighter";
-import { ChevronRight, ChevronsRight } from "lucide-react";
+import { AlertTriangle, ChevronRight, ChevronsRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Fragment, useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import type { FileNode } from "./file-explorer";
-import { cn } from "@/lib/utils";
+import { getLanguageFromPath } from "@repo/types";
+import { LogoHover } from "../logo/logo-hover";
 
 // Dynamic import Monaco Editor to avoid SSR issues
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -39,40 +40,6 @@ export function Editor({
       setIsShikiReady(true);
     });
   }, []);
-
-  const getLanguageFromPath = (path: string): string => {
-    const extension = path.split(".").pop()?.toLowerCase();
-    switch (extension) {
-      case "tsx":
-        return "tsx";
-      case "ts":
-        return "typescript";
-      case "js":
-        return "javascript";
-      case "jsx":
-        return "jsx";
-      case "json":
-        return "json";
-      case "md":
-        return "markdown";
-      case "css":
-        return "css";
-      case "html":
-        return "html";
-      case "c":
-        return "c";
-      case "h":
-        return "cpp";
-      case "cpp":
-        return "cpp";
-      case "cc":
-        return "cpp";
-      case "cxx":
-        return "cpp";
-      default:
-        return "plaintext";
-    }
-  };
 
   return (
     <div className="bg-background flex size-full flex-col">
@@ -113,19 +80,28 @@ export function Editor({
           </div>
         </div>
       </div>
-      <div className="code-editor flex-1 overflow-hidden pl-2">
+      <div className="code-editor relative z-0 flex-1 overflow-hidden pl-2">
+        {(isLoadingContent || contentError) && (
+          <div className="bg-background text-muted-foreground absolute inset-0 z-10 flex select-none items-center justify-center gap-2 text-sm">
+            {isLoadingContent ? (
+              <div className="flex items-center gap-2">
+                <LogoHover size="sm" forceAnimate className="opacity-60" />
+                Loading file content...
+              </div>
+            ) : (
+              <div className="justfiy-center flex items-center gap-2 break-words leading-none">
+                <AlertTriangle className="text-destructive size-4 shrink-0" />
+                Error loading file: {contentError || "Unknown error"}
+              </div>
+            )}
+          </div>
+        )}
         <MonacoEditor
           height="100%"
           language={
             selectedFile ? getLanguageFromPath(selectedFile.path) : "plaintext"
           }
-          value={
-            isLoadingContent
-              ? "// Loading file content..."
-              : contentError
-              ? `// Error loading file: ${contentError}`
-              : selectedFile?.content || "// Select a file to view its content"
-          }
+          value={selectedFile?.content}
           theme={isShikiReady ? "vesper" : "vs-dark"}
           options={{
             readOnly: true,

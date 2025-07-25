@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { prisma } from "@repo/db";
+import { FILE_SIZE_LIMITS } from "@repo/types";
 import type { ToolExecutor } from "../execution/interfaces/tool-executor";
+import { createToolExecutor } from "@/execution";
 
 const router = Router();
 
@@ -13,12 +15,6 @@ const IGNORE_DIRS = [
   "dist",
   "build",
 ];
-
-// Known text file extensions for viewing
-const KNOWN_EXTENSIONS = new Set([
-  "ts", "tsx", "js", "jsx", "json", "md", "css", "scss", "sass", "less",
-  "html", "py", "go", "java", "rs", "cpp", "cc", "cxx", "c", "h"
-]);
 
 type FileNode = {
   name: string;
@@ -168,13 +164,36 @@ router.get("/:taskId/files/content", async (req, res) => {
       });
     }
 
-    // Use execution abstraction layer to read file
-    const { createToolExecutor } = await import("../execution/index.js");
-    const executor = createToolExecutor(taskId, task.workspacePath);
-
     // Convert path: remove leading slash and handle relative paths
     const targetPath = filePath.startsWith("/") ? filePath.slice(1) : filePath;
 
+    // 1. Get file stats and check size
+    const executor = createToolExecutor(taskId, task.workspacePath);
+    const statsResult = await executor.getFileStats(targetPath);
+
+    if (!statsResult.success) {
+      return res.status(400).json({
+        success: false,
+        error: statsResult.error || "Failed to get file stats"
+      });
+    }
+
+    if (!statsResult.stats?.isFile) {
+      return res.status(400).json({
+        success: false,
+        error: "Path is not a file"
+      });
+    }
+
+    // 2. Check size limit
+    if (statsResult.stats.size > FILE_SIZE_LIMITS.MAX_FILE_SIZE_BYTES) {
+      return res.status(400).json({
+        success: false,
+        error: `File too large: ${statsResult.stats.size} bytes (max: ${FILE_SIZE_LIMITS.MAX_FILE_SIZE_BYTES} bytes)`
+      });
+    }
+
+    // 3. Read the file (any file type allowed)
     const result = await executor.readFile(targetPath);
 
     if (!result.success || !result.content) {
@@ -184,29 +203,12 @@ router.get("/:taskId/files/content", async (req, res) => {
       });
     }
 
-    // Check if this is a known text file type
-    const fileName = targetPath.split("/").pop() || "";
-    const ext = fileName.split(".").pop()?.toLowerCase();
-    const isKnownTextFile = (ext && KNOWN_EXTENSIONS.has(ext)) || /^readme/i.test(fileName);
-
-    if (!isKnownTextFile) {
-      return res.status(400).json({
-        success: false,
-        error: "File type not supported for viewing"
-      });
-    }
-
-    // Truncate large files
-    const content = result.content.length > 50_000
-      ? result.content.slice(0, 50_000) + "\n/* truncated */"
-      : result.content;
-
     res.json({
       success: true,
-      content,
+      content: result.content,
       path: filePath,
-      size: result.content.length,
-      truncated: result.content.length > 50_000
+      size: statsResult.stats.size,
+      truncated: false
     });
   } catch (error) {
     console.error("[FILE_CONTENT_API_ERROR]", error);

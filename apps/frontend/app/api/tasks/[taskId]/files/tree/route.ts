@@ -1,11 +1,9 @@
-export const runtime = "nodejs";
-
 import { NextResponse, NextRequest } from "next/server";
 import { db } from "@repo/db";
 import { getUser } from "@/lib/auth/get-user";
 
-export async function GET(_req: NextRequest, { params }: { params: { taskId: string } }) {
-  const { taskId } = params;
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ taskId: string }> }) {
+  const { taskId } = await params;
 
   try {
     // Check authentication
