@@ -112,6 +112,19 @@ export function PromptForm({
       handleSubmit(e);
     }
   };
+  const indexRepo = async (repo: string) => {
+    try{
+      console.log("Indexing repo", repo);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/indexing/index`, {
+        method: "POST",
+        body: JSON.stringify({ repo: repo, options: { embed: true } }),
+      });
+      const data = await response.json();
+      console.log("Indexing repo", data);
+    } catch (error) {
+      console.error("Error indexing repo", error);
+    }
+  };
 
   return (
     <form

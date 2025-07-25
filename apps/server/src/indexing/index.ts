@@ -65,7 +65,6 @@ router.post(
       if (isValidRepo(namespace)) {
         namespaceToUse = getNamespaceFromRepo(namespace);
       }
-      console.log("namespaceToUse", namespaceToUse);
       const response = await retrieve(query, namespaceToUse, topK, fields);
       // The response from pinecone is { result: { hits: [] } }, let's return a `matches` property as expected by the test
       res.json({ matches: response.result?.hits || [] });
