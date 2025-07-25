@@ -12,16 +12,13 @@ export default function Terminal() {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
-  
+
   const params = useParams();
   const taskId = params?.taskId as string;
 
-  // Replace all socket logic with one hook call
-  const {
-    terminalEntries,
-    isTerminalConnected,
-    clearTerminal,
-  } = useTerminalSocket(taskId);
+  // Use our hook architecture but with enhanced terminal functionality
+  const { terminalEntries, isTerminalConnected, clearTerminal } =
+    useTerminalSocket(taskId);
 
   // Terminal entry formatting with ANSI colors
   const writeToTerminal = (entry: TerminalEntry) => {
@@ -29,19 +26,19 @@ export default function Terminal() {
     if (!xterm) return;
 
     switch (entry.type) {
-      case 'command':
+      case "command":
         // Green bold for commands
         xterm.write(`\x1b[1;32m$ ${entry.data}\x1b[0m\r\n`);
         break;
-      case 'stdout':
+      case "stdout":
         // Normal white text for stdout
         xterm.write(entry.data);
         break;
-      case 'stderr':
-        // Red text for errors  
+      case "stderr":
+        // Red text for errors
         xterm.write(`\x1b[31m${entry.data}\x1b[0m`);
         break;
-      case 'system':
+      case "system":
         // Gray text for system messages
         xterm.write(`\x1b[90m${entry.data}\x1b[0m\r\n`);
         break;
@@ -129,19 +126,21 @@ export default function Terminal() {
       xtermRef.current.writeln("Shadow Agent Terminal");
       xtermRef.current.writeln("Connected to agent workspace");
       xtermRef.current.writeln("");
-      
-      terminalEntries.forEach(entry => writeToTerminal(entry));
+
+      terminalEntries.forEach((entry) => writeToTerminal(entry));
     }
   }, [terminalEntries]);
 
   return (
-    <div className="bg-background flex-1 overflow-hidden p-2 relative">
+    <div className="bg-background relative flex-1 overflow-hidden p-2">
       {/* Connection status indicator */}
-      <div className="absolute top-4 right-4 z-10">
-        <div className={`w-2 h-2 rounded-full ${isTerminalConnected ? 'bg-green-500' : 'bg-red-500'}`} 
-             title={isTerminalConnected ? 'Connected' : 'Disconnected'} />
+      <div className="absolute right-4 top-4 z-10">
+        <div
+          className={`h-2 w-2 rounded-full ${isTerminalConnected ? "bg-green-500" : "bg-red-500"}`}
+          title={isTerminalConnected ? "Connected" : "Disconnected"}
+        />
       </div>
-      
+
       <div ref={terminalRef} className="h-full" />
     </div>
   );

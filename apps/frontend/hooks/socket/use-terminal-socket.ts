@@ -18,30 +18,32 @@ export function useTerminalSocket(taskId: string | undefined) {
     }
   }, [socket, taskId, isConnected]);
 
-  // Terminal event handlers
+  // Terminal event handlers with enhanced functionality from main branch
   useEffect(() => {
     if (!socket || !taskId) return;
 
+    console.log("[TERMINAL] Setting up Socket.IO listeners for task:", taskId);
+
     const handleTerminalHistory = (data: { taskId: string; entries: TerminalEntry[] }) => {
-      if (data.taskId === taskId) {
-        console.log("[TERMINAL] Received terminal history:", data.entries.length, "entries");
-        setTerminalEntries(data.entries);
-        setIsTerminalConnected(true);
-      }
+      if (data.taskId !== taskId) return;
+
+      console.log("[TERMINAL] Received terminal history:", data.entries.length, "entries");
+      setTerminalEntries(data.entries);
+      setIsTerminalConnected(true);
     };
 
     const handleTerminalOutput = (data: { taskId: string; entry: TerminalEntry }) => {
-      if (data.taskId === taskId) {
-        console.log("[TERMINAL] Received terminal output:", data.entry);
-        setTerminalEntries(prev => [...prev, data.entry]);
-      }
+      if (data.taskId !== taskId) return;
+
+      console.log("[TERMINAL] Received terminal output:", data.entry);
+      setTerminalEntries(prev => [...prev, data.entry]);
     };
 
     const handleTerminalCleared = (data: { taskId: string }) => {
-      if (data.taskId === taskId) {
-        console.log("[TERMINAL] Terminal cleared");
-        setTerminalEntries([]);
-      }
+      if (data.taskId !== taskId) return;
+
+      console.log("[TERMINAL] Terminal cleared");
+      setTerminalEntries([]);
     };
 
     const handleTerminalHistoryError = (data: { error: string }) => {
