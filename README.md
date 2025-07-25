@@ -158,8 +158,3 @@ Stop services:
 ```bash
 docker-compose down
 ```
-
-
-### Notes
-
-`USE_SEMANTIC_SEARCH` is a boolean environment variable that controls whether semantic search is enabled. It is located in both the server and frontend .env files. They MUST be kept in sync.

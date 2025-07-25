@@ -1,10 +1,9 @@
 import indexRepo, { IndexRepoOptions } from "@/indexing/indexer";
 import express from "express";
-import TreeSitter from "tree-sitter";
 import PineconeHandler from "./embedding/pineconeService";
-import { getLanguageForPath } from "./languages";
 import { retrieve } from "./retrieval";
 import { getNamespaceFromRepo, isValidRepo } from "./utils/repository";
+import config from "@/config";
 
 const router = express.Router();
 const pinecone = new PineconeHandler();
@@ -26,6 +25,12 @@ router.post(
     res,
     next
   ) => {
+    console.log("Indexing repo", req.body.repo);
+    console.log("Semantic search enabled: ", config.useSemanticSearch);
+    if (!config.useSemanticSearch) {
+      console.log("Semantic search is not enabled - skipping indexing");
+      return res.status(200).json({ message: "Semantic search is not enabled - skipping indexing" });
+    }
     const { repo, options } = req.body;
     const clearNamespace = options.clearNamespace;
     if (!repo || !isValidRepo(repo)) {
