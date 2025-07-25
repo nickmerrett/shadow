@@ -491,7 +491,12 @@ export class RemoteToolExecutor implements ToolExecutor {
     );
   }
   async semanticSearch(query: string, repo: string, options?: SearchOptions): Promise<CodebaseSearchResult> {
+    if (!config.useSemanticSearch) {
+      console.log("semanticSearch disabled, falling back to codebaseSearch");
+      return this.codebaseSearch(query, options);
+    }
     try {
+      console.log("semanticSearch enabled");
       console.log("semanticSearchParams", query, repo);
       const response = await fetch(`${config.apiUrl}/api/indexing/search`, {
         method: "POST",

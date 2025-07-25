@@ -446,7 +446,12 @@ export class LocalToolExecutor implements ToolExecutor {
   }
 
   async semanticSearch(query: string, repo: string, options?: SearchOptions): Promise<CodebaseSearchResult> {
+    if (!config.useSemanticSearch) {
+      console.log("semanticSearch disabled, falling back to codebaseSearch");
+      return this.codebaseSearch(query, options);
+    }
     try {
+      console.log("semanticSearch enabled");
       console.log("semanticSearchParams", query, repo);
       const response = await fetch(`${config.apiUrl}/api/indexing/search`, {
         method: "POST",
@@ -466,10 +471,10 @@ export class LocalToolExecutor implements ToolExecutor {
       }
 
       const data = await response.json();
-      
+
       const parsedData = {
         success: !!data?.matches,
-        results: (data?.matches || []).map((match: Match, i: number) => ({
+        results: (data?.matches || []).map((match: any, i: number) => ({
           id: i + 1,
           content: match?.fields?.code || match?.metadata?.content || match?.metadata?.chunk_text || match?.content || match?.text || "",
           relevance: typeof match?._score === "number" ? match._score : 0.8,

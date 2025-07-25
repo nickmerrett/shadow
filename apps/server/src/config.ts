@@ -21,6 +21,10 @@ const configSchema = z
     PINECONE_API_KEY: z.string().optional(),
     PINECONE_INDEX_NAME: z.string().default("shadow"),
     EMBEDDING_MODEL: z.string().default("llama-text-embed-v2"),
+    USE_SEMANTIC_SEARCH: z.union([
+      z.boolean(),
+      z.string().transform(val => val === 'true')
+    ]).default(false),
     DEBUG: z
       .string()
       .optional()
@@ -71,6 +75,7 @@ const config = {
   pineconeApiKey: parsed.data.PINECONE_API_KEY,
   pineconeIndexName: parsed.data.PINECONE_INDEX_NAME,
   embeddingModel: parsed.data.EMBEDDING_MODEL,
+  useSemanticSearch: parsed.data.USE_SEMANTIC_SEARCH,
   debug: parsed.data.DEBUG,
 
   // Dual-mode execution

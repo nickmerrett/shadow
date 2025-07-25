@@ -75,8 +75,10 @@ export function PromptForm({
         try {
           taskId = await createTask(formData);
           setIsIndexing(true);
-          await indexRepo(repo.full_name, true);
-          console.log("Repo indexed successfully");
+          if (process.env.USE_SEMANTIC_SEARCH === 'true') {
+            await indexRepo(repo.full_name, true);
+            console.log("Repo indexed successfully");
+          }
         } catch (error) {
           toast.error("Failed to create task", {
             description:
