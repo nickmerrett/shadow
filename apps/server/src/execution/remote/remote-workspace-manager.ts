@@ -9,6 +9,7 @@ import {
 import config from "../../config";
 import { prisma } from "@repo/db";
 import { GitManager } from "../../services/git-manager";
+import { getGitHubAccessToken } from "../../utils/github-account";
 
 /**
  * RemoteWorkspaceManager manages Kubernetes pods for remote agent execution
@@ -37,8 +38,8 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
    */
   private getK8sApiUrl(): string {
     // When running in-cluster, this is typically available
-    return process.env.KUBERNETES_SERVICE_HOST && process.env.KUBERNETES_SERVICE_PORT
-      ? `https://${process.env.KUBERNETES_SERVICE_HOST}:${process.env.KUBERNETES_SERVICE_PORT}`
+    return config.kubernetesServiceHost && config.kubernetesServicePort
+      ? `https://${config.kubernetesServiceHost}:${config.kubernetesServicePort}`
       : "https://kubernetes.default.svc";
   }
 
@@ -47,7 +48,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
    */
   private getServiceAccountToken(): string {
     // In a real implementation, read from mounted service account token
-    return process.env.K8S_SERVICE_ACCOUNT_TOKEN || "mock-token";
+    return config.k8sServiceAccountToken || "mock-token";
   }
 
   /**
@@ -71,7 +72,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
         },
         signal: controller.signal,
         // Skip TLS verification in dev (in prod, proper certs should be configured)
-        ...(process.env.NODE_ENV === "development" && { 
+        ...(config.nodeEnv === "development" && { 
           // Note: fetch doesn't support rejectUnauthorized, this would need node-fetch or similar
         }),
       });
@@ -133,13 +134,19 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       // Step 1: Clone repository to pod workspace
       const sidecarUrl = this.getSidecarUrl(taskId);
       try {
+        // Get user's GitHub access token
+        const githubToken = await getGitHubAccessToken(userId);
+        if (!githubToken) {
+          throw new Error("No valid GitHub access token found for user");
+        }
+
         const cloneResponse = await this.makeSidecarRequest(sidecarUrl, "/api/git/clone", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             repoUrl,
             branch: baseBranch,
-            githubToken: process.env.GITHUB_TOKEN, // GitHub token from environment
+            githubToken,
           }),
         });
 

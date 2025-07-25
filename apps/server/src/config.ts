@@ -30,6 +30,9 @@ const configSchema = z
     
     // Remote mode configuration (optional, only needed when AGENT_MODE=remote)
     KUBERNETES_NAMESPACE: z.string().optional(),
+    KUBERNETES_SERVICE_HOST: z.string().optional(),
+    KUBERNETES_SERVICE_PORT: z.string().optional(),
+    K8S_SERVICE_ACCOUNT_TOKEN: z.string().optional(),
     SIDECAR_IMAGE: z.string().optional(),
     SIDECAR_PORT: z.coerce.number().optional(),
     SIDECAR_HEALTH_PATH: z.string().default("/health"),
@@ -76,6 +79,9 @@ const config = {
   
   // Remote mode configuration
   kubernetesNamespace: parsed.data.KUBERNETES_NAMESPACE,
+  kubernetesServiceHost: parsed.data.KUBERNETES_SERVICE_HOST,
+  kubernetesServicePort: parsed.data.KUBERNETES_SERVICE_PORT,
+  k8sServiceAccountToken: parsed.data.K8S_SERVICE_ACCOUNT_TOKEN,
   sidecarImage: parsed.data.SIDECAR_IMAGE,
   sidecarPort: parsed.data.SIDECAR_PORT,
   sidecarHealthPath: parsed.data.SIDECAR_HEALTH_PATH,
