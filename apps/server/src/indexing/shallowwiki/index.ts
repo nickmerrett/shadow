@@ -1,4 +1,3 @@
-import chalk from "chalk";
 import { config } from "dotenv";
 import fg from "fast-glob";
 import { createHash } from "crypto";
@@ -7,7 +6,7 @@ import { OpenAI } from "openai";
 import path from "path";
 import { DeepWikiStorage } from "./storage";
 
-// ───────── tree‑sitter bindings ─────────────────────────────────────────
+// Tree-sitter imports
 import Parser from "tree-sitter";
 import JavaScript from "tree-sitter-javascript";
 import TS from "tree-sitter-typescript";
@@ -15,86 +14,29 @@ import Python from "tree-sitter-python";
 
 config();
 
-// ───────────── Config / Defaults ─────────────────────────────────────────
+// Configuration
 const ROOT = path.resolve(process.argv[2] || ".");
 const TEMP = 0.15;
-const CONCURRENCY = Number(process.env.CONCURRENCY || 12); // Increased concurrency
-const USE_PINECONE = process.env.USE_PINECONE !== "false"; // Default to true
+const USE_PINECONE = process.env.USE_PINECONE !== "false";
 
-// Legacy file output (optional)
+// Output directory
 const OUT_DIR = path.join(ROOT, ".shadow", "tree");
 const CACHE_FILE = path.join(OUT_DIR, "cache.json");
 
-// Token tracking utilities
-interface TokenUsage {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-}
-
-const tokenUsage = {
-  promptTokens: 0,
-  completionTokens: 0,
-  totalTokens: 0,
-  gpt4Calls: 0,
-  gpt4MiniCalls: 0,
-  fileAnalyses: 0,
-  directorySummaries: 0,
-  rootSummary: 0,
-};
-
+// Processing statistics
 const processingStats = {
   filesProcessed: 0,
   directoriesProcessed: 0,
 };
 
-// Estimate tokens from string (rough approximation - 1 token ≈ 4 chars for English text)
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-
-// Track token usage
-function trackTokenUsage(usage: TokenUsage, modelName: string, operationType: 'file' | 'directory' | 'root'): void {
-  tokenUsage.promptTokens += usage.promptTokens;
-  tokenUsage.completionTokens += usage.completionTokens;
-  tokenUsage.totalTokens += usage.totalTokens;
-
-  if (modelName.includes('gpt-4o-mini')) {
-    tokenUsage.gpt4MiniCalls++;
-  } else {
-    tokenUsage.gpt4Calls++;
-  }
-
-  if (operationType === 'file') tokenUsage.fileAnalyses++;
-  else if (operationType === 'directory') tokenUsage.directorySummaries++;
-  else if (operationType === 'root') tokenUsage.rootSummary++;
-}
-
-// Prints a summary of token usage
-function printTokenUsage(): void {
-  console.log('\n📊 Token Usage Summary:');
-  console.log(`  Prompt Tokens: ${tokenUsage.promptTokens.toLocaleString()}`);
-  console.log(`  Completion Tokens: ${tokenUsage.completionTokens.toLocaleString()}`);
-  console.log(`  Total Tokens: ${tokenUsage.totalTokens.toLocaleString()}`);
-  console.log('\n📞 API Call Counts:');
-  console.log(`  GPT-4o Calls: ${tokenUsage.gpt4Calls}`);
-  console.log(`  GPT-4o-mini Calls: ${tokenUsage.gpt4MiniCalls}`);
-  console.log(`  File Analyses: ${tokenUsage.fileAnalyses}`);
-  console.log(`  Directory Summaries: ${tokenUsage.directorySummaries}`);
-  console.log(`  Root Summary: ${tokenUsage.rootSummary}`);
-}
-
 // Export functions for API usage
-export function getTokenUsage() {
-  return { ...tokenUsage };
-}
-
 export function getProcessingStats() {
   return { ...processingStats };
 }
 
-// ───────────── Utility Types ─────────────────────────────────────────────
+// Type definitions
 type NodeId = string;
+
 interface TreeNode {
   id: NodeId;
   name: string;
@@ -105,72 +47,34 @@ interface TreeNode {
   files: string[];
   summary_md?: string;
 }
+
 interface IndexFile {
   root: NodeId;
   nodes: Record<NodeId, TreeNode>;
 }
+
 interface CacheEntry {
   fingerprint: string;
   summary: string;
-  detailedAnalysis?: string;  // Store detailed GPT analysis when available
+  detailedAnalysis?: string;
   complexity?: { needsDeepAnalysis: boolean; reason: string };
 }
 
-// ───────────── Helpers ───────────────────────────────────────────────────
-const bold = (s: string) => chalk.bold.cyan(s);
+// Helper functions
+function bold(s: string) {
+  return `[DEEPWIKI] ${s}`;
+}
 
 const sha1 = (data: string) => createHash("sha1").update(data).digest("hex");
 
 function ensureDir(dirPath: string) {
-  // Legacy function - not needed when using Pinecone
-  if (!USE_PINECONE) {
-    const { mkdirSync } = require('fs');
-    mkdirSync(dirPath, { recursive: true });
+  const fs = require("fs");
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
   }
 }
 
-// ───────────── Simple concurrency gate (no external deps) ───────────────
-function limiter<T>(concurrency: number, fn: (arg: T) => Promise<any>) {
-  let running = 0;
-  const queue: Array<() => void> = [];
-
-  return async (arg: T): Promise<any> => {
-    return new Promise((resolve, reject) => {
-      const run = async () => {
-        running++;
-        try {
-          const result = await fn(arg);
-          resolve(result);
-        } catch (error) {
-          reject(error);
-        } finally {
-          running--;
-          if (queue.length > 0) {
-            const next = queue.shift()!;
-            next();
-          }
-        }
-      };
-
-      if (running < concurrency) {
-        run();
-      } else {
-        queue.push(run);
-      }
-    });
-  };
-}
-
-// ───────────── safe query helper ────────────────────────────────
-function safeQuery(lang: Parser.Language, src: string) {
-  try {
-    return new Parser.Query(lang, src);
-  } catch {
-    return new Parser.Query(lang, "(_)"); // wildcard – matches nothing
-  }
-}
-
-// ───────────── tree‑sitter language setup ────────────────────────────────
+// Tree-sitter language setup
 const parserJS = new Parser();
 parserJS.setLanguage(JavaScript as unknown as Parser.Language);
 const parserTS = new Parser();
@@ -199,7 +103,7 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
   js: {
     parser: parserJS,
     extensions: [".js", ".cjs", ".mjs", ".jsx"],
-    queryDefs: safeQuery(LangJS, `
+    queryDefs: new Parser.Query(LangJS, `
       (function_declaration name: (identifier) @def.name)
       (method_definition name: (property_identifier) @def.name)
       (class_declaration name: (identifier) @def.name)
@@ -216,7 +120,7 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
   ts: {
     parser: parserTS,
     extensions: [".ts", ".mts", ".cts"],
-    queryDefs: safeQuery(LangTS, `
+    queryDefs: new Parser.Query(LangTS, `
       (function_declaration name: (identifier) @def.name)
       (method_definition name: (property_identifier) @def.name)
       (class_declaration name: (identifier) @def.name)
@@ -232,7 +136,7 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
   tsx: {
     parser: parserTSX,
     extensions: [".tsx"],
-    queryDefs: safeQuery(LangTSX, `
+    queryDefs: new Parser.Query(LangTSX, `
       (function_declaration name: (identifier) @def.name)
       (method_definition name: (property_identifier) @def.name)
       (class_declaration name: (identifier) @def.name)
@@ -248,7 +152,7 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
   py: {
     parser: parserPy,
     extensions: [".py"],
-    queryDefs: safeQuery(LangPy, `
+    queryDefs: new Parser.Query(LangPy, `
       (function_definition name: (identifier) @def.name)
       (class_definition name: (identifier) @def.name)
     `),
@@ -262,9 +166,7 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
   },
 };
 
-// Language extensions are now defined directly in each language spec in the LANGUAGES object
-
-// ───────────── Caching helpers ───────────────────────────────────────────
+// Caching helpers
 let cache: Record<string, CacheEntry> = {};
 function loadCache() {
   try {
@@ -281,7 +183,7 @@ function fingerprint(abs: string) {
   return sha1(`${st.size}_${st.mtimeMs}`);
 }
 
-// ───────────── Function extraction via tree‑sitter ───────────────────────
+// Function extraction via tree-sitter
 interface Symbols {
   defs: Set<string>; // functions and classes
   calls: Set<string>;
@@ -318,7 +220,7 @@ function symbolsToMarkdown(sym: Symbols): string {
   return md.join("\n");
 }
 
-// ───────────── Build directory tree ─────────────────────────────────────
+// Build directory tree
 async function buildTree(ignore: string[]): Promise<IndexFile> {
   const entries = await fg("**/*", { cwd: ROOT, absolute: true, dot: true, ignore });
   const files = entries.filter((p) => statSync(p).isFile());
@@ -444,7 +346,7 @@ function toNodeId(rel: string) {
   return slug || `node_${sha1(rel).slice(0, 6)}`;
 }
 
-// ───────────── Helper to detect data folders vs code folders ────────────
+// Helper to detect data folders vs code folders
 function isDataFolder(relPath: string): boolean {
   // List of common data folder indicators
   const dataFolderPatterns = [
@@ -465,7 +367,7 @@ function isDataFolder(relPath: string): boolean {
   return dataFolderPatterns.some(pattern => pattern.test(relPath));
 }
 
-// ───────────── Analyze file complexity based on Tree-sitter results ────────────
+// Analyze file complexity based on Tree-sitter results
 function analyzeFileComplexity(symbols: Symbols, fileSize: number): { needsDeepAnalysis: boolean; reason: string } {
   // Determine if a file needs deeper analysis based on symbol count and file size
   const defCount = symbols.defs.size;
@@ -492,7 +394,7 @@ function analyzeFileComplexity(symbols: Symbols, fileSize: number): { needsDeepA
   return { needsDeepAnalysis: false, reason: "Basic symbol extraction sufficient" };
 }
 
-// ───────────── Summarise a file (tree‑sitter → markdown list) ────────────
+// Summarise a file (tree-sitter → markdown list)
 async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<string> {
   const abs = path.join(ROOT, rel);
   const src = readFileSync(abs, "utf8");
@@ -528,10 +430,9 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
 
   let summary: string;
   let detailedAnalysis: string | undefined;
-  let tokenUsage: any;
 
   if (complexity.needsDeepAnalysis) {
-    console.log(`🔍 Deep analysis: ${rel} (${complexity.reason})`);
+    console.log(`[DEEPWIKI] Analyzing: ${rel}`);
     // Use GPT for detailed analysis
     const langKey = Object.keys(LANGUAGES).find(k => {
       const langSpec = LANGUAGES[k as keyof typeof LANGUAGES];
@@ -540,12 +441,7 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
     detailedAnalysis = await analyzeFileWithGPT(rel, src, symbols, langKey);
     summary = detailedAnalysis;
 
-    // Get token usage for this analysis
-    tokenUsage = {
-      promptTokens: estimateTokens(src),
-      completionTokens: estimateTokens(summary),
-      totalTokens: estimateTokens(src + summary)
-    };
+    // Summary has been set from detailedAnalysis
   } else {
     // Use basic symbol extraction
     summary = symbolsToMarkdown(symbols) || "_(no symbols found)_";
@@ -567,8 +463,7 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
       symbolNames,
       dependencies,
       language,
-      complexity.needsDeepAnalysis ? 1 : 0,
-      tokenUsage
+      complexity.needsDeepAnalysis ? 1 : 0
     );
   }
 
@@ -583,7 +478,7 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
   return summary;
 }
 
-// ───────────── Analyze file with GPT for deeper understanding ────────────
+// Analyze file with GPT for deeper understanding
 async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, langKey: string): Promise<string> {
   // Use a smaller context model (GPT-4o-mini) for file analysis
   const MODEL_MINI = process.env.MODEL_MINI || "gpt-4o-mini";
@@ -609,9 +504,6 @@ async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, la
   ];
 
   try {
-    // Estimate input tokens
-    const inputText = messages.map(m => m.content).join(' ');
-    const estimatedInputTokens = estimateTokens(inputText);
 
     const res = await openai.chat.completions.create({
       model: MODEL_MINI,
@@ -620,26 +512,9 @@ async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, la
       max_tokens: 2048 // Reduced token limit for more concise analysis
     });
 
-    // Track token usage
-    const usage = res.usage || {
-      prompt_tokens: estimatedInputTokens,
-      completion_tokens: estimateTokens(res.choices[0]?.message?.content || ''),
-      total_tokens: estimatedInputTokens + estimateTokens(res.choices[0]?.message?.content || '')
-    };
+    // Process response
 
-    trackTokenUsage({
-      promptTokens: usage.prompt_tokens,
-      completionTokens: usage.completion_tokens,
-      totalTokens: usage.total_tokens
-    }, MODEL_MINI, 'file');
-
-    const analysis = res.choices[0]?.message?.content?.trim();
-    if (!analysis) {
-      // Fall back to basic symbol extraction if GPT analysis failed or returned empty
-      return basicSymbols || "_(no symbols found)_";
-    }
-
-    return analysis;
+    return res.choices[0]?.message?.content?.trim() || "_(no response)_";
   } catch (err) {
     console.error(`Error analyzing ${rel} with GPT:`, err);
     // Fall back to basic symbol extraction if GPT analysis fails
@@ -647,17 +522,13 @@ async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, la
   }
 }
 
-// ─────────────── Directory / root summaries via LLM (still concise) ─────────────
+// Directory / root summaries via LLM (still concise)
 const openai = new OpenAI();
 
 // Model selection - use environment variables or defaults
 
-async function chat(messages: any[], budget: number, operationType: 'file' | 'directory' | 'root' = 'directory'): Promise<string> {
+async function chat(messages: any[], budget: number): Promise<string> {
   const MODEL = process.env.MODEL || "gpt-4o";
-
-  // Estimate input tokens
-  const inputText = messages.map(m => m.content).join(' ');
-  const estimatedInputTokens = estimateTokens(inputText);
 
   const res = await openai.chat.completions.create({
     model: MODEL,
@@ -666,25 +537,13 @@ async function chat(messages: any[], budget: number, operationType: 'file' | 'di
     max_tokens: budget
   });
 
-  // Track actual or estimated token usage
-  const usage = res.usage || {
-    prompt_tokens: estimatedInputTokens,
-    completion_tokens: estimateTokens(res.choices[0]?.message?.content || ''),
-    total_tokens: estimatedInputTokens + estimateTokens(res.choices[0]?.message?.content || '')
-  };
-
-  trackTokenUsage({
-    promptTokens: usage.prompt_tokens,
-    completionTokens: usage.completion_tokens,
-    totalTokens: usage.total_tokens
-  }, MODEL, operationType);
-
   return res.choices[0]?.message?.content?.trim() || "_(no response)_";
 }
 
 function dirBudget(childCount: number) {
-  return Math.min(300, 100 + childCount * 20); // Reduced budget for concise directories
+  return Math.min(800, 200 + childCount * 40); // Reduced budget for concise directory summary
 }
+
 function rootBudget(childCount: number) {
   return Math.min(500, 150 + childCount * 30); // Reduced budget for concise root overview
 }
@@ -741,7 +600,7 @@ Directory: ${node.relPath}`;
   ];
 
   // Use the main model (GPT-4o) for directory summaries
-  return chat(messages, budget, 'directory');
+  return chat(messages, budget);
 }
 async function summariseRoot(node: TreeNode, blocks: string[]): Promise<string> {
   const budget = rootBudget(blocks.length);
@@ -760,20 +619,20 @@ Use bullet points and fragments. Grammar not important. Ultra-concise technical 
   ];
 
   // Use the main model (GPT-4o) for root summaries
-  return chat(messages, budget, 'root');
+  return chat(messages, budget);
 }
 
-// ───────────── Main orchestrator ────────────────────────────────────────
+// Main orchestrator
 export async function run() {
   // Initialize storage
   const storage = USE_PINECONE ? new DeepWikiStorage(ROOT) : null;
 
   if (USE_PINECONE) {
-    console.log(bold(`💾 Using Pinecone storage (namespace: ${storage!.getNamespace()})`));
+    console.log(bold(`Using Pinecone storage (namespace: ${storage!.getNamespace()})`));
     // Clear existing data for this repository
     await storage!.clearRepository();
   } else {
-    console.log(bold("📁 Using legacy file storage"));
+    console.log(bold("Using legacy file storage"));
     ensureDir(OUT_DIR);
   }
 
@@ -800,20 +659,20 @@ export async function run() {
     "**/.shadow/**",
   ];
 
-  console.log(bold("📦 Scanning repo…"));
+  console.log(bold("Scanning repo…"));
   const tree = await buildTree(ignore);
 
   //----------------------------------------------
   // File symbol extraction (parallel, throttled)
-  //----------------------------------------------
-  const runLimited = limiter<string>(CONCURRENCY, (rel: string) => summariseFile(rel, storage || undefined));
+  //----------------------------------------------  // Define file processing function
+  const processFile = async (rel: string) => { return summariseFile(rel, storage || undefined); };
   const fileTasks: Promise<void>[] = [];
   let totalFiles = 0;
   for (const nid in tree.nodes) {
     const node = tree.nodes[nid]!;
     for (const rel of node?.files || []) {
       fileTasks.push(
-        runLimited(rel).then((summary) => {
+        processFile(rel).then((summary) => {
           if (cache[rel]) {
             cache[rel]!.summary = summary;
           } else {
@@ -829,10 +688,10 @@ export async function run() {
   // Update processing stats
   processingStats.filesProcessed = totalFiles;
 
-  console.log(bold("✅ File summaries complete"));
+  console.log(bold("File summaries complete"));
 
   //----------------------------------------------
-  // Directory summaries (bottom‑up)
+  // Directory summaries (bottom-up)
   //----------------------------------------------
   const nodesByDepth = Object.keys(tree.nodes).sort((a, b) => tree.nodes[b]!.level - tree.nodes[a]!.level);
   for (const nid of nodesByDepth) {
@@ -901,7 +760,7 @@ export async function run() {
       writeFileSync(outputFilePath, front + fullContent + "\n");
     }
 
-    console.log(bold(`✅ Dir: ${node.relPath}`));
+    console.log(bold(`Dir: ${node.relPath}`));
     processingStats.directoriesProcessed++;
   }
 
@@ -925,7 +784,7 @@ export async function run() {
       processingStats.filesProcessed,
       processingStats.directoriesProcessed
     );
-    console.log(bold(`\n🎉 DeepWiki stored in Pinecone (namespace: ${storage.getNamespace()})`));
+    console.log(bold(`DeepWiki stored in Pinecone (namespace: ${storage.getNamespace()})`));
   }
 
   // Legacy file output (optional)
@@ -953,7 +812,7 @@ export async function run() {
     );
 
     // Write individual summary files for each node
-    console.log(bold("Writing individual summary files..."));
+    console.log(bold("Writing summary files..."));
     let fileCount = 0;
 
     for (const nodeId in tree.nodes) {
@@ -970,13 +829,12 @@ export async function run() {
     }
 
     writeFileSync(path.join(OUT_DIR, "index.json"), JSON.stringify(tree, null, 2));
-    console.log(bold(`\n🎉 DeepWiki (comprehensive) generated at ${OUT_DIR} (${fileCount + 1} files)`));
+    console.log(bold(`ShallowWiki generated at ${OUT_DIR} (${fileCount + 1} files)`));
   }
 
   saveCache();
 
-  // Print token usage summary
-  printTokenUsage();
+  // Generation complete
 }
 
 // Wrapper function for API usage that accepts parameters
@@ -986,10 +844,12 @@ export async function runDeepWiki(repoPath: string, options: {
   modelMini?: string;
 }) {
   // Store original values
-  const originalArgv = process.argv[2];
+  const originalPath = process.argv[2];
   const originalConcurrency = process.env.CONCURRENCY;
   const originalModel = process.env.MODEL;
   const originalModelMini = process.env.MODEL_MINI;
+
+  console.log(bold(`Generating summaries for ${repoPath}`));
 
   try {
     // Set parameters as environment variables and argv
@@ -1007,33 +867,21 @@ export async function runDeepWiki(repoPath: string, options: {
     // Run the main function
     await run();
 
-    // Return the processing stats and token usage
+    // Return the processing stats
     return {
-      tokenUsage: getTokenUsage(),
       processingStats: getProcessingStats()
     };
   } finally {
     // Restore original values
-    if (originalArgv !== undefined) {
-      process.argv[2] = originalArgv;
+    if (originalPath !== undefined) {
+      process.argv[2] = originalPath;
     } else {
-      delete process.argv[2];
+      // Remove the argument if it wasn't there originally
+      process.argv.splice(2, 1);
     }
-    if (originalConcurrency !== undefined) {
-      process.env.CONCURRENCY = originalConcurrency;
-    } else {
-      delete process.env.CONCURRENCY;
-    }
-    if (originalModel !== undefined) {
-      process.env.MODEL = originalModel;
-    } else {
-      delete process.env.MODEL;
-    }
-    if (originalModelMini !== undefined) {
-      process.env.MODEL_MINI = originalModelMini;
-    } else {
-      delete process.env.MODEL_MINI;
-    }
+    if (originalConcurrency) process.env.CONCURRENCY = originalConcurrency;
+    if (originalModel) process.env.MODEL = originalModel;
+    if (originalModelMini) process.env.MODEL_MINI = originalModelMini;
   }
 }
 
