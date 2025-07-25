@@ -2,10 +2,10 @@
 
 import { auth } from "@/lib/auth/auth";
 import { MessageRole, prisma, Task } from "@repo/db";
-import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { z } from "zod";
+import { generateTaskTitleAndBranch } from "./generate-title-branch";
 import { saveLayoutCookie } from "./save-sidebar-cookie";
 
 const createTaskSchema = z.object({
@@ -46,15 +46,17 @@ export async function createTask(formData: FormData) {
   const { message, model, repoUrl, baseBranch } = validation.data;
 
   const taskId = crypto.randomUUID();
-  const shadowBranch = `shadow/task-${taskId}`;
   let task: Task;
 
   try {
+    // Generate a title for the task
+    const { title, shadowBranch } = await generateTaskTitleAndBranch(taskId, message);
+
     // Create the task
     task = await prisma.task.create({
       data: {
         id: taskId,
-        title: message.slice(0, 50) + (message.length > 50 ? "..." : ""),
+        title,
         description: message,
         repoUrl,
         baseBranch,
@@ -77,9 +79,10 @@ export async function createTask(formData: FormData) {
       },
     });
 
-    // Schedule the backend API call to happen after the response is sent
+    // Schedule the backend API call and title generation to happen after the response is sent
     after(async () => {
       try {
+        // Initiate the task on the backend
         const baseUrl =
           process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
         const response = await fetch(
@@ -107,7 +110,6 @@ export async function createTask(formData: FormData) {
       }
     });
 
-    revalidatePath("/");
   } catch (error) {
     console.error("Failed to create task:", error);
     throw new Error("Failed to create task");
