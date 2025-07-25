@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "@repo/db";
 import { FILE_SIZE_LIMITS } from "@repo/types";
 import type { ToolExecutor } from "../execution/interfaces/tool-executor";
-import { createToolExecutor } from "@/execution";
+import { createToolExecutor } from "../execution";
 
 const router = Router();
 
@@ -107,7 +107,6 @@ router.get("/:taskId/files/tree", async (req, res) => {
     }
 
     // Use execution abstraction layer to get file tree
-    const { createToolExecutor } = await import("../execution/index.js");
     const executor = createToolExecutor(taskId, task.workspacePath);
 
     const tree = await buildFileTree(executor);

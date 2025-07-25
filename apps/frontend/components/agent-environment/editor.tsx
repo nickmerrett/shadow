@@ -91,7 +91,7 @@ export function Editor({
                 Loading file content
               </div>
             ) : contentError ? (
-              <div className="justfiy-center flex items-center gap-2 break-words leading-none">
+              <div className="flex items-center justify-center gap-2 break-words leading-none">
                 <AlertTriangle className="text-destructive size-4 shrink-0" />
                 Error loading file: {contentError || "Unknown error"}
               </div>
