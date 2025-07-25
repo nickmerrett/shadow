@@ -57,3 +57,14 @@
 - Type-safe room management
 
 ### Current Status: All core functionality implemented and tested ✅
+
+### Recent Enhancement: 
+**📁 Organized Socket Hooks Into Clean Folder Structure**
+- Moved all socket hooks into `hooks/socket/` subfolder:
+  - `hooks/socket/use-socket.ts` - Base connection management
+  - `hooks/socket/use-task-socket.ts` - Chat functionality  
+  - `hooks/socket/use-terminal-socket.ts` - Terminal functionality
+  - `hooks/socket/index.ts` - Clean exports for easy importing
+- Updated all import paths to use the new structure
+- Components now import from `@/hooks/socket` for cleaner code
+- All TypeScript compilation verified ✅

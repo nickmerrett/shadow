@@ -5,7 +5,7 @@ import { PromptForm } from "@/components/chat/prompt-form";
 import { ScrollToBottom } from "@/hooks/use-is-at-top";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
-import { useTaskSocket } from "@/hooks/use-task-socket";
+import { useTaskSocket } from "@/hooks/socket";
 import { cn } from "@/lib/utils";
 import { useParams } from "next/navigation";
 import { StickToBottom } from "use-stick-to-bottom";

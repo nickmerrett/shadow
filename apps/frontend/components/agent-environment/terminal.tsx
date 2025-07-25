@@ -4,7 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as XTerm } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { useEffect, useRef } from "react";
-import { useTerminalSocket } from "@/hooks/use-terminal-socket";
+import { useTerminalSocket } from "@/hooks/socket";
 import { useParams } from "next/navigation";
 import type { TerminalEntry } from "@repo/types";
 
