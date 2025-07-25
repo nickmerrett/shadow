@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CommandSecurityLevel } from "@repo/security";
 
 // Re-export common types that match the OpenAPI spec
 
@@ -225,9 +226,3 @@ export interface GitPushResponse extends SuccessResponse {
   error?: string;
 }
 
-// Command security types
-export enum CommandSecurityLevel {
-  SAFE = "SAFE",
-  APPROVAL_REQUIRED = "APPROVAL_REQUIRED", 
-  BLOCKED = "BLOCKED"
-}

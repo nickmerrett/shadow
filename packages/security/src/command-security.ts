@@ -3,9 +3,8 @@
  * Three-tier security model: SAFE, APPROVAL_REQUIRED, and BLOCKED
  */
 
-import { logger } from "./logger";
-import { CommandSecurityLevel } from "../types";
 import path from "path";
+import { CommandSecurityLevel, CommandValidationResult } from "./types";
 
 // Commands that are safe to execute without approval
 const SAFE_COMMANDS = new Set([
@@ -107,13 +106,21 @@ const SAFE_REDIRECTION_PATTERNS = [
   /^2>&1$/,                       // Stderr to stdout
 ];
 
-export interface CommandValidationResult {
-  isValid: boolean;
-  error?: string;
-  sanitizedCommand?: string;
-  sanitizedArgs?: string[];
-  securityLevel?: CommandSecurityLevel;
+// Logger interface for dependency injection
+export interface SecurityLogger {
+  warn(message: string, details?: Record<string, any>): void;
+  info(message: string, details?: Record<string, any>): void;
 }
+
+// Default console logger
+const defaultLogger: SecurityLogger = {
+  warn: (message: string, details?: Record<string, any>) => {
+    console.warn(message, details);
+  },
+  info: (message: string, details?: Record<string, any>) => {
+    console.log(message, details);
+  }
+};
 
 /**
  * Validate and sanitize a command for safe execution
@@ -121,7 +128,8 @@ export interface CommandValidationResult {
 export function validateCommand(
   command: string, 
   args: string[] = [],
-  workingDirectory?: string
+  workingDirectory?: string,
+  logger: SecurityLogger = defaultLogger
 ): CommandValidationResult {
   // Basic input validation
   if (!command || typeof command !== "string") {
@@ -512,13 +520,16 @@ export function parseCommand(commandString: string): { command: string; args: st
 /**
  * Log security event for command validation
  */
-export function logCommandSecurityEvent(event: string, details: Record<string, any>): void {
+export function logCommandSecurityEvent(
+  event: string, 
+  details: Record<string, any>,
+  logger: SecurityLogger = defaultLogger
+): void {
   logger.warn(`[COMMAND_SECURITY] ${event}`, {
     ...details,
     timestamp: new Date().toISOString(),
   });
 }
-
 
 /**
  * Get command security level

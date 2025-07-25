@@ -3,12 +3,14 @@ import { EventEmitter } from "events";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import { WorkspaceService } from "./workspace-service";
-import { CommandResponse, CommandSecurityLevel } from "../types";
+import { CommandResponse } from "../types";
 import {
   validateCommand,
   parseCommand,
   logCommandSecurityEvent,
-} from "../utils/command-security";
+  CommandSecurityLevel,
+  SecurityLogger,
+} from "@repo/security";
 
 export interface CommandStreamEvent {
   type: "stdout" | "stderr" | "exit" | "error";
@@ -19,9 +21,15 @@ export interface CommandStreamEvent {
 
 export class CommandService extends EventEmitter {
   private runningProcesses: Map<string, any> = new Map();
+  private securityLogger: SecurityLogger;
 
   constructor(private workspaceService: WorkspaceService) {
     super();
+    // Adapter for Winston logger to SecurityLogger interface
+    this.securityLogger = {
+      warn: (message: string, details?: Record<string, any>) => logger.warn(message, details),
+      info: (message: string, details?: Record<string, any>) => logger.info(message, details),
+    };
   }
 
   /**
@@ -43,14 +51,14 @@ export class CommandService extends EventEmitter {
 
     // Parse and validate the command
     const { command: baseCommand, args } = parseCommand(command);
-    const validation = validateCommand(baseCommand, args, workspaceDir);
+    const validation = validateCommand(baseCommand, args, workspaceDir, this.securityLogger);
 
     if (!validation.isValid) {
       logCommandSecurityEvent("Command validation failed", {
         command,
         error: validation.error,
         securityLevel: validation.securityLevel,
-      });
+      }, this.securityLogger);
       return {
         success: false,
         message: `Security validation failed: ${validation.error}`,
@@ -146,14 +154,14 @@ export class CommandService extends EventEmitter {
 
     // Parse and validate the command
     const { command: baseCommand, args } = parseCommand(command);
-    const validation = validateCommand(baseCommand, args, workspaceDir);
+    const validation = validateCommand(baseCommand, args, workspaceDir, this.securityLogger);
 
     if (!validation.isValid) {
       logCommandSecurityEvent("Streaming command validation failed", {
         command,
         error: validation.error,
         securityLevel: validation.securityLevel,
-      });
+      }, this.securityLogger);
       onData({
         type: "error",
         message: `Security validation failed: ${validation.error}`,

@@ -88,6 +88,8 @@ export interface CodebaseSearchResult {
   error?: string;
 }
 
+import { CommandSecurityLevel } from "@repo/security";
+
 // Command execution results
 export interface CommandResult {
   success: boolean;
@@ -97,6 +99,7 @@ export interface CommandResult {
   error?: string;
   isBackground?: boolean;
   command?: string;
+  securityLevel?: CommandSecurityLevel;
 }
 
 // File operation options
