@@ -5,6 +5,7 @@ import { Server } from "socket.io";
 import { ChatService, DEFAULT_MODEL } from "./chat";
 import config from "./config";
 import { updateTaskStatus } from "./utils/task-status";
+import { createToolExecutor } from "./execution";
 
 // Enhanced connection management
 interface ConnectionState {
@@ -19,6 +20,138 @@ let currentStreamContent = "";
 let isStreaming = false;
 let io: Server;
 let chatService: ChatService;
+
+// Terminal helper functions
+async function getTerminalHistory(taskId: string): Promise<any[]> {
+  try {
+    // Get task to determine execution mode and workspace
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { workspacePath: true },
+    });
+
+    if (!task) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+
+    // Create executor based on current mode
+    const agentMode = process.env.AGENT_MODE || "local";
+    const executor = createToolExecutor(taskId, task.workspacePath, agentMode);
+
+    // For remote mode, we'd call the sidecar terminal API
+    // For local mode, we'd need to implement local terminal buffer
+    if (executor.isRemote()) {
+      // Call sidecar terminal history API
+      const response = await fetch(`http://localhost:8080/terminal/history?count=100`);
+      if (!response.ok) {
+        throw new Error(`Sidecar terminal API error: ${response.status}`);
+      }
+      const data = await response.json();
+      return data.entries || [];
+    } else {
+      // For local mode, return empty for now (no local buffer yet)
+      // TODO: Implement local terminal buffer
+      return [];
+    }
+  } catch (error) {
+    console.error("Error fetching terminal history:", error);
+    return [];
+  }
+}
+
+async function clearTerminal(taskId: string): Promise<void> {
+  try {
+    // Get task to determine execution mode
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { workspacePath: true },
+    });
+
+    if (!task) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+
+    const agentMode = process.env.AGENT_MODE || "local";
+    const executor = createToolExecutor(taskId, task.workspacePath, agentMode);
+
+    if (executor.isRemote()) {
+      // Call sidecar terminal clear API
+      const response = await fetch(`http://localhost:8080/terminal/clear`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(`Sidecar terminal clear API error: ${response.status}`);
+      }
+    } else {
+      // For local mode, nothing to clear yet
+      // TODO: Implement local terminal buffer
+    }
+  } catch (error) {
+    console.error("Error clearing terminal:", error);
+    throw error;
+  }
+}
+
+// Terminal polling for real-time updates (for remote mode)
+const terminalPollingIntervals = new Map<string, NodeJS.Timer>();
+
+function startTerminalPolling(taskId: string) {
+  // Avoid duplicate polling
+  if (terminalPollingIntervals.has(taskId)) {
+    return;
+  }
+
+  let lastSeenId = 0;
+
+  const interval = setInterval(async () => {
+    try {
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { workspacePath: true },
+      });
+
+      if (!task) {
+        stopTerminalPolling(taskId);
+        return;
+      }
+
+      const agentMode = process.env.AGENT_MODE || "local";
+      const executor = createToolExecutor(taskId, task.workspacePath, agentMode);
+
+      if (executor.isRemote()) {
+        // Poll sidecar for new entries
+        const response = await fetch(`http://localhost:8080/terminal/history?sinceId=${lastSeenId}`);
+        if (response.ok) {
+          const data = await response.json();
+          const newEntries = data.entries || [];
+          
+          // Emit new entries to connected clients
+          newEntries.forEach((entry: any) => {
+            if (entry.id > lastSeenId) {
+              lastSeenId = entry.id;
+              io.emit("terminal-output", { taskId, entry });
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`Terminal polling error for task ${taskId}:`, error);
+    }
+  }, 1000); // Poll every second
+
+  terminalPollingIntervals.set(taskId, interval);
+  console.log(`[SOCKET] Started terminal polling for task ${taskId}`);
+}
+
+function stopTerminalPolling(taskId: string) {
+  const interval = terminalPollingIntervals.get(taskId);
+  if (interval) {
+    clearInterval(interval);
+    terminalPollingIntervals.delete(taskId);
+    console.log(`[SOCKET] Stopped terminal polling for task ${taskId}`);
+  }
+}
 
 export function createSocketServer(server: http.Server): Server {
   io = new Server(server, {
@@ -82,6 +215,9 @@ export function createSocketServer(server: http.Server): Server {
           // Update task status to running when user sends a new message
           await updateTaskStatus(data.taskId, "RUNNING", "SOCKET");
 
+          // Start terminal polling for this task
+          startTerminalPolling(data.taskId);
+
           // Get task workspace path from database
           const task = await prisma.task.findUnique({
             where: { id: data.taskId },
@@ -130,6 +266,44 @@ export function createSocketServer(server: http.Server): Server {
       } catch (error) {
         console.error("Error stopping stream:", error);
         socket.emit("stream-error", { error: "Failed to stop stream" });
+      }
+    });
+
+    // Handle terminal history request
+    socket.on("get-terminal-history", async (data: { taskId: string }) => {
+      try {
+        console.log(`[SOCKET] Getting terminal history for task: ${data.taskId}`);
+        
+        // Get terminal history from sidecar or local executor
+        const history = await getTerminalHistory(data.taskId);
+        
+        socket.emit("terminal-history", { 
+          taskId: data.taskId, 
+          entries: history 
+        });
+      } catch (error) {
+        console.error("Error getting terminal history:", error);
+        socket.emit("terminal-history-error", {
+          error: "Failed to get terminal history",
+        });
+      }
+    });
+
+    // Handle terminal clear request
+    socket.on("clear-terminal", async (data: { taskId: string }) => {
+      try {
+        console.log(`[SOCKET] Clearing terminal for task: ${data.taskId}`);
+        
+        // Clear terminal via sidecar or local executor
+        await clearTerminal(data.taskId);
+        
+        // Notify all clients that terminal was cleared
+        io.emit("terminal-cleared", { taskId: data.taskId });
+      } catch (error) {
+        console.error("Error clearing terminal:", error);
+        socket.emit("terminal-error", {
+          error: "Failed to clear terminal",
+        });
       }
     });
 

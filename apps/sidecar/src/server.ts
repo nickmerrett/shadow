@@ -10,11 +10,13 @@ import { WorkspaceService } from "./services/workspace-service";
 import { FileService } from "./services/file-service";
 import { SearchService } from "./services/search-service";
 import { CommandService } from "./services/command-service";
+import { GitService } from "./services/git-service";
 import { TerminalBuffer } from "./services/terminal-buffer";
 import { createHealthRouter } from "./api/health";
 import { createFilesRouter } from "./api/files";
 import { createSearchRouter } from "./api/search";
 import { createExecuteRouter } from "./api/execute";
+import { createGitRouter } from "./api/git";
 
 async function startServer() {
   const app = express();
@@ -24,6 +26,7 @@ async function startServer() {
   const fileService = new FileService(workspaceService);
   const searchService = new SearchService(workspaceService);
   const commandService = new CommandService(workspaceService);
+  const gitService = new GitService(workspaceService);
   const terminalBuffer = new TerminalBuffer({
     maxSize: 10000,
     maxMemory: 50 * 1024 * 1024, // 50MB
@@ -71,6 +74,7 @@ async function startServer() {
   app.use(createFilesRouter(fileService));
   app.use(createSearchRouter(searchService));
   app.use(createExecuteRouter(commandService, terminalBuffer));
+  app.use(createGitRouter(gitService));
 
   // 404 handler
   app.use((req, res) => {
