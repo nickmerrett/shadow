@@ -130,7 +130,7 @@ router.post(
 
     try {
       // Dynamically import the DeepWiki indexer
-      const { runDeepWiki } = await import("./shallowwiki/api.js");
+      const { runDeepWiki } = await import("./shallowwiki/index.js");
 
       const result = await runDeepWiki(repoPath, {
         concurrency: concurrency || 12,

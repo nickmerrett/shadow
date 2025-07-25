@@ -953,6 +953,64 @@ export async function run() {
   printTokenUsage();
 }
 
+// Wrapper function for API usage that accepts parameters
+export async function runDeepWiki(repoPath: string, options: {
+  concurrency?: number;
+  model?: string;
+  modelMini?: string;
+}) {
+  // Store original values
+  const originalArgv = process.argv[2];
+  const originalConcurrency = process.env.CONCURRENCY;
+  const originalModel = process.env.MODEL;
+  const originalModelMini = process.env.MODEL_MINI;
+
+  try {
+    // Set parameters as environment variables and argv
+    process.argv[2] = repoPath;
+    if (options.concurrency) {
+      process.env.CONCURRENCY = options.concurrency.toString();
+    }
+    if (options.model) {
+      process.env.MODEL = options.model;
+    }
+    if (options.modelMini) {
+      process.env.MODEL_MINI = options.modelMini;
+    }
+
+    // Run the main function
+    await run();
+
+    // Return the processing stats and token usage
+    return {
+      tokenUsage: getTokenUsage(),
+      processingStats: getProcessingStats()
+    };
+  } finally {
+    // Restore original values
+    if (originalArgv !== undefined) {
+      process.argv[2] = originalArgv;
+    } else {
+      delete process.argv[2];
+    }
+    if (originalConcurrency !== undefined) {
+      process.env.CONCURRENCY = originalConcurrency;
+    } else {
+      delete process.env.CONCURRENCY;
+    }
+    if (originalModel !== undefined) {
+      process.env.MODEL = originalModel;
+    } else {
+      delete process.env.MODEL;
+    }
+    if (originalModelMini !== undefined) {
+      process.env.MODEL_MINI = originalModelMini;
+    } else {
+      delete process.env.MODEL_MINI;
+    }
+  }
+}
+
 run().catch((err) => {
   console.error(err);
   process.exit(1);
