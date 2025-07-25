@@ -1,26 +1,10 @@
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { emitStreamChunk } from '../socket';
-
-interface FileSystemEvent {
-  id: string;
-  taskId: string;
-  type: 'file-created' | 'file-modified' | 'file-deleted' | 'directory-created' | 'directory-deleted';
-  path: string;
-  timestamp: number;
-  source: 'local' | 'remote';
-  isDirectory: boolean;
-}
-
-interface SidecarToServerEvents {
-  'join-task': (data: { taskId: string, podId?: string }) => void;
-  'fs-change': (event: FileSystemEvent) => void;
-  'heartbeat': () => void;
-}
-
-interface ServerToSidecarEvents {
-  'task-joined': (data: { taskId: string, success: boolean }) => void;
-  'config-update': (config: any) => void;
-}
+import type {
+  FileSystemEvent,
+  SidecarToServerEvents,
+  ServerToSidecarEvents
+} from '@repo/types';
 
 /**
  * Set up the /sidecar namespace for sidecar Socket.IO connections
@@ -28,19 +12,19 @@ interface ServerToSidecarEvents {
 export function setupSidecarNamespace(io: Server): void {
   const sidecarNamespace = io.of('/sidecar');
 
-  sidecarNamespace.on('connection', (socket) => {
+  sidecarNamespace.on('connection', (socket: Socket<SidecarToServerEvents, ServerToSidecarEvents>) => {
     console.log(`[SIDECAR_SOCKET] Sidecar connected: ${socket.id}`);
 
     // Handle task room joining
     socket.on('join-task', async (data: { taskId: string, podId?: string }) => {
       const { taskId, podId } = data;
-      
+
       try {
         // Join the task room
         await socket.join(`task-${taskId}`);
-        
+
         console.log(`[SIDECAR_SOCKET] Sidecar ${socket.id} (pod: ${podId || 'unknown'}) joined task ${taskId}`);
-        
+
         // Confirm successful join
         socket.emit('task-joined', { taskId, success: true });
       } catch (error) {
@@ -57,7 +41,7 @@ export function setupSidecarNamespace(io: Server): void {
         taskId: event.taskId,
         source: event.source
       });
-      
+
       // Transform to StreamChunk format and broadcast to frontend clients
       emitStreamChunk({
         type: "fs-change",

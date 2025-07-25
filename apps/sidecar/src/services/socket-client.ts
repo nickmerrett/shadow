@@ -1,17 +1,10 @@
 import { io, Socket } from 'socket.io-client';
 import { logger } from '../utils/logger';
-import type { FileSystemEvent } from './filesystem-watcher';
-
-interface SidecarToServerEvents {
-  'join-task': (data: { taskId: string, podId?: string }) => void;
-  'fs-change': (event: FileSystemEvent) => void;
-  'heartbeat': () => void;
-}
-
-interface ServerToSidecarEvents {
-  'task-joined': (data: { taskId: string, success: boolean }) => void;
-  'config-update': (config: any) => void;
-}
+import type {
+  FileSystemEvent,
+  SidecarToServerEvents,
+  ServerToSidecarEvents
+} from '@repo/types';
 
 /**
  * SocketClient handles real-time communication between sidecar and server

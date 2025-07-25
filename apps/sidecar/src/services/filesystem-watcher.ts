@@ -1,16 +1,7 @@
 import { watch, FSWatcher } from 'fs';
 import { logger } from '../utils/logger';
 import { SocketClient } from './socket-client';
-
-export interface FileSystemEvent {
-  id: string;
-  taskId: string;
-  type: 'file-created' | 'file-modified' | 'file-deleted' | 'directory-created' | 'directory-deleted';
-  path: string;
-  timestamp: number;
-  source: 'remote';
-  isDirectory: boolean;
-}
+import type { FileSystemEvent } from '@repo/types';
 
 /**
  * FileSystemWatcher monitors filesystem changes and sends events to the server via Socket.IO
@@ -38,7 +29,7 @@ export class FileSystemWatcher {
         debounceMs: this.debounceMs
       });
 
-      this.watcher = watch(workspacePath, { 
+      this.watcher = watch(workspacePath, {
         recursive: true,
         // Ignore common directories that create noise
         // Note: 'ignored' option is not available in Node.js fs.watch, so we'll filter in the handler
@@ -135,17 +126,17 @@ export class FileSystemWatcher {
    */
   private mapEventType(eventType: string, filename: string): FileSystemEvent['type'] {
     const isDirectory = this.isDirectoryPath(filename);
-    
+
     switch (eventType) {
       case 'rename':
         // In Node.js fs.watch, 'rename' can mean create, delete, or actual rename
         // We'll treat it as creation for now - deletions are harder to detect
         return isDirectory ? 'directory-created' : 'file-created';
-      
+
       case 'change':
         // File content changed
         return isDirectory ? 'directory-created' : 'file-modified';
-      
+
       default:
         logger.warn(`[FS_WATCHER] Unknown event type: ${eventType} for ${filename}`);
         return isDirectory ? 'directory-created' : 'file-modified';
@@ -186,7 +177,7 @@ export class FileSystemWatcher {
     const hasExtension = /\.[a-zA-Z0-9]+$/.test(filename);
     const commonDirNames = ['src', 'lib', 'components', 'pages', 'public', 'assets', 'utils', 'hooks'];
     const endsWithCommonDir = commonDirNames.some(dir => filename.endsWith(dir));
-    
+
     return !hasExtension || endsWithCommonDir;
   }
 
