@@ -503,9 +503,15 @@ export class LocalToolExecutor implements ToolExecutor {
         throw new Error(`Exa API error (${response.status}): ${errorText}`);
       }
 
-      const data = await response.json() as any;
+      interface ExaSearchResult {
+        text: string;
+        url: string;
+        title?: string;
+      }
+
+      const data = await response.json() as { results?: ExaSearchResult[] };
       
-      const results = data.results?.map((result: any) => ({
+      const results = data.results?.map((result: ExaSearchResult) => ({
         text: result.text || "",
         url: result.url || "",
         title: result.title || undefined
