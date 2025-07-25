@@ -10,6 +10,7 @@ export enum ToolType {
   FILE_SEARCH = "file_search",
   LIST_DIR = "list_dir",
   DELETE_FILE = "delete_file",
+  WEB_SEARCH = "web_search",
 }
 
 const TOOL_PREFIXES: Record<ToolType, string> = {
@@ -21,6 +22,7 @@ const TOOL_PREFIXES: Record<ToolType, string> = {
   [ToolType.FILE_SEARCH]: "Searched files",
   [ToolType.LIST_DIR]: "Listed",
   [ToolType.DELETE_FILE]: "Deleted",
+  [ToolType.WEB_SEARCH]: "Searched web",
 };
 
 interface CollapsibleToolProps {

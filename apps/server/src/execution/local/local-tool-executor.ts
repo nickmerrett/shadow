@@ -9,6 +9,7 @@ import { spawn } from "child_process";
 import { createPatch } from "diff";
 import * as fs from "fs/promises";
 import * as path from "path";
+import fetch from "node-fetch";
 import config from "../../config";
 import { emitStreamChunk } from "../../socket";
 import { execAsync } from "../../utils/exec";
@@ -27,6 +28,7 @@ import {
   WriteResult,
   CodebaseSearchResult,
   SearchOptions,
+  WebSearchResult,
 } from "../interfaces/types";
 
 
@@ -455,6 +457,67 @@ export class LocalToolExecutor implements ToolExecutor {
         results: [],
         query,
         searchTerms: [],
+      };
+    }
+  }
+
+  async webSearch(query: string, domain?: string): Promise<WebSearchResult> {
+    try {
+      if (!config.exaApiKey) {
+        throw new Error("EXA_API_KEY is not configured");
+      }
+
+      const requestBody: any = {
+        query,
+        contents: {
+          text: true
+        },
+        num_results: 5
+      };
+
+      if (domain) {
+        requestBody.include_domains = [domain];
+      }
+
+      // Use node-fetch to make the API call
+      const response = await fetch("https://api.exa.ai/search", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": config.exaApiKey
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Exa API error (${response.status}): ${errorText}`);
+      }
+
+      const data = await response.json() as any;
+      
+      const results = data.results?.map((result: any) => ({
+        text: result.text || "",
+        url: result.url || "",
+        title: result.title || undefined
+      })) || [];
+
+      return {
+        success: true,
+        results,
+        query,
+        domain,
+        message: `Found ${results.length} web search results for query: ${query}`
+      };
+    } catch (error) {
+      console.error("Web search error:", error);
+      return {
+        success: false,
+        results: [],
+        query,
+        domain,
+        message: `Failed to perform web search: ${query}`,
+        error: error instanceof Error ? error.message : "Unknown error"
       };
     }
   }
