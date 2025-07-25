@@ -890,9 +890,15 @@ export async function run() {
         ? `${node.summary_md}\n\n## Files\n${fileBlocks.join('\n')}`
         : `${node.summary_md}\n\n## Files\n${fileBlocks.join('\n\n')}`;
 
-      const dirPath = path.dirname(path.join(OUT_DIR, `${node.id}.md`));
+      // Ensure node.id is valid for a file name - replace any problematic characters
+      const safeNodeId = node.id.replace(/[\/\\:*?"<>|]/g, '_');
+      const outputFilePath = path.join(OUT_DIR, `${safeNodeId}.md`);
+      
+      const dirPath = path.dirname(outputFilePath);
       ensureDir(dirPath);
-      writeFileSync(path.join(OUT_DIR, `${node.id}.md`), front + fullContent + "\n");
+      
+      console.log(`Writing file summary: ${outputFilePath}`);
+      writeFileSync(outputFilePath, front + fullContent + "\n");
     }
 
     console.log(bold(`✅ Dir: ${node.relPath}`));
@@ -939,12 +945,32 @@ export async function run() {
     ].join('\n');
 
     ensureDir(OUT_DIR);
+    
+    // Write root overview file
     writeFileSync(
       path.join(OUT_DIR, "00_OVERVIEW.md"),
       `---\nid: ${root.id}\ntitle: ${root.name}\nlevel: 0\n---\n\n${fullContent}\n`
     );
+    
+    // Write individual summary files for each node
+    console.log(bold("Writing individual summary files..."));
+    let fileCount = 0;
+    
+    for (const nodeId in tree.nodes) {
+      if (nodeId === "root") continue; // Skip root, already written as 00_OVERVIEW.md
+      
+      const node = tree.nodes[nodeId];
+      if (node && node.summary_md) {
+        const fileName = `${node.id}.md`;
+        const fileContent = `---\nid: ${node.id}\ntitle: ${node.name}\nlevel: ${node.level}\n---\n\n${node.summary_md}\n`;
+        
+        writeFileSync(path.join(OUT_DIR, fileName), fileContent);
+        fileCount++;
+      }
+    }
+    
     writeFileSync(path.join(OUT_DIR, "index.json"), JSON.stringify(tree, null, 2));
-    console.log(bold(`\n🎉 DeepWiki (comprehensive) generated at ${OUT_DIR}`));
+    console.log(bold(`\n🎉 DeepWiki (comprehensive) generated at ${OUT_DIR} (${fileCount + 1} files)`));
   }
 
   saveCache();

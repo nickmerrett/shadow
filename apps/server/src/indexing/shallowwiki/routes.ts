@@ -36,9 +36,13 @@ shallowwikiRouter.post(
       process.chdir(repoPath);
       process.argv[2] = repoPath;
       
-      // Import and run the ShallowWiki summarizer
-      const { run } = await import("./index.js");
-      await run();
+      // Import and run the ShallowWiki summarizer with the new runDeepWiki function
+      const { runDeepWiki } = await import("./index.js");
+      await runDeepWiki(repoPath, {
+        concurrency: 12,
+        model: "gpt-4o", 
+        modelMini: "gpt-4o-mini"
+      });
       
       // Restore original state
       process.argv[2] = originalArgv;
@@ -52,7 +56,9 @@ shallowwikiRouter.post(
       
       let summaries: string[] = [];
       if (fs.existsSync(summaryDir)) {
-        summaries = fs.readdirSync(summaryDir).filter(f => f.endsWith(".md"));
+        // Get all .md files, excluding cache.json and index.json
+        summaries = fs.readdirSync(summaryDir)
+          .filter(f => f.endsWith(".md"));
       }
       
       return res.json({ 
