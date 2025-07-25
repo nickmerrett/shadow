@@ -88,7 +88,7 @@ export interface CodebaseSearchResult {
   error?: string;
 }
 
-import { CommandSecurityLevel } from "@repo/security";
+import { CommandSecurityLevel } from "@repo/command-security";
 
 // Command execution results
 export interface CommandResult {

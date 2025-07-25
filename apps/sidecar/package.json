@@ -16,7 +16,7 @@
     "docker:run": "docker run -p 8080:8080 -v $(pwd)/workspace:/workspace shadow-sidecar"
   },
   "dependencies": {
-    "@repo/security": "*",
+    "@repo/command-security": "*",
     "compression": "^1.7.5",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

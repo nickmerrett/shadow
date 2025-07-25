@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CommandSecurityLevel } from "@repo/security";
+import { CommandSecurityLevel } from "@repo/command-security";
 
 // Re-export common types that match the OpenAPI spec
 

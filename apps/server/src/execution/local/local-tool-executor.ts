@@ -1,10 +1,10 @@
 import { prisma } from "@repo/db";
-import { 
-  validateCommand, 
-  parseCommand, 
+import {
+  validateCommand,
+  parseCommand,
   CommandSecurityLevel,
-  SecurityLogger 
-} from "@repo/security";
+  SecurityLogger
+} from "@repo/command-security";
 import { spawn } from "child_process";
 import { createPatch } from "diff";
 import * as fs from "fs/promises";
@@ -508,11 +508,11 @@ export class LocalToolExecutor implements ToolExecutor {
       } else {
         // For foreground commands, use secure spawn with timeout
         const result = await this.executeSecureCommand(
-          sanitizedCommand, 
-          sanitizedArgs, 
+          sanitizedCommand,
+          sanitizedArgs,
           30000 // 30 second timeout
         );
-        
+
         return {
           success: true,
           stdout: result.stdout.trim(),
@@ -523,7 +523,7 @@ export class LocalToolExecutor implements ToolExecutor {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      
+
       return {
         success: false,
         error: errorMessage,

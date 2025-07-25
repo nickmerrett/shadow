@@ -10,7 +10,7 @@ import {
   logCommandSecurityEvent,
   CommandSecurityLevel,
   SecurityLogger,
-} from "@repo/security";
+} from "@repo/command-security";
 
 export interface CommandStreamEvent {
   type: "stdout" | "stderr" | "exit" | "error";
