@@ -18,6 +18,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function PromptForm({
   onSubmit,
@@ -44,11 +45,12 @@ export function PromptForm({
     commitSha: string;
   } | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isIndexing, setIsIndexing] = useState(false);
 
   const queryClient = useQueryClient();
   const { data: availableModels = [] } = useModels();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || isStreaming || !selectedModel) return;
 
@@ -71,16 +73,26 @@ export function PromptForm({
       startTransition(async () => {
         let taskId: string | null = null;
         try {
+          // Show indexing state
+          setIsIndexing(true);
+
+          // Index the repo first (blocking)
+          await indexRepo(repo.full_name);
+
+          // Then create the task
           taskId = await createTask(formData);
+
+          if (taskId) {
+            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            redirect(`/tasks/${taskId}`);
+          }
         } catch (error) {
           toast.error("Failed to create task", {
             description:
               error instanceof Error ? error.message : "Unknown error",
           });
-        }
-        if (taskId) {
-          queryClient.invalidateQueries({ queryKey: ["tasks"] });
-          redirect(`/tasks/${taskId}`);
+        } finally {
+          setIsIndexing(false);
         }
       });
     } else {
@@ -95,13 +107,21 @@ export function PromptForm({
       handleSubmit(e);
     }
   };
+
   const indexRepo = async (repo: string) => {
-    try{
+    try {
       console.log("Indexing repo", repo);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/indexing/index`, {
-        method: "POST",
-        body: JSON.stringify({ repo: repo, options: { embed: true } }),
-      });
+      console.log("NEXT_PUBLIC_API_URL", process.env.NEXT_PUBLIC_API_URL);
+      const response = await fetch(
+        `http://${process.env.NEXT_PUBLIC_API_URL}/api/indexing/index`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ repo: repo, options: { embed: true } }),
+        }
+      );
       const data = await response.json();
       console.log("Indexing repo", data);
     } catch (error) {
@@ -117,98 +137,113 @@ export function PromptForm({
         !isHome && "sticky bottom-0 pb-6"
       )}
     >
-      {/* Wrapper div with textarea styling */}
-      <div
-        className={cn(
-          "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border shadow-xs relative flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t transition-[color,box-shadow,border] focus-within:ring-4",
-          isPending && "opacity-50"
-        )}
-      >
-        {!isHome && (
-          <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-16 -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
-        )}
+      {/* Disable form while indexing */}
+      <fieldset disabled={isIndexing}>
+        {/* Wrapper div with textarea styling */}
+        <div
+          className={cn(
+            "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border shadow-xs relative flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t transition-[color,box-shadow,border] focus-within:ring-4",
+            isPending && "opacity-50"
+          )}
+        >
+          {!isHome && (
+            <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-16 -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
+          )}
 
-        {/* Textarea without border/background since wrapper handles it */}
-        <Textarea
-          autoFocus
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          placeholder="Build a cool new feature..."
-          className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none rounded-lg border-0 shadow-none focus-visible:ring-0"
-        />
+          {/* Textarea without border/background since wrapper handles it */}
+          <Textarea
+            autoFocus
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={onFocus}
+            onBlur={onBlur}
+            placeholder="Build a cool new feature..."
+            className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none rounded-lg border-0 shadow-none focus-visible:ring-0"
+          />
 
-        {/* Buttons inside the container */}
-        <div className="flex items-center justify-between p-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground hover:bg-accent px-2 font-normal"
-              >
-                {isHome && <Layers className="size-4" />}
-                <span>
-                  {selectedModel
-                    ? ModelInfos[selectedModel].name
-                    : "Select model"}
-                </span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              className="flex flex-col gap-0.5 rounded-lg p-1"
-            >
-              {availableModels.map((model) => (
+          {/* Buttons inside the container */}
+          <div className="flex items-center justify-between p-2">
+            <Popover>
+              <PopoverTrigger asChild>
                 <Button
-                  key={model.id}
                   size="sm"
                   variant="ghost"
-                  className="hover:bg-accent justify-start font-normal"
-                  onClick={() => setSelectedModel(model.id as ModelType)}
+                  className="text-muted-foreground hover:bg-accent px-2 font-normal"
                 >
-                  <Square className="size-4" />
-                  {model.name}
+                  {isHome && <Layers className="size-4" />}
+                  <span>
+                    {selectedModel
+                      ? ModelInfos[selectedModel].name
+                      : "Select model"}
+                  </span>
                 </Button>
-              ))}
-            </PopoverContent>
-          </Popover>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                className="flex flex-col gap-0.5 rounded-lg p-1"
+              >
+                {availableModels.map((model) => (
+                  <Button
+                    key={model.id}
+                    size="sm"
+                    variant="ghost"
+                    className="hover:bg-accent justify-start font-normal"
+                    onClick={() => setSelectedModel(model.id as ModelType)}
+                  >
+                    <Square className="size-4" />
+                    {model.name}
+                  </Button>
+                ))}
+              </PopoverContent>
+            </Popover>
 
-          <div className="flex items-center gap-2">
-            {isHome && (
-              <GithubConnection
-                selectedRepo={repo}
-                selectedBranch={branch}
-                setSelectedRepo={setRepo}
-                setSelectedBranch={setBranch}
-              />
-            )}
-            <Button
-              type={isStreaming ? "button" : "submit"}
-              size="iconSm"
-              disabled={
-                !isStreaming &&
-                (isPending ||
-                  !message.trim() ||
-                  !selectedModel ||
-                  (isHome && (!repo || !branch)))
-              }
-              onClick={isStreaming ? onStopStream : undefined}
-              className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
-            >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : isStreaming ? (
-                <Square className="size-4" />
-              ) : (
-                <ArrowUp className="size-4" />
+            <div className="flex items-center gap-2">
+              {isHome && (
+                <GithubConnection
+                  selectedRepo={repo}
+                  selectedBranch={branch}
+                  setSelectedRepo={setRepo}
+                  setSelectedBranch={setBranch}
+                />
               )}
-            </Button>
+              <Button
+                type={isStreaming ? "button" : "submit"}
+                size="iconSm"
+                disabled={
+                  !isStreaming &&
+                  (isPending ||
+                    !message.trim() ||
+                    !selectedModel ||
+                    (isHome && (!repo || !branch)))
+                }
+                onClick={isStreaming ? onStopStream : undefined}
+                className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
+              >
+                {isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : isStreaming ? (
+                  <Square className="size-4" />
+                ) : (
+                  <ArrowUp className="size-4" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      </fieldset>
+
+      {/* Blocking overlay */}
+      {isIndexing && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-4" />
+              <span>Indexing repository...</span>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

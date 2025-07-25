@@ -15,12 +15,12 @@ export function SemanticSearchTool({ message }: { message: Message }) {
       type={ToolType.SEMANTIC_SEARCH}
       title={`"${query}"`}
     >
-      {targetDirectories.length > 0 && (
+      {args.targetDirectories.length > 0 && (
         <div className="flex items-center gap-1">
           <Folder className="text-muted-foreground size-3" />
           <div className="text-muted-foreground text-xs">
             in{" "}
-            {targetDirectories.map((dir) => (
+            {args.targetDirectories.map((dir: string) => (
               <code
                 key={dir}
                 className="mx-0.5 rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800/50"
