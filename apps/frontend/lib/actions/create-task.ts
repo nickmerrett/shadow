@@ -77,7 +77,6 @@ export async function createTask(formData: FormData) {
     // Schedule the backend API call and title generation to happen after the response is sent
     after(async () => {
       try {
-        // Generate AI title for the task (fire and forget)
         updateTaskTitle(task.id, message);
 
         // Initiate the task on the backend
@@ -108,7 +107,6 @@ export async function createTask(formData: FormData) {
       }
     });
 
-    revalidatePath("/");
   } catch (error) {
     console.error("Failed to create task:", error);
     throw new Error("Failed to create task");
