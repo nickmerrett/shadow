@@ -17,7 +17,7 @@ import {
   SquareCheck,
   XCircle,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { statusColorsConfig } from "./status";
 import {
   FileExplorer,
@@ -76,7 +76,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
 
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
-  const { setSelectedFilePath } = useAgentEnvironment();
+  const { setSelectedFilePath, rightPanelRef } = useAgentEnvironment();
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
@@ -91,6 +91,19 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       </SidebarGroup>
     );
   }
+
+  const handleFileSelect = useCallback(
+    (file: FileNode) => {
+      setSelectedFilePath(file.path);
+
+      const panel = rightPanelRef.current;
+      if (!panel) return;
+      if (panel.isCollapsed()) {
+        panel.expand();
+      }
+    },
+    [rightPanelRef, setSelectedFilePath]
+  );
 
   return (
     <>
@@ -190,7 +203,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               showDiffOperation={true}
               fileChanges={fileChanges}
               defaultExpanded={true}
-              onFileSelect={(file) => setSelectedFilePath(file.path)}
+              onFileSelect={handleFileSelect}
             />
           </SidebarGroupContent>
         </SidebarGroup>

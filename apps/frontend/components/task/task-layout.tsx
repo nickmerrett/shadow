@@ -26,6 +26,7 @@ import { AgentEnvironment } from "../agent-environment";
 import { TaskPageContent } from "./task-content";
 import { useTask } from "@/hooks/use-task";
 import { useParams } from "next/navigation";
+import { useAgentEnvironment } from "../agent-environment/agent-environment-context";
 
 export function TaskPageLayout({
   initialLayout,
@@ -53,7 +54,7 @@ export function TaskPageLayout({
   Resizable panel state
   */
 
-  const rightPanelRef = useRef<ImperativePanelHandle>(null);
+  const { rightPanelRef } = useAgentEnvironment();
   const resizablePanelGroupRef = useRef<ImperativePanelGroupHandle>(null);
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined

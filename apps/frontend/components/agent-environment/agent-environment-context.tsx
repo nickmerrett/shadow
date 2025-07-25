@@ -1,7 +1,15 @@
 "use client";
 
 import { useFileContent } from "@/hooks/use-file-content";
-import { createContext, useContext, useState, ReactNode, useMemo } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useMemo,
+  useRef,
+} from "react";
+import { ImperativePanelHandle } from "react-resizable-panels";
 
 type FileWithContent = {
   name: string;
@@ -10,15 +18,17 @@ type FileWithContent = {
   content: string;
 };
 
+type AgentEnvironmentContextType = {
+  selectedFilePath: string | null;
+  selectedFileWithContent: FileWithContent | null;
+  setSelectedFilePath: (path: string | null) => void;
+  isLoadingContent: boolean;
+  contentError: string | undefined;
+  rightPanelRef: React.RefObject<ImperativePanelHandle | null>;
+};
+
 const AgentEnvironmentContext = createContext<
-  | {
-      selectedFilePath: string | null;
-      selectedFileWithContent: FileWithContent | null;
-      setSelectedFilePath: (path: string | null) => void;
-      isLoadingContent: boolean;
-      contentError: string | undefined;
-    }
-  | undefined
+  AgentEnvironmentContextType | undefined
 >(undefined);
 
 export function AgentEnvironmentProvider({
@@ -28,6 +38,9 @@ export function AgentEnvironmentProvider({
   children: ReactNode;
   taskId: string;
 }) {
+  // This is for the resizable agent environment panel
+  const rightPanelRef = useRef<ImperativePanelHandle>(null);
+
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
 
   // Fetch file content when a file is selected
@@ -52,19 +65,21 @@ export function AgentEnvironmentProvider({
     [selectedFilePath, fileContentQuery.data]
   );
 
-  const value = useMemo(
+  const value: AgentEnvironmentContextType = useMemo(
     () => ({
       selectedFilePath,
       selectedFileWithContent,
       setSelectedFilePath,
       isLoadingContent: fileContentQuery.isLoading,
       contentError: fileContentQuery.error?.message,
+      rightPanelRef,
     }),
     [
       selectedFilePath,
       selectedFileWithContent,
       fileContentQuery.isLoading,
       fileContentQuery.error?.message,
+      rightPanelRef,
     ]
   );
 
