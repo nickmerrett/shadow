@@ -18,12 +18,12 @@ export function createFilesRouter(fileService: FileService): Router {
     "/files/*",
     asyncHandler(async (req, res) => {
       const filePath = req.params[0] || "";
-      
+
       // Parse and validate query parameters
       const options = FileReadOptionsSchema.parse({
         shouldReadEntireFile: req.query.shouldReadEntireFile !== "false",
-        startLineOneIndexed: req.query.startLineOneIndexed 
-          ? parseInt(req.query.startLineOneIndexed as string) 
+        startLineOneIndexed: req.query.startLineOneIndexed
+          ? parseInt(req.query.startLineOneIndexed as string)
           : undefined,
         endLineOneIndexedInclusive: req.query.endLineOneIndexedInclusive
           ? parseInt(req.query.endLineOneIndexedInclusive as string)
@@ -41,6 +41,29 @@ export function createFilesRouter(fileService: FileService): Router {
         res.status(404).json(result);
       } else if (!result.success) {
         res.status(400).json(result);
+      } else {
+        res.json(result);
+      }
+    })
+  );
+
+  /**
+   * GET /files/:path/stats
+   * Get file stats (size, modification time, type)
+   */
+  router.get(
+    "/files/*/stats",
+    asyncHandler(async (req, res) => {
+      const pathParts = req.params[0]?.split("/") || [];
+      pathParts.pop(); // Remove "stats" from the path
+      const filePath = pathParts.join("/");
+
+      const result = await fileService.getFileStats(filePath);
+
+      if (!result.success && result.error === "FILE_NOT_FOUND") {
+        res.status(404).json(result);
+      } else if (!result.success) {
+        res.status(500).json(result);
       } else {
         res.json(result);
       }
@@ -100,7 +123,7 @@ export function createFilesRouter(fileService: FileService): Router {
       const pathParts = req.params[0]?.split("/") || [];
       pathParts.pop(); // Remove "replace" from the path
       const filePath = pathParts.join("/");
-      
+
       const body = SearchReplaceRequestSchema.parse(req.body);
 
       const result = await fileService.searchReplace(

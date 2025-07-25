@@ -9,19 +9,21 @@ import { useTask } from "@/hooks/use-task";
 import { cn } from "@/lib/utils";
 import {
   CircleDashed,
-  File,
   FileDiff,
-  Folder,
   FolderGit2,
-  FolderOpen,
   GitBranch,
   ListTodo,
   Square,
   SquareCheck,
   XCircle,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { statusColorsConfig } from "./status";
+import {
+  FileExplorer,
+  type FileNode,
+} from "@/components/agent-environment/file-explorer";
+import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 
 // Todo status config - aligned with main status colors
 const todoStatusConfig = {
@@ -32,7 +34,7 @@ const todoStatusConfig = {
 };
 
 // Create file tree structure from file paths
-function createFileTree(filePaths: string[]) {
+function createFileTree(filePaths: string[]): FileNode[] {
   const tree: any = {};
 
   filePaths.forEach((filePath) => {
@@ -55,7 +57,7 @@ function createFileTree(filePaths: string[]) {
   });
 
   // Convert to array and sort (folders first, then files)
-  const convertToArray = (obj: any): any[] => {
+  const convertToArray = (obj: any): FileNode[] => {
     return Object.values(obj)
       .sort((a: any, b: any) => {
         if (a.type !== b.type) {
@@ -72,104 +74,9 @@ function createFileTree(filePaths: string[]) {
   return convertToArray(tree);
 }
 
-// FileNode component to handle individual file/folder nodes
-function FileNode({
-  node,
-  depth = 0,
-  fileChanges,
-}: {
-  node: any;
-  depth?: number;
-  fileChanges: any[];
-}) {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const fileChange = fileChanges.find(
-    (change) => change.filePath === node.path
-  );
-  const operation = fileChange?.operation;
-
-  const getOperationColor = (op: string) => {
-    switch (op) {
-      case "CREATE":
-        return "text-green-400";
-      case "UPDATE":
-        return "text-yellow-500";
-      case "DELETE":
-        return "text-red-400";
-      default:
-        return "text-neutral-500";
-    }
-  };
-
-  const getOperationLetter = (op: string) => {
-    switch (op) {
-      case "CREATE":
-        return "A";
-      case "UPDATE":
-        return "M";
-      case "DELETE":
-        return "D";
-      case "RENAME":
-        return "R";
-      case "MOVE":
-        return "M";
-      default:
-        return "?";
-    }
-  };
-
-  return (
-    <div key={node.path}>
-      <SidebarMenuItem>
-        <SidebarMenuButton
-          className="justify-between"
-          onClick={() => node.type === "folder" && setIsExpanded(!isExpanded)}
-        >
-          <div
-            className="flex w-full items-center gap-1.5"
-            style={{ paddingLeft: `${depth * 8}px` }}
-          >
-            {node.type === "folder" ? (
-              isExpanded ? (
-                <FolderOpen className="size-4" />
-              ) : (
-                <Folder className="size-4" />
-              )
-            ) : (
-              <File className="size-4" />
-            )}
-            <div className="line-clamp-1 flex-1">{node.name}</div>
-          </div>
-          {node.type === "file" && operation && (
-            <span
-              className={cn(
-                "text-xs font-medium",
-                getOperationColor(operation)
-              )}
-            >
-              {getOperationLetter(operation)}
-            </span>
-          )}
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-      {node.type === "folder" && isExpanded && node.children && (
-        <div>
-          {node.children.map((child: any) => (
-            <FileNode
-              key={child.path}
-              node={child}
-              depth={depth + 1}
-              fileChanges={fileChanges}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
+  const { setSelectedFilePath, rightPanelRef } = useAgentEnvironment();
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
@@ -184,6 +91,19 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       </SidebarGroup>
     );
   }
+
+  const handleFileSelect = useCallback(
+    (file: FileNode) => {
+      setSelectedFilePath("/" + file.path);
+
+      const panel = rightPanelRef.current;
+      if (!panel) return;
+      if (panel.isCollapsed()) {
+        panel.expand();
+      }
+    },
+    [rightPanelRef, setSelectedFilePath]
+  );
 
   return (
     <>
@@ -200,7 +120,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 const statusClass =
                   statusColorsConfig[
                     task.status as keyof typeof statusColorsConfig
-                  ]?.className || "text-gray-500";
+                  ]?.className || "text-muted-foreground";
                 return (
                   <>
                     <StatusIcon className={cn("size-4", statusClass)} />
@@ -278,9 +198,13 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             Modified Files ({diffStats.totalFiles})
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            {modifiedFileTree.map((node) => (
-              <FileNode key={node.path} node={node} fileChanges={fileChanges} />
-            ))}
+            <FileExplorer
+              files={modifiedFileTree}
+              showDiffOperation={true}
+              fileChanges={fileChanges}
+              defaultExpanded={true}
+              onFileSelect={handleFileSelect}
+            />
           </SidebarGroupContent>
         </SidebarGroup>
       )}

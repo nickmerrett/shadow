@@ -14,6 +14,7 @@ import {
   DirectoryListing,
   FileResult,
   FileSearchResult,
+  FileStatsResult,
   GrepOptions,
   GrepResult,
   ReadFileOptions,
@@ -80,6 +81,30 @@ export class LocalToolExecutor implements ToolExecutor {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
         message: `Failed to read file: ${targetFile}`,
+      };
+    }
+  }
+
+  async getFileStats(targetFile: string): Promise<FileStatsResult> {
+    try {
+      const filePath = path.resolve(this.workspacePath, targetFile);
+      const stats = await fs.stat(filePath);
+
+      return {
+        success: true,
+        stats: {
+          size: stats.size,
+          mtime: stats.mtime,
+          isFile: stats.isFile(),
+          isDirectory: stats.isDirectory(),
+        },
+        message: `Retrieved stats for: ${targetFile} (${stats.size} bytes)`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        message: `Failed to get file stats: ${targetFile}`,
       };
     }
   }
