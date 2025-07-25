@@ -137,7 +137,15 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           <SidebarMenuItem>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               <GitBranch className="size-4" />
-              <span className="line-clamp-1">{task.shadowBranch}</span>
+              <a 
+                href={`${task.repoUrl}/tree/${task.shadowBranch}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="line-clamp-1 text-sm hover:underline transition-colors"
+                title="View branch on GitHub"
+              >
+                {task.shadowBranch}
+              </a>
             </div>
           </SidebarMenuItem>
 
