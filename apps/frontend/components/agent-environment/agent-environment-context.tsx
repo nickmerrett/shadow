@@ -1,6 +1,7 @@
 "use client";
 
 import { useFileContent } from "@/hooks/use-file-content";
+import { useCodebaseTree } from "@/hooks/use-codebase-tree";
 import {
   createContext,
   useContext,
@@ -8,6 +9,7 @@ import {
   ReactNode,
   useMemo,
   useRef,
+  useEffect,
 } from "react";
 import { ImperativePanelHandle } from "react-resizable-panels";
 
@@ -31,6 +33,18 @@ const AgentEnvironmentContext = createContext<
   AgentEnvironmentContextType | undefined
 >(undefined);
 
+// Helper function to find README.md in the root of the file tree
+function findReadmeFile(tree: Array<any>): string | null {
+  // Only look for README.md at the root level (case insensitive)
+  const rootReadme = tree.find(
+    (node) => 
+      node.type === "file" && 
+      node.name.toLowerCase() === "readme.md"
+  );
+  
+  return rootReadme ? rootReadme.path : null;
+}
+
 export function AgentEnvironmentProvider({
   children,
   taskId,
@@ -40,8 +54,11 @@ export function AgentEnvironmentProvider({
 }) {
   // This is for the resizable agent environment panel
   const rightPanelRef = useRef<ImperativePanelHandle>(null);
-
+  
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
+  
+  // Get file tree to find README.md
+  const treeQuery = useCodebaseTree(taskId);
 
   // Fetch file content when a file is selected
   const fileContentQuery = useFileContent(
@@ -64,6 +81,18 @@ export function AgentEnvironmentProvider({
         : null,
     [selectedFilePath, fileContentQuery.data]
   );
+
+  // Automatically select README.md when the file tree loads
+  useEffect(() => {
+    // Only attempt to find README.md if no file is currently selected
+    // and the file tree has loaded successfully
+    if (!selectedFilePath && treeQuery.data?.success && treeQuery.data.tree) {
+      const readmePath = findReadmeFile(treeQuery.data.tree);
+      if (readmePath) {
+        setSelectedFilePath(readmePath);
+      }
+    }
+  }, [treeQuery.data, selectedFilePath]);
 
   const value: AgentEnvironmentContextType = useMemo(
     () => ({
