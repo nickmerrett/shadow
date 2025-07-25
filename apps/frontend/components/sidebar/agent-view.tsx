@@ -24,6 +24,7 @@ import {
   type FileNode,
 } from "@/components/agent-environment/file-explorer";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
+import Link from "next/link";
 
 // Todo status config - aligned with main status colors
 const todoStatusConfig = {
@@ -137,7 +138,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           <SidebarMenuItem>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               <GitBranch className="size-4" />
-              <a 
+              <Link 
                 href={`${task.repoUrl}/tree/${task.shadowBranch}`}
                 target="_blank" 
                 rel="noopener noreferrer"
@@ -145,7 +146,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 title="View branch on GitHub"
               >
                 {task.shadowBranch}
-              </a>
+              </Link>
             </div>
           </SidebarMenuItem>
 
