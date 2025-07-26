@@ -3,7 +3,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { createToolExecutor, isLocalMode } from "../execution";
 import { LocalFileSystemWatcher } from "../services/local-filesystem-watcher";
-import { emitTerminalOutput } from "../socket";
+import { emitTerminalOutput, emitStreamChunk } from "../socket";
 import type { TerminalEntry } from "@repo/types";
 
 // Map to track active filesystem watchers by task ID
@@ -147,6 +147,19 @@ export function createTools(taskId: string, workspacePath?: string) {
           const summary = `${merge ? "Merged" : "Replaced"} todos: ${results
             .map((r) => `${r.action} "${r.content}" (${r.status})`)
             .join(", ")}`;
+
+          // Emit WebSocket event for real-time todo updates
+          emitStreamChunk({
+            type: "todo-update",
+            todoUpdate: {
+              todos: todos.map(todo => ({
+                id: todo.id,
+                content: todo.content,
+                status: todo.status as 'pending' | 'in_progress' | 'completed' | 'cancelled'
+              })),
+              action: merge ? "updated" : "replaced"
+            }
+          }, taskId);
 
           return {
             success: true,
