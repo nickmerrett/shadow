@@ -3,9 +3,11 @@ import {
   CheckCircle,
   CheckSquare2,
   Circle,
+  CircleDashed,
   Clock,
   ListTodo,
   Square,
+  SquareX,
   X,
 } from "lucide-react";
 import { CollapsibleTool, ToolType } from "./collapsible-tool";
@@ -20,13 +22,13 @@ interface TodoItem {
 function StatusIcon({ status }: { status: TodoItem["status"] }) {
   switch (status) {
     case "pending":
-      return <Square className="mt-0.5 size-4" />;
+      return <Square className="size-4 shrink-0" />;
     case "in_progress":
-      return <Clock className="mt-0.5 size-4 text-blue-500" />;
+      return <CircleDashed className="size-4 shrink-0" />;
     case "completed":
-      return <CheckSquare2 className="mt-0.5 size-4 text-green-400" />;
+      return <CheckSquare2 className="size-4 shrink-0" />;
     case "cancelled":
-      return <X className="mt-0.5 size-4 text-red-400" />;
+      return <SquareX className="size-4 shrink-0 text-red-400" />;
   }
 }
 
@@ -68,15 +70,15 @@ function TodoList({ todos }: { todos: TodoItem[] }) {
         )}
       </div> */}
 
-      <div className="flex flex-col gap-2 pb-1">
+      <div className="flex flex-col gap-2 pb-1.5">
         {todos.map((todo) => (
           <div key={todo.id} className="flex items-start gap-1.5">
             <StatusIcon status={todo.status} />
             <div
               className={cn(
-                "line-clamp-2",
+                "line-clamp-2 leading-4",
                 todo.status === "completed"
-                  ? "text-muted-foreground line-through"
+                  ? "line-through"
                   : todo.status === "cancelled"
                     ? "text-red-400/70 line-through"
                     : ""

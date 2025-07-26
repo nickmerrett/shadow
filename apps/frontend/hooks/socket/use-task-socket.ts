@@ -14,7 +14,7 @@ import type {
 import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
 import { CodebaseTreeResponse } from "../use-codebase-tree";
-import { Task } from "@repo/db";
+import { Task, TodoStatus } from "@repo/db";
 
 interface FileChange {
   filePath: string;
@@ -401,16 +401,39 @@ export function useTaskSocket(taskId: string | undefined) {
               (oldData: TaskWithDetails) => {
                 if (!oldData) return oldData;
 
+                // Create a map of existing todos by ID for efficient lookup
+                const existingTodosMap = new Map(
+                  (oldData.todos || []).map(todo => [todo.id, todo])
+                );
+
+                // Process each incoming todo update
+                todos.forEach(incomingTodo => {
+                  const existingTodo = existingTodosMap.get(incomingTodo.id);
+
+                  if (existingTodo) {
+                    // Update existing todo, preserving original sequence and timestamps
+                    existingTodosMap.set(incomingTodo.id, {
+                      ...existingTodo,
+                      ...incomingTodo,
+                      status: incomingTodo.status.toUpperCase() as TodoStatus,
+                      updatedAt: new Date(),
+                    });
+                  } else {
+                    // Add new todo
+                    existingTodosMap.set(incomingTodo.id, {
+                      ...incomingTodo,
+                      status: incomingTodo.status.toUpperCase() as TodoStatus,
+                      taskId: taskId!,
+                      sequence: 0,
+                      createdAt: new Date(),
+                      updatedAt: new Date(),
+                    });
+                  }
+                });
+
                 return {
                   ...oldData,
-                  todos: todos.map(todo => ({
-                    ...todo,
-                    status: todo.status.toUpperCase(), // Convert to DB format (uppercase)
-                    taskId: taskId,
-                    sequence: 0, // Will be updated in the next refetch
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                  }))
+                  todos: Array.from(existingTodosMap.values())
                 };
               }
             );
