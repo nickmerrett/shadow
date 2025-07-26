@@ -13,7 +13,7 @@ import { DEFAULT_MODEL } from "./chat";
 import config from "./config";
 import { createTools } from "./tools";
 
-const MAX_STEPS = 20;
+const MAX_STEPS = 50;
 
 export class LLMService {
   private getModel(modelId: ModelType): LanguageModel {
