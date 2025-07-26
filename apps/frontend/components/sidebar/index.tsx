@@ -93,10 +93,14 @@ export function SidebarViews({
   initialTasks: Task[];
   currentTaskId?: string | null;
 }) {
+  // We need to create a new SidebarProvider here to ensure the context is available
+  // This is necessary because this component might be used in places where the parent SidebarProvider is not accessible
   return (
-    <SidebarViewsContent 
-      initialTasks={initialTasks} 
-      currentTaskId={currentTaskId} 
-    />
+    <SidebarProvider>
+      <SidebarViewsContent 
+        initialTasks={initialTasks} 
+        currentTaskId={currentTaskId} 
+      />
+    </SidebarProvider>
   );
 }
