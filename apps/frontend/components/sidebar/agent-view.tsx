@@ -28,6 +28,12 @@ import callWorkspaceIndexApi, { getWorkspaceSummaries } from "@/lib/actions/inde
 import Link from "next/link";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, FileText, Folder } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Todo status config - aligned with main status colors
 const todoStatusConfig = {
@@ -101,6 +107,8 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   const [isWorkspaceIndexing, setIsWorkspaceIndexing] = useState(false);
   const [workspaceSummaries, setWorkspaceSummaries] = useState<any[]>([]);
   const [summariesCollapsed, setSummariesCollapsed] = useState(false);
+  const [selectedSummary, setSelectedSummary] = useState<any>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
@@ -132,6 +140,19 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
     } catch (error) {
       console.error("Failed to load workspace summaries:", error);
       setWorkspaceSummaries([]);
+    }
+  };
+
+  // Handle opening summary in modal
+  const openSummaryModal = async (summary: any) => {
+    try {
+      // Get full summary content
+      const { getWorkspaceSummary } = await import("@/lib/actions/index-workspace");
+      const fullSummary = await getWorkspaceSummary(taskId, summary.type, summary.filePath);
+      setSelectedSummary(fullSummary.result);
+      setModalOpen(true);
+    } catch (error) {
+      console.error("Failed to load full summary:", error);
     }
   };
 
@@ -345,7 +366,10 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               ) : (
                 workspaceSummaries.map((summary, index) => (
                   <SidebarMenuItem key={summary.id || index}>
-                    <div className="flex flex-col gap-1 px-2 py-1 text-sm">
+                    <div 
+                      className="flex flex-col gap-1 px-2 py-1 text-sm cursor-pointer hover:bg-muted/50 rounded-sm transition-colors"
+                      onClick={() => openSummaryModal(summary)}
+                    >
                       <div className="flex items-center gap-2">
                         {summary.type === 'file_summary' ? (
                           <FileText className="size-3 text-blue-500" />
@@ -376,6 +400,33 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           </CollapsibleContent>
         </Collapsible>
       </SidebarGroup>
+
+      {/* Summary Modal */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedSummary?.metadata?.type === 'file_summary' ? (
+                <FileText className="size-4 text-blue-500" />
+              ) : selectedSummary?.metadata?.type === 'directory_summary' ? (
+                <Folder className="size-4 text-yellow-500" />
+              ) : (
+                <FolderGit2 className="size-4 text-green-500" />
+              )}
+              {selectedSummary?.metadata?.filePath || 'Workspace Overview'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            {selectedSummary?.metadata?.summary && (
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <pre className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-md overflow-x-auto">
+                  {selectedSummary.metadata.summary}
+                </pre>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

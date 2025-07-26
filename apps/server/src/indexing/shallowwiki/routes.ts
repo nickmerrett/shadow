@@ -1,12 +1,12 @@
 import express from "express";
-import { DeepWikiStorage } from "./storage";
+// import { DeepWikiStorage } from "./storage"; // Removed Pinecone usage
+import { DbWikiStorage } from './db-storage';
+import { db } from '@repo/db';
 import { resolveRepoPath } from "./resolveRepoPath";
 import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
 import path from "path";
 import fs from "fs";
 import os from "os";
-
-
 
 const shallowwikiRouter = express.Router();
 
@@ -60,9 +60,9 @@ shallowwikiRouter.post(
         console.log(`Copied ${files.length} files to temp directory: ${tempDir}`);
       }
       
-      // Set environment to disable Pinecone for pure ShallowWiki
+      // Keep original Pinecone setting for workspace indexing
       const originalUsePinecone = process.env.USE_PINECONE;
-      process.env.USE_PINECONE = "false";
+      // Don't override USE_PINECONE - let it use the configured value
       
       // Change to temp directory and run ShallowWiki
       const originalCwd = process.cwd();
@@ -116,9 +116,9 @@ shallowwikiRouter.post(
       console.log(`Processing repo ${repo} with forceRefresh=${forceRefresh}`);
       const repoPath = await resolveRepoPath(repo, forceRefresh);
       
-      // Set environment to disable Pinecone for pure ShallowWiki
+      // Keep original Pinecone setting for repo indexing
       const originalUsePinecone = process.env.USE_PINECONE;
-      process.env.USE_PINECONE = "false";
+      // Don't override USE_PINECONE - let it use the configured value
       
       // Change to repo directory and run ShallowWiki
       const originalCwd = process.cwd();
@@ -223,25 +223,53 @@ shallowwikiRouter.post(
 
     try {
       const repoPath = await resolveRepoPath(repo);
-      const storage = new DeepWikiStorage(repoPath);
       
-      // Search for all summaries in this namespace
-      const results = await storage.searchSummaries("", 1000); // Large topK to get all
+      // Read summary files directly from the .shadow/tree directory
+      const summaries: any[] = [];
+      const shadowDir = path.join(repoPath, ".shadow", "tree");
+      const files = fs.existsSync(shadowDir) ? fs.readdirSync(shadowDir) : [];
       
-      const summaries = results.map((hit: any) => ({
-        id: hit.id || hit._id,
-        type: hit.metadata?.type,
-        filePath: hit.metadata?.filePath,
-        language: hit.metadata?.language,
-        complexity: hit.metadata?.complexity,
-        lastUpdated: hit.metadata?.lastUpdated,
-        symbols: hit.metadata?.symbols ? JSON.parse(hit.metadata.symbols) : [],
-        dependencies: hit.metadata?.dependencies ? JSON.parse(hit.metadata.dependencies) : []
-      }));
+      for (const file of files) {
+        if (file.endsWith('.md')) {
+          try {
+            const filePath = path.join(shadowDir, file);
+            const content = fs.readFileSync(filePath, 'utf8');
+            const lines = content.split('\n');
+            
+            // Parse frontmatter
+            let metadata: any = {};
+            if (lines[0] === '---') {
+              const endIndex = lines.findIndex((line, index) => index > 0 && line === '---');
+              if (endIndex > 0) {
+                const frontmatter = lines.slice(1, endIndex);
+                frontmatter.forEach(line => {
+                  const [key, ...valueParts] = line.split(':');
+                  if (key && valueParts.length > 0) {
+                    metadata[key.trim()] = valueParts.join(':').trim();
+                  }
+                });
+              }
+            }
+            
+            summaries.push({
+              id: metadata.id || file.replace('.md', ''),
+              type: metadata.type || 'file',
+              filePath: metadata.filePath || file.replace('.md', ''),
+              language: metadata.language,
+              complexity: metadata.complexity,
+              lastUpdated: metadata.lastUpdated,
+              symbols: [],
+              dependencies: []
+            });
+          } catch (err) {
+            console.error(`Error reading summary file ${file}:`, err);
+          }
+        }
+      }
       
       return res.json({
         message: "Summaries retrieved successfully",
-        namespace: storage.getNamespace(),
+        namespace: repo,
         count: summaries.length,
         summaries
       });
@@ -269,16 +297,68 @@ shallowwikiRouter.post(
 
     try {
       const repoPath = await resolveRepoPath(repo);
-      const storage = new DeepWikiStorage(repoPath);
       
+      // Read summary files directly from the .shadow/tree directory
+      const shadowDir = path.join(repoPath, ".shadow", "tree");
       let summary = null;
       
       if (type === 'file') {
-        summary = await storage.getFileSummary(filePath);
+        const fileFile = path.join(shadowDir, `${filePath.replace(/\//g, '_')}.md`);
+        if (fs.existsSync(fileFile)) {
+          const content = fs.readFileSync(fileFile, 'utf8');
+          summary = {
+            id: filePath,
+            metadata: {
+              type: 'file',
+              filePath: filePath,
+              summary: content,
+              language: filePath.split('.').pop() || 'text',
+              symbols: [],
+              dependencies: [],
+              complexity: 0,
+              tokenUsage: {},
+              lastUpdated: new Date().toISOString()
+            }
+          };
+        }
       } else if (type === 'directory') {
-        summary = await storage.getDirectorySummary(filePath);
+        const dirFile = path.join(shadowDir, `${filePath.replace(/\//g, '_')}.md`);
+        if (fs.existsSync(dirFile)) {
+          const content = fs.readFileSync(dirFile, 'utf8');
+          summary = {
+            id: filePath,
+            metadata: {
+              type: 'directory',
+              filePath: filePath,
+              summary: content,
+              language: 'markdown',
+              symbols: [],
+              dependencies: [],
+              complexity: 0,
+              tokenUsage: {},
+              lastUpdated: new Date().toISOString()
+            }
+          };
+        }
       } else if (type === 'root') {
-        summary = await storage.getRootOverview();
+        const rootFile = path.join(shadowDir, 'root.md');
+        if (fs.existsSync(rootFile)) {
+          const content = fs.readFileSync(rootFile, 'utf8');
+          summary = {
+            id: 'root',
+            metadata: {
+              type: 'root',
+              filePath: 'root',
+              summary: content,
+              language: 'markdown',
+              symbols: [],
+              dependencies: [],
+              complexity: 0,
+              tokenUsage: {},
+              lastUpdated: new Date().toISOString()
+            }
+          };
+        }
       }
       
       if (!summary) {
@@ -287,7 +367,7 @@ shallowwikiRouter.post(
       
       return res.json({
         message: "Summary retrieved successfully",
-        namespace: storage.getNamespace(),
+        namespace: repo,
         summary: {
           id: summary.id,
           type: summary.metadata.type,
@@ -318,7 +398,9 @@ shallowwikiRouter.post(
     res,
     next
   ) => {
-    const { taskId, type = 'root', path: filePath = '' } = req.body;
+    const { taskId, type = 'root', path: requestPath = '' } = req.body;
+    const filePath = requestPath; // Use consistent naming for clarity
+    
     if (!taskId) {
       return res.status(400).json({ error: "Missing required parameter: taskId" });
     }
@@ -326,79 +408,177 @@ shallowwikiRouter.post(
     try {
       // Get the temp directory where summaries are stored
       const tempDir = path.join(os.tmpdir(), "shallowwiki-workspace", taskId);
-      const shadowDir = path.join(tempDir, ".shadow", "tree");
-      
-      if (!fs.existsSync(shadowDir)) {
-        return res.status(404).json({ 
-          error: "Workspace summaries not found. Please generate summaries first.",
-          taskId
+      let result = null;
+
+      // Get from Database storage only
+      try {
+        const dbStorage = new DbWikiStorage(taskId);
+        
+        // Handle different types of summaries
+        if (type === 'root') {
+          const rootOverview = await dbStorage.getRootOverview();
+          if (rootOverview) {
+            result = {
+              id: 'root',
+              fileName: 'root',
+              type: 'root',
+              metadata: rootOverview.metadata,
+              summary: rootOverview.summary
+            };
+          }
+        } else if (type === 'directory' && filePath) {
+          const dirSummary = await dbStorage.getDirectorySummary(filePath);
+          if (dirSummary) {
+            result = {
+              id: dirSummary.id,
+              fileName: filePath,
+              type: 'directory',
+              metadata: dirSummary.metadata,
+              summary: dirSummary.summary
+            };
+          }
+        } else if (type === 'file' && filePath) {
+          const fileSummary = await dbStorage.getFileSummary(filePath);
+          if (fileSummary) {
+            result = {
+              id: fileSummary.id,
+              fileName: filePath,
+              type: 'file',
+              metadata: fileSummary.metadata,
+              summary: fileSummary.summary
+            };
+          }
+        }
+      } catch (dbError) {
+        console.error("Error retrieving from database:", dbError);
+      }
+
+      // Fallback to file-based summaries if no DB result
+      if (!result) {
+        try {
+          // Read summary files directly from the .shadow/tree directory
+          const shadowDir = path.join(tempDir, ".shadow", "tree");
+          
+          if (type === 'root') {
+            const rootFile = path.join(shadowDir, 'root.md');
+            if (fs.existsSync(rootFile)) {
+              const content = fs.readFileSync(rootFile, 'utf8');
+              result = {
+                id: 'root',
+                fileName: 'root',
+                type: 'root',
+                metadata: {},
+                summary: content
+              };
+            }
+          } else if (type === 'directory' && filePath) {
+            const dirFile = path.join(shadowDir, `${filePath.replace(/\//g, '_')}.md`);
+            if (fs.existsSync(dirFile)) {
+              const content = fs.readFileSync(dirFile, 'utf8');
+              result = {
+                id: filePath,
+                fileName: filePath,
+                type: 'directory',
+                metadata: {},
+                summary: content
+              };
+            }
+          } else if (type === 'file' && filePath) {
+            const fileFile = path.join(shadowDir, `${filePath.replace(/\//g, '_')}.md`);
+            if (fs.existsSync(fileFile)) {
+              const content = fs.readFileSync(fileFile, 'utf8');
+              result = {
+                id: filePath,
+                fileName: filePath,
+                type: 'file',
+                metadata: {},
+                summary: content
+              };
+            }
+          }
+        } catch (error) {
+          console.error("Error retrieving from file system:", error);
+        }
+      }
+
+      if (result) {
+        return res.json({
+          message: "Workspace summary retrieved successfully",
+          namespace: `workspace_${taskId}`,
+          taskId,
+          result
         });
       }
-      
-      let result = null;
-      
-      if (type === 'root') {
-        // Look for root.md file
-        const rootFile = path.join(shadowDir, 'root.md');
-        if (fs.existsSync(rootFile)) {
-          const content = fs.readFileSync(rootFile, 'utf8');
-          result = {
-            id: 'workspace_root',
-            metadata: {
-              type: 'root_overview',
-              summary: content,
-              lastUpdated: new Date().toISOString()
-            }
-          };
-        }
-      } else if (type === 'directory') {
-        // Look for directory summary file
-        const dirFile = path.join(shadowDir, `${filePath}.md`);
-        if (fs.existsSync(dirFile)) {
-          const content = fs.readFileSync(dirFile, 'utf8');
-          result = {
-            id: `workspace_${filePath}`,
-            metadata: {
-              type: 'directory_summary',
-              filePath,
-              summary: content,
-              lastUpdated: new Date().toISOString()
-            }
-          };
-        }
-      } else if (type === 'file') {
-        // For individual files, return file content preview
-        const { LocalWorkspaceManager } = await import('../../execution/local/local-workspace-manager.js');
-        const workspaceManager = new LocalWorkspaceManager();
-        const files = await workspaceManager.getAllFilesFromWorkspace(taskId).catch(() => []);
-        const file = files.find(f => f.path === filePath);
+
+      // Fallback to file-based approach
+      if (fs.existsSync(tempDir)) {
+        // Read summary files directly from the .shadow/tree directory
+        const shadowDir = path.join(tempDir, ".shadow", "tree");
+        let content: string;
+        let result = null;
         
-        if (file) {
-          result = {
-            id: `file_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}`,
-            metadata: {
-              type: 'file_summary',
-              filePath,
-              summary: file.content.substring(0, 500),
-              language: filePath.split('.').pop() || 'text',
-              lastUpdated: new Date().toISOString()
-            }
-          };
+        if (type === 'root') {
+          // Look for root.md file
+          const rootFilePath = path.join(shadowDir, 'root.md');
+          if (fs.existsSync(rootFilePath)) {
+            content = fs.readFileSync(rootFilePath, 'utf8');
+            result = {
+              id: 'workspace_root',
+              metadata: {
+                type: 'root_overview',
+                summary: content,
+                lastUpdated: new Date().toISOString()
+              }
+            };
+          }
+        } else if (type === 'directory' && filePath) {
+          // Look for directory summary file
+          const dirSummaryPath = path.join(shadowDir, `${filePath}.md`);
+          if (fs.existsSync(dirSummaryPath)) {
+            content = fs.readFileSync(dirSummaryPath, 'utf8');
+            result = {
+              id: `workspace_${filePath}`,
+              metadata: {
+                type: 'directory_summary',
+                filePath: filePath,
+                summary: content,
+                lastUpdated: new Date().toISOString()
+              }
+            };
+          }
+        } else if (type === 'file' && filePath) {
+          // For individual files, return file content preview
+          const { LocalWorkspaceManager } = await import('../../execution/local/local-workspace-manager.js');
+          const workspaceManager = new LocalWorkspaceManager();
+          const files = await workspaceManager.getAllFilesFromWorkspace(taskId).catch(() => []);
+          const file = files.find(f => f.path === filePath);
+          
+          if (file) {
+            result = {
+              id: `file_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}`,
+              metadata: {
+                type: 'file_summary',
+                filePath: filePath,
+                summary: file.content.substring(0, 500),
+                language: filePath.split('.').pop() || 'text',
+                lastUpdated: new Date().toISOString()
+              }
+            };
+          }
         }
-      } else {
-        return res.status(400).json({ error: "Invalid type. Must be 'file', 'directory', or 'root'" });
-      }
 
-      if (!result) {
-        return res.status(404).json({ error: "Summary not found" });
+        if (result) {
+          return res.json({
+            message: "Workspace summary retrieved from file",
+            namespace: `workspace_${taskId}`,
+            taskId,
+            result
+          });
+        }
       }
-
-      res.json({
-        message: "Workspace summary retrieved",
-        namespace: `workspace_${taskId}`,
-        taskId,
-        result
-      });
+      
+      // If we get here, no summary was found
+      return res.status(404).json({ error: "Summary not found" });
     } catch (error: any) {
       console.error("Workspace summary get error:", error);
       next(error);
@@ -424,78 +604,165 @@ shallowwikiRouter.post(
     try {
       // Get the temp directory where summaries are stored
       const tempDir = path.join(os.tmpdir(), "shallowwiki-workspace", taskId);
-      const shadowDir = path.join(tempDir, ".shadow", "tree");
       
-      if (!fs.existsSync(shadowDir)) {
-        return res.status(404).json({ 
-          error: "Workspace summaries not found. Please generate summaries first.",
-          taskId
+      // Try to get summaries from the database first
+      try {
+        const dbSummaries = await db.codebaseUnderstanding.findMany({
+          where: {
+            taskId: taskId
+          }
+        });
+
+        if (dbSummaries && dbSummaries.length > 0) {
+          // Parse content and format summaries
+          const formattedSummaries = dbSummaries
+            .map(record => {
+              try {
+                // Parse the JSON content which contains metadata and summary
+                let metadata = {};
+                let summaryText = '';
+                try {
+                  const parsed = JSON.parse(record.content);
+                  metadata = parsed.metadata || {};
+                  summaryText = parsed.summary || record.content;
+                } catch (parseError) {
+                  console.error("Error parsing content:", parseError);
+                  summaryText = record.content;
+                }
+                
+                // Extract display path from fileName or fallback
+                let displayPath = record.fileName || '';
+                let type = (metadata as any).type || 'directory_summary';
+                
+                // Set appropriate type and display for root overview
+                if (displayPath === 'root_overview' || type === 'root_overview') {
+                  type = 'root_overview';
+                  displayPath = 'Root Overview';
+                }
+                
+                // Extract summary text, limiting to 200 chars
+                const shortSummary = typeof summaryText === 'string' ? 
+                  summaryText.substring(0, 200) + (summaryText.length > 200 ? '...' : '') : '';
+                
+                return {
+                  id: `workspace_${record.id}`,
+                  type: type,
+                  filePath: displayPath,
+                  language: type === 'root_overview' ? undefined : 'markdown',
+                  lastUpdated: record.createdAt.toISOString(),
+                  summary: shortSummary
+                };
+              } catch (itemError) {
+                console.error("Error processing summary item:", itemError);
+                return null;
+              }
+            })
+            .filter(Boolean); // Remove any null entries
+            
+          return res.json({
+            message: "Workspace summaries retrieved successfully from database",
+            namespace: `workspace_${taskId}`,
+            taskId,
+            count: formattedSummaries.length,
+            summaries: formattedSummaries
+          });
+        }
+      } catch (dbError) {
+        console.log("Failed to get summaries from database, trying Pinecone", dbError);
+      }
+      
+      // Try file-based summaries as fallback
+      try {
+        const shadowDir = path.join(tempDir, ".shadow", "tree");
+        const files = fs.existsSync(shadowDir) ? fs.readdirSync(shadowDir) : [];
+        const fileResults: any[] = [];
+        
+        // Read file-based summaries
+        for (const file of files) {
+          if (file.endsWith('.md')) {
+            try {
+              const filePath = path.join(shadowDir, file);
+              const content = fs.readFileSync(filePath, 'utf8');
+              const shortSummary = content.substring(0, 200) + (content.length > 200 ? '...' : '');
+              
+              fileResults.push({
+                id: `workspace_${file.replace('.md', '')}`,
+                type: file === 'root.md' ? 'root_overview' : 'file',
+                filePath: file === 'root.md' ? 'Root Overview' : file.replace('.md', ''),
+                language: 'markdown',
+                lastUpdated: new Date().toISOString(),
+                summary: shortSummary
+              });
+            } catch (err) {
+              console.error(`Error reading file ${file}:`, err);
+            }
+          }
+        }
+        
+        if (fileResults.length > 0) {
+          return res.json({
+            message: "Workspace summaries retrieved successfully from files",
+            namespace: `workspace_${taskId}`,
+            taskId,
+            count: fileResults.length,
+            summaries: fileResults
+          });
+        }
+      } catch (pineconeError) {
+        console.log("Failed to get summaries from Pinecone, falling back to file-based summaries", pineconeError);
+      }
+      
+      // Fallback to file-based approach
+      if (fs.existsSync(tempDir)) {
+        // Read summary files directly from the .shadow/tree directory
+        const summaries: any[] = [];
+        const shadowDir = path.join(tempDir, ".shadow", "tree");
+        const files = fs.existsSync(shadowDir) ? fs.readdirSync(shadowDir) : [];
+        
+        for (const file of files) {
+          if (file.endsWith('.md')) {
+            const filePath = path.join(shadowDir, file);
+            const content = fs.readFileSync(filePath, 'utf8');
+            
+            // Parse the summary content
+            const fileName = file.replace('.md', '');
+            let type = 'directory_summary';
+            let displayPath = fileName;
+            
+            // Determine if this is a special summary
+            if (fileName === 'root') {
+              type = 'root_overview';
+              displayPath = 'Root Overview';
+            }
+            
+            // Extract first few lines as summary preview
+            const lines = content.split('\n').filter(line => line.trim());
+            const summary = lines.slice(0, 3).join(' ').substring(0, 200);
+            
+            summaries.push({
+              id: `workspace_${fileName}`,
+              type,
+              filePath: displayPath,
+              language: type === 'root_overview' ? undefined : 'markdown',
+              lastUpdated: new Date().toISOString(),
+              summary: summary + (summary.length >= 200 ? '...' : '')
+            });
+          }
+        }
+        
+        return res.json({
+          message: "Workspace summaries retrieved successfully from files",
+          namespace: `workspace_${taskId}`,
+          taskId,
+          count: summaries.length,
+          summaries
         });
       }
       
-      // Read summary files directly from the .shadow/tree directory
-      const summaries: any[] = [];
-      const files = fs.readdirSync(shadowDir);
-      
-      for (const file of files) {
-        if (file.endsWith('.md')) {
-          const filePath = path.join(shadowDir, file);
-          const content = fs.readFileSync(filePath, 'utf8');
-          
-          // Parse the summary content
-          const fileName = file.replace('.md', '');
-          let type = 'directory_summary';
-          let displayPath = fileName;
-          
-          // Determine if this is a special summary
-          if (fileName === 'root') {
-            type = 'root_overview';
-            displayPath = 'Root Overview';
-          }
-          
-          // Extract first few lines as summary preview
-          const lines = content.split('\n').filter(line => line.trim());
-          const summary = lines.slice(0, 3).join(' ').substring(0, 200);
-          
-          summaries.push({
-            id: `workspace_${fileName}`,
-            type,
-            filePath: displayPath,
-            language: type === 'root_overview' ? undefined : 'markdown',
-            lastUpdated: new Date().toISOString(),
-            summary: summary + (summary.length >= 200 ? '...' : '')
-          });
-        }
-      }
-      
-      // Also check for individual file summaries in the workspace
-      const { LocalWorkspaceManager } = await import('../../execution/local/local-workspace-manager.js');
-      const workspaceManager = new LocalWorkspaceManager();
-      const workspaceFiles = await workspaceManager.getAllFilesFromWorkspace(taskId).catch(() => []);
-      
-      // Add file summaries for code files
-      for (const file of workspaceFiles) {
-        if (file.type === 'file' && (file.path.endsWith('.py') || file.path.endsWith('.js') || file.path.endsWith('.html'))) {
-          const language = file.path.split('.').pop() || 'text';
-          const preview = file.content.substring(0, 150).replace(/\n/g, ' ');
-          
-          summaries.push({
-            id: `file_${file.path.replace(/[^a-zA-Z0-9]/g, '_')}`,
-            type: 'file_summary',
-            filePath: file.path,
-            language,
-            lastUpdated: new Date().toISOString(),
-            summary: preview + (preview.length >= 150 ? '...' : '')
-          });
-        }
-      }
-      
-      return res.json({
-        message: "Workspace summaries retrieved successfully",
-        namespace: `workspace_${taskId}`,
-        taskId,
-        count: summaries.length,
-        summaries
+      // No summaries found in either Pinecone or files
+      return res.status(404).json({
+        error: "No workspace summaries found. Please generate summaries first.",
+        taskId
       });
     } catch (error) {
       console.error("Error listing workspace summaries:", error);

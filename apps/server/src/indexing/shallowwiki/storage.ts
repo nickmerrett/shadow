@@ -212,11 +212,14 @@ export class DeepWikiStorage {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private parseRecord(pineconeResult: any): DeepWikiRecord {
-    const metadata = pineconeResult.metadata;
+    // Handle case where metadata might be undefined
+    const metadata = pineconeResult.metadata || {};
     return {
       id: pineconeResult.id,
       metadata: {
         ...metadata,
+        type: metadata.type || 'unknown',
+        filePath: metadata.filePath || '',
         symbols: metadata.symbols ? JSON.parse(metadata.symbols) : [],
         dependencies: metadata.dependencies ? JSON.parse(metadata.dependencies) : [],
         tokenUsage: metadata.tokenUsage ? JSON.parse(metadata.tokenUsage) : undefined,
