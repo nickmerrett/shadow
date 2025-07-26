@@ -7,7 +7,6 @@ import {
   TaskConfig,
 } from "../interfaces/types";
 import config from "../../config";
-import { prisma } from "@repo/db";
 import { getGitHubAccessToken } from "../../utils/github-account";
 import { FirecrackerToolExecutor } from "./firecracker-tool-executor";
 
