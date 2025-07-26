@@ -5,7 +5,7 @@ import { useAgentEnvironment } from "@/components/agent-environment/agent-enviro
 import { ToolTrigger, ToolType } from "./collapsible-tool";
 
 export function ReadFileTool({ message }: { message: Message }) {
-  const { setSelectedFilePath, expandRightPanel } = useAgentEnvironment();
+  const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
 
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
@@ -21,7 +21,7 @@ export function ReadFileTool({ message }: { message: Message }) {
   return (
     <button
       onClick={() => {
-        setSelectedFilePath(filePath);
+        updateSelectedFilePath(filePath);
         expandRightPanel();
       }}
       className={cn(

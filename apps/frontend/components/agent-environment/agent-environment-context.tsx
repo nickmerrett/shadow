@@ -24,7 +24,7 @@ type FileWithContent = {
 type AgentEnvironmentContextType = {
   selectedFilePath: string | null;
   selectedFileWithContent: FileWithContent | null;
-  setSelectedFilePath: (path: string | null) => void;
+  updateSelectedFilePath: (path: string | null) => void;
   isLoadingContent: boolean;
   contentError: string | undefined;
   rightPanelRef: React.RefObject<ImperativePanelHandle | null>;
@@ -58,6 +58,14 @@ export function AgentEnvironmentProvider({
 
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
 
+  function updateSelectedFilePath(path: string | null) {
+    if (path && !path.startsWith("/")) {
+      setSelectedFilePath("/" + path);
+    } else {
+      setSelectedFilePath(path);
+    }
+  }
+
   // Get file tree to find README.md
   const treeQuery = useCodebaseTree(taskId);
 
@@ -90,7 +98,7 @@ export function AgentEnvironmentProvider({
     if (!selectedFilePath && treeQuery.data?.success && treeQuery.data.tree) {
       const readmePath = findReadmeFile(treeQuery.data.tree);
       if (readmePath) {
-        setSelectedFilePath(readmePath);
+        updateSelectedFilePath(readmePath);
       }
     }
   }, [treeQuery.data, selectedFilePath]);
@@ -112,7 +120,7 @@ export function AgentEnvironmentProvider({
     () => ({
       selectedFilePath,
       selectedFileWithContent,
-      setSelectedFilePath,
+      updateSelectedFilePath,
       isLoadingContent: fileContentQuery.isLoading,
       contentError: fileContentQuery.error?.message,
       rightPanelRef,
@@ -122,9 +130,11 @@ export function AgentEnvironmentProvider({
     [
       selectedFilePath,
       selectedFileWithContent,
+      updateSelectedFilePath,
       fileContentQuery.isLoading,
       fileContentQuery.error?.message,
       rightPanelRef,
+      expandRightPanel,
     ]
   );
 
