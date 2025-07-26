@@ -10,7 +10,7 @@ import {
   GrepResult,
   ReadFileOptions,
   WriteResult,
-  CodebaseSearchResult,
+  CodebaseSearchToolResult,
   SearchOptions,
   WebSearchResult,
 } from "@repo/types";
@@ -255,7 +255,7 @@ export class MockRemoteToolExecutor implements ToolExecutor {
   async codebaseSearch(
     query: string,
     _options?: SearchOptions
-  ): Promise<CodebaseSearchResult> {
+  ): Promise<CodebaseSearchToolResult> {
     return this.simulateNetworkCall("codebaseSearch", () => {
       const searchTerms = query.split(" ").filter(term => term.length > 2);
 

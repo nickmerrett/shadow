@@ -22,7 +22,7 @@ import {
   GrepResult,
   ReadFileOptions,
   WriteResult,
-  CodebaseSearchResult,
+  CodebaseSearchToolResult,
   SearchOptions,
   WebSearchResult,
 } from "@repo/types";
@@ -376,7 +376,7 @@ export class LocalToolExecutor implements ToolExecutor {
   async codebaseSearch(
     query: string,
     options?: SearchOptions
-  ): Promise<CodebaseSearchResult> {
+  ): Promise<CodebaseSearchToolResult> {
     try {
       // Use ripgrep for a basic semantic-like search with multiple patterns
       const searchTerms = query.split(" ").filter((term) => term.length > 2);

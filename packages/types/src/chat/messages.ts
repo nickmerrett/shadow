@@ -1,0 +1,123 @@
+import type { CoreMessage } from "ai";
+import { randomUUID } from "crypto";
+
+// AI SDK message parts for structured assistant content
+export interface TextPart {
+  type: "text";
+  text: string;
+}
+
+export interface ToolCallPart {
+  type: "tool-call";
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, any>;
+}
+
+export interface ToolResultPart {
+  type: "tool-result";
+  toolCallId: string;
+  toolName: string;
+  result: unknown;
+  isError?: boolean;
+}
+
+export type AssistantMessagePart = TextPart | ToolCallPart | ToolResultPart;
+
+export interface BaseMessage {
+  id: string;
+  role: "user" | "assistant" | "tool" | "system";
+  content: string;
+  llmModel?: string; // Model used for this message (primarily for assistant messages)
+  createdAt: string;
+  metadata?: MessageMetadata;
+}
+
+export interface MessageMetadata {
+  // For assistant messages with thinking
+  thinking?: {
+    content: string;
+    duration: number; // seconds
+  };
+
+  // For tool call messages - now properly typed
+  tool?: {
+    name: string;
+    args: Record<string, any>;
+    status: import('../tools/execution.js').ToolExecutionStatusType;
+    result?: import('../tools/results.js').ToolResultTypes['result'] | string; // Support both new objects and legacy strings
+  };
+
+  // For structured assistant messages - required for chronological tool call ordering
+  parts?: AssistantMessagePart[];
+
+  // Streaming indicator
+  isStreaming?: boolean;
+
+  // LLM usage metadata
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+
+  // Finish reason
+  finishReason?: "stop" | "length" | "tool_calls" | "content_filter" | "other";
+}
+
+export type Message = BaseMessage;
+
+// Type guards for runtime type checking
+export const isUserMessage = (
+  message: Message
+): message is Message & { role: "user" } =>
+  message.role.toLowerCase() === "user";
+
+export const isAssistantMessage = (
+  message: Message
+): message is Message & { role: "assistant" } =>
+  message.role.toLowerCase() === "assistant";
+
+export const isToolMessage = (
+  message: Message
+): message is Message & { role: "tool" } =>
+  message.role.toLowerCase() === "tool";
+
+export const isSystemMessage = (
+  message: Message
+): message is Message & { role: "system" } =>
+  message.role.toLowerCase() === "system";
+
+// AI SDK compatible message conversion
+export function toCoreMessage(message: Message): CoreMessage {
+  return {
+    role: message.role,
+    content: message.content,
+  } as CoreMessage;
+}
+
+export function fromCoreMessage(
+  coreMessage: CoreMessage,
+  id?: string
+): Omit<Message, "createdAt"> {
+  return {
+    id: id || randomUUID(),
+    role: coreMessage.role,
+    content:
+      typeof coreMessage.content === "string"
+        ? coreMessage.content
+        : Array.isArray(coreMessage.content)
+          ? coreMessage.content
+            .map((part) =>
+              typeof part === "string"
+                ? part
+                : "text" in part
+                  ? part.text
+                  : "image" in part
+                    ? "[image]"
+                    : JSON.stringify(part)
+            )
+            .join("")
+          : JSON.stringify(coreMessage.content),
+  };
+}

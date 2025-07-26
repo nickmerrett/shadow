@@ -10,7 +10,7 @@ import {
   ReadFileOptions,
   SearchOptions,
   WriteResult,
-  CodebaseSearchResult,
+  CodebaseSearchToolResult,
   WebSearchResult,
 } from "@repo/types";
 import { CommandResult } from "./types";
@@ -55,7 +55,7 @@ export interface ToolExecutor {
   codebaseSearch(
     query: string,
     options?: SearchOptions
-  ): Promise<CodebaseSearchResult>;
+  ): Promise<CodebaseSearchToolResult>;
 
   webSearch(
     query: string,

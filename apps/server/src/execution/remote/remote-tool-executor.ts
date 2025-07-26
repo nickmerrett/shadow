@@ -10,7 +10,7 @@ import {
   GrepResult,
   ReadFileOptions,
   WriteResult,
-  CodebaseSearchResult,
+  CodebaseSearchToolResult,
   SearchOptions,
   WebSearchResult,
 } from "@repo/types";
@@ -298,8 +298,8 @@ export class RemoteToolExecutor implements ToolExecutor {
   async codebaseSearch(
     query: string,
     options?: SearchOptions
-  ): Promise<CodebaseSearchResult> {
-    const fallback: CodebaseSearchResult = {
+  ): Promise<CodebaseSearchToolResult> {
+    const fallback: CodebaseSearchToolResult = {
       success: false,
       error: "Remote execution unavailable",
       message: `Failed to search codebase for: ${query}`,
@@ -311,7 +311,7 @@ export class RemoteToolExecutor implements ToolExecutor {
     return this.withErrorHandling(
       `codebaseSearch(${query})`,
       async () => {
-        return await this.sidecarClient.request<CodebaseSearchResult>("/search/codebase", {
+        return await this.sidecarClient.request<CodebaseSearchToolResult>("/search/codebase", {
           method: "POST",
           body: JSON.stringify({
             query,
