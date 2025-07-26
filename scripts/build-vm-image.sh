@@ -355,6 +355,123 @@ EOF
     log "Manifest generated: $OUTPUT_DIR/manifest.json"
 }
 
+# Create Docker image containing VM files
+create_docker_image() {
+    log "Creating Docker image with VM files..."
+    
+    # Create Dockerfile for VM image
+    cat > "$OUTPUT_DIR/Dockerfile" << EOF
+FROM ubuntu:22.04
+
+# Install Firecracker and runtime dependencies
+RUN apt-get update && apt-get install -y \\
+    curl \\
+    wget \\
+    iptables \\
+    && rm -rf /var/lib/apt/lists/*
+
+# Download and install Firecracker
+RUN wget https://github.com/firecracker-microvm/firecracker/releases/download/v1.4.1/firecracker-v1.4.1-x86_64.tgz \\
+    && tar -xzf firecracker-v1.4.1-x86_64.tgz \\
+    && cp release-v1.4.1-x86_64/firecracker-v1.4.1-x86_64 /usr/local/bin/firecracker \\
+    && cp release-v1.4.1-x86_64/jailer-v1.4.1-x86_64 /usr/local/bin/jailer \\
+    && chmod +x /usr/local/bin/firecracker /usr/local/bin/jailer \\
+    && rm -rf firecracker-v1.4.1-x86_64.tgz release-v1.4.1-x86_64
+
+# Create directories for VM files
+RUN mkdir -p /var/lib/firecracker/images /var/lib/firecracker/kernels
+
+# Copy VM images
+COPY shadow-rootfs.ext4 /var/lib/firecracker/images/
+COPY vmlinux /var/lib/firecracker/kernels/
+COPY manifest.json /var/lib/firecracker/
+
+# Copy Firecracker configuration template
+COPY firecracker-config-template.json /var/lib/firecracker/
+
+# Copy startup script
+COPY start-firecracker.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/start-firecracker.sh
+
+# Expose sidecar port (will be forwarded from VM)
+EXPOSE 8080
+
+# Run Firecracker VM
+CMD ["/usr/local/bin/start-firecracker.sh"]
+EOF
+
+    # Create Firecracker configuration template
+    cat > "$OUTPUT_DIR/firecracker-config-template.json" << EOF
+{
+  "boot-source": {
+    "kernel_image_path": "/var/lib/firecracker/kernels/vmlinux",
+    "boot_args": "console=ttyS0 reboot=k panic=1 pci=off init=/sbin/init"
+  },
+  "drives": [
+    {
+      "drive_id": "rootfs",
+      "path_on_host": "/var/lib/firecracker/images/shadow-rootfs.ext4",
+      "is_root_device": true,
+      "is_read_only": false
+    }
+  ],
+  "machine-config": {
+    "vcpu_count": 1,
+    "mem_size_mib": 1024,
+    "ht_enabled": false,
+    "track_dirty_pages": false
+  },
+  "network-interfaces": [
+    {
+      "iface_id": "eth0",
+      "guest_mac": "AA:FC:00:00:00:01",
+      "host_dev_name": "tap0"
+    }
+  ],
+  "logger": {
+    "log_path": "/tmp/firecracker.log",
+    "level": "Info",
+    "show_level": true,
+    "show_log_origin": true
+  }
+}
+EOF
+
+    # Create startup script
+    cat > "$OUTPUT_DIR/start-firecracker.sh" << 'EOF'
+#!/bin/bash
+
+set -euo pipefail
+
+TASK_ID="${TASK_ID:-default}"
+VM_CONFIG="/tmp/firecracker-config.json"
+
+# Create unique configuration for this task
+sed "s/tap0/tap${TASK_ID}/g" /var/lib/firecracker/firecracker-config-template.json > "$VM_CONFIG"
+
+# Set up networking (if running privileged)
+if [[ -w /dev/kvm ]]; then
+    # Create TAP interface
+    ip tuntap add dev "tap${TASK_ID}" mode tap || true
+    ip link set dev "tap${TASK_ID}" up || true
+    ip addr add 172.16.0.1/24 dev "tap${TASK_ID}" || true
+fi
+
+echo "Starting Firecracker VM for task: $TASK_ID"
+echo "VM config: $VM_CONFIG"
+
+# Start Firecracker VM
+exec /usr/local/bin/firecracker --config-file "$VM_CONFIG"
+EOF
+
+    # Build Docker image
+    cd "$OUTPUT_DIR"
+    docker build -t shadow-vm:latest .
+    
+    log "Docker image created: shadow-vm:latest"
+    log "Image contains VM files and Firecracker runtime"
+}
+
 # Main execution
 main() {
     log "Starting Shadow VM image build..."
@@ -373,11 +490,13 @@ main() {
     download_kernel
     compress_images
     generate_manifest
+    create_docker_image
     
     log "VM image build completed successfully!"
     log "Output directory: $OUTPUT_DIR"
     log "Rootfs: shadow-rootfs.ext4.gz ($(du -h $OUTPUT_DIR/shadow-rootfs.ext4.gz | cut -f1))"
     log "Kernel: vmlinux.gz ($(du -h $OUTPUT_DIR/vmlinux.gz | cut -f1))"
+    log "Docker image: shadow-vm:latest"
 }
 
 # Handle cleanup on exit

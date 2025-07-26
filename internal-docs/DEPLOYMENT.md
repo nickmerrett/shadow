@@ -250,8 +250,19 @@ aws ecr get-login-password --region us-west-2 | docker login --username AWS --pa
 
 ### 3.2 Build VM Images
 
+**Important**: VM image building requires **Linux with KVM support**. This cannot be done on macOS (including Mac M1).
+
+**Option A: Build on AWS EC2 (Recommended)**
 ```bash
-# Build the VM image using the provided script
+# Launch a c5.metal instance in AWS for building
+aws ec2 run-instances --image-id ami-0c02fb55956c7d316 --instance-type c5.metal --key-name your-key
+
+# SSH into the instance and clone your repository
+ssh -i your-key.pem ec2-user@your-instance-ip
+git clone https://github.com/your-repo/shadow-firecracker-impl.git
+cd shadow-firecracker-impl
+
+# Build the VM image
 sudo ./scripts/build-vm-image.sh
 
 # Tag and push to ECR
@@ -260,20 +271,33 @@ docker tag shadow-vm:latest $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-v
 docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-vm:latest
 ```
 
-### 3.3 Build and Push Sidecar Service
+**Option B: Local Linux VM (Development)**
+```bash
+# If using a local Linux VM or WSL2 with nested virtualization
+sudo ./scripts/build-vm-image.sh
+
+# Tag and push to ECR
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+docker tag shadow-vm:latest $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-vm:latest
+docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-vm:latest
+```
+
+### 3.3 Build and Push Server Service
 
 ```bash
-# Build sidecar service
-docker build -f apps/sidecar/Dockerfile -t shadow-sidecar .
+# Build server service (the orchestrator that creates VMs)
+docker build -f apps/server/Dockerfile -t shadow-server .
 
-# Create ECR repository for sidecar
-aws ecr create-repository --repository-name shadow-sidecar --region us-west-2
+# Create ECR repository for server
+aws ecr create-repository --repository-name shadow-server --region us-west-2
 
 # Tag and push
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-docker tag shadow-sidecar:latest $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-sidecar:latest
-docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-sidecar:latest
+docker tag shadow-server:latest $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-server:latest
+docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-server:latest
 ```
+
+**Note**: The sidecar service is now embedded inside the VM images, not deployed separately.
 
 ## Step 4: Configure Application
 
@@ -487,8 +511,13 @@ spec:
     value: "true"
     effect: NoSchedule
   containers:
-  - name: vm
+  - name: firecracker-vm
     image: your-account.dkr.ecr.us-west-2.amazonaws.com/shadow-vm:latest
+    securityContext:
+      privileged: true
+      runAsUser: 0
+      capabilities:
+        add: ["SYS_ADMIN", "NET_ADMIN"]
     resources:
       requests:
         cpu: 500m
@@ -497,20 +526,26 @@ spec:
         cpu: 1000m
         memory: 2Gi
         ephemeral-storage: 10Gi
-  - name: sidecar
-    image: your-account.dkr.ecr.us-west-2.amazonaws.com/shadow-sidecar:latest
-    ports:
-    - containerPort: 8080
     env:
+    - name: TASK_ID
+      value: "test"
     - name: WORKSPACE_PATH
       value: "/workspace"
+    volumeMounts:
+    - name: dev-kvm
+      mountPath: /dev/kvm
+  volumes:
+  - name: dev-kvm
+    hostPath:
+      path: /dev/kvm
+      type: CharDevice
 EOF
 
 # Check the VM started successfully
 kubectl get pod test-firecracker-vm -n shadow
-kubectl logs test-firecracker-vm -c sidecar -n shadow
+kubectl logs test-firecracker-vm -c firecracker-vm -n shadow
 
-# Test sidecar health endpoint
+# Test sidecar health endpoint (forwarded from VM)
 kubectl port-forward test-firecracker-vm 8080:8080 -n shadow &
 curl http://localhost:8080/health
 
@@ -570,14 +605,17 @@ kubectl create secret docker-registry ecr-secret \
 
 ```bash
 # Check VM console logs
-kubectl logs <vm-pod-name> -c vm-console -n shadow
+kubectl logs <vm-pod-name> -c firecracker-vm -n shadow
 
-# Check sidecar connectivity
+# Check sidecar connectivity (forwarded from VM)
 kubectl port-forward <vm-pod-name> 8080:8080 -n shadow
 curl http://localhost:8080/health
 
 # Check VM resource allocation
 kubectl describe pod <vm-pod-name> -n shadow
+
+# Check if KVM device is accessible
+kubectl exec -it <vm-pod-name> -c firecracker-vm -n shadow -- ls -la /dev/kvm
 ```
 
 ### Performance Issues

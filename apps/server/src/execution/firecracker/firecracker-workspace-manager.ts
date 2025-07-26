@@ -118,11 +118,14 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
         runtimeClassName: "firecracker",
         nodeSelector: {
           "firecracker": "true",
+          "kvm": "enabled",
         },
         tolerations: [
           {
-            key: "firecracker.shadow.io/vm-node",
-            operator: "Exists",
+            key: "firecracker.shadow.ai/dedicated",
+            operator: "Equal",
+            value: "true",
+            effect: "NoSchedule",
           },
         ],
         restartPolicy: "Never",
@@ -146,7 +149,7 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
               limits: {
                 memory: config.vmMemoryLimit,
                 cpu: config.vmCpuLimit,
-                "devices.kubevirt.io/kvm": "1",
+                "ephemeral-storage": config.vmStorageLimit,
               },
             },
             env: [
@@ -196,15 +199,6 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
                 mountPath: "/dev/kvm",
               },
               {
-                name: "firecracker-runtime",
-                mountPath: "/var/lib/firecracker",
-              },
-              {
-                name: "vm-images",
-                mountPath: "/var/lib/vm-images",
-                readOnly: true,
-              },
-              {
                 name: "workspace-storage",
                 mountPath: "/workspace",
               },
@@ -237,19 +231,6 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
             hostPath: {
               path: "/dev/kvm",
               type: "CharDevice",
-            },
-          },
-          {
-            name: "firecracker-runtime",
-            hostPath: {
-              path: "/var/lib/firecracker",
-              type: "DirectoryOrCreate",
-            },
-          },
-          {
-            name: "vm-images",
-            configMap: {
-              name: "firecracker-vm-images",
             },
           },
           {
@@ -425,7 +406,7 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
   /**
    * Get the workspace path for a task (standard VM path)
    */
-  getWorkspacePath(taskId: string): string {
+  getWorkspacePath(_taskId: string): string {
     return "/workspace";
   }
 
@@ -447,7 +428,7 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
   /**
    * Get workspace size (not applicable for VMs, return fixed value)
    */
-  async getWorkspaceSize(taskId: string): Promise<number> {
+  async getWorkspaceSize(_taskId: string): Promise<number> {
     // For VMs, return the configured storage limit in bytes
     const limitStr = config.vmStorageLimit; // e.g., "10Gi"
     const match = limitStr.match(/^(\d+)([KMGT]i?)$/);
