@@ -473,15 +473,20 @@ export function useTaskSocket(taskId: string | undefined) {
 
     function onTaskStatusUpdate(data: TaskStatusUpdateEvent) {
       if (data.taskId === taskId) {
+        console.log(`[TASK_SOCKET] Received task status update:`, data);
+
         // Optimistically update the task status in React Query cache
         queryClient.setQueryData(
           ["task", taskId],
           (oldData: TaskWithDetails) => {
-            if (oldData) {
+            if (oldData && oldData.task) {
               return {
                 ...oldData,
-                status: data.status,
-                updatedAt: data.timestamp,
+                task: {
+                  ...oldData.task,
+                  status: data.status,
+                  updatedAt: data.timestamp,
+                }
               };
             }
             return oldData;
