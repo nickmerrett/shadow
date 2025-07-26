@@ -136,7 +136,7 @@ export class RemoteToolExecutor implements ToolExecutor {
     return this.withErrorHandling(
       `getFileStats(${targetFile})`,
       async () => {
-        const response = await this.sidecarClient.request<any>(`/files/${encodeURIComponent(targetFile)}/stats`, {
+        const response = await this.sidecarClient.request<FileStatsResult>(`/files/${encodeURIComponent(targetFile)}/stats`, {
           method: "GET",
         });
 

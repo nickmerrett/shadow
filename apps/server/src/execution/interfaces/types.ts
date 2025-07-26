@@ -150,7 +150,7 @@ export interface TaskConfig {
 export interface WorkspaceInfo {
   success: boolean;
   workspacePath: string;
-  cloneResult?: any; // TODO: Type this properly when we import from github
+  cloneResult?: unknown;
   error?: string;
   // Remote mode specific fields
   podName?: string;
@@ -169,5 +169,5 @@ export interface WorkspaceStatus {
 export interface HealthStatus {
   healthy: boolean;
   message: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }

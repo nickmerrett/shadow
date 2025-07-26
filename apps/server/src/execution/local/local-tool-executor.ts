@@ -42,10 +42,10 @@ export class LocalToolExecutor implements ToolExecutor {
     this.workspacePath = workspacePath || config.workspaceDir;
     // Console logger for local execution
     this.securityLogger = {
-      warn: (message: string, details?: Record<string, any>) => {
+      warn: (message: string, details?: Record<string, unknown>) => {
         console.warn(`[LOCAL_SECURITY] ${message}`, details);
       },
-      info: (message: string, details?: Record<string, any>) => {
+      info: (message: string, details?: Record<string, unknown>) => {
         console.log(`[LOCAL_SECURITY] ${message}`, details);
       },
     };
@@ -630,9 +630,12 @@ export class LocalToolExecutor implements ToolExecutor {
         if (code === 0) {
           resolve({ stdout, stderr });
         } else {
-          const error = new Error(`Command failed with exit code ${code}: ${stderr || stdout}`);
-          (error as any).stdout = stdout;
-          (error as any).stderr = stderr;
+          const error = new Error(`Command failed with exit code ${code}: ${stderr || stdout}`) as Error & {
+            stdout: string;
+            stderr: string;
+          };
+          error.stdout = stdout;
+          error.stderr = stderr;
           reject(error);
         }
       });

@@ -176,7 +176,7 @@ export class SidecarClient {
   /**
    * Classify errors for retry and circuit breaker logic
    */
-  private classifyError(error: any): SidecarError {
+  private classifyError(error: unknown): SidecarError {
     let sidecarError: SidecarError;
 
     if (error instanceof Error) {
