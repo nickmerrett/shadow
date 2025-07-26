@@ -287,7 +287,7 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
             ) : (
               <div className="h-[calc(100vh-300px)] overflow-auto">
                 <div className="space-y-4">
-                  {/* Repository Overview */}
+                  {/* Repository Overview - Always visible at the top */}
                   {repoSummaries.length > 0 && (
                     <div>
                       <h4 className="text-xs font-medium text-muted-foreground mb-2">
@@ -302,59 +302,35 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
                   )}
 
                   {/* Organized Directory Structure */}
-                  {directoryMap.size > 0 && (
+                  {sortedDirectories.length > 0 && (
                     <div>
                       <h4 className="text-xs font-medium text-muted-foreground mb-2">
                         Codebase Structure
                       </h4>
                       
-                      <div className="space-y-3">
-                        {/* root_overview summary */}
-                        {summaries.find(s => s.filePath === "root_overview") && (
-                          <SummaryItem 
-                            key={summaries.find(s => s.filePath === "root_overview")!.id} 
-                            summary={summaries.find(s => s.filePath === "root_overview")!}
-                          />
-                        )}
-                        {/* Root level files */}
-                        {directoryMap.has("root") && directoryMap.get("root")!.length > 0 && (
-                          <div className="pl-2">
-                            <div className="space-y-1">
-                              {directoryMap.get("root")!.map((summary) => (
-                                <SummaryItem key={summary.id} summary={summary} />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Directories with their files */}
-                        {Array.from(directoryMap.entries())
-                          .filter(([dir]) => dir !== "root")
-                          .sort(([dirA], [dirB]) => dirA.localeCompare(dirB))
-                          .map(([directory, files]) => (
-                            <div key={directory} className="pb-1">
-                              {/* Directory name */}
-                              <div className="flex items-center gap-2 px-1 py-1 text-sm font-medium">
-                                <Folder className="size-4 text-yellow-500" />
-                                <span className="truncate">{directory}</span>
+                      <div className="space-y-2">
+                        {/* Directories with collapsible file lists */}
+                        {sortedDirectories.map(([directory, files]) => (
+                          <div key={directory} className="mb-2">
+                            {/* Directory header with collapse toggle */}
+                            <DirectoryHeader 
+                              dirName={directory} 
+                              filesCount={files.length} 
+                            />
+                            
+                            {/* Files in this directory - collapsible */}
+                            {!collapsedDirs.has(directory) && files.length > 0 && (
+                              <div className="space-y-1 pl-4 mt-1 border-l-2 border-sidebar-border ml-2">
+                                {files.map((summary) => (
+                                  <SummaryItem 
+                                    key={summary.id} 
+                                    summary={summary} 
+                                  />
+                                ))}
                               </div>
-                              
-                              {/* Files in this directory */}
-                              {files.length > 0 && (
-                                <div className="space-y-1 pl-5 mt-1">
-                                  {files.map((summary) => (
-                                    <SummaryItem 
-                                      key={summary.id} 
-                                      summary={{
-                                        ...summary,
-                                        filePath: summary.filePath.substring(summary.filePath.lastIndexOf("/") + 1)
-                                      }} 
-                                    />
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
