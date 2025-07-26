@@ -1,4 +1,4 @@
-import { db } from "../../../../../packages/db/src/client";
+import { db } from "@repo/db";
 import { createHash } from "crypto";
 
 interface TokenUsage {
