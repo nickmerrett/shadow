@@ -33,17 +33,21 @@ function SidebarViewsContent({
   const { sidebarView, setSidebarView } = useSidebarView();
   const isInitialRender = useRef(true);
 
+  // When task ID changes, update the view if it's the initial navigation
   useEffect(() => {
     if (isInitialRender.current) {
       isInitialRender.current = false;
       return;
     }
+    
+    // Only change view automatically if this is a task change, not a view change
+    // This prevents the URL param from being overwritten when explicitly set
     if (currentTaskId) {
       setSidebarView("agent");
     } else {
       setSidebarView("tasks");
     }
-  }, [currentTaskId]);
+  }, [currentTaskId, setSidebarView]);
 
   return (
     <div className="flex">
@@ -94,9 +98,11 @@ export function SidebarViews({
   currentTaskId?: string | null;
 }) {
   return (
-    <SidebarViewsContent 
-      initialTasks={initialTasks} 
-      currentTaskId={currentTaskId} 
-    />
+    <SidebarProvider>
+      <SidebarViewsContent 
+        initialTasks={initialTasks} 
+        currentTaskId={currentTaskId} 
+      />
+    </SidebarProvider>
   );
 }

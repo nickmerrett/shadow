@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Brain, LayoutGrid, Play, Plus } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { SidebarView } from ".";
 import { SettingsDialog } from "../auth/settings-dialog";
 import { UserMenu } from "../auth/user-menu";
@@ -21,6 +22,8 @@ export function SidebarNavigation({
   setSidebarView: (view: SidebarView) => void;
   currentTaskId: string | null;
 }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { open, toggleSidebar } = useSidebar();
   const { task } = useTask(currentTaskId ?? "");
 

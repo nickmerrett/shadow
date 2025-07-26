@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useEffect, ReactNode } from "react";
 import { SidebarView } from "./index";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 interface SidebarContextType {
   sidebarView: SidebarView;
@@ -10,31 +11,35 @@ interface SidebarContextType {
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
-const SIDEBAR_VIEW_KEY = "shadow-sidebar-view";
+// Default view fallback if URL param is invalid
+const DEFAULT_VIEW: SidebarView = "tasks";
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
-  const [sidebarView, setSidebarViewState] = useState<SidebarView>("tasks");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
+  // Get view from URL parameter
+  const viewParam = searchParams.get("view") as SidebarView | null;
+  const sidebarView: SidebarView = viewParam && ["tasks", "agent", "codebase"].includes(viewParam) 
+    ? viewParam 
+    : DEFAULT_VIEW;
 
-  // Load saved sidebar view from localStorage on mount
-  useEffect(() => {
-    try {
-      const savedView = localStorage.getItem(SIDEBAR_VIEW_KEY) as SidebarView;
-      if (savedView && ["tasks", "agent", "codebase"].includes(savedView)) {
-        setSidebarViewState(savedView);
-      }
-    } catch (error) {
-      console.warn("Failed to load sidebar view from localStorage:", error);
-    }
-  }, []);
-
-  // Wrapper function to save to localStorage when view changes
+  // Update URL when view changes
   const setSidebarView = (view: SidebarView) => {
-    setSidebarViewState(view);
-    try {
-      localStorage.setItem(SIDEBAR_VIEW_KEY, view);
-    } catch (error) {
-      console.warn("Failed to save sidebar view to localStorage:", error);
+    const params = new URLSearchParams(searchParams.toString());
+    
+    // Update or add the view parameter
+    if (view === DEFAULT_VIEW) {
+      // Remove parameter for default view to keep URLs clean
+      params.delete("view");
+    } else {
+      params.set("view", view);
     }
+    
+    // Create new URL with updated params
+    const newURL = `${pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    router.push(newURL);
   };
 
   return (
