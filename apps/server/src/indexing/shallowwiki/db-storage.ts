@@ -154,20 +154,52 @@ export class DbWikiStorage {
       // Generate a unique ID for the file
       const recordId = this.generateId(fileName, this.taskId);
       
+      // Parse content to extract metadata
+      let parsedContent;
+      let type = "file_summary";
+      let filePath = "";
+      let language = null;
+      
+      try {
+        parsedContent = JSON.parse(content);
+        if (parsedContent.metadata?.type) {
+          type = parsedContent.metadata.type;
+        }
+        if (parsedContent.metadata?.filePath) {
+          filePath = parsedContent.metadata.filePath;
+        }
+        if (parsedContent.metadata?.language) {
+          language = parsedContent.metadata.language;
+        }
+      } catch (e) {
+        console.warn("Could not parse content JSON", e);
+        parsedContent = { content };
+      }
+      
+      const now = new Date();
+      
       // Create or update the record
       await db.codebaseUnderstanding.upsert({
         where: {
           id: recordId
         },
         update: {
-          content: content
+          content: content,
+          type: type,
+          filePath: filePath,
+          language: language,
+          updatedAt: now
         },
         create: {
           id: recordId,
           taskId: this.taskId,
           fileName: fileName,
           content: content,
-          createdAt: new Date()
+          type: type,
+          filePath: filePath,
+          language: language,
+          createdAt: now,
+          updatedAt: now
         }
       });
 
@@ -208,9 +240,10 @@ export class DbWikiStorage {
   /**
    * Helper method to parse stored content JSON
    */
-  private parseContent(content: string, recordId: string): { metadata: SummaryMetadata, summary: string } {
+  private parseContent(content: any, recordId: string): { metadata: SummaryMetadata, summary: string } {
     try {
-      const parsed = JSON.parse(content || '{}');
+      // Handle case where content is already a parsed JSON object
+      const parsed = typeof content === 'string' ? JSON.parse(content) : content;
       return {
         metadata: parsed.metadata || {
           type: 'file_summary',
@@ -226,7 +259,7 @@ export class DbWikiStorage {
           type: 'file_summary',
           lastUpdated: new Date().toISOString(),
         },
-        summary: content // Use the raw content as the summary
+        summary: typeof content === 'string' ? content : JSON.stringify(content) // Use the raw content as the summary
       };
     }
   }
@@ -256,7 +289,7 @@ export class DbWikiStorage {
         }
       };
     } catch (error) {
-      console.error(`Failed to get file summary for ${filePath}:`, error);
+      console.error(`Error getting file summary for ${filePath}:`, error);
       return null;
     }
   }

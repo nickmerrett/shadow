@@ -179,8 +179,15 @@ model CodebaseUnderstanding {
   taskId    String
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   fileName  String
-  content   String
+  type      String?  @default("file_summary") // "file_summary", "directory_summary", "repo_summary"
+  filePath  String?
+  language  String?
+  content   Json     // Store structured summary data as JSON
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([taskId])
+  @@index([type])
 }
 
 enum TaskStatus {
