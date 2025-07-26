@@ -9,25 +9,35 @@ export interface FileChange {
   createdAt: string;
 }
 
+export interface DiffStats {
+  additions: number;
+  deletions: number;
+  totalFiles: number;
+}
+
 export interface TaskWithDetails {
   task: Task | null;
   todos: Todo[];
   fileChanges: FileChange[];
+  diffStats: DiffStats;
 }
 
-async function fetchFileChanges(taskId: string): Promise<FileChange[]> {
+async function fetchFileChanges(taskId: string): Promise<{ fileChanges: FileChange[], diffStats: DiffStats }> {
   try {
     // Internal API call to our server
     const response = await fetch(`http://localhost:4000/api/tasks/${taskId}/file-changes`);
     if (!response.ok) {
       console.warn(`Failed to fetch file changes for task ${taskId}: ${response.status}`);
-      return [];
+      return { fileChanges: [], diffStats: { additions: 0, deletions: 0, totalFiles: 0 } };
     }
     const data = await response.json();
-    return data.success ? data.fileChanges : [];
+    return {
+      fileChanges: data.fileChanges,
+      diffStats: data.diffStats,
+    }
   } catch (error) {
     console.error(`Error fetching file changes for task ${taskId}:`, error);
-    return [];
+    return { fileChanges: [], diffStats: { additions: 0, deletions: 0, totalFiles: 0 } };
   }
 }
 
@@ -36,7 +46,7 @@ export async function getTaskWithDetails(
 ): Promise<TaskWithDetails> {
   try {
     // Fetch all data in parallel for better performance
-    const [task, todos, fileChanges] = await Promise.all([
+    const [task, todos, { fileChanges, diffStats }] = await Promise.all([
       db.task.findUnique({
         where: { id: taskId },
       }),
@@ -47,10 +57,16 @@ export async function getTaskWithDetails(
       fetchFileChanges(taskId),
     ]);
 
+    console.log("[getTaskWithDetails] task", task);
+    console.log("[getTaskWithDetails] todos", todos);
+    console.log("[getTaskWithDetails] fileChanges", fileChanges);
+    console.log("[getTaskWithDetails] diffStats", diffStats);
+
     return {
       task,
       todos,
       fileChanges,
+      diffStats,
     };
   } catch (error) {
     console.error(`Failed to fetch task details for ${taskId}:`, error);
@@ -59,6 +75,7 @@ export async function getTaskWithDetails(
       task: null,
       todos: [],
       fileChanges: [],
+      diffStats: { additions: 0, deletions: 0, totalFiles: 0 },
     };
   }
 }

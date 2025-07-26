@@ -3,7 +3,7 @@ import { prisma } from "@repo/db";
 import { FILE_SIZE_LIMITS, FileNode } from "@repo/types";
 import type { ToolExecutor } from "../execution/interfaces/tool-executor";
 import { createToolExecutor } from "../execution";
-import { getFileChanges, getDiffStats, hasGitRepository } from "../utils/git-operations";
+import { getFileChanges, hasGitRepository } from "../utils/git-operations";
 
 const router = Router();
 
@@ -239,60 +239,16 @@ router.get('/:taskId/file-changes', async (req, res) => {
       });
     }
 
-    // Get file changes from git
-    const fileChanges = await getFileChanges(taskId);
+    const { fileChanges, diffStats } = await getFileChanges(taskId);
 
     res.json({
       success: true,
-      fileChanges
-    });
-
-  } catch (error) {
-    console.error("[FILE_CHANGES_API_ERROR]", error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
-    });
-  }
-});
-
-// GET /api/tasks/:taskId/diff-stats - Get git-based diff statistics
-router.get('/:taskId/diff-stats', async (req, res) => {
-  try {
-    const { taskId } = req.params;
-
-    // Validate task exists
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      select: { id: true, workspacePath: true }
-    });
-
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        error: "Task not found"
-      });
-    }
-
-    // Check if workspace has git repository
-    const hasGit = await hasGitRepository(taskId);
-    if (!hasGit) {
-      return res.json({
-        success: true,
-        diffStats: { additions: 0, deletions: 0, totalFiles: 0 }
-      });
-    }
-
-    // Get diff stats from git
-    const diffStats = await getDiffStats(taskId);
-
-    res.json({
-      success: true,
+      fileChanges,
       diffStats
     });
 
   } catch (error) {
-    console.error("[DIFF_STATS_API_ERROR]", error);
+    console.error("[FILE_CHANGES_API_ERROR]", error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error"

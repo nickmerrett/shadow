@@ -422,19 +422,12 @@ export function useTaskSocket(taskId: string | undefined) {
     function onStreamComplete() {
       setIsStreaming(false);
       console.log("Stream completed");
-      // Refresh messages when stream is complete
       if (taskId) {
         socket.emit("get-chat-history", { taskId: taskId as string });
       }
 
-      console.log(`[STREAM_COMPLETE] Invalidating queries for completed stream, task: ${taskId}`);
       queryClient.invalidateQueries({ queryKey: ["task", taskId] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      // Refresh diff stats after LLM completion for accuracy
-      console.log(`[STREAM_COMPLETE] Invalidating diff stats for accuracy after LLM completion`);
-      queryClient.invalidateQueries({ queryKey: ["task-diff-stats", taskId] });
-      // Refresh codebase tree after LLM completion to show newly created files
-      console.log(`[STREAM_COMPLETE] Invalidating codebase tree for newly created files`);
       queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
     }
 
