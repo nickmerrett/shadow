@@ -113,7 +113,7 @@ model Task {
 }
 
 model Todo {
-  id      String     @id @default(cuid())
+  id      String     @default(cuid())
   content String
   status  TodoStatus @default(PENDING)
 
@@ -126,6 +126,7 @@ model Todo {
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
+  @@id([taskId, id])
   @@index([taskId, sequence])
   @@index([taskId, status])
 }

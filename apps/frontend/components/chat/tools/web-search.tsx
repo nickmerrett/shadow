@@ -11,7 +11,6 @@ export function WebSearchTool({ message }: { message: Message }) {
   const query = args.query as string;
   const domain = args.domain as string | undefined;
 
-  // Use typed tool result accessor
   const result = getToolResult(
     toolMeta,
     "web_search"

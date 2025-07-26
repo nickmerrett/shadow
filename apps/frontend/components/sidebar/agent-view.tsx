@@ -15,7 +15,7 @@ import {
   RefreshCcw,
   Square,
   SquareCheck,
-  XCircle,
+  SquareX,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { statusColorsConfig } from "./status";
@@ -25,13 +25,14 @@ import { useAgentEnvironment } from "@/components/agent-environment/agent-enviro
 import { Button } from "@/components/ui/button";
 import callIndexApi, { gitHubUrlToRepoName } from "@/lib/actions/index-repo";
 import Link from "next/link";
+import { Badge } from "../ui/badge";
 
 // Todo status config - aligned with main status colors
 const todoStatusConfig = {
-  PENDING: { icon: Square, className: "text-neutral-500" },
-  IN_PROGRESS: { icon: CircleDashed, className: "text-blue-400" },
-  COMPLETED: { icon: SquareCheck, className: "text-green-400" },
-  CANCELLED: { icon: XCircle, className: "text-red-400" },
+  PENDING: { icon: Square, className: "text-muted-foreground" },
+  IN_PROGRESS: { icon: CircleDashed, className: "" },
+  COMPLETED: { icon: SquareCheck, className: "" },
+  CANCELLED: { icon: SquareX, className: "text-red-400" },
 };
 
 // Intermediate tree node structure for building the tree
@@ -92,9 +93,14 @@ function createFileTree(filePaths: string[]): FileNode[] {
 
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
-  const { setSelectedFilePath, rightPanelRef } = useAgentEnvironment();
+  const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
   const repoName = gitHubUrlToRepoName(task!.repoUrl);
   const [isIndexing, setIsIndexing] = useState(false);
+
+  const completedTodos = useMemo(
+    () => todos.filter((todo) => todo.status === "COMPLETED").length,
+    [todos]
+  );
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
@@ -112,15 +118,10 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   const handleFileSelect = useCallback(
     (file: FileNode) => {
-      setSelectedFilePath("/" + file.path);
-
-      const panel = rightPanelRef.current;
-      if (!panel) return;
-      if (panel.isCollapsed()) {
-        panel.expand();
-      }
+      updateSelectedFilePath(file.path);
+      expandRightPanel();
     },
-    [rightPanelRef, setSelectedFilePath]
+    [expandRightPanel, updateSelectedFilePath]
   );
 
   return (
@@ -132,7 +133,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             <div className="flex h-8 items-center gap-2 text-sm">
               <Button
                 variant="link"
-                className="transition-all ease-out duration-100"
+                className="transition-all duration-100 ease-out"
                 size="sm"
                 onClick={async () => {
                   setIsIndexing(true);
@@ -144,7 +145,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 }}
               >
                 <RefreshCcw
-                  className={cn("size-4 mr-1", isIndexing && "animate-spin")}
+                  className={cn("mr-1 size-4", isIndexing && "animate-spin")}
                 />
                 <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
               </Button>
@@ -205,33 +206,43 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       {/* Task List (Todos) */}
       {todos.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel className="hover:text-muted-foreground">
-            <ListTodo className="mr-1.5 !size-3.5" />
+          <SidebarGroupLabel className="hover:text-muted-foreground select-none gap-1.5">
+            <ListTodo className="!size-3.5" />
             Task List
+            <Badge
+              variant="secondary"
+              className="bg-sidebar-accent border-sidebar-border text-muted-foreground rounded-full border px-1.5 py-0 text-[11px]"
+            >
+              {completedTodos}/{todos.length}
+            </Badge>
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            {todos.map((todo) => {
-              const TodoIcon =
-                todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
-                  .icon;
-              const iconClass =
-                todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
-                  .className;
-              return (
-                <SidebarMenuItem key={todo.id}>
-                  <div
-                    className={cn(
-                      "flex h-8 items-center gap-2 px-2 text-sm",
-                      todo.status === "COMPLETED" &&
-                        "text-muted-foreground line-through"
-                    )}
-                  >
-                    <TodoIcon className={cn("size-4", iconClass)} />
-                    <span className="line-clamp-1 flex-1">{todo.content}</span>
-                  </div>
-                </SidebarMenuItem>
-              );
-            })}
+            {todos
+              .sort((a, b) => a.sequence - b.sequence)
+              .map((todo) => {
+                const TodoIcon =
+                  todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
+                    .icon;
+                const iconClass =
+                  todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
+                    .className;
+                return (
+                  <SidebarMenuItem key={todo.id}>
+                    <div
+                      className={cn(
+                        "flex min-h-8 items-start gap-2 p-2 pb-0 text-sm",
+                        todo.status === "COMPLETED" &&
+                          "text-muted-foreground line-through"
+                      )}
+                    >
+                      <TodoIcon className={cn("size-4", iconClass)} />
+                      <span className="line-clamp-2 flex-1 leading-4">
+                        {todo.content}
+                      </span>
+                    </div>
+                  </SidebarMenuItem>
+                );
+              })}
           </SidebarGroupContent>
         </SidebarGroup>
       )}
@@ -239,9 +250,15 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       {/* Modified Files - Only show if file changes exist */}
       {fileChanges.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel className="hover:text-muted-foreground">
-            <FolderGit2 className="mr-1.5 !size-3.5" />
-            Modified Files ({diffStats.totalFiles})
+          <SidebarGroupLabel className="hover:text-muted-foreground select-none gap-1.5">
+            <FolderGit2 className="!size-3.5" />
+            Modified Files{" "}
+            <Badge
+              variant="secondary"
+              className="bg-sidebar-accent border-sidebar-border text-muted-foreground rounded-full border px-1.5 py-0 text-[11px]"
+            >
+              {diffStats.totalFiles}
+            </Badge>
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <FileExplorer

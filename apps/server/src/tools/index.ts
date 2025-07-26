@@ -1,9 +1,11 @@
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
 import { prisma, TodoStatus } from "@repo/db";
 import { tool } from "ai";
 import { z } from "zod";
 import { createToolExecutor, isLocalMode } from "../execution";
 import { LocalFileSystemWatcher } from "../services/local-filesystem-watcher";
-import { emitTerminalOutput } from "../socket";
+import { emitTerminalOutput, emitStreamChunk } from "../socket";
 import type { TerminalEntry } from "@repo/types";
 
 // Map to track active filesystem watchers by task ID
@@ -29,6 +31,12 @@ function createAndEmitTerminalEntry(
 
   console.log(`[TERMINAL_OUTPUT] Emitting ${type} for task ${taskId}:`, data.slice(0, 100));
   emitTerminalOutput(taskId, entry);
+}
+
+// Helper function to read tool descriptions from markdown files
+function readDescription(toolName: string): string {
+  const descriptionPath = join(dirname(__filename), '../prompt/tools', toolName, "description.md");
+  return readFileSync(descriptionPath, 'utf-8').trim();
 }
 
 // Factory function to create tools with task context using abstraction layer
@@ -58,8 +66,7 @@ export function createTools(taskId: string, workspacePath?: string) {
 
   return {
     todo_write: tool({
-      description:
-        "Create and manage a structured task list during coding sessions. Use this to track progress on complex multi-step tasks and demonstrate thoroughness.",
+      description: readDescription('todo_write'),
       parameters: z.object({
         merge: z
           .boolean()
@@ -111,7 +118,7 @@ export function createTools(taskId: string, workspacePath?: string) {
             if (existingTodo) {
               // Update existing todo
               await prisma.todo.update({
-                where: { id: existingTodo.id },
+                where: { taskId_id: { taskId, id: todo.id } },
                 data: {
                   content: todo.content,
                   status: todo.status.toUpperCase() as TodoStatus,
@@ -144,15 +151,41 @@ export function createTools(taskId: string, workspacePath?: string) {
             }
           }
 
+          const totalTodos = merge ? await prisma.todo.count({ where: { taskId } }) : todos.length;
+          const completedTodos = merge ? await prisma.todo.count({
+            where: {
+              taskId,
+              status: 'COMPLETED'
+            }
+          }) : todos.filter(t => t.status === 'completed').length;
+
           const summary = `${merge ? "Merged" : "Replaced"} todos: ${results
             .map((r) => `${r.action} "${r.content}" (${r.status})`)
             .join(", ")}`;
+
+          // Emit WebSocket event for real-time todo updates
+          emitStreamChunk({
+            type: "todo-update",
+            todoUpdate: {
+              todos: todos.map((todo, index) => ({
+                id: todo.id,
+                content: todo.content,
+                status: todo.status as 'pending' | 'in_progress' | 'completed' | 'cancelled',
+                sequence: index
+              })),
+              action: merge ? "updated" : "replaced",
+              totalTodos,
+              completedTodos
+            }
+          }, taskId);
 
           return {
             success: true,
             message: summary,
             todos: results,
             count: results.length,
+            totalTodos,
+            completedTodos,
           };
         } catch (error) {
           console.error(`[TODO_WRITE_ERROR]`, error);
@@ -166,8 +199,7 @@ export function createTools(taskId: string, workspacePath?: string) {
     }),
 
     codebase_search: tool({
-      description:
-        "Find snippets of code from the codebase most relevant to the search query. Try not to use this, use semantic_search instead.",
+      description: readDescription('codebase_search'),
       parameters: z.object({
         query: z.string().describe("The search query to find relevant code"),
         target_directories: z
@@ -190,7 +222,7 @@ export function createTools(taskId: string, workspacePath?: string) {
     }),
 
     read_file: tool({
-      description: "Read the contents of a file with line range support.",
+      description: readDescription('read_file'),
       parameters: z.object({
         target_file: z.string().describe("The path of the file to read"),
         should_read_entire_file: z
@@ -228,7 +260,7 @@ export function createTools(taskId: string, workspacePath?: string) {
     }),
 
     run_terminal_cmd: tool({
-      description: "Execute a terminal command with optional user approval.",
+      description: readDescription('run_terminal_cmd'),
       parameters: z.object({
         command: z.string().describe("The terminal command to execute"),
         is_background: z
@@ -280,7 +312,7 @@ export function createTools(taskId: string, workspacePath?: string) {
     }),
 
     list_dir: tool({
-      description: "List the contents of a directory.",
+      description: readDescription('list_dir'),
       parameters: z.object({
         relative_workspace_path: z
           .string()
@@ -299,7 +331,7 @@ export function createTools(taskId: string, workspacePath?: string) {
     }),
 
     grep_search: tool({
-      description: "Fast, exact regex searches over text files using ripgrep.",
+      description: readDescription('grep_search'),
       parameters: z.object({
         query: z.string().describe("The regex pattern to search for"),
         include_pattern: z
@@ -338,7 +370,7 @@ export function createTools(taskId: string, workspacePath?: string) {
     }),
 
     edit_file: tool({
-      description: "Propose an edit to an existing file or create a new file.",
+      description: readDescription('edit_file'),
       parameters: z.object({
         target_file: z.string().describe("The target file to modify"),
         instructions: z
@@ -358,8 +390,7 @@ export function createTools(taskId: string, workspacePath?: string) {
     }),
 
     search_replace: tool({
-      description:
-        "Replace ONE occurrence of old_string with new_string in a file.",
+      description: readDescription('search_replace'),
       parameters: z.object({
         file_path: z
           .string()
@@ -379,8 +410,7 @@ export function createTools(taskId: string, workspacePath?: string) {
     }),
 
     file_search: tool({
-      description:
-        "Fast file search based on fuzzy matching against file path.",
+      description: readDescription('file_search'),
       parameters: z.object({
         query: z.string().describe("Fuzzy filename to search for"),
         explanation: z
@@ -397,7 +427,7 @@ export function createTools(taskId: string, workspacePath?: string) {
     }),
 
     delete_file: tool({
-      description: "Delete a file at the specified path.",
+      description: readDescription('delete_file'),
       parameters: z.object({
         target_file: z.string().describe("The path of the file to delete"),
         explanation: z
@@ -413,7 +443,7 @@ export function createTools(taskId: string, workspacePath?: string) {
       },
     }),
     semantic_search: tool({
-      description: "Search the codebase for relevant code snippets.",
+      description: readDescription('semantic_search'),
       parameters: z.object({
         query: z.string().describe("The query to search the codebase for"),
         explanation: z
@@ -446,17 +476,17 @@ export function createTools(taskId: string, workspacePath?: string) {
         }
       },
     }),
-      web_search: tool({
-        description: "Search the web for information about a given query.",
-        parameters: z.object({
-          query: z.string().describe("The search query"),
-          domain: z.string().optional().describe("Optional domain to filter results to"),
-          explanation: z
-            .string()
-            .describe(
-              "One sentence explanation as to why this tool is being used"
-            ),
-        }),
+    web_search: tool({
+      description: readDescription('web_search'),
+      parameters: z.object({
+        query: z.string().describe("The search query"),
+        domain: z.string().optional().describe("Optional domain to filter results to"),
+        explanation: z
+          .string()
+          .describe(
+            "One sentence explanation as to why this tool is being used"
+          ),
+      }),
       execute: async ({ query, domain, explanation }) => {
         console.log(`[WEB_SEARCH] ${explanation}`);
         const result = await executor.webSearch(query, domain);
