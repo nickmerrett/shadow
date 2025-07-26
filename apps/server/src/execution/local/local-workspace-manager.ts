@@ -43,7 +43,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
         // Directory exists, clean it out
         await this.cleanDirectory(workspacePath);
       }
-    } catch (error) {
+    } catch (_error) {
       // Directory doesn't exist, create it
       await fs.mkdir(workspacePath, { recursive: true });
     }
@@ -105,7 +105,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
       try {
         const gitDir = path.join(workspacePath, ".git");
         await fs.access(gitDir);
-      } catch (error) {
+      } catch (_error) {
         return {
           success: false,
           workspacePath,
@@ -211,7 +211,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
       // Check if workspace exists
       try {
         await fs.access(workspacePath);
-      } catch (error) {
+      } catch (_error) {
         // Workspace doesn't exist, nothing to clean
         console.log(
           `[LOCAL_WORKSPACE] Workspace ${workspacePath} doesn't exist, nothing to clean`
@@ -280,7 +280,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
     try {
       const stat = await fs.stat(workspacePath);
       return stat.isDirectory();
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }

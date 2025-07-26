@@ -413,7 +413,7 @@ export class LocalToolExecutor implements ToolExecutor {
           query,
           searchTerms,
         };
-      } catch (error) {
+      } catch (_error) {
         // If ripgrep fails (no matches), return empty results
         return {
           success: true,

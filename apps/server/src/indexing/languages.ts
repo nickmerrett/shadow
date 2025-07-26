@@ -18,7 +18,7 @@ async function safeRequire(name: string): Promise<any> {
   try {
     const mod = await import(name);
     return mod.default || mod;
-  } catch (err) {
+  } catch (_err) {
     logger.warn(`Language grammar not installed: ${name}`);
     return null;
   }

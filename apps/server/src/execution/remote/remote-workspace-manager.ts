@@ -358,7 +358,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
 
       // Try to ping the sidecar API using SidecarClient
       const sidecarClient = this.getSidecarClient(taskId);
-      
+
       try {
         const healthResponse = await sidecarClient.healthCheck();
 
@@ -694,7 +694,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       await this.makeK8sRequest<any>(`/api/v1/namespaces/${this.namespace}/persistentvolumeclaims/${pvcName}`);
       console.log(`[REMOTE_WORKSPACE] Shared cache PVC ${pvcName} already exists`);
       return;
-    } catch (error) {
+    } catch (_error) {
       // PVC doesn't exist, create it
     }
 
