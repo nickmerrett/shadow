@@ -80,13 +80,17 @@ export async function getWorkspaceSummaryById(summaryId: string) {
       parsedContent = { summary: "Error parsing content" };
     }
 
-    return {
+    // Structured format ready for the editor
+    const result = {
       id: summary.id,
       type: summary.type || "file_summary",
       filePath: summary.filePath || summary.fileName,
       language: summary.language,
-      content: parsedContent
+      summary: parsedContent?.summary || ""
     };
+    
+    console.log("Formatted summary for editor:", result);
+    return result;
   } catch (error) {
     console.error("Error fetching workspace summary", error);
     return null;
