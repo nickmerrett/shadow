@@ -3,6 +3,7 @@ import type { Message, ToolExecutionStatusType } from "@repo/types";
 import { CheckIcon, Loader, Terminal, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
+import { getToolResult } from "@repo/types";
 
 interface TerminalOutputProps {
   output: string;
@@ -88,12 +89,14 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
-  const { args, status, result } = toolMeta;
+  const { args, status } = toolMeta;
   const command = args.command as string;
   const isBackground = args.is_background as boolean;
 
-  // Error may not be available in the current type definition
-  const error = (toolMeta as any)?.error;
+  // Use typed tool result accessor
+  const result = getToolResult(toolMeta, "run_terminal_cmd");
+  const output = result?.stdout || result?.stderr || "";
+  const error = result?.error;
 
   const handleClick = () => {
     // Expand the right panel if it's collapsed
@@ -128,11 +131,11 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
           </code>
         </div>
 
-        {(result || error || status === "RUNNING") && (
+        {(output || error || status === "RUNNING") && (
           <div>
             <div className="text-muted-foreground mb-2 text-xs">Output:</div>
             <TerminalOutput
-              output={result || ""}
+              output={output}
               isRunning={status === "RUNNING"}
               error={error}
             />

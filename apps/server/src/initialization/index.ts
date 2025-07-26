@@ -499,7 +499,7 @@ export class TaskInitializationEngine {
   /**
    * Emit progress events via WebSocket
    */
-  private emitProgress(taskId: string, progress: InitializationProgress): void {
+  private emitProgress(_taskId: string, progress: InitializationProgress): void {
     emitStreamChunk({
       type: "init-progress",
       initProgress: progress,

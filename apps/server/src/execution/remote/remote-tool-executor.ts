@@ -1,7 +1,6 @@
 import { ToolExecutor } from "../interfaces/tool-executor";
 import {
   CommandOptions,
-  CommandResult,
   DeleteResult,
   DirectoryListing,
   FileResult,
@@ -14,7 +13,8 @@ import {
   CodebaseSearchResult,
   SearchOptions,
   WebSearchResult,
-} from "../interfaces/types";
+} from "@repo/types";
+import { CommandResult } from "../interfaces/types";
 import config from "../../config";
 import { SidecarClient } from "./sidecar-client";
 import { BackgroundCommandResponse } from "@repo/types";

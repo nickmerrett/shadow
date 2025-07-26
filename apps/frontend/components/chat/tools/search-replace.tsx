@@ -2,6 +2,7 @@ import type { Message } from "@repo/types";
 import { Replace } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
+import { getToolResult } from "@repo/types";
 
 const TOOL_PREFIX = "Replaced in";
 
@@ -11,10 +12,20 @@ export function SearchReplaceTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
-  const { args, status: _status } = toolMeta;
+  const { args, status } = toolMeta;
   const filePath = args.file_path as string;
   // const oldString = args.old_string as string;
   // const newString = args.new_string as string;
+
+  // Use typed tool result accessor
+  const result = getToolResult(toolMeta, "search_replace");
+  const linesAdded = result?.linesAdded || 0;
+  const linesRemoved = result?.linesRemoved || 0;
+
+  const changeSummary =
+    status === "COMPLETED" && (linesAdded > 0 || linesRemoved > 0)
+      ? ` (+${linesAdded} -${linesRemoved})`
+      : "";
 
   return (
     <button
@@ -33,7 +44,7 @@ export function SearchReplaceTool({ message }: { message: Message }) {
         <Replace />
         <div className="flex items-center gap-1">
           <span className="opacity-70">{TOOL_PREFIX}</span>
-          <span>{filePath}</span>
+          <span>{`${filePath}${changeSummary}`}</span>
         </div>
       </div>
       {/* {status !== "RUNNING" && (

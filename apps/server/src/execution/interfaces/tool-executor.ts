@@ -1,6 +1,5 @@
 import {
   CommandOptions,
-  CommandResult,
   DeleteResult,
   DirectoryListing,
   FileResult,
@@ -13,7 +12,8 @@ import {
   WriteResult,
   CodebaseSearchResult,
   WebSearchResult,
-} from "./types";
+} from "@repo/types";
+import { CommandResult } from "./types";
 
 /**
  * ToolExecutor interface abstracts all tool operations for both local and remote execution

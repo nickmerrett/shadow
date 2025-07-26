@@ -2,6 +2,7 @@ import type { Message } from "@repo/types";
 import { Edit3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
+import { getToolResult } from "@repo/types";
 
 const TOOL_PREFIX = "Edited";
 
@@ -13,13 +14,10 @@ export function EditFileTool({ message }: { message: Message }) {
 
   const { args, status } = toolMeta;
   const filePath = args.target_file as string;
-  const instructions = args.instructions as string;
-
-  // Note: changes may not be available in the current type definition
-  // Using a fallback approach for now
-  const changes = (toolMeta as any)?.changes;
-  const linesAdded = changes?.linesAdded || 0;
-  const linesRemoved = changes?.linesRemoved || 0;
+  // Use typed tool result accessor
+  const result = getToolResult(toolMeta, "edit_file");
+  const linesAdded = result?.linesAdded || 0;
+  const linesRemoved = result?.linesRemoved || 0;
 
   const changeSummary =
     status === "COMPLETED" && (linesAdded > 0 || linesRemoved > 0)

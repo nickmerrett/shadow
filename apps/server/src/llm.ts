@@ -99,7 +99,7 @@ export class LLMService {
               type: "tool-result",
               toolResult: {
                 id: chunk.toolCallId,
-                result: JSON.stringify(chunk.result),
+                result: chunk.result as any, // Cast to avoid unknown type issues
               },
             };
             break;
