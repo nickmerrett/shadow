@@ -76,19 +76,19 @@ function ensureDir(dirPath: string) {
 
 // Tree-sitter language setup
 const parserJS = new Parser();
-parserJS.setLanguage(JavaScript as unknown as Parser.Language);
+parserJS.setLanguage(JavaScript as any);
 const parserTS = new Parser();
-parserTS.setLanguage((TS as any).typescript as Parser.Language);
+parserTS.setLanguage((TS as any).typescript);
 const parserTSX = new Parser();
-parserTSX.setLanguage((TS as any).tsx as Parser.Language);
+parserTSX.setLanguage((TS as any).tsx);
 const parserPy = new Parser();
-parserPy.setLanguage(Python as unknown as Parser.Language);
+parserPy.setLanguage(Python as any);
 
 // Typed language aliases for tree-sitter
-const LangJS = JavaScript as unknown as Parser.Language;
-const LangTS = (TS as any).typescript as Parser.Language;
-const LangTSX = (TS as any).tsx as Parser.Language;
-const LangPy = Python as unknown as Parser.Language;
+const LangJS = JavaScript as any;
+const LangTS = (TS as any).typescript;
+const LangTSX = (TS as any).tsx;
+const LangPy = Python as any;
 
 type LangKey = "js" | "ts" | "tsx" | "py";
 interface LangSpec {
@@ -122,32 +122,22 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
     extensions: [".ts", ".mts", ".cts"],
     queryDefs: new Parser.Query(LangTS, `
       (function_declaration name: (identifier) @def.name)
-      (method_definition name: (property_identifier) @def.name)
-      (class_declaration name: (identifier) @def.name)
-      (interface_declaration name: (identifier) @def.name)
-      (enum_declaration name: (identifier) @def.name)
-      (type_alias_declaration name: (type_identifier) @def.name)
     `),
-    queryCalls: new Parser.Query(LangTS, `
-      (call_expression function: (identifier) @call.name)
+    queryCalls: new Parser.Query(LangTS, ``),
+    queryImports: new Parser.Query(LangTS, `
+      (import_statement source: (string) @import.source)
     `),
-    queryImports: new Parser.Query(LangTS, ``),
   },
   tsx: {
     parser: parserTSX,
     extensions: [".tsx"],
     queryDefs: new Parser.Query(LangTSX, `
       (function_declaration name: (identifier) @def.name)
-      (method_definition name: (property_identifier) @def.name)
-      (class_declaration name: (identifier) @def.name)
-      (interface_declaration name: (identifier) @def.name)
-      (enum_declaration name: (identifier) @def.name)
-      (type_alias_declaration name: (type_identifier) @def.name)
     `),
-    queryCalls: new Parser.Query(LangTSX, `
-      (call_expression function: (identifier) @call.name)
+    queryCalls: new Parser.Query(LangTSX, ``),
+    queryImports: new Parser.Query(LangTSX, `
+      (import_statement source: (string) @import.source)
     `),
-    queryImports: new Parser.Query(LangTSX, ``),
   },
   py: {
     parser: parserPy,
