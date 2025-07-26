@@ -84,7 +84,7 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
     try {
       setIsIndexing(true);
       const { callWorkspaceIndexApi } = await import("@/lib/actions/index-workspace");
-      await callWorkspaceIndexApi(taskId);
+      await callWorkspaceIndexApi(taskId, false, true);
       
       // Reload summaries after indexing
       await loadSummaries();
@@ -122,6 +122,16 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
     });
   };
   
+  // Helper function to remove file extensions from display names
+  const removeFileExtension = (fileName: string) => {
+    if (!fileName) return fileName;
+    const lastDotIndex = fileName.lastIndexOf('.');
+    if (lastDotIndex > 0 && lastDotIndex < fileName.length - 1) {
+      return fileName.substring(0, lastDotIndex);
+    }
+    return fileName;
+  };
+  
   // First, populate with directory summaries to ensure they appear first
   directorySummaries.forEach(dirSummary => {
     const dirName = dirSummary.filePath;
@@ -150,7 +160,7 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
       // Add file with just the filename showing in the UI but full path stored
       const fileWithShortName = {
         ...fileSummary,
-        displayName: fileName // Add a displayName for UI but keep filePath intact
+        displayName: removeFileExtension(fileName) // Add a displayName for UI but keep filePath intact
       };
       directoryMap.get(dirName)!.push(fileWithShortName);
     } else {
@@ -178,35 +188,37 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
   const getIcon = (type: string) => {
     switch (type) {
       case "file_summary":
-        return <FileText className="size-4 text-blue-600 flex-shrink-0" />;
+        return <FileText className="size-4 text-muted-foreground flex-shrink-0" />;
       case "directory_summary":
-        return <Folder className="size-4 text-yellow-600 flex-shrink-0" />;
+        return <Folder className="size-4 text-muted-foreground flex-shrink-0" />;
       case "repo_summary":
-        return <FolderGit2 className="size-4 text-green-600 flex-shrink-0" />;
+        return <FolderGit2 className="size-4 text-muted-foreground flex-shrink-0" />;
       default:
-        return <FileText className="size-4 flex-shrink-0" />;
+        return <FileText className="size-4 text-muted-foreground flex-shrink-0" />;
     }
   };
 
+
+
   // File or summary item component with shortened display name
-  const SummaryItem = ({ summary }: { summary: CodebaseSummary & { displayName?: string } }) => (
-    <div
-      className="flex cursor-pointer items-center gap-3 rounded-md p-2 text-sm hover:bg-sidebar-accent border border-transparent hover:border-sidebar-border transition-colors"
-      onClick={() => selectSummary(summary)}
-    >
-      {getIcon(summary.type)}
-      <div className="flex-1 truncate">
-        <div className="truncate font-medium text-sm">
-          {summary.displayName || summary.filePath || "Overview"}
-        </div>
-        {summary.language && (
-          <div className="text-xs text-muted-foreground bg-sidebar-accent px-1.5 py-0.5 rounded font-medium mt-0.5">
-            {summary.language}
+  const SummaryItem = ({ summary }: { summary: CodebaseSummary & { displayName?: string } }) => {
+    const displayName = summary.displayName || summary.filePath || "Overview";
+    const nameWithoutExtension = removeFileExtension(displayName);
+    
+    return (
+      <div
+        className="flex cursor-pointer items-center gap-3 rounded-md p-2 text-sm hover:bg-sidebar-accent border border-transparent hover:border-sidebar-border transition-colors"
+        onClick={() => selectSummary(summary)}
+      >
+        {getIcon(summary.type)}
+        <div className="flex-1 truncate">
+          <div className="truncate font-medium text-sm">
+            {nameWithoutExtension}
           </div>
-        )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
   
   // Directory header component with collapse toggle
   const DirectoryHeader = ({ dirName, filesCount }: { dirName: string, filesCount: number }) => (
@@ -220,7 +232,7 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
           !collapsedDirs.has(dirName) ? "rotate-90" : "rotate-0"
         )} 
       />
-      <Folder className="size-4 text-yellow-600 flex-shrink-0" />
+      <Folder className="size-4 text-muted-foreground flex-shrink-0" />
       <span className="truncate flex-1 font-medium">
         {dirName === "root" ? "Root Files" : dirName}
       </span>
@@ -304,10 +316,10 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
                             className="flex cursor-pointer items-center gap-3 rounded-md p-3 text-sm hover:bg-sidebar-accent bg-sidebar-accent/50 border border-sidebar-border transition-colors"
                             onClick={() => selectSummary(rootOverview)}
                           >
-                            <FolderGit2 className="size-4 text-green-600 flex-shrink-0" />
+                            <FolderGit2 className="size-4 text-muted-foreground flex-shrink-0" />
                             <div className="flex-1 truncate">
                               <div className="truncate font-medium">
-                                {rootOverview.filePath === "root_overview" ? "Project Overview" : rootOverview.filePath || "Repository Overview"}
+                                {rootOverview.filePath === "root_overview" ? "Project Overview" : removeFileExtension(rootOverview.filePath || "Repository Overview")}
                               </div>
                               <div className="text-xs text-muted-foreground mt-0.5">
                                 Complete project summary
