@@ -26,7 +26,7 @@ import {
 } from "@/components/agent-environment/file-explorer";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { Button } from "@/components/ui/button";
-import { indexRepo } from "@/lib/actions/index-repo";
+import callIndexApi, { gitHubUrlToRepoName } from "@/lib/actions/index-repo";
 import Link from "next/link";
 
 // Todo status config - aligned with main status colors
@@ -81,7 +81,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
   const { setSelectedFilePath, rightPanelRef } = useAgentEnvironment();
-  const repoName = task!.repoUrl.split("/").slice(-2).join("/") || "";
+  const repoName = gitHubUrlToRepoName(task!.repoUrl);
   const [isIndexing, setIsIndexing] = useState(false);
 
   // Create file tree from file changes
@@ -125,7 +125,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 onClick={async () => {
                   setIsIndexing(true);
                   try {
-                    await indexRepo(repoName, task.id, true);
+                    await callIndexApi(repoName, task.id, true);
                   } finally {
                     setIsIndexing(false);
                   }

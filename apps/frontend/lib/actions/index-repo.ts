@@ -1,4 +1,4 @@
-export const indexRepo = async (repo: string, taskId: string, clearNamespace: boolean = true) => {
+export const callIndexApi = async (repo: string, taskId: string, clearNamespace: boolean = true) => {
     try {
       console.log("Indexing repo", repo);
       console.log("NEXT_PUBLIC_API_URL", process.env.NEXT_PUBLIC_API_URL);
@@ -19,4 +19,12 @@ export const indexRepo = async (repo: string, taskId: string, clearNamespace: bo
     }
 };
 
-export default indexRepo;
+export const gitHubUrlToRepoName = (url: string) => {
+  const result = url.split("/").slice(-2).join("/") || "";
+  if (result === "") {
+    throw new Error("Invalid GitHub URL");
+  }
+  return result;
+};
+
+export default callIndexApi;

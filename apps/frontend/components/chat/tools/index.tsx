@@ -66,6 +66,7 @@ export function ToolMessage({ message }: { message: Message }) {
   }
 
   const ToolComponent = TOOL_COMPONENTS[toolMeta.name as ToolName];
+  
   if (!ToolComponent) {
     return (
       <div className="text-muted-foreground">
