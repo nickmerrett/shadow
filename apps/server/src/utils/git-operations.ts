@@ -16,6 +16,17 @@ export interface DiffStats {
   totalFiles: number;
 }
 
+// Type guards for error handling
+function hasStdout(error: unknown): error is { stdout: string } {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return typeof error === 'object' && error !== null && 'stdout' in error && typeof (error as any).stdout === 'string';
+}
+
+function hasMessage(error: unknown): error is { message: string } {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return typeof error === 'object' && error !== null && 'message' in error && typeof (error as any).message === 'string';
+}
+
 /**
  * Get the workspace path for a task
  */
@@ -112,26 +123,40 @@ export async function getFileChanges(taskId: string): Promise<FileChange[]> {
       // Phase 2: Get diff stats for all uncommitted files in parallel
       if (uncommittedFiles.length > 0) {
         console.log(`[GIT_OPS] Getting diff stats for ${uncommittedFiles.length} uncommitted files in parallel`);
-        
+
         const diffStatsPromises = uncommittedFiles.map(async ({ filePath, status }) => {
           try {
             const indexStatus = status[0]; // X = index status
             const workingStatus = status[1]; // Y = working tree status
-            
+
             let totalAdditions = 0;
             let totalDeletions = 0;
-            
+
             // Handle different types of changes
             if (status.includes('??')) {
               // Untracked file - compare against empty
               const diffCommand = `git diff --numstat /dev/null "${filePath}"`;
-              const { stdout: diffOutput } = await execAsync(diffCommand, { cwd: workspacePath });
-              
-              if (diffOutput.trim()) {
-                const parts = diffOutput.trim().split('\t');
-                if (parts.length >= 2 && parts[0] !== undefined && parts[1] !== undefined) {
-                  totalAdditions = parseInt(parts[0]) || 0;
-                  totalDeletions = parseInt(parts[1]) || 0;
+              try {
+                const { stdout: diffOutput } = await execAsync(diffCommand, { cwd: workspacePath });
+                if (diffOutput.trim()) {
+                  const parts = diffOutput.trim().split('\t');
+                  if (parts.length >= 2 && parts[0] !== undefined && parts[1] !== undefined) {
+                    totalAdditions = parseInt(parts[0]) || 0;
+                    totalDeletions = parseInt(parts[1]) || 0;
+                  }
+                }
+              } catch (error: unknown) {
+                // Git diff returns exit code 1 when differences exist, which is normal
+                // Check if we have stdout despite the "error"
+                if (hasStdout(error) && error.stdout.trim()) {
+                  const parts = error.stdout.trim().split('\t');
+                  if (parts.length >= 2 && parts[0] !== undefined && parts[1] !== undefined) {
+                    totalAdditions = parseInt(parts[0]) || 0;
+                    totalDeletions = parseInt(parts[1]) || 0;
+                  }
+                } else {
+                  const message = hasMessage(error) ? error.message : String(error);
+                  console.warn(`[GIT_OPS] Failed to get diff for ${filePath}:`, message);
                 }
               }
             } else {
@@ -147,11 +172,21 @@ export async function getFileChanges(taskId: string): Promise<FileChange[]> {
                       totalDeletions += parseInt(parts[1]) || 0;
                     }
                   }
-                } catch (stagedError) {
-                  console.warn(`[GIT_OPS] Failed to get staged diff for ${filePath}:`, stagedError);
+                } catch (stagedError: unknown) {
+                  // Handle git exit code 1 (differences found)
+                  if (hasStdout(stagedError) && stagedError.stdout.trim()) {
+                    const parts = stagedError.stdout.trim().split('\t');
+                    if (parts.length >= 2 && parts[0] !== undefined && parts[1] !== undefined) {
+                      totalAdditions += parseInt(parts[0]) || 0;
+                      totalDeletions += parseInt(parts[1]) || 0;
+                    }
+                  } else {
+                    const message = hasMessage(stagedError) ? stagedError.message : String(stagedError);
+                    console.warn(`[GIT_OPS] Failed to get staged diff for ${filePath}:`, message);
+                  }
                 }
               }
-              
+
               // Handle unstaged changes (working tree vs HEAD)
               if (workingStatus !== ' ' && workingStatus !== '?') {
                 const unstagedCommand = `git diff --numstat HEAD -- "${filePath}"`;
@@ -166,7 +201,7 @@ export async function getFileChanges(taskId: string): Promise<FileChange[]> {
                       // We'll use the total since it's more accurate for user perception
                       const unstagedAdditions = parseInt(parts[0]) || 0;
                       const unstagedDeletions = parseInt(parts[1]) || 0;
-                      
+
                       // If we have both staged and unstaged, use the total (working tree vs HEAD)
                       // This gives the user the full picture of all changes
                       if (indexStatus !== ' ' && indexStatus !== '?') {
@@ -178,18 +213,36 @@ export async function getFileChanges(taskId: string): Promise<FileChange[]> {
                       }
                     }
                   }
-                } catch (unstagedError) {
-                  console.warn(`[GIT_OPS] Failed to get unstaged diff for ${filePath}:`, unstagedError);
+                } catch (unstagedError: unknown) {
+                  // Handle git exit code 1 (differences found)
+                  if (hasStdout(unstagedError) && unstagedError.stdout.trim()) {
+                    const parts = unstagedError.stdout.trim().split('\t');
+                    if (parts.length >= 2 && parts[0] !== undefined && parts[1] !== undefined) {
+                      const unstagedAdditions = parseInt(parts[0]) || 0;
+                      const unstagedDeletions = parseInt(parts[1]) || 0;
+
+                      if (indexStatus !== ' ' && indexStatus !== '?') {
+                        totalAdditions = unstagedAdditions;
+                        totalDeletions = unstagedDeletions;
+                      } else {
+                        totalAdditions += unstagedAdditions;
+                        totalDeletions += unstagedDeletions;
+                      }
+                    }
+                  } else {
+                    const message = hasMessage(unstagedError) ? unstagedError.message : String(unstagedError);
+                    console.warn(`[GIT_OPS] Failed to get unstaged diff for ${filePath}:`, message);
+                  }
                 }
               }
             }
-            
+
             return {
               filePath,
               additions: totalAdditions,
               deletions: totalDeletions
             };
-            
+
           } catch (error) {
             console.warn(`[GIT_OPS] Failed to get diff stats for ${filePath}:`, error);
             return { filePath, additions: 0, deletions: 0 };
@@ -205,7 +258,7 @@ export async function getFileChanges(taskId: string): Promise<FileChange[]> {
         // Phase 3: Create file change objects with accurate stats
         for (const { filePath, operation } of uncommittedFiles) {
           const stats = diffStatsMap.get(filePath) || { additions: 0, deletions: 0 };
-          
+
           allFiles.set(filePath, {
             filePath,
             operation,
