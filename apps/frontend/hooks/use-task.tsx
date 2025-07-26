@@ -1,4 +1,4 @@
-import { Task, Todo } from "@repo/db";
+import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
 import { useQuery } from "@tanstack/react-query";
 
 export interface FileChange {
@@ -19,11 +19,7 @@ export function useTask(taskId: string) {
   // Main task data query (includes fileChanges now)
   const taskQuery = useQuery({
     queryKey: ["task", taskId],
-    queryFn: async (): Promise<{
-      task: Task;
-      todos: Todo[];
-      fileChanges: FileChange[];
-    }> => {
+    queryFn: async (): Promise<TaskWithDetails> => {
       const res = await fetch(`/api/tasks/${taskId}`);
       if (!res.ok) throw new Error("Failed to fetch task");
       return await res.json();

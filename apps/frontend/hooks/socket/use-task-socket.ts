@@ -8,9 +8,13 @@ import type {
   Message,
   StreamChunk,
   TaskStatusUpdateEvent,
-  ModelType
+  ModelType,
+  FileNode
 } from "@repo/types";
 import { TextPart, ToolCallPart, ToolResultPart } from "ai";
+import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
+import { CodebaseTreeResponse } from "../use-codebase-tree";
+import { Task } from "@repo/db";
 
 interface FileChange {
   filePath: string;
@@ -32,9 +36,9 @@ interface FsChangeEvent {
  * Optimistically update codebase tree based on filesystem events
  */
 function updateCodebaseTreeOptimistically(
-  existingTree: any[],
+  existingTree: FileNode[],
   fsChange: FsChangeEvent
-): any[] {
+): FileNode[] {
   const { operation, filePath, isDirectory } = fsChange;
 
   console.log(`[OPTIMISTIC_TREE_UPDATE] ${operation} ${filePath} (isDirectory: ${isDirectory})`);
@@ -56,11 +60,13 @@ function updateCodebaseTreeOptimistically(
 /**
  * Add a new node to the file tree
  */
-function addNodeToTree(tree: any[], filePath: string, type: 'file' | 'folder'): any[] {
+function addNodeToTree(tree: FileNode[], filePath: string, type: 'file' | 'folder'): FileNode[] {
   const parts = filePath.split('/').filter(Boolean);
   if (parts.length === 0) return tree;
 
   const [firstPart, ...restParts] = parts;
+  if (!firstPart) return tree;
+
   const treeCopy = [...tree];
 
   // Find existing node at this level
@@ -99,12 +105,12 @@ function addNodeToTree(tree: any[], filePath: string, type: 'file' | 'folder'): 
 
   // Ensure the node at this level is a folder with children
   const nodeIndex = treeCopy.findIndex(node => node.name === firstPart);
-  if (nodeIndex !== -1 && treeCopy[nodeIndex].type === 'folder') {
+  if (nodeIndex !== -1 && treeCopy[nodeIndex]?.type === 'folder') {
     if (!treeCopy[nodeIndex].children) {
       treeCopy[nodeIndex].children = [];
     }
     // Recursively add to children
-    treeCopy[nodeIndex].children = addNodeToTree(treeCopy[nodeIndex].children, restParts.join('/'), type);
+    treeCopy[nodeIndex].children = addNodeToTree(treeCopy[nodeIndex].children || [], restParts.join('/'), type);
   }
 
   return treeCopy;
@@ -113,11 +119,13 @@ function addNodeToTree(tree: any[], filePath: string, type: 'file' | 'folder'): 
 /**
  * Remove a node from the file tree
  */
-function removeNodeFromTree(tree: any[], filePath: string): any[] {
+function removeNodeFromTree(tree: FileNode[], filePath: string): FileNode[] {
   const parts = filePath.split('/').filter(Boolean);
   if (parts.length === 0) return tree;
 
   const [firstPart, ...restParts] = parts;
+  if (!firstPart) return tree;
+
   const treeCopy = [...tree];
 
   if (restParts.length === 0) {
@@ -127,10 +135,10 @@ function removeNodeFromTree(tree: any[], filePath: string): any[] {
 
   // Recursively remove from children
   const nodeIndex = treeCopy.findIndex(node => node.name === firstPart);
-  if (nodeIndex !== -1 && treeCopy[nodeIndex].type === 'folder' && treeCopy[nodeIndex].children) {
-    treeCopy[nodeIndex].children = removeNodeFromTree(treeCopy[nodeIndex].children, restParts.join('/'));
+  if (nodeIndex !== -1 && treeCopy[nodeIndex]?.type === 'folder' && treeCopy[nodeIndex]?.children) {
+    treeCopy[nodeIndex].children = removeNodeFromTree(treeCopy[nodeIndex].children || [], restParts.join('/'));
     // Remove empty folders
-    if (treeCopy[nodeIndex].children.length === 0) {
+    if (treeCopy[nodeIndex].children?.length === 0) {
       return treeCopy.filter((_, index) => index !== nodeIndex);
     }
   }
@@ -314,7 +322,7 @@ export function useTaskSocket(taskId: string | undefined) {
             // Optimistically update file changes in React Query cache
             queryClient.setQueryData(
               ["task", taskId],
-              (oldData: any) => {
+              (oldData: TaskWithDetails) => {
                 if (!oldData) return oldData;
 
                 // Add/update/remove from fileChanges array based on operation
@@ -333,7 +341,7 @@ export function useTaskSocket(taskId: string | undefined) {
             // Optimistically update codebase tree in React Query cache
             queryClient.setQueryData(
               ["codebase-tree", taskId],
-              (oldData: any) => {
+              (oldData: CodebaseTreeResponse) => {
                 if (!oldData || !oldData.success || !oldData.tree) return oldData;
 
                 const updatedTree = updateCodebaseTreeOptimistically(
@@ -390,7 +398,7 @@ export function useTaskSocket(taskId: string | undefined) {
             // Optimistically update todos in React Query cache
             queryClient.setQueryData(
               ["task", taskId],
-              (oldData: any) => {
+              (oldData: TaskWithDetails) => {
                 if (!oldData) return oldData;
 
                 return {
@@ -430,7 +438,7 @@ export function useTaskSocket(taskId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
     }
 
-    function onStreamError(error: any) {
+    function onStreamError(error: unknown) {
       setIsStreaming(false);
       console.error("Stream error:", error);
 
@@ -452,7 +460,7 @@ export function useTaskSocket(taskId: string | undefined) {
         // Optimistically update the task status in React Query cache
         queryClient.setQueryData(
           ["task", taskId],
-          (oldData: any) => {
+          (oldData: TaskWithDetails) => {
             if (oldData) {
               return {
                 ...oldData,
@@ -464,9 +472,9 @@ export function useTaskSocket(taskId: string | undefined) {
           }
         );
 
-        queryClient.setQueryData(["tasks"], (oldTasks: any[]) => {
+        queryClient.setQueryData(["tasks"], (oldTasks: Task[]) => {
           if (oldTasks) {
-            return oldTasks.map((task: any) =>
+            return oldTasks.map((task: Task) =>
               task.id === taskId
                 ? { ...task, status: data.status, updatedAt: data.timestamp }
                 : task
