@@ -26,6 +26,7 @@ import {
   SearchOptions,
   WebSearchResult,
 } from "@repo/types";
+import { EmbeddingSearchResult } from "../../indexing/embedding/types";
 import { CommandResult } from "../interfaces/types";
 
 
@@ -435,13 +436,13 @@ export class LocalToolExecutor implements ToolExecutor {
     }
   }
 
-  async semanticSearch(query: string, repo: string, options?: SearchOptions): Promise<CodebaseSearchResult> {
+  async semanticSearch(query: string, repo: string, options?: SearchOptions): Promise<CodebaseSearchToolResult> {
     if (!config.useSemanticSearch) {
       console.log("semanticSearch disabled, falling back to codebaseSearch");
       return this.codebaseSearch(query, options);
     }
     try {
-      console.log("semanticSearch enabled");
+      console.log("semanticSearch enabled");  
       console.log("semanticSearchParams", query, repo);
       const response = await fetch(`${config.apiUrl}/api/indexing/search`, {
         method: "POST",
@@ -460,21 +461,20 @@ export class LocalToolExecutor implements ToolExecutor {
         throw new Error(`Indexing service error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as EmbeddingSearchResult[];
 
       const parsedData = {
-        success: !!data?.matches,
-        results: (data?.matches || []).map((match: any, i: number) => ({
+        success: !!data,
+        results: (data || []).map((match: EmbeddingSearchResult, i: number) => ({
           id: i + 1,
-          content: match?.fields?.code || match?.metadata?.content || match?.metadata?.chunk_text || match?.content || match?.text || "",
+          content: match?.fields?.code || match?.fields?.text || "",
           relevance: typeof match?._score === "number" ? match._score : 0.8,
         })),
         query,
         searchTerms: query.split(/\s+/),
-        message: data?.matches?.length
-          ? `Found ${data.matches.length} relevant code snippets for "${query}"`
+        message: data?.length
+          ? `Found ${data.length} relevant code snippets for "${query}"`
           : `No relevant code found for "${query}"`,
-        error: data?.error,
       }
       console.log("semanticSearch", parsedData);
 
