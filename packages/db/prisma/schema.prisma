@@ -70,28 +70,29 @@ model Verification {
 }
 
 model Task {
-  id                   String               @id @default(cuid())
-  title                String?
-  description          String?
-  status               TaskStatus           @default(INITIALIZING)
-  repoUrl              String
-  workspacePath        String?
-  baseBranch           String
-  shadowBranch         String
-  baseCommitSha        String
-  initializationStatus InitializationStatus @default(PENDING)
-  currentInitStep      InitStepType?
-  mode                 TaskMode             @default(FULL_AUTO)
-  workspaceCleanedUp   Boolean              @default(false)
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  userId               String
-  messages             ChatMessage[]
-  FileChange           FileChange[]
-  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions             TaskSession[]
-  commands             TerminalCommand[]
-  todos                Todo[]
+  id                    String                  @id @default(cuid())
+  title                 String?
+  description           String?
+  status                TaskStatus              @default(INITIALIZING)
+  repoUrl               String
+  workspacePath         String?
+  baseBranch            String
+  shadowBranch          String
+  baseCommitSha         String
+  initializationStatus  InitializationStatus    @default(PENDING)
+  currentInitStep       InitStepType?
+  mode                  TaskMode                @default(FULL_AUTO)
+  workspaceCleanedUp    Boolean                 @default(false)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  userId                String
+  messages              ChatMessage[]
+  FileChange            FileChange[]
+  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions              TaskSession[]
+  commands              TerminalCommand[]
+  todos                 Todo[]
+  CodebaseUnderstanding CodebaseUnderstanding[]
 }
 
 model Todo {
@@ -171,6 +172,15 @@ model FileChange {
   Task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId, createdAt])
+}
+
+model CodebaseUnderstanding {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fileName  String
+  content   String
+  createdAt DateTime @default(now())
 }
 
 enum TaskStatus {
