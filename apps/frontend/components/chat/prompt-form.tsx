@@ -18,7 +18,6 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export function PromptForm({
   onSubmit,
@@ -45,12 +44,11 @@ export function PromptForm({
     commitSha: string;
   } | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [isIndexing, setIsIndexing] = useState(false);
 
   const queryClient = useQueryClient();
   const { data: availableModels = [] } = useModels();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || isStreaming || !selectedModel) return;
 
@@ -106,116 +104,98 @@ export function PromptForm({
         !isHome && "sticky bottom-0 pb-6"
       )}
     >
-      {/* Disable form while indexing */}
-      <fieldset disabled={isIndexing}>
-        {/* Wrapper div with textarea styling */}
-        <div
-          className={cn(
-            "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border shadow-xs relative flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t transition-[color,box-shadow,border] focus-within:ring-4",
-            isPending && "opacity-50"
-          )}
-        >
-          {!isHome && (
-            <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-16 -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
-          )}
+      {/* Wrapper div with textarea styling */}
+      <div
+        className={cn(
+          "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border shadow-xs relative flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t transition-[color,box-shadow,border] focus-within:ring-4",
+          isPending && "opacity-50"
+        )}
+      >
+        {!isHome && (
+          <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-16 -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
+        )}
 
-          {/* Textarea without border/background since wrapper handles it */}
-          <Textarea
-            autoFocus
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={onFocus}
-            onBlur={onBlur}
-            placeholder="Build a cool new feature..."
-            className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none rounded-lg border-0 shadow-none focus-visible:ring-0"
-          />
+        {/* Textarea without border/background since wrapper handles it */}
+        <Textarea
+          autoFocus
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          placeholder="Build a cool new feature..."
+          className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none rounded-lg border-0 shadow-none focus-visible:ring-0"
+        />
 
-          {/* Buttons inside the container */}
-          <div className="flex items-center justify-between p-2">
-            <Popover>
-              <PopoverTrigger asChild>
+        {/* Buttons inside the container */}
+        <div className="flex items-center justify-between p-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground hover:bg-accent px-2 font-normal"
+              >
+                {isHome && <Layers className="size-4" />}
+                <span>
+                  {selectedModel
+                    ? ModelInfos[selectedModel].name
+                    : "Select model"}
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="flex flex-col gap-0.5 rounded-lg p-1"
+            >
+              {availableModels.map((model) => (
                 <Button
+                  key={model.id}
                   size="sm"
                   variant="ghost"
-                  className="text-muted-foreground hover:bg-accent px-2 font-normal"
+                  className="hover:bg-accent justify-start font-normal"
+                  onClick={() => setSelectedModel(model.id as ModelType)}
                 >
-                  {isHome && <Layers className="size-4" />}
-                  <span>
-                    {selectedModel
-                      ? ModelInfos[selectedModel].name
-                      : "Select model"}
-                  </span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                className="flex flex-col gap-0.5 rounded-lg p-1"
-              >
-                {availableModels.map((model) => (
-                  <Button
-                    key={model.id}
-                    size="sm"
-                    variant="ghost"
-                    className="hover:bg-accent justify-start font-normal"
-                    onClick={() => setSelectedModel(model.id as ModelType)}
-                  >
-                    <Square className="size-4" />
-                    {model.name}
-                  </Button>
-                ))}
-              </PopoverContent>
-            </Popover>
-
-            <div className="flex items-center gap-2">
-              {isHome && (
-                <GithubConnection
-                  selectedRepo={repo}
-                  selectedBranch={branch}
-                  setSelectedRepo={setRepo}
-                  setSelectedBranch={setBranch}
-                />
-              )}
-              <Button
-                type={isStreaming ? "button" : "submit"}
-                size="iconSm"
-                disabled={
-                  !isStreaming &&
-                  (isPending ||
-                    !message.trim() ||
-                    !selectedModel ||
-                    (isHome && (!repo || !branch)))
-                }
-                onClick={isStreaming ? onStopStream : undefined}
-                className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
-              >
-                {isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : isStreaming ? (
                   <Square className="size-4" />
-                ) : (
-                  <ArrowUp className="size-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </fieldset>
-      {isIndexing && (
-      <div className="flex flex-row items-center justify-between mt-2 px-2">
-        <div className="flex flex-row items-center gap-2">
-          <span
-            className={cn(
-              "text-sm",
-              "animate-pulse",
-              "text-muted-foreground/50"
+                  {model.name}
+                </Button>
+              ))}
+            </PopoverContent>
+          </Popover>
+
+          <div className="flex items-center gap-2">
+            {isHome && (
+              <GithubConnection
+                selectedRepo={repo}
+                selectedBranch={branch}
+                setSelectedRepo={setRepo}
+                setSelectedBranch={setBranch}
+              />
             )}
-          >
-            Indexing repository...
-          </span>
+            <Button
+              type={isStreaming ? "button" : "submit"}
+              size="iconSm"
+              disabled={
+                !isStreaming &&
+                (isPending ||
+                  !message.trim() ||
+                  !selectedModel ||
+                  (isHome && (!repo || !branch)))
+              }
+              onClick={isStreaming ? onStopStream : undefined}
+              className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : isStreaming ? (
+                <Square className="size-4" />
+              ) : (
+                <ArrowUp className="size-4" />
+              )}
+            </Button>
           </div>
         </div>
-      )}
+      </div>
     </form>
   );
 }
