@@ -37,8 +37,16 @@ export function SemanticSearchTool({ message }: { message: Message }) {
           <div className="text-muted-foreground mb-1 text-xs">Results:</div>
           <div className="max-h-40 overflow-y-auto rounded-md border bg-gray-50 p-3 text-xs dark:bg-gray-900/50">
             <div className="text-muted-foreground whitespace-pre-wrap">
-              {result.substring(0, 800)}
-              {result.length > 800 && "\n\n... (truncated)"}
+              {(() => {
+                const resultStr =
+                  typeof result === "string" ? result : JSON.stringify(result);
+                return (
+                  <>
+                    {resultStr.substring(0, 800)}
+                    {resultStr.length > 800 && "\n\n... (truncated)"}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

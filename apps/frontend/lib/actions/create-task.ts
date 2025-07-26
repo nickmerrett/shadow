@@ -102,7 +102,9 @@ export async function createTask(formData: FormData) {
         );
         
         const repoName = gitHubUrlToRepoName(repoUrl);
-        await indexRepo(repoName, task.id, true);
+        console.log("Indexing repo", repoName);
+        await callIndexApi(repoName, task.id, true);
+        console.log("Repo indexed");
         if (!response.ok) {
           console.error("Failed to initiate task:", await response.text());
         } else {
