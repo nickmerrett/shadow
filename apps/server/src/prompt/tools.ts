@@ -183,26 +183,20 @@ BAD:
 - Find import statements: import.*from.*react
 
 ### edit_file
-**Purpose**: Propose edits or create new files (read by less intelligent model)
+**Purpose**: Rewrite entire files with complete content (no apply model - direct replacement)
 
 **Critical Instructions:**
-- Be extremely clear - less intelligent model applies your edit
-- Use // ... existing code ... for unchanged sections
-- Provide sufficient context around changes
+- MUST explicitly provide the COMPLETE file content in code_edit field
+- Do NOT use "// ... existing code ..." comments - write the entire file
 - Make all edits to a file in single call
 
 **When to Use:**
 - Creating new files
 - Major restructuring  
 - Multiple changes in one file
-- Complex modifications
+- Complex file modifications
 
-**Template Example:**
-// ... existing code ...
-NEW_CODE_HERE
-// ... existing code ...
-ANOTHER_CHANGE
-// ... existing code ...
+Complete file content with all imports, functions, and code without using "existing code" placeholders.
 
 ### search_replace
 **Purpose**: Precise, targeted single-instance replacements
