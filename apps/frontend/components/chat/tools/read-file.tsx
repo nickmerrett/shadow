@@ -23,7 +23,8 @@ export function ReadFileTool({ message }: { message: Message }) {
     <CollapsibleTool
       icon={<Eye />}
       type={ToolType.READ_FILE}
-      title={`${filePath} (${lineRange})`}
+      title={filePath}
+      suffix={lineRange}
     >
       {result && status === "COMPLETED" && (
         <div>

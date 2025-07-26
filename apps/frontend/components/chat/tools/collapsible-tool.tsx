@@ -36,6 +36,7 @@ type CollapsibleToolProps = {
   children: React.ReactNode;
   className?: string;
   prefix?: string;
+  suffix?: string;
 };
 
 export function CollapsibleTool({
@@ -45,6 +46,7 @@ export function CollapsibleTool({
   children,
   className,
   prefix,
+  suffix,
 }: CollapsibleToolProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -56,11 +58,14 @@ export function CollapsibleTool({
         className
       )}
     >
-      <div className="flex items-center gap-2 [&_svg:not([class*='size-'])]:size-3.5">
+      <div className="flex items-center gap-2 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:shrink-0">
         {icon}
-        <div className="flex items-center gap-1">
-          <span className="opacity-70">{prefix || TOOL_PREFIXES[type]}</span>
-          <span>{title}</span>
+        <div className="flex w-[calc(100%-1.5rem)] items-center gap-1">
+          <div className="opacity-70">{prefix || TOOL_PREFIXES[type]}</div>
+          <div className="truncate">{title}</div>
+          {suffix && (
+            <div className="whitespace-nowrap opacity-70">{suffix}</div>
+          )}
         </div>
       </div>
       {isExpanded && <div className="flex flex-col gap-2 pl-6">{children}</div>}
