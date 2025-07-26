@@ -88,6 +88,21 @@ export interface CodebaseSearchResult {
   error?: string;
 }
 
+export interface WebSearchResult {
+  success: boolean;
+  results: Array<{
+    text: string;
+    url: string;
+    title?: string;
+  }>;
+  query: string;
+  domain?: string;
+  message: string;
+  error?: string;
+}
+
+import { CommandSecurityLevel } from "@repo/command-security";
+
 // Command execution results
 export interface CommandResult {
   success: boolean;
@@ -96,8 +111,8 @@ export interface CommandResult {
   message: string;
   error?: string;
   isBackground?: boolean;
-  requiresApproval?: boolean;
   command?: string;
+  securityLevel?: CommandSecurityLevel;
 }
 
 // File operation options

@@ -108,7 +108,6 @@ model Task {
 
   messages    ChatMessage[]
   commands    TerminalCommand[]
-  fileChanges FileChange[]
   sessions    TaskSession[]
   todos       Todo[]
 }
@@ -174,25 +173,6 @@ model TerminalCommand {
   @@index([taskId, createdAt])
 }
 
-model FileChange {
-  id         String  @id @default(cuid())
-  filePath   String
-  operation  FileOp
-  oldContent String? // For edits/deletes
-  newContent String? // For creates/edits
-  diffPatch  String? // Git-style diff
-
-  // Efficient diff stats (calculated once on server)
-  additions Int @default(0) // Lines added
-  deletions Int @default(0) // Lines deleted
-
-  createdAt DateTime @default(now())
-
-  taskId String
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@index([taskId, createdAt])
-}
 
 model TaskSession {
   id           String  @id @default(cuid())
@@ -236,13 +216,6 @@ enum MessageRole {
   TOOL
 }
 
-enum FileOp {
-  CREATE
-  UPDATE
-  DELETE
-  RENAME
-  MOVE
-}
 
 enum TodoStatus {
   PENDING

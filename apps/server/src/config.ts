@@ -14,6 +14,7 @@ const configSchema = z
       .default("development"),
     ANTHROPIC_API_KEY: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
+    EXA_API_KEY: z.string().optional(),
     GITHUB_CLIENT_ID: z.string(),
     GITHUB_CLIENT_SECRET: z.string(),
     WORKSPACE_DIR: z.string().default("/workspace"),
@@ -35,6 +36,9 @@ const configSchema = z
 
     // Remote mode configuration (optional, only needed when AGENT_MODE=remote)
     KUBERNETES_NAMESPACE: z.string().optional(),
+    KUBERNETES_SERVICE_HOST: z.string().optional(),
+    KUBERNETES_SERVICE_PORT: z.string().optional(),
+    K8S_SERVICE_ACCOUNT_TOKEN: z.string().optional(),
     SIDECAR_IMAGE: z.string().optional(),
     SIDECAR_PORT: z.coerce.number().optional(),
     SIDECAR_HEALTH_PATH: z.string().default("/health"),
@@ -68,6 +72,7 @@ const config = {
   nodeEnv: parsed.data.NODE_ENV,
   anthropicApiKey: parsed.data.ANTHROPIC_API_KEY,
   openaiApiKey: parsed.data.OPENAI_API_KEY,
+  exaApiKey: parsed.data.EXA_API_KEY,
   githubClientId: parsed.data.GITHUB_CLIENT_ID,
   githubClientSecret: parsed.data.GITHUB_CLIENT_SECRET,
   workspaceDir: parsed.data.WORKSPACE_DIR,
@@ -83,6 +88,9 @@ const config = {
 
   // Remote mode configuration
   kubernetesNamespace: parsed.data.KUBERNETES_NAMESPACE,
+  kubernetesServiceHost: parsed.data.KUBERNETES_SERVICE_HOST,
+  kubernetesServicePort: parsed.data.KUBERNETES_SERVICE_PORT,
+  k8sServiceAccountToken: parsed.data.K8S_SERVICE_ACCOUNT_TOKEN,
   sidecarImage: parsed.data.SIDECAR_IMAGE,
   sidecarPort: parsed.data.SIDECAR_PORT,
   sidecarHealthPath: parsed.data.SIDECAR_HEALTH_PATH,

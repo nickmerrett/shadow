@@ -1,17 +1,35 @@
-import { prisma } from "@repo/db";
+import { prisma, TodoStatus } from "@repo/db";
 import { tool } from "ai";
 import { z } from "zod";
-import { createToolExecutor } from "../execution";
+import { createToolExecutor, isLocalMode } from "../execution";
+import { LocalFileSystemWatcher } from "../services/local-filesystem-watcher";
+import { emitTerminalOutput } from "../socket";
+import type { TerminalEntry } from "@repo/types";
 
-// Terminal command approval queue (still needed for approval system)
-const pendingCommands = new Map<
-  string,
-  {
-    command: string;
-    resolve: (result: any) => void;
-    reject: (error: any) => void;
-  }
->();
+// Map to track active filesystem watchers by task ID
+const activeFileSystemWatchers = new Map<string, LocalFileSystemWatcher>();
+
+// Terminal entry counter for unique IDs
+let terminalEntryId = 1;
+
+// Helper function to create and emit terminal entries
+function createAndEmitTerminalEntry(
+  taskId: string,
+  type: TerminalEntry['type'],
+  data: string,
+  processId?: number
+): void {
+  const entry: TerminalEntry = {
+    id: terminalEntryId++,
+    timestamp: Date.now(),
+    data,
+    type,
+    processId,
+  };
+
+  console.log(`[TERMINAL_OUTPUT] Emitting ${type} for task ${taskId}:`, data.slice(0, 100));
+  emitTerminalOutput(taskId, entry);
+}
 
 // Factory function to create tools with task context using abstraction layer
 export function createTools(taskId: string, workspacePath?: string) {
@@ -21,6 +39,22 @@ export function createTools(taskId: string, workspacePath?: string) {
 
   // Create tool executor through abstraction layer
   const executor = createToolExecutor(taskId, workspacePath);
+
+  // Initialize filesystem watcher for local mode
+  if (isLocalMode() && workspacePath) {
+    // Check if we already have a watcher for this task
+    if (!activeFileSystemWatchers.has(taskId)) {
+      try {
+        const watcher = new LocalFileSystemWatcher(taskId);
+        watcher.startWatching(workspacePath);
+        activeFileSystemWatchers.set(taskId, watcher);
+        console.log(`[TOOLS] Started local filesystem watcher for task ${taskId}`);
+      } catch (error) {
+        console.error(`[TOOLS] Failed to start filesystem watcher for task ${taskId}:`, error);
+        // Continue without filesystem watching - not critical for basic operation
+      }
+    }
+  }
 
   return {
     todo_write: tool({
@@ -80,7 +114,7 @@ export function createTools(taskId: string, workspacePath?: string) {
                 where: { id: existingTodo.id },
                 data: {
                   content: todo.content,
-                  status: todo.status.toUpperCase() as any,
+                  status: todo.status.toUpperCase() as TodoStatus,
                   sequence: i,
                 },
               });
@@ -96,7 +130,7 @@ export function createTools(taskId: string, workspacePath?: string) {
                 data: {
                   id: todo.id,
                   content: todo.content,
-                  status: todo.status.toUpperCase() as any,
+                  status: todo.status.toUpperCase() as TodoStatus,
                   sequence: i,
                   taskId,
                 },
@@ -208,9 +242,39 @@ export function createTools(taskId: string, workspacePath?: string) {
       }),
       execute: async ({ command, is_background, explanation }) => {
         console.log(`[TERMINAL_CMD] ${explanation}`);
+
+        // Emit the command being executed to the terminal
+        createAndEmitTerminalEntry(taskId, "command", command);
+
         const result = await executor.executeCommand(command, {
           isBackground: is_background,
         });
+
+        // Emit stdout output if present
+        if (result.success && result.stdout) {
+          createAndEmitTerminalEntry(taskId, "stdout", result.stdout);
+        }
+
+        // Emit stderr output if present
+        if (result.stderr) {
+          createAndEmitTerminalEntry(taskId, "stderr", result.stderr);
+        }
+
+        // Emit system message for command completion
+        if (result.success) {
+          createAndEmitTerminalEntry(
+            taskId,
+            "system",
+            `Command completed successfully`
+          );
+        } else if (result.error) {
+          createAndEmitTerminalEntry(
+            taskId,
+            "system",
+            `Command failed: ${result.error}`
+          );
+        }
+
         return result;
       },
     }),
@@ -382,36 +446,66 @@ export function createTools(taskId: string, workspacePath?: string) {
         }
       },
     }),
+      web_search: tool({
+        description: "Search the web for information about a given query.",
+        parameters: z.object({
+          query: z.string().describe("The search query"),
+          domain: z.string().optional().describe("Optional domain to filter results to"),
+          explanation: z
+            .string()
+            .describe(
+              "One sentence explanation as to why this tool is being used"
+            ),
+        }),
+      execute: async ({ query, domain, explanation }) => {
+        console.log(`[WEB_SEARCH] ${explanation}`);
+        const result = await executor.webSearch(query, domain);
+        return result;
+      },
+    }),
   };
 }
 
-// Helper function to approve pending terminal commands (maintained for compatibility)
-export function approveTerminalCommand(commandId: string, approved: boolean) {
-  const pending = pendingCommands.get(commandId);
-  if (!pending) {
-    console.warn(`No pending command found for ID: ${commandId}`);
-    return false;
-  }
 
-  if (approved) {
-    pending.resolve({ approved: true });
-  } else {
-    pending.reject(new Error("Command was rejected by user"));
+/**
+ * Stop filesystem watcher for a specific task
+ */
+export function stopFileSystemWatcher(taskId: string): void {
+  const watcher = activeFileSystemWatchers.get(taskId);
+  if (watcher) {
+    watcher.stop();
+    activeFileSystemWatchers.delete(taskId);
+    console.log(`[TOOLS] Stopped filesystem watcher for task ${taskId}`);
   }
-
-  pendingCommands.delete(commandId);
-  return true;
 }
 
-export function getPendingCommands() {
-  return Array.from(pendingCommands.entries()).map(([id, cmd]) => ({
-    id,
-    command: cmd.command,
-  }));
+/**
+ * Stop all active filesystem watchers (for graceful shutdown)
+ */
+export function stopAllFileSystemWatchers(): void {
+  console.log(`[TOOLS] Stopping ${activeFileSystemWatchers.size} active filesystem watchers`);
+
+  for (const [taskId, watcher] of activeFileSystemWatchers.entries()) {
+    watcher.stop();
+    console.log(`[TOOLS] Stopped filesystem watcher for task ${taskId}`);
+  }
+
+  activeFileSystemWatchers.clear();
 }
 
-// Export configuration for backwards compatibility
-export const REQUIRE_TERMINAL_APPROVAL = false;
+/**
+ * Get statistics about active filesystem watchers
+ */
+export function getFileSystemWatcherStats() {
+  const stats = [];
+  for (const [_taskId, watcher] of activeFileSystemWatchers.entries()) {
+    stats.push(watcher.getStats());
+  }
+  return {
+    activeWatchers: activeFileSystemWatchers.size,
+    watcherDetails: stats
+  };
+}
 
 // Default tools export for backward compatibility (without todo_write)
 // Made lazy to avoid circular dependencies
@@ -421,6 +515,6 @@ export const tools = new Proxy({} as ReturnType<typeof createTools>, {
     if (!_defaultTools) {
       _defaultTools = createTools("placeholder-task-id");
     }
-    return (_defaultTools as any)[prop];
+    return _defaultTools![prop as keyof ReturnType<typeof createTools>];
   }
 });

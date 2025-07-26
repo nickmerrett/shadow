@@ -249,5 +249,27 @@
       "required": ["target_file"],
       "type": "object"
     }
+  },
+  {
+    "description": "Search the web using the Exa API for real-time information. Use this tool when you need to find current information from the internet, factual data, or research topics that would benefit from web content. Provide a specific query, and optionally a domain to focus the search.",
+    "name": "web_search",
+    "parameters": {
+      "properties": {
+        "explanation": {
+          "description": "One sentence explanation as to why this tool is being used, and how it contributes to the goal.",
+          "type": "string"
+        },
+        "query": {
+          "description": "Search query to find information on the web",
+          "type": "string"
+        },
+        "domain": {
+          "description": "Optional domain to prioritize in search results (e.g., 'wikipedia.org', 'github.com')",
+          "type": "string"
+        }
+      },
+      "required": ["explanation", "query"],
+      "type": "object"
+    }
   }
 ]
