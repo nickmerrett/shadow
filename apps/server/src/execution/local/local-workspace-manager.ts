@@ -14,6 +14,7 @@ import {
 import { LocalToolExecutor } from "./local-tool-executor";
 import { GitManager } from "../../services/git-manager";
 import { prisma } from "@repo/db";
+import logger from "@/indexing/logger";
 
 /**
  * LocalWorkspaceManager implements workspace management for local filesystem execution
@@ -339,5 +340,48 @@ export class LocalWorkspaceManager implements WorkspaceManager {
 
   isRemote(): boolean {
     return false;
+  }
+
+  /**
+   * Get all files from a local workspace directory
+   */
+  async getAllFilesFromWorkspace(taskId: string): Promise<Array<{ path: string; content: string; type: string }>> {
+    const workspacePath = this.getTaskWorkspaceDir(taskId);
+    const files: Array<{ path: string; content: string; type: string }> = [];
+    console.log("getAllFilesFromWorkspace", workspacePath);
+    const readDirectory = async (dirPath: string, relativePath: string = ""): Promise<void> => {
+      console.log("reading directory", dirPath);
+      try {
+        const entries = await fs.readdir(dirPath);
+        for (const entry of entries) {
+          const fullPath = path.join(dirPath, entry);
+          const relativeFilePath = path.join(relativePath, entry);
+          const stat = await fs.stat(fullPath);
+          if (stat.isDirectory()) {
+            // Skip .git directory
+            if (entry === '.git') continue;
+            // Recursively read subdirectories
+            await readDirectory(fullPath, relativeFilePath);
+          } else {
+            // Read file content
+              try {
+              const content = await fs.readFile(fullPath, 'utf8');
+              files.push({
+                path: relativeFilePath,
+                content,
+                type: "file"
+              });
+            } catch (error) {
+                logger.error(`Error reading file ${relativeFilePath}: ${error}`);
+            }
+          }
+        }
+      } catch (error) {
+        logger.error(`Error reading directory ${dirPath}: ${error}`);
+      }
+    };
+
+    await readDirectory(workspacePath);
+    return files;
   }
 }
