@@ -1,4 +1,4 @@
-import type { Message } from "@repo/types";
+import type { Message, CodebaseSearchResult } from "@repo/types";
 import { Folder, Search } from "lucide-react";
 import { CollapsibleTool, ToolType } from "./collapsible-tool";
 import { getToolResult } from "@repo/types";
@@ -12,10 +12,13 @@ export function CodebaseSearchTool({ message }: { message: Message }) {
   const targetDirectories = (args.target_directories as string[]) || [];
 
   // Use typed tool result accessor
-  const result = getToolResult(toolMeta, "codebase_search");
+  const result = getToolResult(
+    toolMeta,
+    "codebase_search"
+  ) as CodebaseSearchResult | null;
   // Convert results to display format
   const displayContent =
-    result?.results?.map((r: any) => r.content).join("\n\n---\n\n") ||
+    result?.results?.map((r) => r.content).join("\n\n---\n\n") ||
     result?.message ||
     "No results found";
 
