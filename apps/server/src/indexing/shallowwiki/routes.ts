@@ -59,9 +59,7 @@ shallowwikiRouter.post(
         console.log(`Copied ${files.length} files to temp directory: ${tempDir}`);
       }
       
-      // Keep original Pinecone setting for workspace indexing
-      const originalUsePinecone = process.env.USE_PINECONE;
-      // Don't override USE_PINECONE - let it use the configured value
+// (Lines removed as they are unnecessary)
       
       // Change to temp directory and run ShallowWiki
       const originalCwd = process.cwd();
