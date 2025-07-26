@@ -636,7 +636,7 @@ export async function run() {
     console.log(bold(`Using Database storage for task: ${taskId}`));
     await dbStorage.clearRepository();
   } else {
-    throw new Error('No taskId found in path - cannot store summaries without taskId');
+    throw new Error('Unable to extract taskId from path. Ensure the directory path ends with a valid taskId, such as "/path/to/directory/taskId".');
   }
 
   // Always use file storage as fallback
