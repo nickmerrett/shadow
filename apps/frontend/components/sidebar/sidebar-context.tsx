@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, ReactNode } from "react";
+import { createContext, useContext, useEffect, ReactNode, useState } from "react";
 import { SidebarView } from "./index";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 interface SidebarContextType {
   sidebarView: SidebarView;
@@ -11,35 +11,65 @@ interface SidebarContextType {
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
-// Default view fallback if URL param is invalid
-const DEFAULT_VIEW: SidebarView = "tasks";
+const SIDEBAR_VIEW_KEY = "shadow-sidebar-view";
+
+// Helper to determine default view based on current path
+function getDefaultView(pathname: string): SidebarView {
+  if (pathname.startsWith("/tasks/")) {
+    return "agent"; // Default to agent view for task pages
+  }
+  return "tasks"; // Default to tasks view for home page
+}
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
-  const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const defaultView = getDefaultView(pathname);
   
-  // Get view from URL parameter
-  const viewParam = searchParams.get("view") as SidebarView | null;
-  const sidebarView: SidebarView = viewParam && ["tasks", "agent", "codebase"].includes(viewParam) 
-    ? viewParam 
-    : DEFAULT_VIEW;
+  const [sidebarView, setSidebarViewState] = useState<SidebarView>(defaultView);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Update URL when view changes
-  const setSidebarView = (view: SidebarView) => {
-    const params = new URLSearchParams(searchParams.toString());
-    
-    // Update or add the view parameter
-    if (view === DEFAULT_VIEW) {
-      // Remove parameter for default view to keep URLs clean
-      params.delete("view");
-    } else {
-      params.set("view", view);
+  // Load saved sidebar view from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedView = localStorage.getItem(SIDEBAR_VIEW_KEY) as SidebarView;
+      if (savedView && ["tasks", "agent", "codebase"].includes(savedView)) {
+        // Only use saved view if it makes sense for the current page
+        if (pathname.startsWith("/tasks/") && savedView !== "tasks") {
+          setSidebarViewState(savedView);
+        } else if (!pathname.startsWith("/tasks/") && savedView === "tasks") {
+          setSidebarViewState(savedView);
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to load sidebar view from localStorage:", error);
     }
+    setIsInitialized(true);
+  }, [pathname]);
+
+  // Update default view when pathname changes (e.g., navigating to/from task pages)
+  useEffect(() => {
+    if (!isInitialized) return;
     
-    // Create new URL with updated params
-    const newURL = `${pathname}${params.toString() ? `?${params.toString()}` : ""}`;
-    router.push(newURL);
+    const newDefaultView = getDefaultView(pathname);
+    
+    // If we're on a task page and current view is "tasks", switch to agent
+    if (pathname.startsWith("/tasks/") && sidebarView === "tasks") {
+      setSidebarViewState("agent");
+    }
+    // If we're on home page and current view is agent/codebase, switch to tasks
+    else if (!pathname.startsWith("/tasks/") && (sidebarView === "agent" || sidebarView === "codebase")) {
+      setSidebarViewState("tasks");
+    }
+  }, [pathname, sidebarView, isInitialized]);
+
+  // Wrapper function to save to localStorage when view changes
+  const setSidebarView = (view: SidebarView) => {
+    setSidebarViewState(view);
+    try {
+      localStorage.setItem(SIDEBAR_VIEW_KEY, view);
+    } catch (error) {
+      console.warn("Failed to save sidebar view to localStorage:", error);
+    }
   };
 
   return (

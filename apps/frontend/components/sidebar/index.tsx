@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useTasks } from "@/hooks/use-tasks";
 import { Task } from "@repo/db";
-import { useEffect, useRef, useState } from "react";
+import React from "react";
 import { SidebarAgentView } from "./agent-view";
 import { SidebarCodebaseView } from "./codebase-view";
 import { SidebarNavigation } from "./navigation";
@@ -31,23 +31,9 @@ function SidebarViewsContent({
 }) {
   const { data: tasks, isLoading: loading, error } = useTasks(initialTasks);
   const { sidebarView, setSidebarView } = useSidebarView();
-  const isInitialRender = useRef(true);
-
-  // When task ID changes, update the view if it's the initial navigation
-  useEffect(() => {
-    if (isInitialRender.current) {
-      isInitialRender.current = false;
-      return;
-    }
-    
-    // Only change view automatically if this is a task change, not a view change
-    // This prevents the URL param from being overwritten when explicitly set
-    if (currentTaskId) {
-      setSidebarView("agent");
-    } else {
-      setSidebarView("tasks");
-    }
-  }, [currentTaskId, setSidebarView]);
+  
+  // View switching is now handled in the SidebarProvider context
+  // based on pathname changes, so we don't need manual logic here
 
   return (
     <div className="flex">
