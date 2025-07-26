@@ -17,10 +17,7 @@ import { saveLayoutCookie } from "@/lib/actions/save-sidebar-cookie";
 import { cn } from "@/lib/utils";
 import { AppWindowMac } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-  ImperativePanelGroupHandle,
-  ImperativePanelHandle,
-} from "react-resizable-panels";
+import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { StickToBottom, type StickToBottomContext } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
 import { TaskPageContent } from "./task-content";
@@ -86,6 +83,7 @@ export function TaskPageLayout({
   };
 
   const { leftSize, rightSize } = getInitialSizes();
+  const lastPanelSizeRef = useRef<number | null>(null);
 
   /* 
   Keyboard shortcuts
@@ -96,7 +94,11 @@ export function TaskPageLayout({
     if (!panel) return;
     if (panel.isCollapsed()) {
       panel.expand();
+      if (!lastPanelSizeRef.current) {
+        panel.resize(40);
+      }
     } else {
+      lastPanelSizeRef.current = rightPanelRef.current?.getSize() ?? null;
       panel.collapse();
     }
   }, [rightPanelRef]);
