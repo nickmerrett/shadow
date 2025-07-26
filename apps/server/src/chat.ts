@@ -19,7 +19,7 @@ import {
 } from "./socket";
 import config from "./config";
 import { updateTaskStatus } from "./utils/task-status";
-import { SidecarClient } from "./execution/remote/sidecar-client";
+import { createToolExecutor } from "./execution";
 
 export const DEFAULT_MODEL: ModelType = "gpt-4o";
 
@@ -140,8 +140,8 @@ export class ChatService {
         return;
       }
 
-      // For remote mode, we would need to make API calls to the sidecar
-      // For now, only handle local mode
+      // For firecracker mode, we use the tool executor to make API calls to the sidecar
+      // For local mode, we use GitManager directly
       if (config.agentMode === "local") {
         const gitManager = new GitManager(resolvedWorkspacePath, taskId);
 
@@ -168,8 +168,8 @@ export class ChatService {
           console.log(`[CHAT] Successfully committed changes for task ${taskId}`);
         }
       } else {
-        // Remote mode: Use sidecar git APIs instead of direct git operations
-        await this.commitChangesRemoteMode(taskId, task);
+        // Firecracker mode: Use tool executor git APIs instead of direct git operations
+        await this.commitChangesFirecrackerMode(taskId, task);
       }
     } catch (error) {
       console.error(`[CHAT] Failed to commit changes for task ${taskId}:`, error);
@@ -178,17 +178,17 @@ export class ChatService {
   }
 
   /**
-   * Commit changes in remote mode using sidecar git APIs
+   * Commit changes in firecracker mode using tool executor git APIs
    */
-  private async commitChangesRemoteMode(taskId: string, task: { user: { name: string; email: string }; shadowBranch: string | null }): Promise<void> {
+  private async commitChangesFirecrackerMode(taskId: string, task: { user: { name: string; email: string }; shadowBranch: string | null }): Promise<void> {
     try {
-      console.log(`[CHAT] Checking for changes to commit in remote mode for task ${taskId}`);
+      console.log(`[CHAT] Checking for changes to commit in firecracker mode for task ${taskId}`);
 
-      // Create sidecar client for this task
-      const sidecarClient = new SidecarClient(taskId);
+      // Create tool executor for this task
+      const toolExecutor = createToolExecutor(taskId);
 
       // Check if there are any uncommitted changes
-      const statusResponse = await sidecarClient.getGitStatus();
+      const statusResponse = await toolExecutor.getGitStatus();
 
       if (!statusResponse.success) {
         console.error(`[CHAT] Failed to check git status for task ${taskId}: ${statusResponse.message}`);
@@ -196,12 +196,12 @@ export class ChatService {
       }
 
       if (!statusResponse.hasChanges) {
-        console.log(`[CHAT] No changes to commit for task ${taskId} in remote mode`);
+        console.log(`[CHAT] No changes to commit for task ${taskId} in firecracker mode`);
         return;
       }
 
-      // Get diff from sidecar to generate commit message on server side
-      const diffResponse = await sidecarClient.getGitDiff();
+      // Get diff from tool executor to generate commit message on server side
+      const diffResponse = await toolExecutor.getGitDiff();
 
       let commitMessage = "Update code via Shadow agent";
       if (diffResponse.success && diffResponse.diff) {
@@ -211,17 +211,17 @@ export class ChatService {
       }
 
       // Commit changes with user and Shadow co-author
-      const commitResponse = await sidecarClient.commitChanges(
-        {
+      const commitResponse = await toolExecutor.commitChanges({
+        user: {
           name: task.user.name,
           email: task.user.email,
         },
-        {
+        coAuthor: {
           name: "Shadow",
           email: "noreply@shadow.ai",
         },
-        commitMessage
-      );
+        message: commitMessage,
+      });
 
       if (!commitResponse.success) {
         console.error(`[CHAT] Failed to commit changes for task ${taskId}: ${commitResponse.message}`);
@@ -234,16 +234,19 @@ export class ChatService {
         return;
       }
 
-      const pushResponse = await sidecarClient.pushBranch(task.shadowBranch, false);
+      const pushResponse = await toolExecutor.pushBranch({
+        branchName: task.shadowBranch,
+        setUpstream: false,
+      });
 
       if (!pushResponse.success) {
         console.warn(`[CHAT] Failed to push changes for task ${taskId}: ${pushResponse.message}`);
         // Don't throw here - commit succeeded even if push failed
       }
 
-      console.log(`[CHAT] Successfully committed changes for task ${taskId} in remote mode`);
+      console.log(`[CHAT] Successfully committed changes for task ${taskId} in firecracker mode`);
     } catch (error) {
-      console.error(`[CHAT] Error in remote mode git commit for task ${taskId}:`, error);
+      console.error(`[CHAT] Error in firecracker mode git commit for task ${taskId}:`, error);
       // Don't throw here - we don't want git failures to break the chat flow
     }
   }

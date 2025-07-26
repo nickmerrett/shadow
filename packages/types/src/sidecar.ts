@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { CommandSecurityLevel } from "@repo/command-security";
+
+enum CommandSecurityLevel {
+  SAFE = "SAFE",
+  APPROVAL_REQUIRED = "APPROVAL_REQUIRED",
+  BLOCKED = "BLOCKED"
+}
 
 // === Base Response Interface ===
 export interface SidecarResponse {

@@ -12,6 +12,12 @@ import {
   WriteResult,
   CodebaseSearchToolResult,
   WebSearchResult,
+  GitStatusResponse,
+  GitDiffResponse,
+  GitCommitResponse,
+  GitPushResponse,
+  GitCommitRequest,
+  GitPushRequest,
 } from "@repo/types";
 import { CommandResult } from "./types";
 
@@ -74,4 +80,10 @@ export interface ToolExecutor {
 
   // Task context
   getTaskId(): string;
+
+  // Git operations
+  getGitStatus(): Promise<GitStatusResponse>;
+  getGitDiff(): Promise<GitDiffResponse>;
+  commitChanges(request: GitCommitRequest): Promise<GitCommitResponse>;
+  pushBranch(request: GitPushRequest): Promise<GitPushResponse>;
 }

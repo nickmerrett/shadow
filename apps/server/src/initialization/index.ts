@@ -39,22 +39,22 @@ const STEP_DEFINITIONS: Record<
     name: "Validating Setup",
     description: "Verify environment is ready for development",
   },
-  // Remote mode specific steps
+  // Firecracker mode specific steps
   CREATE_POD: {
-    name: "Creating Pod",
-    description: "Create Kubernetes pod for task execution",
+    name: "Creating VM",
+    description: "Create Firecracker VM for task execution",
   },
   WAIT_SIDECAR_READY: {
-    name: "Waiting for Sidecar",
-    description: "Wait for sidecar service to become ready",
+    name: "Waiting for VM",
+    description: "Wait for VM and sidecar service to become ready",
   },
   VERIFY_WORKSPACE: {
     name: "Verifying Workspace",
     description: "Verify workspace is ready and contains repository",
   },
   CLEANUP_POD: {
-    name: "Cleaning up Pod",
-    description: "Destroy Kubernetes pod and cleanup resources",
+    name: "Cleaning up VM",
+    description: "Destroy Firecracker VM and cleanup resources",
   },
 };
 
@@ -198,7 +198,7 @@ export class TaskInitializationEngine {
         await this.executeValidateSetup(taskId);
         break;
 
-      // Remote mode specific steps
+      // Firecracker mode specific steps
       case "CREATE_POD":
         await this.executeCreatePod(taskId, userId);
         break;
@@ -320,10 +320,10 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Create pod step - Create Kubernetes pod for remote execution
+   * Create pod step - Create Firecracker VM for execution
    */
   private async executeCreatePod(taskId: string, userId: string): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Creating Kubernetes pod for remote execution`);
+    console.log(`[TASK_INIT] ${taskId}: Creating Firecracker VM for execution`);
 
     try {
       // Get task info
@@ -336,7 +336,7 @@ export class TaskInitializationEngine {
         throw new Error(`Task not found: ${taskId}`);
       }
 
-      // Use abstract workspace manager to prepare workspace (creates pod in remote mode)
+      // Use abstract workspace manager to prepare workspace (creates VM in firecracker mode)
       const workspaceInfo = await this.abstractWorkspaceManager.prepareWorkspace({
         id: taskId,
         repoUrl: task.repoUrl,
@@ -346,10 +346,10 @@ export class TaskInitializationEngine {
       });
 
       if (!workspaceInfo.success) {
-        throw new Error(`Failed to create pod: ${workspaceInfo.error}`);
+        throw new Error(`Failed to create VM: ${workspaceInfo.error}`);
       }
 
-      // Create or update TaskSession with pod information
+      // Create or update TaskSession with VM information
       if (workspaceInfo.podName && workspaceInfo.podNamespace) {
         await prisma.taskSession.create({
           data: {
@@ -361,7 +361,7 @@ export class TaskInitializationEngine {
         });
       }
 
-      // Update task with workspace path (CRITICAL FIX)
+      // Update task with workspace path
       await prisma.task.update({
         where: { id: taskId },
         data: {
@@ -369,9 +369,9 @@ export class TaskInitializationEngine {
         },
       });
 
-      console.log(`[TASK_INIT] ${taskId}: Successfully created pod ${workspaceInfo.podName}`);
+      console.log(`[TASK_INIT] ${taskId}: Successfully created VM ${workspaceInfo.podName}`);
     } catch (error) {
-      console.error(`[TASK_INIT] ${taskId}: Failed to create pod:`, error);
+      console.error(`[TASK_INIT] ${taskId}: Failed to create VM:`, error);
       throw error;
     }
   }
@@ -453,10 +453,10 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Cleanup pod step - Destroy Kubernetes pod and cleanup resources
+   * Cleanup pod step - Destroy Firecracker VM and cleanup resources
    */
   private async executeCleanupPod(taskId: string): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Cleaning up Kubernetes pod`);
+    console.log(`[TASK_INIT] ${taskId}: Cleaning up Firecracker VM`);
 
     try {
       // Cleanup through abstract workspace manager
@@ -471,9 +471,9 @@ export class TaskInitializationEngine {
         },
       });
 
-      console.log(`[TASK_INIT] ${taskId}: Successfully cleaned up pod`);
+      console.log(`[TASK_INIT] ${taskId}: Successfully cleaned up VM`);
     } catch (error) {
-      console.error(`[TASK_INIT] ${taskId}: Failed to cleanup pod:`, error);
+      console.error(`[TASK_INIT] ${taskId}: Failed to cleanup VM:`, error);
       // Don't throw error for cleanup failures, just log them
       // We don't want cleanup failures to break the overall flow
     }
@@ -514,8 +514,8 @@ export class TaskInitializationEngine {
   ): InitStepType[] {
     const agentMode = getAgentMode();
 
-    if (agentMode === "remote") {
-      // Remote mode uses pod-based execution
+    if (agentMode === "firecracker") {
+      // Firecracker mode uses VM-based execution
       switch (taskType) {
         case "simple":
           return ["CREATE_POD", "WAIT_SIDECAR_READY", "VERIFY_WORKSPACE"];
@@ -543,7 +543,7 @@ export class TaskInitializationEngine {
           return ["CREATE_POD", "WAIT_SIDECAR_READY", "VERIFY_WORKSPACE"];
       }
     } else {
-      // Local/mock mode uses traditional local execution
+      // Local mode uses traditional local execution
       switch (taskType) {
         case "simple":
           return ["CLONE_REPOSITORY"];
@@ -573,7 +573,7 @@ export class TaskInitializationEngine {
   getCleanupSteps(): InitStepType[] {
     const agentMode = getAgentMode();
 
-    if (agentMode === "remote") {
+    if (agentMode === "firecracker") {
       return ["CLEANUP_POD"];
     } else {
       return []; // Local mode cleanup is handled automatically

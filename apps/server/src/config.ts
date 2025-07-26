@@ -26,25 +26,30 @@ const configSchema = z
       .optional()
       .transform((val) => val === "true"),
     
-    // Dual-mode execution configuration
-    AGENT_MODE: z.enum(["local", "remote", "mock"]).default("local"),
+    // Execution mode configuration
+    AGENT_MODE: z.enum(["local", "firecracker"]).default("local"),
     
-    // Remote mode configuration (optional, only needed when AGENT_MODE=remote)
-    KUBERNETES_NAMESPACE: z.string().optional(),
+    // Firecracker VM configuration
+    FIRECRACKER_ENABLED: z.boolean().default(false),
+    VM_IMAGE_REGISTRY: z.string().optional(),
+    VM_IMAGE_TAG: z.string().default("latest"),
+    FIRECRACKER_KERNEL_PATH: z.string().optional(),
+    VM_CPU_COUNT: z.coerce.number().default(1),
+    VM_MEMORY_SIZE_MB: z.coerce.number().default(1024),
+    
+    // Kubernetes configuration for Firecracker
+    KUBERNETES_NAMESPACE: z.string().default("shadow"),
     KUBERNETES_SERVICE_HOST: z.string().optional(),
     KUBERNETES_SERVICE_PORT: z.string().optional(),
     K8S_SERVICE_ACCOUNT_TOKEN: z.string().optional(),
-    SIDECAR_IMAGE: z.string().optional(),
-    SIDECAR_PORT: z.coerce.number().optional(),
-    SIDECAR_HEALTH_PATH: z.string().default("/health"),
     
-    // Remote storage configuration
+    // Storage configuration
     EFS_VOLUME_ID: z.string().optional(),
     
-    // Resource limits for remote mode
-    REMOTE_CPU_LIMIT: z.string().default("1000m"),
-    REMOTE_MEMORY_LIMIT: z.string().default("2Gi"),
-    REMOTE_STORAGE_LIMIT: z.string().default("10Gi"),
+    // Resource limits for VMs
+    VM_CPU_LIMIT: z.string().default("1000m"),
+    VM_MEMORY_LIMIT: z.string().default("2Gi"),
+    VM_STORAGE_LIMIT: z.string().default("10Gi"),
   })
   .refine((data) => data.ANTHROPIC_API_KEY || data.OPENAI_API_KEY, {
     message:
@@ -76,25 +81,30 @@ const config = {
   embeddingModel: parsed.data.EMBEDDING_MODEL,
   debug: parsed.data.DEBUG,
   
-  // Dual-mode execution
+  // Execution mode
   agentMode: parsed.data.AGENT_MODE,
   
-  // Remote mode configuration
+  // Firecracker VM configuration
+  firecrackerEnabled: parsed.data.FIRECRACKER_ENABLED,
+  vmImageRegistry: parsed.data.VM_IMAGE_REGISTRY,
+  vmImageTag: parsed.data.VM_IMAGE_TAG,
+  firecrackerKernelPath: parsed.data.FIRECRACKER_KERNEL_PATH,
+  vmCpuCount: parsed.data.VM_CPU_COUNT,
+  vmMemorySizeMB: parsed.data.VM_MEMORY_SIZE_MB,
+  
+  // Kubernetes configuration
   kubernetesNamespace: parsed.data.KUBERNETES_NAMESPACE,
   kubernetesServiceHost: parsed.data.KUBERNETES_SERVICE_HOST,
   kubernetesServicePort: parsed.data.KUBERNETES_SERVICE_PORT,
   k8sServiceAccountToken: parsed.data.K8S_SERVICE_ACCOUNT_TOKEN,
-  sidecarImage: parsed.data.SIDECAR_IMAGE,
-  sidecarPort: parsed.data.SIDECAR_PORT,
-  sidecarHealthPath: parsed.data.SIDECAR_HEALTH_PATH,
   
-  // Remote storage
+  // Storage
   efsVolumeId: parsed.data.EFS_VOLUME_ID,
   
-  // Remote resource limits
-  remoteCpuLimit: parsed.data.REMOTE_CPU_LIMIT,
-  remoteMemoryLimit: parsed.data.REMOTE_MEMORY_LIMIT,
-  remoteStorageLimit: parsed.data.REMOTE_STORAGE_LIMIT,
+  // VM resource limits
+  vmCpuLimit: parsed.data.VM_CPU_LIMIT,
+  vmMemoryLimit: parsed.data.VM_MEMORY_LIMIT,
+  vmStorageLimit: parsed.data.VM_STORAGE_LIMIT,
 };
 
 export default config;
