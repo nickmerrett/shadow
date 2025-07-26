@@ -502,11 +502,28 @@ shallowwikiRouter.post(
       }
 
       if (result) {
+        // Standardize the result structure to match what the frontend expects
+        const standardizedResult = {
+          id: result.id,
+          metadata: {
+            type: result.type,
+            filePath: result.fileName,
+            summary: result.summary,
+            language: result.type === 'file' ? result.fileName.split('.').pop() || 'text' : 'markdown',
+            symbols: [],
+            dependencies: [],
+            complexity: 0,
+            tokenUsage: {},
+            lastUpdated: new Date().toISOString(),
+            ...(result.metadata || {})
+          }
+        };
+        
         return res.json({
           message: "Workspace summary retrieved successfully",
           namespace: `workspace_${taskId}`,
           taskId,
-          result
+          result: standardizedResult
         });
       }
 
@@ -568,11 +585,27 @@ shallowwikiRouter.post(
         }
 
         if (result) {
+          // Ensure consistent structure for the frontend
+          const standardizedResult = {
+            id: result.id,
+            metadata: {
+              type: result.metadata.type || 'file_summary',
+              filePath: result.metadata.filePath || '',
+              summary: result.metadata.summary || '',
+              language: result.metadata.language || 'text',
+              symbols: [],
+              dependencies: [],
+              complexity: 0,
+              tokenUsage: {},
+              lastUpdated: result.metadata.lastUpdated || new Date().toISOString()
+            }
+          };
+          
           return res.json({
             message: "Workspace summary retrieved from file",
             namespace: `workspace_${taskId}`,
             taskId,
-            result
+            result: standardizedResult
           });
         }
       }
