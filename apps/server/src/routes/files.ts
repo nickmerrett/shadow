@@ -217,10 +217,10 @@ router.get('/:taskId/file-changes', async (req, res) => {
   try {
     const { taskId } = req.params;
 
-    // Validate task exists
+    // Validate task exists and get full status
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { id: true, workspacePath: true }
+      select: { id: true, workspacePath: true, status: true }
     });
 
     if (!task) {
@@ -230,12 +230,22 @@ router.get('/:taskId/file-changes', async (req, res) => {
       });
     }
 
+    // Don't return file changes if task is still initializing
+    if (task.status === 'INITIALIZING') {
+      return res.json({
+        success: true,
+        fileChanges: [],
+        diffStats: { additions: 0, deletions: 0, totalFiles: 0 }
+      });
+    }
+
     // Check if workspace has git repository
     const hasGit = await hasGitRepository(taskId);
     if (!hasGit) {
       return res.json({
         success: true,
-        fileChanges: []
+        fileChanges: [],
+        diffStats: { additions: 0, deletions: 0, totalFiles: 0 }
       });
     }
 
