@@ -18,10 +18,11 @@ import { SidebarAgentView } from "./agent-view";
 import { SidebarCodebaseView } from "./codebase-view";
 import { SidebarNavigation } from "./navigation";
 import { SidebarTasksView } from "./tasks-view";
+import { SidebarProvider, useSidebarView } from "./sidebar-context";
 
 export type SidebarView = "tasks" | "agent" | "codebase";
 
-export function SidebarViews({
+function SidebarViewsContent({
   initialTasks,
   currentTaskId = null,
 }: {
@@ -29,12 +30,7 @@ export function SidebarViews({
   currentTaskId?: string | null;
 }) {
   const { data: tasks, isLoading: loading, error } = useTasks(initialTasks);
-
-  const [sidebarView, setSidebarView] = useState<SidebarView>(
-    currentTaskId ? "agent" : "tasks"
-  );
-
-  // Initial render trick to avoid hydration issues on navigation
+  const { sidebarView, setSidebarView } = useSidebarView();
   const isInitialRender = useRef(true);
 
   useEffect(() => {
@@ -75,13 +71,7 @@ export function SidebarViews({
             {currentTaskId && sidebarView === "agent" ? (
               <SidebarAgentView taskId={currentTaskId} />
             ) : currentTaskId && sidebarView === "codebase" ? (
-              <SidebarCodebaseView 
-                taskId={currentTaskId} 
-                onSummarySelect={(summary) => {
-                  // Handle summary selection - we'll implement this
-                  console.log("Selected summary:", summary);
-                }} 
-              />
+              <SidebarCodebaseView taskId={currentTaskId} />
             ) : (
               <SidebarTasksView tasks={tasks} loading={loading} error={error} />
             )}
@@ -89,5 +79,20 @@ export function SidebarViews({
         </SidebarContent>
       </Sidebar>
     </div>
+  );
+}
+
+export function SidebarViews({
+  initialTasks,
+  currentTaskId = null,
+}: {
+  initialTasks: Task[];
+  currentTaskId?: string | null;
+}) {
+  return (
+    <SidebarViewsContent 
+      initialTasks={initialTasks} 
+      currentTaskId={currentTaskId} 
+    />
   );
 }
