@@ -111,7 +111,7 @@ export function createTools(taskId: string, workspacePath?: string) {
             if (existingTodo) {
               // Update existing todo
               await prisma.todo.update({
-                where: { id: existingTodo.id },
+                where: { taskId_id: { taskId, id: todo.id } },
                 data: {
                   content: todo.content,
                   status: todo.status.toUpperCase() as TodoStatus,
@@ -459,17 +459,17 @@ export function createTools(taskId: string, workspacePath?: string) {
         }
       },
     }),
-      web_search: tool({
-        description: "Search the web for information about a given query.",
-        parameters: z.object({
-          query: z.string().describe("The search query"),
-          domain: z.string().optional().describe("Optional domain to filter results to"),
-          explanation: z
-            .string()
-            .describe(
-              "One sentence explanation as to why this tool is being used"
-            ),
-        }),
+    web_search: tool({
+      description: "Search the web for information about a given query.",
+      parameters: z.object({
+        query: z.string().describe("The search query"),
+        domain: z.string().optional().describe("Optional domain to filter results to"),
+        explanation: z
+          .string()
+          .describe(
+            "One sentence explanation as to why this tool is being used"
+          ),
+      }),
       execute: async ({ query, domain, explanation }) => {
         console.log(`[WEB_SEARCH] ${explanation}`);
         const result = await executor.webSearch(query, domain);
