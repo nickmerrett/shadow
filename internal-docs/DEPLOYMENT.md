@@ -1,359 +1,346 @@
-# Shadow Remote Mode Deployment Guide
+# Shadow Firecracker Deployment Guide
 
-This guide will walk you through deploying Shadow's remote mode to AWS from scratch. We'll use Amazon EKS (Elastic Kubernetes Service) to run isolated coding environments for each task.
+This guide walks you through deploying Shadow's Firecracker-based architecture to AWS bare metal infrastructure. Shadow uses Firecracker microVMs for hardware-isolated execution of coding tasks.
 
-## What You're Building
+## Architecture Overview
 
-Shadow's remote mode uses a **hybrid architecture**:
+Shadow's Firecracker architecture provides true hardware isolation:
 
-**🌐 Main Server (Cloud Run/Serverless)**:
-- Your backend orchestrator runs on Google Cloud Run, AWS Lambda, or similar
+**🔥 Firecracker microVMs**:
+- Each coding task runs in its own Firecracker microVM
+- <125ms boot time with pre-built VM images
+- Hardware-level isolation via KVM hypervisor
+- Secure execution with Jailer sandboxing
+
+**🚀 Kubernetes Orchestration**:
+- Bare metal Kubernetes nodes with KVM support
+- VM pods scheduled on dedicated Firecracker runtime
+- Automatic VM lifecycle management
+- Resource quotas and security policies
+
+**🌐 Serverless Main Server**:
+- Backend orchestrator runs on Google Cloud Run or AWS Lambda
 - Handles user requests, LLM integration, database operations
-- Creates and manages task pods in EKS cluster
+- Creates and manages VM pods via Kubernetes API
 - Streams real-time results back to users
 
-**🚀 Task Execution (EKS Pods)**:
-- Each coding task runs in its own isolated Kubernetes pod
-- Pod spins up with GitHub repository cloned
-- AI agent executes commands and edits files in isolation
-- Pod automatically cleaned up when task completes
-
-**Why This Architecture?**:
-- **Cost Efficient**: Main server scales to zero when unused
-- **Isolated Execution**: Each task runs in complete isolation
-- **Scalable**: EKS handles pod orchestration automatically
-- **Simple Deployment**: Backend deploys like any serverless app
+**📦 VM Image Management**:
+- Ubuntu 22.04 LTS base images with pre-installed dev tools
+- Container registry (ECR) for VM image distribution
+- Automated VM image builds with development environment
 
 **Git-First Data Strategy**:
-Shadow uses a **git-first approach** for data persistence:
-- **No Long-Term Storage**: No S3 or persistent volumes for build artifacts
-- **GitHub as Source of Truth**: Each task works on a dedicated git branch
-- **Stateless Pods**: Pods can be destroyed and recreated from git state
-- **Cost Effective**: Pay for compute time instead of storage costs
-- **Reproducible**: Every environment can be rebuilt from source
+- No persistent storage - everything rebuilt from git
+- Each task works on dedicated shadow branch
+- VM state is ephemeral and recreated as needed
+- Cost-effective: pay for compute, not storage
 
 ## Prerequisites
 
 Before starting, you'll need:
 - **AWS Account** with admin access
+- **Bare metal instances** (c5.metal, m5.metal, or similar with KVM support)
 - **Docker** installed locally
 - **AWS CLI** installed and configured
 - **kubectl** installed
-- **Basic terminal/command line** familiarity
+- **eksctl** installed
 
-Don't worry if you're new to Kubernetes - we'll walk through everything step by step.
-
-## Step 1: Set Up AWS Infrastructure
+## Step 1: Set Up Bare Metal EKS Cluster
 
 ### 1.1 Install Required Tools
 
 ```bash
-# Install AWS CLI (if not already installed)
-# On macOS:
-brew install awscli
-
-# On Linux/Windows WSL:
+# Install AWS CLI
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 unzip awscliv2.zip
 sudo ./aws/install
 
 # Install kubectl
-# On macOS:
-brew install kubectl
-
-# On Linux:
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
-# Install eksctl (makes EKS cluster creation easier)
-# On macOS:
-brew tap weaveworks/tap
-brew install weaveworks/tap/eksctl
-
-# On Linux:
+# Install eksctl
 curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
 sudo mv /tmp/eksctl /usr/local/bin
 ```
 
-### 1.2 Configure AWS Credentials
+### 1.2 Create EKS Cluster with Bare Metal Nodes
 
 ```bash
-# Configure AWS CLI with your credentials
-aws configure
+# Create cluster configuration
+cat > cluster-config.yaml << 'EOF'
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
 
-# You'll be prompted for:
-# AWS Access Key ID: [Your access key]
-# AWS Secret Access Key: [Your secret key]
-# Default region name: us-west-2 (or your preferred region)
-# Default output format: json
+metadata:
+  name: shadow-firecracker
+  region: us-west-2
+
+nodeGroups:
+  - name: firecracker-nodes
+    instanceType: c5.metal
+    minSize: 1
+    maxSize: 3
+    desiredCapacity: 2
+    labels:
+      firecracker: "true"
+      kvm: "enabled"
+    taints:
+      firecracker.shadow.ai/dedicated: "true:NoSchedule"
+    privateNetworking: true
+    
+managedNodeGroups:
+  - name: system-nodes
+    instanceType: m5.large
+    minSize: 1
+    maxSize: 2
+    desiredCapacity: 1
+    labels:
+      node-type: "system"
+EOF
+
+# Create the cluster (this takes 15-20 minutes)
+eksctl create cluster -f cluster-config.yaml
+
+# Verify the cluster
+kubectl get nodes -o wide
 ```
 
-### 1.3 Create EKS Cluster
-
-This will take 15-20 minutes. EKS is AWS's managed Kubernetes service.
+### 1.3 Set Up KVM and Firecracker Runtime
 
 ```bash
-# Create the cluster (this creates everything you need)
-eksctl create cluster \
-  --name shadow-cluster \
-  --region us-west-2 \
-  --node-type m5.large \
-  --nodes 2 \
-  --nodes-min 1 \
-  --nodes-max 4 \
-  --managed
-
-# Verify the cluster is working
-kubectl get nodes
-# You should see 2 nodes in "Ready" status
-```
-
-**What this creates:**
-- EKS cluster control plane (managed by AWS)
-- Worker nodes to run your pods
-- VPC and networking automatically configured
-- IAM roles and security groups
-
-## Step 2: Set Up Container Registry
-
-We need a place to store the Docker images that will run in your pods.
-
-### 2.1 Create ECR Repository
-
-ECR (Elastic Container Registry) is AWS's Docker registry service.
-
-```bash
-# Create repository for the sidecar service
-aws ecr create-repository \
-  --repository-name shadow-sidecar \
-  --region us-west-2
-
-# Get the login command
-aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin <your-account-id>.dkr.ecr.us-west-2.amazonaws.com
-
-# To find your account ID:
-aws sts get-caller-identity --query Account --output text
-```
-
-## Step 3: Build and Push Docker Images
-
-### 3.1 Build the Sidecar Service
-
-The sidecar is the service that runs inside each pod to handle file operations and command execution.
-
-```bash
-# From your project root directory
-cd apps/sidecar
-
-# Build the Docker image
-docker build -t shadow-sidecar:latest .
-
-# Tag it for ECR (replace <your-account-id> with your actual AWS account ID)
-docker tag shadow-sidecar:latest <your-account-id>.dkr.ecr.us-west-2.amazonaws.com/shadow-sidecar:latest
-
-# Push to ECR
-docker push <your-account-id>.dkr.ecr.us-west-2.amazonaws.com/shadow-sidecar:latest
-```
-
-**Tip:** Your account ID is the 12-digit number you got from the `aws sts get-caller-identity` command above.
-
-### 3.2 Build the Main Server (Optional)
-
-If you want to run your main server in Kubernetes too:
-
-```bash
-cd apps/server
-
-# Build server image
-docker build -t shadow-server:latest .
-
-# Create ECR repo for server
-aws ecr create-repository --repository-name shadow-server --region us-west-2
-
-# Tag and push
-docker tag shadow-server:latest <your-account-id>.dkr.ecr.us-west-2.amazonaws.com/shadow-server:latest
-docker push <your-account-id>.dkr.ecr.us-west-2.amazonaws.com/shadow-server:latest
-```
-
-## Step 4: Set Up Kubernetes Resources
-
-### 4.1 Create Kubernetes Namespace and Permissions
-
-```bash
-# Create a file called k8s-setup.yaml
-cat > k8s-setup.yaml << 'EOF'
-# Namespace for agent pods
+# Apply Firecracker node configuration
+kubectl apply -f - << 'EOF'
 apiVersion: v1
-kind: Namespace
+kind: ConfigMap
 metadata:
-  name: shadow-agents
-  labels:
-    app: shadow
+  name: firecracker-node-setup
+  namespace: kube-system
+data:
+  setup.sh: |
+    #!/bin/bash
+    # Enable KVM on bare metal nodes
+    modprobe kvm_intel
+    chmod 666 /dev/kvm
+    
+    # Install Firecracker runtime
+    wget https://github.com/firecracker-microvm/firecracker/releases/download/v1.4.1/firecracker-v1.4.1-x86_64.tgz
+    tar -xzf firecracker-v1.4.1-x86_64.tgz
+    sudo cp release-v1.4.1-x86_64/firecracker-v1.4.1-x86_64 /usr/local/bin/firecracker
+    sudo cp release-v1.4.1-x86_64/jailer-v1.4.1-x86_64 /usr/local/bin/jailer
+    sudo chmod +x /usr/local/bin/firecracker /usr/local/bin/jailer
 ---
-# Service account for the main server to create pods
-apiVersion: v1
-kind: ServiceAccount
+apiVersion: apps/v1
+kind: DaemonSet
 metadata:
-  name: shadow-server
-  namespace: default
----
-# Role that allows pod management in shadow-agents namespace
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: shadow-pod-manager
-rules:
-- apiGroups: [""]
-  resources: ["pods", "services"]
-  verbs: ["create", "get", "list", "watch", "delete"]
-- apiGroups: [""]
-  resources: ["pods/log"]
-  verbs: ["get"]
----
-# Bind the role to the service account
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: shadow-server-binding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: shadow-pod-manager
-subjects:
-- kind: ServiceAccount
-  name: shadow-server
-  namespace: default
----
-# Resource limits for the shadow-agents namespace
+  name: firecracker-setup
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: firecracker-setup
+  template:
+    metadata:
+      labels:
+        app: firecracker-setup
+    spec:
+      hostPID: true
+      hostNetwork: true
+      nodeSelector:
+        firecracker: "true"
+      tolerations:
+      - key: firecracker.shadow.ai/dedicated
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
+      containers:
+      - name: setup
+        image: ubuntu:22.04
+        command: ["/bin/bash", "/setup/setup.sh"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: setup-script
+          mountPath: /setup
+        - name: host-modules
+          mountPath: /lib/modules
+          readOnly: true
+        - name: host-dev
+          mountPath: /host-dev
+      volumes:
+      - name: setup-script
+        configMap:
+          name: firecracker-node-setup
+          defaultMode: 0755
+      - name: host-modules
+        hostPath:
+          path: /lib/modules
+      - name: host-dev
+        hostPath:
+          path: /dev
+EOF
+```
+
+## Step 2: Deploy Kubernetes Infrastructure
+
+### 2.1 Apply Shadow Firecracker Manifests
+
+```bash
+# Deploy the Kubernetes manifests from the repository
+kubectl apply -f apps/server/src/execution/k8s/namespace.yaml
+kubectl apply -f apps/server/src/execution/k8s/rbac.yaml
+kubectl apply -f apps/server/src/execution/k8s/firecracker-runtime-class.yaml
+kubectl apply -f apps/server/src/execution/k8s/firecracker-daemonset.yaml
+kubectl apply -f apps/server/src/execution/k8s/storage.yaml
+kubectl apply -f apps/server/src/execution/k8s/monitoring.yaml
+
+# Verify deployment
+kubectl get all -n shadow
+kubectl get runtimeclass firecracker
+```
+
+### 2.2 Configure Resource Quotas and Limits
+
+```bash
+# Apply resource quotas for the shadow namespace
+kubectl apply -f - << 'EOF'
 apiVersion: v1
 kind: ResourceQuota
 metadata:
   name: shadow-quota
-  namespace: shadow-agents
+  namespace: shadow
 spec:
   hard:
-    pods: "50"
-    requests.cpu: "25"
-    requests.memory: 50Gi
-    limits.cpu: "50"
-    limits.memory: 100Gi
+    pods: "100"
+    requests.cpu: "50"
+    requests.memory: 100Gi
+    limits.cpu: "100"
+    limits.memory: 200Gi
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: shadow-limits
+  namespace: shadow
+spec:
+  limits:
+  - default:
+      cpu: "1000m"
+      memory: "2Gi"
+      ephemeral-storage: "10Gi"
+    defaultRequest:
+      cpu: "500m"
+      memory: "1Gi"
+      ephemeral-storage: "5Gi"
+    type: Container
 EOF
-
-# Apply the configuration
-kubectl apply -f k8s-setup.yaml
 ```
 
-### 4.2 Verify Setup
+## Step 3: Build and Deploy VM Images
+
+### 3.1 Set Up Container Registry
 
 ```bash
-# Check that namespace was created
-kubectl get namespaces | grep shadow
+# Create ECR repository for VM images
+aws ecr create-repository --repository-name shadow-vm --region us-west-2
 
-# Check service account
-kubectl get serviceaccount shadow-server
-
-# Check the resource quota
-kubectl describe resourcequota shadow-quota -n shadow-agents
+# Get ECR login command
+aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin $(aws sts get-caller-identity --query Account --output text).dkr.ecr.us-west-2.amazonaws.com
 ```
 
-## Step 5: Configure Your Application
+### 3.2 Build VM Images
 
-### 5.1 Update Environment Variables
+```bash
+# Build the VM image using the provided script
+sudo ./scripts/build-vm-image.sh
 
-Create or update your `.env` file in the project root:
+# Tag and push to ECR
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+docker tag shadow-vm:latest $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-vm:latest
+docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-vm:latest
+```
 
-```env
-# Enable remote mode
-AGENT_MODE=remote
+### 3.3 Build and Push Sidecar Service
+
+```bash
+# Build sidecar service
+docker build -f apps/sidecar/Dockerfile -t shadow-sidecar .
+
+# Create ECR repository for sidecar
+aws ecr create-repository --repository-name shadow-sidecar --region us-west-2
+
+# Tag and push
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+docker tag shadow-sidecar:latest $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-sidecar:latest
+docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-sidecar:latest
+```
+
+## Step 4: Configure Application
+
+### 4.1 Environment Configuration
+
+Create production environment configuration:
+
+```bash
+# Copy the example production config
+cp apps/server/src/execution/production-config.example.env production.env
+
+# Edit the configuration
+cat > production.env << EOF
+# Execution mode
+AGENT_MODE=firecracker
+NODE_ENV=production
+
+# Firecracker configuration
+FIRECRACKER_ENABLED=true
+VM_IMAGE_REGISTRY=$(aws sts get-caller-identity --query Account --output text).dkr.ecr.us-west-2.amazonaws.com
+VM_IMAGE_TAG=latest
+FIRECRACKER_KERNEL_PATH=/var/lib/vm-images/vmlinux
+
+# VM Resources
+VM_CPU_COUNT=1
+VM_MEMORY_SIZE_MB=1024
+VM_CPU_LIMIT=1000m
+VM_MEMORY_LIMIT=2Gi
+VM_STORAGE_LIMIT=10Gi
 
 # Kubernetes configuration
-KUBERNETES_NAMESPACE=shadow-agents
-SIDECAR_IMAGE=<your-account-id>.dkr.ecr.us-west-2.amazonaws.com/shadow-sidecar:latest
-SIDECAR_PORT=8080
-SIDECAR_HEALTH_PATH=/health
+KUBERNETES_NAMESPACE=shadow
+K8S_SERVICE_ACCOUNT_TOKEN=your-service-account-token
 
-# Resource limits per pod
-REMOTE_CPU_LIMIT=1000m
-REMOTE_MEMORY_LIMIT=2Gi
-REMOTE_STORAGE_LIMIT=10Gi
+# AWS configuration
+AWS_REGION=us-west-2
 
-# Your existing environment variables
+# Your application secrets
 DATABASE_URL=your-database-url
 ANTHROPIC_API_KEY=your-anthropic-key
 OPENAI_API_KEY=your-openai-key
 GITHUB_CLIENT_ID=your-github-client-id
 GITHUB_CLIENT_SECRET=your-github-client-secret
+EOF
 ```
 
-**Replace `<your-account-id>`** with your actual AWS account ID.
-
-### 5.2 Update Server Configuration
-
-In your `apps/server/src/config.ts`, verify these settings are included:
-
-```typescript
-// These should already be there from the existing remote mode implementation
-AGENT_MODE: z.enum(["local", "remote", "mock"]).default("local"),
-KUBERNETES_NAMESPACE: z.string().optional(),
-SIDECAR_IMAGE: z.string().optional(),
-SIDECAR_PORT: z.coerce.number().optional(),
-REMOTE_CPU_LIMIT: z.string().default("1000m"),
-REMOTE_MEMORY_LIMIT: z.string().default("2Gi"),
-```
-
-## Step 6: Deploy and Test
-
-### 6.1 Run Locally with Remote Mode
-
-First, test that remote mode works from your local machine:
+### 4.2 Kubernetes Service Account Token
 
 ```bash
-# Make sure your kubectl is configured for the EKS cluster
-kubectl get nodes
+# Create a service account token for the main server
+kubectl create serviceaccount shadow-firecracker-vm-sa -n shadow
 
-# Start your local server with remote mode enabled
-cd apps/server
-npm run dev
+# Get the token (Kubernetes 1.24+)
+kubectl create token shadow-firecracker-vm-sa -n shadow --duration=8760h > service-account-token.txt
 
-# In another terminal, test creating a task
-# Your server will create pods in the EKS cluster
+# Update your production.env with the token
+TOKEN=$(cat service-account-token.txt)
+sed -i "s/your-service-account-token/$TOKEN/g" production.env
 ```
 
-### 6.2 Verify Pod Creation
+## Step 5: Deploy Main Server
 
-When you create a task, you should see pods being created:
-
-```bash
-# Watch pods being created and destroyed
-kubectl get pods -n shadow-agents --watch
-
-# Check logs of a running pod
-kubectl logs -l app=shadow-agent -n shadow-agents
-
-# Check the sidecar health endpoint
-kubectl port-forward -n shadow-agents <pod-name> 8080:8080
-# Then visit http://localhost:8080/health in another terminal:
-curl http://localhost:8080/health
-```
-
-## Step 7: Deploy Main Server to Cloud Run/Serverless
-
-Your main orchestrator server should run on a serverless platform, not in EKS. Here's why and how:
-
-### 7.1 Why Serverless for Main Server?
-
-**Benefits of Cloud Run/Lambda for your orchestrator**:
-- **Cost**: Scales to zero when unused (vs. always-on EKS pods)
-- **Simplicity**: Deploy like any web app (no Kubernetes complexity)
-- **Auto-scaling**: Handles traffic spikes automatically
-- **Managed**: No infrastructure to maintain
-
-### 7.2 Google Cloud Run Deployment
+### 5.1 Option A: Google Cloud Run
 
 ```bash
-# Build and push your server image
-cd apps/server
-docker build -t shadow-server:latest .
+# Build server image
+docker build -f apps/server/Dockerfile -t shadow-server .
 
 # Tag for Google Container Registry
 docker tag shadow-server:latest gcr.io/your-project/shadow-server:latest
@@ -365,166 +352,334 @@ gcloud run deploy shadow-server \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars="AGENT_MODE=remote,KUBERNETES_NAMESPACE=shadow-agents,SIDECAR_IMAGE=<your-account-id>.dkr.ecr.us-west-2.amazonaws.com/shadow-sidecar:latest"
+  --env-vars-file production.env \
+  --memory 2Gi \
+  --cpu 2 \
+  --max-instances 10
 ```
 
-### 7.3 AWS Lambda Alternative
+### 5.2 Option B: AWS Lambda (Serverless Framework)
 
-```bash
-# Use AWS SAM or Serverless Framework
-# Example serverless.yml:
+```yaml
+# serverless.yml
 service: shadow-server
+frameworkVersion: '3'
+
 provider:
   name: aws
   runtime: nodejs18.x
+  region: us-west-2
+  timeout: 900
+  memorySize: 2048
   environment:
-    AGENT_MODE: remote
-    KUBERNETES_NAMESPACE: shadow-agents
-    SIDECAR_IMAGE: ${env:ECR_IMAGE_URI}
+    AGENT_MODE: firecracker
+    VM_IMAGE_REGISTRY: ${env:VM_IMAGE_REGISTRY}
+    KUBERNETES_NAMESPACE: shadow
+    K8S_SERVICE_ACCOUNT_TOKEN: ${env:K8S_SERVICE_ACCOUNT_TOKEN}
+
+functions:
+  api:
+    handler: dist/lambda.handler
+    events:
+      - httpApi: '*'
+
+plugins:
+  - serverless-offline
 ```
 
-### 7.4 Configure EKS Access from Serverless
+### 5.3 Option C: Deploy to EKS
 
-Your serverless backend needs AWS credentials to create pods in EKS:
-
-**For Cloud Run:**
 ```bash
-# Create service account with EKS permissions
-gcloud iam service-accounts create shadow-eks-manager
-gcloud projects add-iam-policy-binding your-project \
-  --member="serviceAccount:shadow-eks-manager@your-project.iam.gserviceaccount.com" \
-  --role="roles/container.developer"
-
-# Use workload identity to access AWS from GCP (advanced)
-# Or use AWS credentials as environment variables
+# Deploy server to the same EKS cluster
+kubectl apply -f - << 'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shadow-server
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shadow-server
+  template:
+    metadata:
+      labels:
+        app: shadow-server
+    spec:
+      serviceAccountName: shadow-firecracker-vm-sa
+      nodeSelector:
+        node-type: "system"
+      containers:
+      - name: server
+        image: your-account.dkr.ecr.us-west-2.amazonaws.com/shadow-server:latest
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: shadow-config
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shadow-server
+  namespace: default
+spec:
+  selector:
+    app: shadow-server
+  ports:
+  - port: 80
+    targetPort: 3000
+  type: LoadBalancer
+EOF
 ```
 
-**For AWS Lambda:**
+## Step 6: Monitoring and Observability
+
+### 6.1 Set Up CloudWatch Logging
+
 ```bash
-# Lambda execution role needs these policies:
-# - AmazonEKSClusterPolicy  
-# - Custom policy for pod management in shadow-agents namespace
+# Install AWS Load Balancer Controller
+curl -o iam_policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.5.4/docs/install/iam_policy.json
+aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://iam_policy.json
+
+# Install AWS CloudWatch agent
+kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cloudwatch-namespace.yaml
 ```
 
-## Troubleshooting Common Issues
-
-### Pod Stuck in "Pending"
+### 6.2 VM Metrics and Monitoring
 
 ```bash
-# Check what's wrong
-kubectl describe pod <pod-name> -n shadow-agents
+# Apply monitoring configuration
+kubectl apply -f apps/server/src/execution/k8s/monitoring.yaml
 
-# Common causes:
-# 1. Image pull errors - check ECR permissions
-# 2. Resource limits - check resource quota
-# 3. Node capacity - check if nodes have space
+# Check VM metrics
+kubectl top pods -n shadow
+kubectl get events -n shadow --sort-by='.lastTimestamp'
 ```
 
-### Image Pull Errors
+## Step 7: Testing and Validation
+
+### 7.1 Test VM Creation
 
 ```bash
-# Make sure ECR login is working
-aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin <your-account-id>.dkr.ecr.us-west-2.amazonaws.com
+# Test creating a Firecracker VM manually
+kubectl apply -f - << 'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-firecracker-vm
+  namespace: shadow
+spec:
+  runtimeClassName: firecracker
+  nodeSelector:
+    firecracker: "true"
+  tolerations:
+  - key: firecracker.shadow.ai/dedicated
+    operator: Equal
+    value: "true"
+    effect: NoSchedule
+  containers:
+  - name: vm
+    image: your-account.dkr.ecr.us-west-2.amazonaws.com/shadow-vm:latest
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+        ephemeral-storage: 10Gi
+  - name: sidecar
+    image: your-account.dkr.ecr.us-west-2.amazonaws.com/shadow-sidecar:latest
+    ports:
+    - containerPort: 8080
+    env:
+    - name: WORKSPACE_PATH
+      value: "/workspace"
+EOF
 
-# Verify image exists in ECR
-aws ecr describe-images --repository-name shadow-sidecar --region us-west-2
+# Check the VM started successfully
+kubectl get pod test-firecracker-vm -n shadow
+kubectl logs test-firecracker-vm -c sidecar -n shadow
+
+# Test sidecar health endpoint
+kubectl port-forward test-firecracker-vm 8080:8080 -n shadow &
+curl http://localhost:8080/health
+
+# Clean up test
+kubectl delete pod test-firecracker-vm -n shadow
 ```
 
-### Pod Crashes or Won't Start
+### 7.2 Test End-to-End Workflow
 
 ```bash
-# Check pod logs
-kubectl logs <pod-name> -n shadow-agents
+# Test your application creates VMs correctly
+# Create a task through your frontend/API
+# Watch VM pods being created:
+kubectl get pods -n shadow --watch
 
-# Check events
-kubectl get events -n shadow-agents --sort-by='.lastTimestamp'
+# Check VM logs
+kubectl logs -l app=shadow-vm -n shadow --tail=50
+
+# Verify cleanup happens
+# Complete the task and verify pods are cleaned up automatically
 ```
 
-### Can't Create Pods (Permission Errors)
+## Troubleshooting
+
+### VM Creation Issues
 
 ```bash
-# Verify service account has permissions
-kubectl auth can-i create pods --as=system:serviceaccount:default:shadow-server
+# Check if KVM is enabled on nodes
+kubectl get nodes -l firecracker=true
+kubectl describe node <firecracker-node-name>
 
-# Check role binding
-kubectl describe clusterrolebinding shadow-server-binding
+# Verify /dev/kvm is accessible
+kubectl exec -it <firecracker-daemonset-pod> -n kube-system -- ls -la /dev/kvm
+
+# Check Firecracker runtime
+kubectl describe runtimeclass firecracker
 ```
 
-## Monitoring and Maintenance
-
-### Monitor Resource Usage
+### Image Pull Issues
 
 ```bash
-# Check pod resource usage
-kubectl top pods -n shadow-agents
+# Verify ECR access
+aws ecr describe-repositories --region us-west-2
 
-# Check node resource usage
+# Check image exists
+aws ecr describe-images --repository-name shadow-vm --region us-west-2
+
+# Update ECR authentication for nodes
+kubectl create secret docker-registry ecr-secret \
+  --docker-server=$(aws sts get-caller-identity --query Account --output text).dkr.ecr.us-west-2.amazonaws.com \
+  --docker-username=AWS \
+  --docker-password=$(aws ecr get-login-password --region us-west-2) \
+  -n shadow
+```
+
+### VM Boot Issues
+
+```bash
+# Check VM console logs
+kubectl logs <vm-pod-name> -c vm-console -n shadow
+
+# Check sidecar connectivity
+kubectl port-forward <vm-pod-name> 8080:8080 -n shadow
+curl http://localhost:8080/health
+
+# Check VM resource allocation
+kubectl describe pod <vm-pod-name> -n shadow
+```
+
+### Performance Issues
+
+```bash
+# Check node resources
 kubectl top nodes
+kubectl describe node <node-name>
 
-# Check resource quota usage
-kubectl describe resourcequota shadow-quota -n shadow-agents
+# Check VM resource usage
+kubectl top pods -n shadow
+
+# Monitor VM creation time
+kubectl get events -n shadow --sort-by='.lastTimestamp' | grep Created
 ```
 
-### Cleanup Old Resources
+## Security Considerations
+
+### Network Isolation
 
 ```bash
-# Remove completed pods (should happen automatically)
-kubectl delete pods --field-selector=status.phase=Succeeded -n shadow-agents
-
-# Check for stuck resources
-kubectl get all -n shadow-agents
+# Apply network policies for VM isolation
+kubectl apply -f - << 'EOF'
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: shadow-vm-isolation
+  namespace: shadow
+spec:
+  podSelector:
+    matchLabels:
+      app: shadow-vm
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: default
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - {} # Allow all egress for git/npm operations
+EOF
 ```
 
-### Update Images
+### Resource Limits
 
 ```bash
-# Build and push new version
-docker build -t shadow-sidecar:v1.1.0 apps/sidecar/
-docker tag shadow-sidecar:v1.1.0 <your-account-id>.dkr.ecr.us-west-2.amazonaws.com/shadow-sidecar:v1.1.0
-docker push <your-account-id>.dkr.ecr.us-west-2.amazonaws.com/shadow-sidecar:v1.1.0
+# Monitor resource quotas
+kubectl describe resourcequota shadow-quota -n shadow
 
-# Update environment variable to use new image
-# (Update your .env file and restart your server)
+# Check for resource exhaustion
+kubectl get events -n shadow | grep FailedScheduling
 ```
 
 ## Cost Optimization
 
-### Understand Costs
+### Monitor Costs
 
-- **EKS cluster**: ~$73/month for the control plane
-- **EC2 instances**: ~$70-140/month for 2 m5.large nodes
-- **Task pods**: Only cost CPU/memory when running (very efficient!)
+- **EKS Control Plane**: ~$73/month
+- **c5.metal instances**: ~$4,000/month per instance
+- **VM runtime**: Only when VMs are running
 
-### Reduce Costs
+### Optimization Strategies
 
 ```bash
-# Scale down nodes when not in use
-eksctl scale nodegroup --cluster=shadow-cluster --nodes=0 --name=<nodegroup-name>
+# Use spot instances for non-critical workloads
+# Scale down during off-hours
+eksctl scale nodegroup --cluster=shadow-firecracker --nodes=0 --name=firecracker-nodes
 
-# Scale back up when needed
-eksctl scale nodegroup --cluster=shadow-cluster --nodes=2 --name=<nodegroup-name>
-
-# Use spot instances for cheaper compute
-eksctl create nodegroup --cluster=shadow-cluster --spot --instance-types=m5.large,m4.large
+# Use smaller instance types for development
+# Scale up for production
+eksctl create nodegroup --cluster=shadow-firecracker --instance-type=c5.xlarge --spot
 ```
 
-## Next Steps
+## Maintenance
 
-Once you have this running:
+### VM Image Updates
 
-1. **Set up monitoring** with CloudWatch or Prometheus
-2. **Configure autoscaling** for your node groups
-3. **Add CI/CD pipelines** for automated deployments
-4. **Set up multiple environments** (staging, production)
-5. **Configure EFS for workspace persistence** (optional, for faster rebuilds)
+```bash
+# Build new VM image
+sudo ./scripts/build-vm-image.sh
 
-## Need Help?
+# Tag with version
+docker tag shadow-vm:latest $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-vm:v1.1.0
+docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/shadow-vm:v1.1.0
 
-If you run into issues:
+# Update environment configuration
+sed -i 's/VM_IMAGE_TAG=latest/VM_IMAGE_TAG=v1.1.0/' production.env
+```
 
-1. Check the logs: `kubectl logs -l app=shadow-agent -n shadow-agents`
-2. Verify permissions: `kubectl auth can-i create pods --as=system:serviceaccount:default:shadow-server`
-3. Check resource quotas: `kubectl describe resourcequota shadow-quota -n shadow-agents`
-4. Look at events: `kubectl get events -n shadow-agents --sort-by='.lastTimestamp'`
+### Cluster Updates
 
-Remember: Kubernetes can be complex, but you're using a proven architecture. The remote mode implementation handles all the pod lifecycle management automatically - you just need to provide the infrastructure!
+```bash
+# Update EKS cluster
+eksctl update cluster --name shadow-firecracker
+
+# Update node groups
+eksctl update nodegroup --cluster=shadow-firecracker --name=firecracker-nodes
+```
+
+This deployment guide provides a complete production-ready setup for Shadow's Firecracker architecture with proper security, monitoring, and maintenance procedures.
