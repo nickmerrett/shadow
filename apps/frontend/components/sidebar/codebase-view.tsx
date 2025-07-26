@@ -191,7 +191,7 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
   // File or summary item component with shortened display name
   const SummaryItem = ({ summary }: { summary: CodebaseSummary & { displayName?: string } }) => (
     <div
-      className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent"
+      className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent hover:border-sidebar-border border border-transparent transition-colors"
       onClick={() => selectSummary(summary)}
     >
       {getIcon(summary.type)}
@@ -200,7 +200,7 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
           {summary.displayName || summary.filePath || "Overview"}
         </div>
         {summary.language && (
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-medium">
             {summary.language}
           </div>
         )}
@@ -211,15 +211,19 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
   // Directory header component with collapse toggle
   const DirectoryHeader = ({ dirName, filesCount }: { dirName: string, filesCount: number }) => (
     <div 
-      className="flex items-center gap-2 px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md cursor-pointer"
+      className="flex items-center gap-2 px-2 py-2 text-sm font-medium hover:bg-sidebar-accent rounded-md cursor-pointer border border-transparent hover:border-sidebar-border transition-colors"
       onClick={() => toggleDirectoryCollapse(dirName)}
     >
-      <Folder className="size-4 text-yellow-500" />
-      <span className="truncate flex-1">{dirName === "root" ? "Root Files" : dirName}</span>
-      <span className="text-xs text-muted-foreground">{filesCount}</span>
+      <Folder className="size-4 text-yellow-500 flex-shrink-0" />
+      <span className="truncate flex-1 font-medium">
+        {dirName === "root" ? "📁 Root Files" : `📁 ${dirName}`}
+      </span>
+      <span className="text-xs text-muted-foreground bg-sidebar-accent px-1.5 py-0.5 rounded font-medium">
+        {filesCount}
+      </span>
       <ChevronDown 
         className={cn(
-          "size-3.5 text-muted-foreground transition-transform", 
+          "size-3.5 text-muted-foreground transition-transform flex-shrink-0", 
           !collapsedDirs.has(dirName) ? "rotate-0" : "rotate-[-90deg]"
         )} 
       />
@@ -286,32 +290,54 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
               </div>
             ) : (
               <div className="h-[calc(100vh-300px)] overflow-auto">
-                <div className="space-y-4">
-                  {/* Repository Overview - Always visible at the top */}
-                  {repoSummaries.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-medium text-muted-foreground mb-2">
-                        Repository Overview
-                      </h4>
-                      <div className="space-y-1">
-                        {repoSummaries.map((summary) => (
-                          <SummaryItem key={summary.id} summary={summary} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                <div className="space-y-3">
+                  {/* Root Overview - Most prominent at the top */}
+                  {(() => {
+                    const rootOverview = summaries.find(s => 
+                      s.filePath === "root_overview" || 
+                      s.type === "repo_summary" ||
+                      (s.filePath?.toLowerCase().includes("root") && s.filePath?.toLowerCase().includes("overview"))
+                    );
+                    
+                    if (rootOverview) {
+                      return (
+                        <div className="bg-sidebar-accent/30 rounded-lg p-3 border border-sidebar-border">
+                          <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
+                            <FolderGit2 className="size-3.5 text-green-500" />
+                            Project Overview
+                          </h4>
+                          <div 
+                            className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent bg-background border border-sidebar-border"
+                            onClick={() => selectSummary(rootOverview)}
+                          >
+                            <FolderGit2 className="size-4 text-green-500" />
+                            <div className="flex-1 truncate">
+                              <div className="truncate font-medium">
+                                {rootOverview.filePath === "root_overview" ? "Project Overview" : rootOverview.filePath || "Repository Overview"}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Complete project summary
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
 
-                  {/* Organized Directory Structure */}
+                  {/* Directory Structure */}
                   {sortedDirectories.length > 0 && (
                     <div>
-                      <h4 className="text-xs font-medium text-muted-foreground mb-2">
-                        Codebase Structure
+                      <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
+                        <Folder className="size-3.5 text-yellow-500" />
+                        Directory Structure
                       </h4>
                       
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         {/* Directories with collapsible file lists */}
                         {sortedDirectories.map(([directory, files]) => (
-                          <div key={directory} className="mb-2">
+                          <div key={directory} className="">
                             {/* Directory header with collapse toggle */}
                             <DirectoryHeader 
                               dirName={directory} 
@@ -320,7 +346,7 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
                             
                             {/* Files in this directory - collapsible */}
                             {!collapsedDirs.has(directory) && files.length > 0 && (
-                              <div className="space-y-1 pl-4 mt-1 border-l-2 border-sidebar-border ml-2">
+                              <div className="space-y-0.5 pl-6 mt-1 border-l border-sidebar-border ml-3">
                                 {files.map((summary) => (
                                   <SummaryItem 
                                     key={summary.id} 
@@ -334,6 +360,31 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
                       </div>
                     </div>
                   )}
+
+                  {/* Additional Repository Summaries (if any beyond root overview) */}
+                  {(() => {
+                    const additionalRepoSummaries = repoSummaries.filter(s => 
+                      s.filePath !== "root_overview" && 
+                      !(s.filePath?.toLowerCase().includes("root") && s.filePath?.toLowerCase().includes("overview"))
+                    );
+                    
+                    if (additionalRepoSummaries.length > 0) {
+                      return (
+                        <div>
+                          <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
+                            <FolderGit2 className="size-3.5 text-green-500" />
+                            Additional Summaries
+                          </h4>
+                          <div className="space-y-1">
+                            {additionalRepoSummaries.map((summary) => (
+                              <SummaryItem key={summary.id} summary={summary} />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
             )}
