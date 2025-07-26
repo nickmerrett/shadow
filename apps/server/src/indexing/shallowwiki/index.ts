@@ -4,7 +4,7 @@ import { createHash } from "crypto";
 import { writeFileSync, readFileSync, statSync } from "fs";
 import { OpenAI } from "openai";
 import path from "path";
-// import { DeepWikiStorage } from "./storage"; // Removed Pinecone usage
+// (Line removed)
 import { DbWikiStorage } from "./db-storage";
 
 // Tree-sitter imports
