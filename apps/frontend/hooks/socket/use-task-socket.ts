@@ -29,6 +29,116 @@ interface FsChangeEvent {
 }
 
 /**
+ * Optimistically update codebase tree based on filesystem events
+ */
+function updateCodebaseTreeOptimistically(
+  existingTree: any[],
+  fsChange: FsChangeEvent
+): any[] {
+  const { operation, filePath, isDirectory } = fsChange;
+
+  console.log(`[OPTIMISTIC_TREE_UPDATE] ${operation} ${filePath} (isDirectory: ${isDirectory})`);
+
+  // Handle file/directory creation
+  if (operation === 'file-created' || operation === 'directory-created') {
+    return addNodeToTree(existingTree, filePath, isDirectory ? 'folder' : 'file');
+  }
+
+  // Handle file/directory deletion
+  if (operation === 'file-deleted' || operation === 'directory-deleted') {
+    return removeNodeFromTree(existingTree, filePath);
+  }
+
+  // For modifications, no tree structure change needed
+  return existingTree;
+}
+
+/**
+ * Add a new node to the file tree
+ */
+function addNodeToTree(tree: any[], filePath: string, type: 'file' | 'folder'): any[] {
+  const parts = filePath.split('/').filter(Boolean);
+  if (parts.length === 0) return tree;
+
+  const [firstPart, ...restParts] = parts;
+  const treeCopy = [...tree];
+
+  // Find existing node at this level
+  const existingIndex = treeCopy.findIndex(node => node.name === firstPart);
+
+  if (restParts.length === 0) {
+    // This is the target node
+    if (existingIndex === -1) {
+      // Add new node
+      const newNode = {
+        name: firstPart,
+        type,
+        path: `/${filePath}`,
+        ...(type === 'folder' && { children: [] })
+      };
+      treeCopy.push(newNode);
+      // Sort: folders first, then files, both alphabetically
+      treeCopy.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+    }
+    return treeCopy;
+  }
+
+  if (existingIndex === -1) {
+    // Create intermediate folder
+    const newFolder = {
+      name: firstPart,
+      type: 'folder' as const,
+      path: `/${parts.slice(0, 1).join('/')}`,
+      children: []
+    };
+    treeCopy.push(newFolder);
+  }
+
+  // Ensure the node at this level is a folder with children
+  const nodeIndex = treeCopy.findIndex(node => node.name === firstPart);
+  if (nodeIndex !== -1 && treeCopy[nodeIndex].type === 'folder') {
+    if (!treeCopy[nodeIndex].children) {
+      treeCopy[nodeIndex].children = [];
+    }
+    // Recursively add to children
+    treeCopy[nodeIndex].children = addNodeToTree(treeCopy[nodeIndex].children, restParts.join('/'), type);
+  }
+
+  return treeCopy;
+}
+
+/**
+ * Remove a node from the file tree
+ */
+function removeNodeFromTree(tree: any[], filePath: string): any[] {
+  const parts = filePath.split('/').filter(Boolean);
+  if (parts.length === 0) return tree;
+
+  const [firstPart, ...restParts] = parts;
+  const treeCopy = [...tree];
+
+  if (restParts.length === 0) {
+    // Remove the target node
+    return treeCopy.filter(node => node.name !== firstPart);
+  }
+
+  // Recursively remove from children
+  const nodeIndex = treeCopy.findIndex(node => node.name === firstPart);
+  if (nodeIndex !== -1 && treeCopy[nodeIndex].type === 'folder' && treeCopy[nodeIndex].children) {
+    treeCopy[nodeIndex].children = removeNodeFromTree(treeCopy[nodeIndex].children, restParts.join('/'));
+    // Remove empty folders
+    if (treeCopy[nodeIndex].children.length === 0) {
+      return treeCopy.filter((_, index) => index !== nodeIndex);
+    }
+  }
+
+  return treeCopy;
+}
+
+/**
  * Optimistically update file changes array based on filesystem events
  */
 function updateFileChangesOptimistically(
@@ -220,6 +330,24 @@ export function useTaskSocket(taskId: string | undefined) {
               }
             );
 
+            // Optimistically update codebase tree in React Query cache
+            queryClient.setQueryData(
+              ["codebase-tree", taskId],
+              (oldData: any) => {
+                if (!oldData || !oldData.success || !oldData.tree) return oldData;
+
+                const updatedTree = updateCodebaseTreeOptimistically(
+                  oldData.tree,
+                  chunk.fsChange!
+                );
+
+                return {
+                  ...oldData,
+                  tree: updatedTree
+                };
+              }
+            );
+
             // Note: Diff stats are NOT invalidated here to avoid expensive git operations
             // They will refresh on: 1) stream completion, 2) 30s stale time, 3) manual refresh
           }
@@ -253,6 +381,33 @@ export function useTaskSocket(taskId: string | undefined) {
         case "thinking":
           console.log("Thinking:", chunk.thinking);
           break;
+
+        case "todo-update":
+          if (chunk.todoUpdate) {
+            console.log("Todo update:", chunk.todoUpdate);
+            const todos = chunk.todoUpdate.todos;
+
+            // Optimistically update todos in React Query cache
+            queryClient.setQueryData(
+              ["task", taskId],
+              (oldData: any) => {
+                if (!oldData) return oldData;
+
+                return {
+                  ...oldData,
+                  todos: todos.map(todo => ({
+                    ...todo,
+                    status: todo.status.toUpperCase(), // Convert to DB format (uppercase)
+                    taskId: taskId,
+                    sequence: 0, // Will be updated in the next refetch
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  }))
+                };
+              }
+            );
+          }
+          break;
       }
     }
 
@@ -270,6 +425,9 @@ export function useTaskSocket(taskId: string | undefined) {
       // Refresh diff stats after LLM completion for accuracy
       console.log(`[STREAM_COMPLETE] Invalidating diff stats for accuracy after LLM completion`);
       queryClient.invalidateQueries({ queryKey: ["task-diff-stats", taskId] });
+      // Refresh codebase tree after LLM completion to show newly created files
+      console.log(`[STREAM_COMPLETE] Invalidating codebase tree for newly created files`);
+      queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
     }
 
     function onStreamError(error: any) {
