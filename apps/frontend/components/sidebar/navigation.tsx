@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { LayoutGrid, Play, Plus } from "lucide-react";
+import { Brain, LayoutGrid, Play, Plus } from "lucide-react";
 import Link from "next/link";
 import { SidebarView } from ".";
 import { SettingsDialog } from "../auth/settings-dialog";
@@ -122,6 +122,29 @@ export function SidebarNavigation({
             <>
               <div className="bg-border h-px w-full" />
               {agentViewTrigger}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="iconSm"
+                    variant="ghost"
+                    className={cn(
+                      "border",
+                      sidebarView === "codebase" && open
+                        ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
+                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
+                    )}
+                    onClick={() => {
+                      setSidebarView("codebase");
+                      if (!open) {
+                        toggleSidebar();
+                      }
+                    }}
+                  >
+                    <Brain />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Codebase Understanding</TooltipContent>
+              </Tooltip>
             </>
           ) : null}
         </div>

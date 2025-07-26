@@ -15,10 +15,11 @@ import { useTasks } from "@/hooks/use-tasks";
 import { Task } from "@repo/db";
 import { useEffect, useRef, useState } from "react";
 import { SidebarAgentView } from "./agent-view";
+import { SidebarCodebaseView } from "./codebase-view";
 import { SidebarNavigation } from "./navigation";
 import { SidebarTasksView } from "./tasks-view";
 
-export type SidebarView = "tasks" | "agent";
+export type SidebarView = "tasks" | "agent" | "codebase";
 
 export function SidebarViews({
   initialTasks,
@@ -59,7 +60,7 @@ export function SidebarViews({
         <SidebarContent>
           <SidebarGroup className="flex h-7 flex-row items-center justify-between">
             <div className="font-medium">
-              {sidebarView === "tasks" ? "Tasks" : "Agent Environment"}
+              {sidebarView === "tasks" ? "Tasks" : sidebarView === "codebase" ? "Codebase Understanding" : "Agent Environment"}
             </div>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -73,6 +74,14 @@ export function SidebarViews({
           <div className="mt-6 flex flex-col gap-4">
             {currentTaskId && sidebarView === "agent" ? (
               <SidebarAgentView taskId={currentTaskId} />
+            ) : currentTaskId && sidebarView === "codebase" ? (
+              <SidebarCodebaseView 
+                taskId={currentTaskId} 
+                onSummarySelect={(summary) => {
+                  // Handle summary selection - we'll implement this
+                  console.log("Selected summary:", summary);
+                }} 
+              />
             ) : (
               <SidebarTasksView tasks={tasks} loading={loading} error={error} />
             )}
