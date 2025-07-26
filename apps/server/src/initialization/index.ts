@@ -419,7 +419,7 @@ export class TaskInitializationEngine {
   /**
    * Verify workspace step - Verify workspace is ready and contains repository
    */
-  private async executeVerifyWorkspace(taskId: string, userId: string): Promise<void> {
+  private async executeVerifyWorkspace(taskId: string, _userId: string): Promise<void> {
     console.log(`[TASK_INIT] ${taskId}: Verifying workspace is ready and contains repository`);
 
     try {

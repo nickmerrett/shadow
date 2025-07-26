@@ -57,7 +57,7 @@ export class LLMService {
       // Create tools with task context if taskId is provided
       const tools = taskId ? createTools(taskId, workspacePath) : undefined;
 
-      const streamConfig: any = {
+      const streamConfig = {
         model: modelInstance,
         system: systemPrompt,
         messages: coreMessages,
@@ -65,10 +65,8 @@ export class LLMService {
         temperature: 0.7,
         maxSteps: MAX_STEPS,
         ...(enableTools && tools && { tools }),
+        ...(abortSignal && { abortSignal }),
       };
-      if (abortSignal) {
-        streamConfig.signal = abortSignal;
-      }
 
       const result = streamText(streamConfig);
 

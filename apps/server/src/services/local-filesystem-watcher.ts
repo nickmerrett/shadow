@@ -38,11 +38,11 @@ export class LocalFileSystemWatcher {
     }
 
     this.watchedPath = workspacePath;
-    
+
     try {
       console.log(`[LOCAL_FS_WATCHER] Starting filesystem watch for task ${this.taskId} at ${workspacePath}`);
 
-      this.watcher = watch(workspacePath, { 
+      this.watcher = watch(workspacePath, {
         recursive: true,
         persistent: false // Don't keep the process alive
       }, (eventType, filename) => {
@@ -82,12 +82,12 @@ export class LocalFileSystemWatcher {
       try {
         const stats = await stat(fullPath);
         isDirectory = stats.isDirectory();
-        
+
         // For existing files/directories, this is either created or modified
-        operation = eventType === 'rename' 
+        operation = eventType === 'rename'
           ? (isDirectory ? 'directory-created' : 'file-created')
           : (isDirectory ? 'directory-created' : 'file-modified'); // Note: 'change' events are modifications
-      } catch (error) {
+      } catch (_error) {
         // File doesn't exist, so it was deleted
         operation = isDirectory ? 'directory-deleted' : 'file-deleted';
       }
@@ -102,7 +102,7 @@ export class LocalFileSystemWatcher {
 
       // Add to buffer for debouncing
       this.changeBuffer.set(relativePath, event);
-      
+
       // Schedule flush if not already scheduled
       if (!this.flushTimer) {
         this.flushTimer = setTimeout(() => {
@@ -164,10 +164,10 @@ export class LocalFileSystemWatcher {
   stop(): void {
     if (this.watcher) {
       console.log(`[LOCAL_FS_WATCHER] Stopping filesystem watch for task ${this.taskId}`);
-      
+
       this.watcher.close();
       this.watcher = null;
-      
+
       // Flush any pending changes
       if (this.flushTimer) {
         clearTimeout(this.flushTimer);
