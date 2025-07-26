@@ -219,7 +219,7 @@ export class MockRemoteToolExecutor implements ToolExecutor {
 
       const parsedData = {
         success: !!data?.matches,
-        results: (data?.matches || []).map((match: any, i: number) => ({
+        results: (data?.matches || []).map((match: Match, i: number) => ({
           id: i + 1,
           content: match?.fields?.code || match?.metadata?.content || match?.metadata?.chunk_text || match?.content || match?.text || "",
           relevance: typeof match?._score === "number" ? match._score : 0.8,
