@@ -57,11 +57,6 @@ export async function getTaskWithDetails(
       fetchFileChanges(taskId),
     ]);
 
-    console.log("[getTaskWithDetails] task", task);
-    console.log("[getTaskWithDetails] todos", todos);
-    console.log("[getTaskWithDetails] fileChanges", fileChanges);
-    console.log("[getTaskWithDetails] diffStats", diffStats);
-
     return {
       task,
       todos,

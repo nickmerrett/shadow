@@ -222,30 +222,32 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             </Badge>
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            {todos.map((todo) => {
-              const TodoIcon =
-                todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
-                  .icon;
-              const iconClass =
-                todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
-                  .className;
-              return (
-                <SidebarMenuItem key={todo.id}>
-                  <div
-                    className={cn(
-                      "flex min-h-8 items-start gap-2 p-2 pb-0 text-sm",
-                      todo.status === "COMPLETED" &&
-                        "text-muted-foreground line-through"
-                    )}
-                  >
-                    <TodoIcon className={cn("size-4", iconClass)} />
-                    <span className="line-clamp-2 flex-1 leading-4">
-                      {todo.content}
-                    </span>
-                  </div>
-                </SidebarMenuItem>
-              );
-            })}
+            {todos
+              .sort((a, b) => a.sequence - b.sequence)
+              .map((todo) => {
+                const TodoIcon =
+                  todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
+                    .icon;
+                const iconClass =
+                  todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
+                    .className;
+                return (
+                  <SidebarMenuItem key={todo.id}>
+                    <div
+                      className={cn(
+                        "flex min-h-8 items-start gap-2 p-2 pb-0 text-sm",
+                        todo.status === "COMPLETED" &&
+                          "text-muted-foreground line-through"
+                      )}
+                    >
+                      <TodoIcon className={cn("size-4", iconClass)} />
+                      <span className="line-clamp-2 flex-1 leading-4">
+                        {todo.content}
+                      </span>
+                    </div>
+                  </SidebarMenuItem>
+                );
+              })}
           </SidebarGroupContent>
         </SidebarGroup>
       )}

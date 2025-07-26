@@ -109,7 +109,7 @@ export function TodoWriteTool({ message }: { message: Message }) {
   // Calculate title based on operation type
   const title =
     merge && parsedResult?.totalTodos
-      ? `(${todos.filter((t) => t.status === "completed").length}/${parsedResult.totalTodos})`
+      ? `(${parsedResult.completedTodos ?? todos.filter((t) => t.status === "completed").length}/${parsedResult.totalTodos})`
       : `(${todos.length} item${todos.length === 1 ? "" : "s"})`;
 
   return (

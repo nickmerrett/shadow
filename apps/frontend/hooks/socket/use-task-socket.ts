@@ -411,11 +411,11 @@ export function useTaskSocket(taskId: string | undefined) {
                   const existingTodo = existingTodosMap.get(incomingTodo.id);
 
                   if (existingTodo) {
-                    // Update existing todo, preserving original sequence and timestamps
                     existingTodosMap.set(incomingTodo.id, {
                       ...existingTodo,
                       ...incomingTodo,
                       status: incomingTodo.status.toUpperCase() as TodoStatus,
+                      sequence: incomingTodo.sequence,
                       updatedAt: new Date(),
                     });
                   } else {
@@ -424,7 +424,7 @@ export function useTaskSocket(taskId: string | undefined) {
                       ...incomingTodo,
                       status: incomingTodo.status.toUpperCase() as TodoStatus,
                       taskId: taskId!,
-                      sequence: 0,
+                      sequence: incomingTodo.sequence,
                       createdAt: new Date(),
                       updatedAt: new Date(),
                     });
@@ -433,7 +433,7 @@ export function useTaskSocket(taskId: string | undefined) {
 
                 return {
                   ...oldData,
-                  todos: Array.from(existingTodosMap.values())
+                  todos: Array.from(existingTodosMap.values()).sort((a, b) => a.sequence - b.sequence)
                 };
               }
             );

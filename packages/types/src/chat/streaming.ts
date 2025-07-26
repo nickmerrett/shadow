@@ -66,9 +66,11 @@ export interface StreamChunk {
       id: string;
       content: string;
       status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+      sequence: number;
     }>;
     action: 'updated' | 'replaced';
     totalTodos?: number;
+    completedTodos?: number;
   };
 }
 

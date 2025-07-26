@@ -144,8 +144,13 @@ export function createTools(taskId: string, workspacePath?: string) {
             }
           }
 
-          // Get total todos count for progress tracking (only needed for merge operations)
           const totalTodos = merge ? await prisma.todo.count({ where: { taskId } }) : todos.length;
+          const completedTodos = merge ? await prisma.todo.count({
+            where: {
+              taskId,
+              status: 'COMPLETED'
+            }
+          }) : todos.filter(t => t.status === 'completed').length;
 
           const summary = `${merge ? "Merged" : "Replaced"} todos: ${results
             .map((r) => `${r.action} "${r.content}" (${r.status})`)
@@ -155,13 +160,15 @@ export function createTools(taskId: string, workspacePath?: string) {
           emitStreamChunk({
             type: "todo-update",
             todoUpdate: {
-              todos: todos.map(todo => ({
+              todos: todos.map((todo, index) => ({
                 id: todo.id,
                 content: todo.content,
-                status: todo.status as 'pending' | 'in_progress' | 'completed' | 'cancelled'
+                status: todo.status as 'pending' | 'in_progress' | 'completed' | 'cancelled',
+                sequence: index
               })),
               action: merge ? "updated" : "replaced",
-              totalTodos
+              totalTodos,
+              completedTodos
             }
           }, taskId);
 
@@ -171,6 +178,7 @@ export function createTools(taskId: string, workspacePath?: string) {
             todos: results,
             count: results.length,
             totalTodos,
+            completedTodos,
           };
         } catch (error) {
           console.error(`[TODO_WRITE_ERROR]`, error);
