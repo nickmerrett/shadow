@@ -1,30 +1,21 @@
-import type { CoreMessage } from "ai";
+import type {
+  CoreMessage,
+  TextPart,
+  ToolCallPart,
+  ToolResultPart,
+  FinishReason
+} from "ai";
 import { randomUUID } from "crypto";
 import { ToolExecutionStatusType } from "../tools/execution";
 import { ToolResultTypes } from "../tools/results";
 
-// AI SDK message parts for structured assistant content
-export interface TextPart {
-  type: "text";
-  text: string;
-}
-
-export interface ToolCallPart {
-  type: "tool-call";
-  toolCallId: string;
-  toolName: string;
-  args: Record<string, any>;
-}
-
-export interface ToolResultPart {
-  type: "tool-result";
-  toolCallId: string;
-  toolName: string;
-  result: unknown;
-  isError?: boolean;
-}
-
 export type AssistantMessagePart = TextPart | ToolCallPart | ToolResultPart;
+
+export type CompletionTokenUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
 
 export interface BaseMessage {
   id: string;
@@ -45,7 +36,7 @@ export interface MessageMetadata {
   // For tool call messages - now properly typed
   tool?: {
     name: string;
-    args: Record<string, any>;
+    args: Record<string, unknown>;
     status: ToolExecutionStatusType;
     result?: ToolResultTypes['result'] | string; // Support both new objects and legacy strings
   };
@@ -64,7 +55,7 @@ export interface MessageMetadata {
   };
 
   // Finish reason
-  finishReason?: "stop" | "length" | "tool_calls" | "content_filter" | "other";
+  finishReason?: FinishReason;
 }
 
 export type Message = BaseMessage;

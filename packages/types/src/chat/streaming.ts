@@ -1,5 +1,9 @@
+import type {
+  FinishReason
+} from "ai";
 import type { InitStepType } from "@repo/db";
 import { ToolResultTypes } from "../tools/results";
+import { CompletionTokenUsage } from "./messages";
 
 export interface StreamChunk {
   type:
@@ -19,31 +23,22 @@ export interface StreamChunk {
   // For thinking/reasoning chunks
   thinking?: string;
 
-  // For usage tracking
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
+  // For usage tracking - extends AI SDK CompletionTokenUsage with provider-specific tokens
+  usage?: CompletionTokenUsage & {
     // Provider-specific tokens
     cacheCreationInputTokens?: number;
     cacheReadInputTokens?: number;
   };
 
   // For completion/error
-  finishReason?:
-  | "stop"
-  | "length"
-  | "content-filter"
-  | "function_call"
-  | "tool_calls"
-  | "error";
+  finishReason?: FinishReason;
   error?: string;
 
   // For tool calls
   toolCall?: {
     id: string;
     name: string;
-    args: Record<string, any>;
+    args: Record<string, unknown>;
   };
 
   // For tool results

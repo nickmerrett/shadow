@@ -1,3 +1,8 @@
+import type {
+  FinishReason
+} from "ai";
+import { CompletionTokenUsage } from "../chat/messages";
+
 export interface TextDeltaChunk {
   type: "text-delta";
   textDelta: string;
@@ -7,7 +12,7 @@ export interface ToolCallChunk {
   type: "tool-call";
   toolCallId: string;
   toolName: string;
-  args: Record<string, any>;
+  args: Record<string, unknown>;
 }
 
 export interface ToolResultChunk {
@@ -18,12 +23,8 @@ export interface ToolResultChunk {
 
 export interface FinishChunk {
   type: "finish";
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-  finishReason: "stop" | "length" | "content-filter" | "tool-calls" | string;
+  usage?: CompletionTokenUsage;
+  finishReason: FinishReason;
 }
 
 export interface ErrorChunk {

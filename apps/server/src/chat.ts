@@ -4,10 +4,8 @@ import {
   Message,
   MessageMetadata,
   ModelType,
-  TextPart,
-  ToolCallPart,
-  ToolResultPart,
 } from "@repo/types";
+import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
@@ -541,21 +539,6 @@ export class ChatService {
             completionTokens: chunk.usage.completionTokens,
             totalTokens: chunk.usage.totalTokens,
           };
-        }
-
-        // Track finish reason
-        if (
-          chunk.type === "complete" &&
-          chunk.finishReason &&
-          chunk.finishReason !== "error"
-        ) {
-          // Map finish reason to our type system
-          finishReason =
-            chunk.finishReason === "content-filter"
-              ? "content_filter"
-              : chunk.finishReason === "function_call"
-                ? "tool_calls"
-                : chunk.finishReason;
         }
       }
 

@@ -119,16 +119,7 @@ export class LLMService {
 
             yield {
               type: "complete",
-              finishReason:
-                chunk.finishReason === "stop"
-                  ? "stop"
-                  : chunk.finishReason === "length"
-                    ? "length"
-                    : chunk.finishReason === "content-filter"
-                      ? "content-filter"
-                      : chunk.finishReason === "tool-calls"
-                        ? "tool_calls"
-                        : "stop",
+              finishReason: chunk.finishReason,
             };
             break;
 
