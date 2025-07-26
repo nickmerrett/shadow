@@ -3,7 +3,7 @@
 import { MarkdownRenderer } from "@/components/agent-environment/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import { Brain, FileText, Folder, FolderGit2 } from "lucide-react";
-import { useState } from "react";
+import { useCodebaseUnderstanding } from "./codebase-understanding-context";
 
 interface CodebaseSummary {
   id: string;
@@ -18,7 +18,7 @@ interface CodebaseUnderstandingViewProps {
 }
 
 export function CodebaseUnderstandingView({ taskId }: CodebaseUnderstandingViewProps) {
-  const [selectedSummary, setSelectedSummary] = useState<CodebaseSummary | null>(null);
+  const { selectedSummary } = useCodebaseUnderstanding();
 
   const getIcon = (type: string) => {
     switch (type) {
