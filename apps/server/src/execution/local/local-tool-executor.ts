@@ -442,7 +442,7 @@ export class LocalToolExecutor implements ToolExecutor {
       return this.codebaseSearch(query, options);
     }
     try {
-      console.log("semanticSearch enabled");  
+      console.log("semanticSearch enabled");
       console.log("semanticSearchParams", query, repo);
       const response = await fetch(`${config.apiUrl}/api/indexing/search`, {
         method: "POST",
@@ -461,19 +461,20 @@ export class LocalToolExecutor implements ToolExecutor {
         throw new Error(`Indexing service error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json() as EmbeddingSearchResult[];
+      const data = await response.json() as { matches: EmbeddingSearchResult[] };
+      const matches = data.matches;
 
       const parsedData = {
-        success: !!data,
-        results: (data || []).map((match: EmbeddingSearchResult, i: number) => ({
+        success: !!matches,
+        results: matches.map((match: EmbeddingSearchResult, i: number) => ({
           id: i + 1,
           content: match?.fields?.code || match?.fields?.text || "",
           relevance: typeof match?._score === "number" ? match._score : 0.8,
         })),
         query,
         searchTerms: query.split(/\s+/),
-        message: data?.length
-          ? `Found ${data.length} relevant code snippets for "${query}"`
+        message: matches?.length
+          ? `Found ${matches.length} relevant code snippets for "${query}"`
           : `No relevant code found for "${query}"`,
       }
       console.log("semanticSearch", parsedData);
