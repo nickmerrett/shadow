@@ -22,30 +22,40 @@ export async function getWorkspaceSummaries(taskId: string) {
       return [];
     }
 
-    const mappedSummaries = summaries.map((summary) => {
-      console.log("Processing summary:", summary.id, summary.type);
-      let parsedContent;
-      try {
-        parsedContent = typeof summary.content === 'string' 
-          ? JSON.parse(summary.content as string) 
-          : summary.content;
-        console.log("Parsed content:", parsedContent);
-      } catch (e) {
-        console.error("Error parsing summary content", e);
-        parsedContent = { summary: "Error parsing content" };
-      }
-      
-      const result = {
-        id: summary.id,
-        type: summary.type || "file_summary",
-        filePath: summary.filePath || summary.fileName,
-        language: summary.language,
-        summary: parsedContent?.summary || ""
-      };
-      
-      console.log("Mapped summary result:", result);
-      return result;
-    });
+    const mappedSummaries = summaries
+      .map((summary) => {
+        console.log("Processing summary:", summary.id, summary.type);
+        let parsedContent;
+        try {
+          parsedContent = typeof summary.content === 'string' 
+            ? JSON.parse(summary.content as string) 
+            : summary.content;
+          console.log("Parsed content:", parsedContent);
+        } catch (e) {
+          console.error("Error parsing summary content", e);
+          parsedContent = { summary: "Error parsing content" };
+        }
+        
+        const result = {
+          id: summary.id,
+          type: summary.type || "file_summary",
+          filePath: summary.filePath || summary.fileName,
+          language: summary.language,
+          summary: parsedContent?.summary || ""
+        };
+        
+        console.log("Mapped summary result:", result);
+        return result;
+      })
+      .filter((summary) => {
+        // Filter out summaries that contain "no symbols found"
+        const summaryText = summary.summary?.toLowerCase() || "";
+        const shouldInclude = !summaryText.includes("no symbols found");
+        if (!shouldInclude) {
+          console.log("Filtering out summary with 'no symbols found':", summary.filePath);
+        }
+        return shouldInclude;
+      });
     
     console.log("Total mapped summaries:", mappedSummaries.length);
     return mappedSummaries;
