@@ -1,5 +1,4 @@
 import express from "express";
-// import { DeepWikiStorage } from "./storage"; // Removed Pinecone usage
 import { DbWikiStorage } from './db-storage';
 import { db } from '@repo/db';
 import { resolveRepoPath } from "./resolveRepoPath";
