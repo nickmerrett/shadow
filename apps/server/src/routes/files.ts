@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { prisma } from "@repo/db";
-import { FILE_SIZE_LIMITS } from "@repo/types";
+import { FILE_SIZE_LIMITS, FileNode } from "@repo/types";
 import type { ToolExecutor } from "../execution/interfaces/tool-executor";
 import { createToolExecutor } from "../execution";
 import { getFileChanges, getDiffStats, hasGitRepository } from "../utils/git-operations";
@@ -16,13 +16,6 @@ const IGNORE_DIRS = [
   "dist",
   "build",
 ];
-
-type FileNode = {
-  name: string;
-  type: "file" | "folder";
-  path: string;
-  children?: FileNode[];
-};
 
 async function buildFileTree(executor: ToolExecutor, dirPath: string = "."): Promise<FileNode[]> {
   try {

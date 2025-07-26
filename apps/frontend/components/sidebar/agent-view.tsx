@@ -2,7 +2,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useTask } from "@/hooks/use-task";
@@ -19,10 +18,8 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { statusColorsConfig } from "./status";
-import {
-  FileExplorer,
-  type FileNode,
-} from "@/components/agent-environment/file-explorer";
+import { FileExplorer } from "@/components/agent-environment/file-explorer";
+import { FileNode } from "@repo/types";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import Link from "next/link";
 
@@ -34,13 +31,24 @@ const todoStatusConfig = {
   CANCELLED: { icon: XCircle, className: "text-red-400" },
 };
 
+// Intermediate tree node structure for building the tree
+interface TreeNode {
+  name: string;
+  type: "file" | "folder";
+  path: string;
+  children?: Record<string, TreeNode>;
+}
+
+// Type for the intermediate tree structure during construction
+type FileTree = Record<string, TreeNode>;
+
 // Create file tree structure from file paths
 function createFileTree(filePaths: string[]): FileNode[] {
-  const tree: any = {};
+  const tree: FileTree = {};
 
   filePaths.forEach((filePath) => {
     const parts = filePath.split("/");
-    let current = tree;
+    let current: FileTree = tree;
 
     parts.forEach((part, index) => {
       if (!current[part]) {
@@ -58,18 +66,22 @@ function createFileTree(filePaths: string[]): FileNode[] {
   });
 
   // Convert to array and sort (folders first, then files)
-  const convertToArray = (obj: any): FileNode[] => {
+  const convertToArray = (obj: FileTree): FileNode[] => {
     return Object.values(obj)
-      .sort((a: any, b: any) => {
+      .sort((a: TreeNode, b: TreeNode) => {
         if (a.type !== b.type) {
           return a.type === "folder" ? -1 : 1;
         }
         return a.name.localeCompare(b.name);
       })
-      .map((item: any) => ({
-        ...item,
-        children: item.children ? convertToArray(item.children) : undefined,
-      }));
+      .map(
+        (item: TreeNode): FileNode => ({
+          name: item.name,
+          type: item.type,
+          path: item.path,
+          children: item.children ? convertToArray(item.children) : undefined,
+        })
+      );
   };
 
   return convertToArray(tree);
@@ -138,11 +150,11 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           <SidebarMenuItem>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               <GitBranch className="size-4" />
-              <Link 
+              <Link
                 href={`${task.repoUrl}/tree/${task.shadowBranch}`}
-                target="_blank" 
+                target="_blank"
                 rel="noopener noreferrer"
-                className="line-clamp-1 text-sm hover:underline transition-colors"
+                className="line-clamp-1 text-sm transition-colors hover:underline"
                 title="View branch on GitHub"
               >
                 {task.shadowBranch}

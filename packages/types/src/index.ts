@@ -566,6 +566,15 @@ export interface TaskStatusUpdateEvent {
   timestamp: string;
 }
 
+// === File Tree Types ===
+
+export interface FileNode {
+  name: string;
+  type: "file" | "folder";
+  path: string;
+  children?: FileNode[];
+}
+
 // === File Type Definitions ===
 
 // Constants for file size limits

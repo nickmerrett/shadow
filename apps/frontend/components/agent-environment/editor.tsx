@@ -6,7 +6,6 @@ import dynamic from "next/dynamic";
 import { Fragment, useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import type { FileNode } from "./file-explorer";
 import { getLanguageFromPath } from "@repo/types";
 import { LogoHover } from "../logo/logo-hover";
 import { MarkdownRenderer } from "./markdown-renderer";
@@ -39,7 +38,9 @@ export function Editor({
   const [isShikiReady, setIsShikiReady] = useState(false);
 
   // Check if the selected file is a markdown file
-  const isMarkdownFile = selectedFilePath?.endsWith('.md') || selectedFilePath?.endsWith('.markdown');
+  const isMarkdownFile =
+    selectedFilePath?.endsWith(".md") ||
+    selectedFilePath?.endsWith(".markdown");
 
   useEffect(() => {
     patchMonacoWithShiki().then(() => {
