@@ -48,6 +48,7 @@ async function fetchRepoFiles(
 // Modified indexRepo to accept GitHub repo
 async function indexRepo(
   repoName: string,
+  taskId: string,
   options: IndexRepoOptions
 ): Promise<{
   graph: Graph;
@@ -56,7 +57,6 @@ async function indexRepo(
   embeddings?: { index: any; binary: Buffer };
 }> {
   const { maxLines = 200, embed = false, paths = null, clearNamespace = true } = options;
-  const taskId = '5b9d6b8c-6667-4df6-ae15-6830337ae9a7';
 
   logger.info(
     `Indexing ${repoName}${paths ? " (filtered)" : ""}${embed ? " + embeddings" : ""}`

@@ -21,7 +21,7 @@ router.get("/", (req, res) => {
 router.post(
   "/index",
   async (
-    req: express.Request<object, object, { repo: string; options: IndexRepoOptions }>,
+    req: express.Request<object, object, { repo: string; taskId: string; options: IndexRepoOptions }>,
     res,
     next
   ) => {
@@ -31,7 +31,7 @@ router.post(
       console.log("Semantic search is not enabled - skipping indexing");
       return res.status(200).json({ message: "Semantic search is not enabled - skipping indexing" });
     }
-    const { repo, options } = req.body;
+    const { repo, taskId, options } = req.body;
     const clearNamespace = options.clearNamespace;
     if (!repo || !isValidRepo(repo)) {
       return res
@@ -40,7 +40,7 @@ router.post(
     }
 
     try {
-      const result = await indexRepo(repo, { ...options, clearNamespace: clearNamespace });
+      const result = await indexRepo(repo, taskId, { ...options, clearNamespace: clearNamespace });
       res.json({ message: "Indexing complete", ...result });
     } catch (error: any) {
       if (error.message.includes("Not Found")) {

@@ -30,6 +30,13 @@ export class LocalWorkspaceManager implements WorkspaceManager {
    * Get the workspace directory path for a specific task
    */
   private getTaskWorkspaceDir(taskId: string): string {
+    // Currently taskId is the local workspace path / taskId so only get the last part
+    if (taskId.includes("/")) {
+      taskId = taskId.split("/").pop()!;
+    } else {
+      console.warn("Task ID does not contain a slash");
+    }
+    console.log("GetTaskWorkspaceDir", taskId);
     return path.join(config.workspaceDir, "tasks", taskId);
   }
 
@@ -353,6 +360,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
       console.log("reading directory", dirPath);
       try {
         const entries = await fs.readdir(dirPath);
+        console.log("entries", entries.length);
         for (const entry of entries) {
           const fullPath = path.join(dirPath, entry);
           const relativeFilePath = path.join(relativePath, entry);

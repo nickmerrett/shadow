@@ -7,6 +7,7 @@ import { after } from "next/server";
 import { z } from "zod";
 import { generateTaskTitleAndBranch } from "./generate-title-branch";
 import { saveLayoutCookie } from "./save-sidebar-cookie";
+import indexRepo from "./index-repo";
 
 const createTaskSchema = z.object({
   message: z.string().min(1, "Message is required").max(1000, "Message too long"),
@@ -99,7 +100,9 @@ export async function createTask(formData: FormData) {
             }),
           }
         );
-
+        
+        const repoName = repoUrl.split("/").slice(-2).join("/");
+        await indexRepo(repoName, task.id, true);
         if (!response.ok) {
           console.error("Failed to initiate task:", await response.text());
         } else {

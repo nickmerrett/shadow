@@ -74,15 +74,11 @@ export function PromptForm({
         let taskId: string | null = null;
         try {
           taskId = await createTask(formData);
-          setIsIndexing(true);
-          await indexRepo(repo.full_name, true);
         } catch (error) {
           toast.error("Failed to create task", {
             description:
               error instanceof Error ? error.message : "Unknown error",
           });
-        } finally {
-          setIsIndexing(false);
         }
         if (taskId) {
           queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -99,27 +95,6 @@ export function PromptForm({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
-    }
-  };
-
-  const indexRepo = async (repo: string, clearNamespace: boolean = true) => {
-    try {
-      console.log("Indexing repo", repo);
-      console.log("NEXT_PUBLIC_API_URL", process.env.NEXT_PUBLIC_API_URL);
-      const response = await fetch(
-        `http://${process.env.NEXT_PUBLIC_API_URL}/api/indexing/index`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ repo: repo, options: { embed: true, clearNamespace: clearNamespace } }),
-        }
-      );
-      const data = await response.json();
-      console.log("Indexing repo", data);
-    } catch (error) {
-      console.error("Error indexing repo", error);
     }
   };
 
