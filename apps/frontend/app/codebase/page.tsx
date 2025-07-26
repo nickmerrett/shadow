@@ -1,5 +1,5 @@
-import { CodebaseListView } from "@/components/codebase/codebase-list-view";
+import { CodebasePageLayout } from "@/components/codebase/codebase-layout";
 
-export default function CodebasePage() {
-  return <CodebaseListView />;
+export default async function CodebasePage() {
+  return <CodebasePageLayout />;
 }

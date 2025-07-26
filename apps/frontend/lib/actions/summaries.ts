@@ -106,3 +106,110 @@ export async function getWorkspaceSummaryById(summaryId: string) {
     return null;
   }
 }
+
+/**
+ * Get all indexed repositories with their summary counts
+ */
+export async function getAllIndexedRepositories() {
+  try {
+    const summaries = await db.codebaseUnderstanding.findMany({
+      include: {
+        task: {
+          select: {
+            id: true,
+            repoUrl: true,
+            title: true,
+          }
+        }
+      }
+    });
+
+    // Group by repository and count summaries
+    const repoMap = new Map();
+    
+    summaries.forEach((summary) => {
+      if (summary.task?.repoUrl) {
+        const repoUrl = summary.task.repoUrl;
+        // Extract repo name from URL (e.g., "https://github.com/user/repo" -> "user/repo")
+        const repoMatch = repoUrl.match(/github\.com\/([^/]+\/[^/]+)/);
+        const fullName = repoMatch ? repoMatch[1] : repoUrl;
+        const name = fullName?.split('/').pop() || fullName || 'Unknown';
+        
+        if (!repoMap.has(fullName)) {
+          repoMap.set(fullName, {
+            id: summary.task.id,
+            name: name,
+            fullName: fullName,
+            summaryCount: 0
+          });
+        }
+        repoMap.get(fullName).summaryCount++;
+      }
+    });
+
+    return Array.from(repoMap.values());
+  } catch (error) {
+    console.error("Error fetching indexed repositories", error);
+    return [];
+  }
+}
+
+/**
+ * Get summaries for a specific repository by repository ID
+ */
+export async function getRepositorySummaries(repositoryId: string) {
+  try {
+    const summaries = await db.codebaseUnderstanding.findMany({
+      where: {
+        taskId: repositoryId,
+      },
+      include: {
+        task: {
+          select: {
+            repoUrl: true,
+            title: true,
+          }
+        }
+      }
+    });
+
+    return summaries
+      .map((summary) => {
+        let parsedContent;
+        try {
+          parsedContent = typeof summary.content === 'string' 
+            ? JSON.parse(summary.content as string) 
+            : summary.content;
+        } catch (e) {
+          console.error("Error parsing summary content", e);
+          parsedContent = { summary: "Error parsing content" };
+        }
+
+        // Determine type based on file path and content
+        let type: "file" | "directory" | "repository" = "file";
+        if (summary.type === "repository_overview" || summary.fileName === "README.md") {
+          type = "repository";
+        } else if (summary.type === "directory_summary" || summary.fileName?.endsWith("/")) {
+          type = "directory";
+        }
+
+        return {
+          id: summary.id,
+          type,
+          name: type === "repository" ? "Repository Overview" : 
+                type === "directory" ? summary.fileName || "Directory" :
+                summary.fileName?.split('/').pop() || summary.fileName || "Unknown",
+          content: parsedContent?.summary || "",
+          language: summary.language || undefined,
+        };
+      })
+      .filter((summary) => {
+        // Filter out summaries with "no symbols found" or empty content
+        const content = summary.content.toLowerCase();
+        return !content.includes("no symbols found") && content.trim().length > 0;
+      });
+  } catch (error) {
+    console.error("Error fetching repository summaries", error);
+    return [];
+  }
+}

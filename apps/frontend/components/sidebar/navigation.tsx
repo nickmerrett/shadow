@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { Brain, LayoutGrid, Play, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SidebarView } from ".";
 import { SettingsDialog } from "../auth/settings-dialog";
 import { UserMenu } from "../auth/user-menu";
 import { Button } from "../ui/button";
@@ -13,8 +14,12 @@ import { useMemo } from "react";
 import { LogoHover } from "../logo/logo-hover";
 
 export function SidebarNavigation({
+  sidebarView,
+  setSidebarView,
   currentTaskId,
 }: {
+  sidebarView: SidebarView;
+  setSidebarView: (view: SidebarView) => void;
   currentTaskId: string | null;
 }) {
   const pathname = usePathname();
@@ -32,10 +37,7 @@ export function SidebarNavigation({
     return currentTaskStatus ? statusColorsConfig[currentTaskStatus].bg : "";
   }, [task, currentTaskStatus]);
 
-  // Determine if we're in a task context for the play button
-  const isInTaskContext = pathname.startsWith('/tasks/') && currentTaskId;
-  
-  const agentViewTrigger = isInTaskContext ? (
+  const agentViewTrigger = (
     <div className="relative z-0 h-7">
       <div className="bg-card pointer-events-none absolute -right-1.5 -top-1.5 z-10 rounded-full p-1">
         <div className={cn("relative size-2 rounded-full", statusColor)}>
@@ -54,21 +56,24 @@ export function SidebarNavigation({
             variant="ghost"
             className={cn(
               "border",
-              pathname.startsWith('/tasks/') && !pathname.includes('/codebase')
+              sidebarView === "agent" && open
                 ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
                 : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
             )}
-            asChild
+            onClick={() => {
+              setSidebarView("agent");
+              if (!open) {
+                toggleSidebar();
+              }
+            }}
           >
-            <Link href={`/tasks/${currentTaskId}`}>
-              <Play />
-            </Link>
+            <Play />
           </Button>
         </TooltipTrigger>
         <TooltipContent side="right">Agent View</TooltipContent>
       </Tooltip>
     </div>
-  ) : null;
+  );
 
   return (
     <div className="bg-card flex h-svh flex-col justify-between border-r p-3">
@@ -99,15 +104,18 @@ export function SidebarNavigation({
                 variant="ghost"
                 className={cn(
                   "border",
-                  pathname === '/' || pathname.startsWith('/tasks')
+                  sidebarView === "tasks" && open
                     ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
                 )}
-                asChild
+                onClick={() => {
+                  setSidebarView("tasks");
+                  if (!open) {
+                    toggleSidebar();
+                  }
+                }}
               >
-                <Link href="/">
-                  <LayoutGrid />
-                </Link>
+                <LayoutGrid />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">Tasks</TooltipContent>
@@ -118,12 +126,7 @@ export function SidebarNavigation({
               <Button
                 size="iconSm"
                 variant="ghost"
-                className={cn(
-                  "border",
-                  pathname.startsWith('/codebase')
-                    ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
-                    : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
-                )}
+                className="border text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
                 asChild
               >
                 <Link href="/codebase">
@@ -134,13 +137,12 @@ export function SidebarNavigation({
             <TooltipContent side="right">Codebase Understanding</TooltipContent>
           </Tooltip>
 
-          {/* Horizontal divider and play button only in task context */}
-          {isInTaskContext && (
+          {currentTaskId ? (
             <>
               <div className="bg-border h-px w-full" />
               {agentViewTrigger}
             </>
-          )}
+          ) : null}
         </div>
       </div>
       <div className="flex flex-col gap-4">

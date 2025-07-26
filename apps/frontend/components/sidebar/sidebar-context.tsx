@@ -19,7 +19,7 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const savedView = localStorage.getItem(SIDEBAR_VIEW_KEY) as SidebarView;
-      if (savedView && ["tasks", "agent", "codebase"].includes(savedView)) {
+      if (savedView && ["tasks", "agent"].includes(savedView)) {
         setSidebarViewState(savedView);
       }
     } catch (error) {
