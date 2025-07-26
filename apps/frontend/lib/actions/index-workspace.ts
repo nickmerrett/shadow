@@ -1,9 +1,15 @@
+// This file is kept for backward compatibility
+// New code should use summaries.ts instead
+
+import { getWorkspaceSummaries as fetchSummaries, getWorkspaceSummaryById } from './summaries';
+
+// Redirects to the direct approach for backward compatibility
 export const callWorkspaceIndexApi = async (taskId: string, forceRefresh: boolean = false) => {
   try {
-    console.log("Indexing workspace for task", taskId);
-    console.log("NEXT_PUBLIC_API_URL", process.env.NEXT_PUBLIC_API_URL);
+    console.log("[DEPRECATED] Using direct indexing approach instead of API");
+    // Make a direct fetch to the API endpoint instead
     const response = await fetch(
-      `http://${process.env.NEXT_PUBLIC_API_URL}/api/indexing/shallowwiki/generate-workspace-summaries`,
+      `/api/indexing/shallowwiki/generate-workspace-summaries`,
       {
         method: "POST",
         headers: {
@@ -13,7 +19,6 @@ export const callWorkspaceIndexApi = async (taskId: string, forceRefresh: boolea
       }
     );
     const data = await response.json();
-    console.log("Workspace indexing result", data);
     return data;
   } catch (error) {
     console.error("Error indexing workspace", error);
@@ -23,20 +28,9 @@ export const callWorkspaceIndexApi = async (taskId: string, forceRefresh: boolea
 
 export const getWorkspaceSummaries = async (taskId: string) => {
   try {
-    console.log("Getting workspace summaries for task", taskId);
-    const response = await fetch(
-      `http://${process.env.NEXT_PUBLIC_API_URL}/api/indexing/shallowwiki/list-workspace-summaries`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ taskId }),
-      }
-    );
-    const data = await response.json();
-    console.log("Workspace summaries", data);
-    return data;
+    console.log("[DEPRECATED] Getting workspace summaries using direct Prisma approach");
+    const summaries = await fetchSummaries(taskId);
+    return { summaries }; // Maintaining the same response structure for compatibility
   } catch (error) {
     console.error("Error getting workspace summaries", error);
     throw error;
@@ -49,20 +43,30 @@ export const getWorkspaceSummary = async (
   path: string = ''
 ) => {
   try {
-    console.log("Getting workspace summary for task", taskId, type, path);
-    const response = await fetch(
-      `http://${process.env.NEXT_PUBLIC_API_URL}/api/indexing/shallowwiki/get-workspace-summaries`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ taskId, type, path }),
+    console.log("[DEPRECATED] Getting workspace summary using direct Prisma approach");
+    // Find summaries that match the type and path
+    const summaries = await fetchSummaries(taskId);
+    
+    // Find the summary that matches the type and path
+    let summary = null;
+    if (summaries && summaries.length > 0) {
+      summary = summaries.find(s => {
+        if (type === 'file' && s.type === 'file_summary' && s.filePath === path) return true;
+        if (type === 'directory' && s.type === 'directory_summary' && s.filePath === path) return true;
+        if (type === 'root' && s.type === 'repo_summary') return true;
+        return false;
+      });
+      
+      if (summary) {
+        // Get the full summary content
+        const fullSummary = await getWorkspaceSummaryById(summary.id);
+        if (fullSummary) {
+          return { result: fullSummary };
+        }
       }
-    );
-    const data = await response.json();
-    console.log("Workspace summary", data);
-    return data;
+    }
+    
+    return { result: null };
   } catch (error) {
     console.error("Error getting workspace summary", error);
     throw error;
