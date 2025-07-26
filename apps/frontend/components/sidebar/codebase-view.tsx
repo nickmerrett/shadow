@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { Brain, ChevronDown, FileText, Folder, FolderGit2, RefreshCw } from "lucide-react";
+import { ChevronRight, FileText, Folder, FolderGit2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useCodebaseUnderstanding } from "@/components/codebase-understanding/codebase-understanding-context";
 
@@ -178,29 +178,29 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
   const getIcon = (type: string) => {
     switch (type) {
       case "file_summary":
-        return <FileText className="size-4 text-blue-500" />;
+        return <FileText className="size-4 text-blue-600 flex-shrink-0" />;
       case "directory_summary":
-        return <Folder className="size-4 text-yellow-500" />;
+        return <Folder className="size-4 text-yellow-600 flex-shrink-0" />;
       case "repo_summary":
-        return <FolderGit2 className="size-4 text-green-500" />;
+        return <FolderGit2 className="size-4 text-green-600 flex-shrink-0" />;
       default:
-        return <FileText className="size-4" />;
+        return <FileText className="size-4 flex-shrink-0" />;
     }
   };
 
   // File or summary item component with shortened display name
   const SummaryItem = ({ summary }: { summary: CodebaseSummary & { displayName?: string } }) => (
     <div
-      className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent hover:border-sidebar-border border border-transparent transition-colors"
+      className="flex cursor-pointer items-center gap-3 rounded-md p-2 text-sm hover:bg-sidebar-accent border border-transparent hover:border-sidebar-border transition-colors"
       onClick={() => selectSummary(summary)}
     >
       {getIcon(summary.type)}
       <div className="flex-1 truncate">
-        <div className="truncate font-medium">
+        <div className="truncate font-medium text-sm">
           {summary.displayName || summary.filePath || "Overview"}
         </div>
         {summary.language && (
-          <div className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-medium">
+          <div className="text-xs text-muted-foreground bg-sidebar-accent px-1.5 py-0.5 rounded font-medium mt-0.5">
             {summary.language}
           </div>
         )}
@@ -211,87 +211,82 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
   // Directory header component with collapse toggle
   const DirectoryHeader = ({ dirName, filesCount }: { dirName: string, filesCount: number }) => (
     <div 
-      className="flex items-center gap-2 px-2 py-2 text-sm font-medium hover:bg-sidebar-accent rounded-md cursor-pointer border border-transparent hover:border-sidebar-border transition-colors"
+      className="flex items-center gap-3 px-2 py-2 text-sm font-medium hover:bg-sidebar-accent rounded-md cursor-pointer border border-transparent hover:border-sidebar-border transition-colors"
       onClick={() => toggleDirectoryCollapse(dirName)}
     >
-      <Folder className="size-4 text-yellow-500 flex-shrink-0" />
+      <ChevronRight 
+        className={cn(
+          "size-3.5 text-muted-foreground transition-transform flex-shrink-0", 
+          !collapsedDirs.has(dirName) ? "rotate-90" : "rotate-0"
+        )} 
+      />
+      <Folder className="size-4 text-yellow-600 flex-shrink-0" />
       <span className="truncate flex-1 font-medium">
-        {dirName === "root" ? "📁 Root Files" : `📁 ${dirName}`}
+        {dirName === "root" ? "Root Files" : dirName}
       </span>
       <span className="text-xs text-muted-foreground bg-sidebar-accent px-1.5 py-0.5 rounded font-medium">
         {filesCount}
       </span>
-      <ChevronDown 
-        className={cn(
-          "size-3.5 text-muted-foreground transition-transform flex-shrink-0", 
-          !collapsedDirs.has(dirName) ? "rotate-0" : "rotate-[-90deg]"
-        )} 
-      />
     </div>
   );
 
   return (
-    <SidebarContent>
-      <SidebarGroup>
-        <SidebarGroupLabel className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Brain className="size-4" />
+    <SidebarContent className="h-full">
+      <SidebarGroup className="h-full flex flex-col">
+        {/* Header with Reindex Button */}
+        <SidebarGroup className="flex h-7 flex-row items-center justify-between">
+          <div className="font-medium">
             Codebase Understanding
           </div>
-          <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="iconXs"
-              onClick={loadSummaries}
-              disabled={isLoading}
-              className="hover:bg-sidebar-accent"
-            >
-              <RefreshCw className={`size-3 ${isLoading ? "animate-spin" : ""}`} />
-            </Button>
-          </div>
-        </SidebarGroupLabel>
+        </SidebarGroup>
+        <div className="flex-shrink-0 p-4 border-b border-sidebar-border">
+          <Button
+            onClick={generateSummaries}
+            disabled={isIndexing}
+            className="w-full"
+            size="sm"
+          >
+            {isIndexing ? (
+              <>
+                <RefreshCw className="mr-2 size-4 animate-spin" />
+                Reindexing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 size-4" />
+                Reindex Codebase
+              </>
+            )}
+          </Button>
+        </div>
         
-        <SidebarGroupContent>
-          <div className="space-y-4">
-            {/* Generate Button */}
-            <Button
-              onClick={generateSummaries}
-              disabled={isIndexing}
-              className="w-full"
-              size="sm"
-            >
-              {isIndexing ? (
-                <>
-                  <RefreshCw className="mr-2 size-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Brain className="mr-2 size-4" />
-                  Generate Summaries
-                </>
-              )}
-            </Button>
+        <SidebarGroupContent className="flex-1 overflow-hidden">
+          <div className="h-full flex flex-col">
 
             {/* Summaries List */}
             {summaries.length === 0 ? (
-              <div className="text-center text-sm text-muted-foreground py-8">
-                {isLoading ? (
-                  "Loading summaries..."
-                ) : (
-                  <>
-                    <Brain className="mx-auto mb-2 size-8 opacity-50" />
-                    <p>No summaries available</p>
-                    <p className="text-xs mt-1">
-                      Click "Generate Summaries" to analyze your codebase
-                    </p>
-                  </>
-                )}
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center text-sm text-muted-foreground">
+                  {isLoading ? (
+                    <>
+                      <RefreshCw className="mx-auto mb-2 size-8 opacity-50 animate-spin" />
+                      <p>Loading summaries...</p>
+                    </>
+                  ) : (
+                    <>
+                      <FolderGit2 className="mx-auto mb-2 size-8 opacity-50" />
+                      <p>No codebase analysis available</p>
+                      <p className="text-xs mt-1 opacity-75">
+                        Click "Reindex Codebase" to analyze your code
+                      </p>
+                    </>
+                  )}
+                </div>
               </div>
             ) : (
-              <div className="h-[calc(100vh-300px)] overflow-auto">
-                <div className="space-y-3">
-                  {/* Root Overview - Most prominent at the top */}
+              <div className="flex-1 overflow-auto p-2">
+                <div className="space-y-2">
+                  {/* Project Overview - Most prominent at the top */}
                   {(() => {
                     const rootOverview = summaries.find(s => 
                       s.filePath === "root_overview" || 
@@ -301,21 +296,20 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
                     
                     if (rootOverview) {
                       return (
-                        <div className="bg-sidebar-accent/30 rounded-lg p-3 border border-sidebar-border">
-                          <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
-                            <FolderGit2 className="size-3.5 text-green-500" />
-                            Project Overview
-                          </h4>
+                        <div className="mb-4">
+                          <div className="text-xs font-semibold text-muted-foreground mb-2 px-2">
+                            PROJECT OVERVIEW
+                          </div>
                           <div 
-                            className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent bg-background border border-sidebar-border"
+                            className="flex cursor-pointer items-center gap-3 rounded-md p-3 text-sm hover:bg-sidebar-accent bg-sidebar-accent/50 border border-sidebar-border transition-colors"
                             onClick={() => selectSummary(rootOverview)}
                           >
-                            <FolderGit2 className="size-4 text-green-500" />
+                            <FolderGit2 className="size-4 text-green-600 flex-shrink-0" />
                             <div className="flex-1 truncate">
                               <div className="truncate font-medium">
                                 {rootOverview.filePath === "root_overview" ? "Project Overview" : rootOverview.filePath || "Repository Overview"}
                               </div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground mt-0.5">
                                 Complete project summary
                               </div>
                             </div>
@@ -329,15 +323,14 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
                   {/* Directory Structure */}
                   {sortedDirectories.length > 0 && (
                     <div>
-                      <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
-                        <Folder className="size-3.5 text-yellow-500" />
-                        Directory Structure
-                      </h4>
+                      <div className="text-xs font-semibold text-muted-foreground mb-2 px-2">
+                        DIRECTORY STRUCTURE
+                      </div>
                       
                       <div className="space-y-1">
                         {/* Directories with collapsible file lists */}
                         {sortedDirectories.map(([directory, files]) => (
-                          <div key={directory} className="">
+                          <div key={directory}>
                             {/* Directory header with collapse toggle */}
                             <DirectoryHeader 
                               dirName={directory} 
@@ -346,7 +339,7 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
                             
                             {/* Files in this directory - collapsible */}
                             {!collapsedDirs.has(directory) && files.length > 0 && (
-                              <div className="space-y-0.5 pl-6 mt-1 border-l border-sidebar-border ml-3">
+                              <div className="ml-4 space-y-0.5 border-l border-sidebar-border pl-3 mt-1">
                                 {files.map((summary) => (
                                   <SummaryItem 
                                     key={summary.id} 
@@ -370,11 +363,10 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
                     
                     if (additionalRepoSummaries.length > 0) {
                       return (
-                        <div>
-                          <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
-                            <FolderGit2 className="size-3.5 text-green-500" />
-                            Additional Summaries
-                          </h4>
+                        <div className="mt-4">
+                          <div className="text-xs font-semibold text-muted-foreground mb-2 px-2">
+                            ADDITIONAL SUMMARIES
+                          </div>
                           <div className="space-y-1">
                             {additionalRepoSummaries.map((summary) => (
                               <SummaryItem key={summary.id} summary={summary} />
