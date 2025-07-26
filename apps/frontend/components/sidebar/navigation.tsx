@@ -1,8 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Brain, LayoutGrid, Play, Plus } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { SidebarView } from ".";
+import { usePathname } from "next/navigation";
 import { SettingsDialog } from "../auth/settings-dialog";
 import { UserMenu } from "../auth/user-menu";
 import { Button } from "../ui/button";
@@ -14,16 +13,11 @@ import { useMemo } from "react";
 import { LogoHover } from "../logo/logo-hover";
 
 export function SidebarNavigation({
-  sidebarView,
-  setSidebarView,
   currentTaskId,
 }: {
-  sidebarView: SidebarView;
-  setSidebarView: (view: SidebarView) => void;
   currentTaskId: string | null;
 }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { open, toggleSidebar } = useSidebar();
   const { task } = useTask(currentTaskId ?? "");
 
@@ -38,7 +32,10 @@ export function SidebarNavigation({
     return currentTaskStatus ? statusColorsConfig[currentTaskStatus].bg : "";
   }, [task, currentTaskStatus]);
 
-  const agentViewTrigger = (
+  // Determine if we're in a task context for the play button
+  const isInTaskContext = pathname.startsWith('/tasks/') && currentTaskId;
+  
+  const agentViewTrigger = isInTaskContext ? (
     <div className="relative z-0 h-7">
       <div className="bg-card pointer-events-none absolute -right-1.5 -top-1.5 z-10 rounded-full p-1">
         <div className={cn("relative size-2 rounded-full", statusColor)}>
@@ -57,24 +54,21 @@ export function SidebarNavigation({
             variant="ghost"
             className={cn(
               "border",
-              sidebarView === "agent" && open
+              pathname.startsWith('/tasks/') && !pathname.includes('/codebase')
                 ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
                 : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
             )}
-            onClick={() => {
-              setSidebarView("agent");
-              if (!open) {
-                toggleSidebar();
-              }
-            }}
+            asChild
           >
-            <Play />
+            <Link href={`/tasks/${currentTaskId}`}>
+              <Play />
+            </Link>
           </Button>
         </TooltipTrigger>
         <TooltipContent side="right">Agent View</TooltipContent>
       </Tooltip>
     </div>
-  );
+  ) : null;
 
   return (
     <div className="bg-card flex h-svh flex-col justify-between border-r p-3">
@@ -97,6 +91,7 @@ export function SidebarNavigation({
             </TooltipTrigger>
             <TooltipContent side="right">New Task</TooltipContent>
           </Tooltip>
+          
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -104,52 +99,48 @@ export function SidebarNavigation({
                 variant="ghost"
                 className={cn(
                   "border",
-                  sidebarView === "tasks" && open
+                  pathname === '/' || pathname.startsWith('/tasks')
                     ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
                 )}
-                onClick={() => {
-                  setSidebarView("tasks");
-                  if (!open) {
-                    toggleSidebar();
-                  }
-                }}
+                asChild
               >
-                <LayoutGrid />
+                <Link href="/">
+                  <LayoutGrid />
+                </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">Tasks View</TooltipContent>
+            <TooltipContent side="right">Tasks</TooltipContent>
           </Tooltip>
 
-          {currentTaskId ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="iconSm"
+                variant="ghost"
+                className={cn(
+                  "border",
+                  pathname.startsWith('/codebase')
+                    ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
+                    : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
+                )}
+                asChild
+              >
+                <Link href="/codebase">
+                  <Brain />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Codebase Understanding</TooltipContent>
+          </Tooltip>
+
+          {/* Horizontal divider and play button only in task context */}
+          {isInTaskContext && (
             <>
               <div className="bg-border h-px w-full" />
               {agentViewTrigger}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="iconSm"
-                    variant="ghost"
-                    className={cn(
-                      "border",
-                      sidebarView === "codebase" && open
-                        ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
-                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
-                    )}
-                    onClick={() => {
-                      setSidebarView("codebase");
-                      if (!open) {
-                        toggleSidebar();
-                      }
-                    }}
-                  >
-                    <Brain />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">Codebase Understanding</TooltipContent>
-              </Tooltip>
             </>
-          ) : null}
+          )}
         </div>
       </div>
       <div className="flex flex-col gap-4">

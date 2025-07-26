@@ -15,12 +15,9 @@ import { useTasks } from "@/hooks/use-tasks";
 import { Task } from "@repo/db";
 import React from "react";
 import { SidebarAgentView } from "./agent-view";
-import { SidebarCodebaseView } from "./codebase-view";
 import { SidebarNavigation } from "./navigation";
 import { SidebarTasksView } from "./tasks-view";
-import { SidebarProvider, useSidebarView } from "./sidebar-context";
-
-export type SidebarView = "tasks" | "agent" | "codebase";
+import { usePathname } from "next/navigation";
 
 function SidebarViewsContent({
   initialTasks,
@@ -30,47 +27,38 @@ function SidebarViewsContent({
   currentTaskId?: string | null;
 }) {
   const { data: tasks, isLoading: loading, error } = useTasks(initialTasks);
-  const { sidebarView, setSidebarView } = useSidebarView();
+  const pathname = usePathname();
   
-  // View switching is now handled in the SidebarProvider context
-  // based on pathname changes, so we don't need manual logic here
+  // Determine view based on pathname - no more context needed
+  const isAgentView = pathname.startsWith('/tasks/') && currentTaskId;
+  const isTasksView = pathname === '/' || (pathname.startsWith('/tasks') && !currentTaskId);
 
   return (
     <div className="flex">
-      <SidebarNavigation
-        currentTaskId={currentTaskId}
-        sidebarView={sidebarView}
-        setSidebarView={setSidebarView}
-      />
+      <SidebarNavigation currentTaskId={currentTaskId} />
       <Sidebar>
-        {currentTaskId && sidebarView === "codebase" ? (
-          // Codebase view takes up entire sidebar
-          <SidebarCodebaseView taskId={currentTaskId} />
-        ) : (
-          // Other views have the standard layout with header
-          <SidebarContent>
-            <SidebarGroup className="flex h-7 flex-row items-center justify-between">
-              <div className="font-medium">
-                {sidebarView === "tasks" ? "Tasks" : "Agent Environment"}
-              </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <SidebarTrigger className="hover:bg-sidebar-accent" />
-                </TooltipTrigger>
-                <TooltipContent side="right" shortcut="⌘B">
-                  Toggle Sidebar
-                </TooltipContent>
-              </Tooltip>
-            </SidebarGroup>
-            <div className="mt-6 flex flex-col gap-4">
-              {currentTaskId && sidebarView === "agent" ? (
-                <SidebarAgentView taskId={currentTaskId} />
-              ) : (
-                <SidebarTasksView tasks={tasks} loading={loading} error={error} />
-              )}
+        <SidebarContent>
+          <SidebarGroup className="flex h-7 flex-row items-center justify-between">
+            <div className="font-medium">
+              {isTasksView ? "Tasks" : "Agent Environment"}
             </div>
-          </SidebarContent>
-        )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SidebarTrigger className="hover:bg-sidebar-accent" />
+              </TooltipTrigger>
+              <TooltipContent side="right" shortcut="⌘B">
+                Toggle Sidebar
+              </TooltipContent>
+            </Tooltip>
+          </SidebarGroup>
+          <div className="mt-6 flex flex-col gap-4">
+            {isAgentView ? (
+              <SidebarAgentView taskId={currentTaskId} />
+            ) : (
+              <SidebarTasksView tasks={tasks} loading={loading} error={error} />
+            )}
+          </div>
+        </SidebarContent>
       </Sidebar>
     </div>
   );
@@ -84,13 +72,9 @@ export function SidebarViews({
   currentTaskId?: string | null;
 }) {
   return (
-    <SidebarProvider>
-      <SidebarViewsContent 
-        initialTasks={initialTasks}
-        currentTaskId={currentTaskId}
-      />
-    </SidebarProvider>
+    <SidebarViewsContent
+      initialTasks={initialTasks}
+      currentTaskId={currentTaskId}
+    />
   );
 }
-
-

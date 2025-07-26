@@ -24,8 +24,7 @@ import { TaskPageContent } from "./task-content";
 import { useTask } from "@/hooks/use-task";
 import { useParams } from "next/navigation";
 import { useAgentEnvironment } from "../agent-environment/agent-environment-context";
-import { useSidebarView } from "../sidebar/sidebar-context";
-import { CodebaseUnderstandingView } from "../codebase-understanding/codebase-understanding-view";
+// Removed old codebase understanding context - now using routing
 
 export function TaskPageLayout({
   initialLayout,
@@ -39,8 +38,7 @@ export function TaskPageLayout({
 
   const { task } = useTask(taskId);
   const [editValue, setEditValue] = useState(task?.title || "");
-  // Use the sidebar context to get the current view
-  const { sidebarView } = useSidebarView();
+  // No longer using sidebar context - routing handles views
 
   const stickToBottomContextRef = useRef<StickToBottomContext>(null);
   const { isAtTop } = useIsAtTop(0, stickToBottomContextRef.current?.scrollRef);
@@ -214,12 +212,8 @@ export function TaskPageLayout({
               </Tooltip>
             </div>
           </div>
-          {/* Render the appropriate content based on URL parameter */}
-          {sidebarView === "codebase" ? (
-            <CodebaseUnderstandingView taskId={taskId} />
-          ) : (
-            <TaskPageContent isAtTop={isAtTop} />
-          )}
+          {/* Always render task content - codebase is now on separate pages */}
+          <TaskPageContent isAtTop={isAtTop} />
         </StickToBottom>
       </ResizablePanel>
       <ResizableHandle />
