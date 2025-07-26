@@ -24,6 +24,8 @@ import { TaskPageContent } from "./task-content";
 import { useTask } from "@/hooks/use-task";
 import { useParams } from "next/navigation";
 import { useAgentEnvironment } from "../agent-environment/agent-environment-context";
+import { useSidebarView } from "../sidebar/sidebar-context";
+import { CodebaseUnderstandingView } from "../codebase-understanding/codebase-understanding-view";
 
 export function TaskPageLayout({
   initialLayout,
@@ -37,13 +39,14 @@ export function TaskPageLayout({
 
   const { task } = useTask(taskId);
   const [editValue, setEditValue] = useState(task?.title || "");
+  const { sidebarView } = useSidebarView();
 
   const stickToBottomContextRef = useRef<StickToBottomContext>(null);
   const { isAtTop } = useIsAtTop(0, stickToBottomContextRef.current?.scrollRef);
 
   useEffect(() => {
     if (task) {
-      setEditValue(task.title);
+      setEditValue(task.title || "");
     }
   }, [task]);
 
@@ -210,7 +213,14 @@ export function TaskPageLayout({
               </Tooltip>
             </div>
           </div>
-          <TaskPageContent isAtTop={isAtTop} />
+          {/* Render the appropriate content based on the sidebar view */}
+          {sidebarView === "codebase" ? (
+            <CodebaseUnderstandingView taskId={taskId} />
+          ) : sidebarView === "agent" ? (
+            <TaskPageContent isAtTop={isAtTop} />
+          ) : (
+            <TaskPageContent isAtTop={isAtTop} />
+          )}
         </StickToBottom>
       </ResizablePanel>
       <ResizableHandle />

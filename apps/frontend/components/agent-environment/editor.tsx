@@ -1,7 +1,7 @@
 "use client";
 
 import { patchMonacoWithShiki } from "@/lib/editor/highlighter";
-import { AlertTriangle, ChevronRight, ChevronsRight } from "lucide-react";
+import { AlertTriangle, ChevronRight, ChevronsRight, FileText, Folder, FolderGit2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Fragment, useEffect, useState } from "react";
 import { Button } from "../ui/button";
@@ -29,7 +29,7 @@ export function Editor({
   contentError,
 }: {
   selectedFilePath?: string | null;
-  selectedFileContent?: string;
+  selectedFileContent?: any; // Using any to support both string and FileWithContent
   isExplorerCollapsed: boolean;
   onToggleCollapse: () => void;
   isLoadingContent?: boolean;
@@ -37,10 +37,23 @@ export function Editor({
 }) {
   const [isShikiReady, setIsShikiReady] = useState(false);
 
+  // Extract content string or object
+  const fileContentString = typeof selectedFileContent === 'string' 
+    ? selectedFileContent 
+    : selectedFileContent?.content || '';
+    
+  // Extract metadata from content object if available
+  const fileMetadata = typeof selectedFileContent === 'object' ? selectedFileContent : null;
+  
   // Check if the selected file is a markdown file
   const isMarkdownFile =
     selectedFilePath?.endsWith(".md") ||
     selectedFilePath?.endsWith(".markdown");
+    
+  // Check if this is a summary display
+  const isSummaryContent = 
+    selectedFilePath?.startsWith("summary://") || 
+    fileMetadata?.type === "summary";
 
   useEffect(() => {
     patchMonacoWithShiki().then(() => {
@@ -105,9 +118,36 @@ export function Editor({
             )}
           </div>
         )}
-        {isMarkdownFile && selectedFileContent ? (
+        {(isMarkdownFile || isSummaryContent) && fileContentString ? (
           <div className="h-full overflow-auto p-4">
-            <MarkdownRenderer content={selectedFileContent} />
+            {isSummaryContent && fileMetadata?.summaryData && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  {fileMetadata.summaryData.type === 'file_summary' ? (
+                    <span className="inline-flex items-center gap-1 text-blue-500 font-medium text-sm">
+                      <FileText className="size-4" /> File Summary
+                    </span>
+                  ) : fileMetadata.summaryData.type === 'directory_summary' ? (
+                    <span className="inline-flex items-center gap-1 text-yellow-500 font-medium text-sm">
+                      <Folder className="size-4" /> Directory Summary
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-green-500 font-medium text-sm">
+                      <FolderGit2 className="size-4" /> Repository Overview
+                    </span>
+                  )}
+                  {fileMetadata.summaryData.language && (
+                    <span className="bg-muted text-muted-foreground px-2 py-0.5 rounded text-xs">
+                      {fileMetadata.summaryData.language}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-lg font-medium mb-4">
+                  {fileMetadata.summaryData.filePath || "Workspace Overview"}
+                </h2>
+              </div>
+            )}
+            <MarkdownRenderer content={fileContentString} />
           </div>
         ) : (
           <MonacoEditor
@@ -115,9 +155,9 @@ export function Editor({
             language={
               selectedFilePath
                 ? getLanguageFromPath(selectedFilePath)
-                : "plaintext"
+                : fileMetadata?.language || "plaintext"
             }
-            value={selectedFileContent}
+            value={fileContentString}
             theme={isShikiReady ? "vesper" : "vs-dark"}
             options={{
               readOnly: true,
