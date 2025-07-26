@@ -182,9 +182,11 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       const fullSummary = await getWorkspaceSummaryById(summary.id);
       
       if (fullSummary) {
-        // Pass the summary to the environment context
+        console.log("Received full summary:", fullSummary);
+        
+        // The summary is now already formatted correctly from the server action
+        // Pass the summary directly to the environment context
         setSelectedSummary(fullSummary);
-        console.log("Full summary loaded in environment:", fullSummary);
       } else {
         console.error("Summary not found");
       }
