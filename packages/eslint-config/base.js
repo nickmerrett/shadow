@@ -28,6 +28,7 @@ export const config = [
   },
   {
     rules: {
+      "no-unused-vars": "off",
       // Allow unused variables/parameters that start with underscore
       "@typescript-eslint/no-unused-vars": [
         "error",

@@ -21,7 +21,7 @@ function safeRequire(name: string): any {
       return mod.typescript || mod;
     }
     return mod.default || mod;
-  } catch (err) {
+  } catch (_err) {
     logger.warn(`Language grammar not installed: ${name}`);
     return null;
   }

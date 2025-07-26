@@ -1,6 +1,5 @@
 import {
   CommandOptions,
-  CommandResult,
   DeleteResult,
   DirectoryListing,
   FileResult,
@@ -11,9 +10,10 @@ import {
   ReadFileOptions,
   SearchOptions,
   WriteResult,
-  CodebaseSearchResult,
+  CodebaseSearchToolResult,
   WebSearchResult,
-} from "./types";
+} from "@repo/types";
+import { CommandResult } from "./types";
 
 /**
  * ToolExecutor interface abstracts all tool operations for both local and remote execution
@@ -55,7 +55,7 @@ export interface ToolExecutor {
   codebaseSearch(
     query: string,
     options?: SearchOptions
-  ): Promise<CodebaseSearchResult>;
+  ): Promise<CodebaseSearchToolResult>;
 
   semanticSearch(
     query: string,

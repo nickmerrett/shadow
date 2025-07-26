@@ -7,7 +7,7 @@ import {
   GitBranchRequestSchema,
   GitCommitRequestSchema,
   GitPushRequestSchema,
-} from "../types";
+} from "@repo/types";
 
 export function createGitRouter(gitService: GitService): Router {
   const router = Router();

@@ -165,6 +165,7 @@ export class DeepWikiStorage {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async searchSummaries(query: string, topK: number = 10): Promise<any[]> {
     try {
       // Use the existing retrieval system to search DeepWiki summaries
@@ -209,6 +210,7 @@ export class DeepWikiStorage {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private parseRecord(pineconeResult: any): DeepWikiRecord {
     const metadata = pineconeResult.metadata;
     return {

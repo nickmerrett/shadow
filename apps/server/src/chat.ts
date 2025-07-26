@@ -4,10 +4,8 @@ import {
   Message,
   MessageMetadata,
   ModelType,
-  TextPart,
-  ToolCallPart,
-  ToolResultPart,
 } from "@repo/types";
+import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
@@ -191,7 +189,7 @@ export class ChatService {
 
       // Check if there are any uncommitted changes
       const statusResponse = await sidecarClient.getGitStatus();
-      
+
       if (!statusResponse.success) {
         console.error(`[CHAT] Failed to check git status for task ${taskId}: ${statusResponse.message}`);
         return;
@@ -204,7 +202,7 @@ export class ChatService {
 
       // Get diff from sidecar to generate commit message on server side
       const diffResponse = await sidecarClient.getGitDiff();
-      
+
       let commitMessage = "Update code via Shadow agent";
       if (diffResponse.success && diffResponse.diff) {
         // Generate commit message using server-side GitManager (which has AI integration)
@@ -505,16 +503,21 @@ export class ChatService {
             });
 
             if (toolMessage) {
+              // Convert result to string for content field, keep object in metadata
+              const resultString = typeof chunk.toolResult.result === 'string'
+                ? chunk.toolResult.result
+                : JSON.stringify(chunk.toolResult.result);
+
               await prisma.chatMessage.update({
                 where: { id: toolMessage.id },
                 data: {
-                  content: chunk.toolResult.result,
+                  content: resultString,
                   metadata: {
                     ...(toolMessage.metadata as any),
                     tool: {
                       ...(toolMessage.metadata as any)?.tool,
                       status: "COMPLETED",
-                      result: chunk.toolResult.result,
+                      result: chunk.toolResult.result, // Keep as object for type safety
                     },
                     isStreaming: false,
                   },
@@ -536,21 +539,6 @@ export class ChatService {
             completionTokens: chunk.usage.completionTokens,
             totalTokens: chunk.usage.totalTokens,
           };
-        }
-
-        // Track finish reason
-        if (
-          chunk.type === "complete" &&
-          chunk.finishReason &&
-          chunk.finishReason !== "error"
-        ) {
-          // Map finish reason to our type system
-          finishReason =
-            chunk.finishReason === "content-filter"
-              ? "content_filter"
-              : chunk.finishReason === "function_call"
-                ? "tool_calls"
-                : chunk.finishReason;
         }
       }
 
@@ -593,7 +581,7 @@ export class ChatService {
         await updateTaskStatus(taskId, "STOPPED", "CHAT");
       } else {
         await updateTaskStatus(taskId, "COMPLETED", "CHAT");
-        
+
         // Commit changes if there are any (only for successfully completed responses)
         try {
           await this.commitChangesIfAny(taskId, workspacePath);

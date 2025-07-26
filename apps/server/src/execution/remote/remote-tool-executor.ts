@@ -1,7 +1,6 @@
 import { ToolExecutor } from "../interfaces/tool-executor";
 import {
   CommandOptions,
-  CommandResult,
   DeleteResult,
   DirectoryListing,
   FileResult,
@@ -11,12 +10,14 @@ import {
   GrepResult,
   ReadFileOptions,
   WriteResult,
-  CodebaseSearchResult,
+  CodebaseSearchToolResult,
   SearchOptions,
-} from "../interfaces/types";
+  WebSearchResult,
+} from "@repo/types";
+import { CommandResult } from "../interfaces/types";
 import config from "../../config";
 import { SidecarClient } from "./sidecar-client";
-import { BackgroundCommandResponse } from "./sidecar-types";
+import { BackgroundCommandResponse } from "@repo/types";
 
 /**
  * RemoteToolExecutor implements tool operations via HTTP calls to a sidecar API
@@ -135,7 +136,7 @@ export class RemoteToolExecutor implements ToolExecutor {
     return this.withErrorHandling(
       `getFileStats(${targetFile})`,
       async () => {
-        const response = await this.sidecarClient.request<any>(`/files/${encodeURIComponent(targetFile)}/stats`, {
+        const response = await this.sidecarClient.request<FileStatsResult>(`/files/${encodeURIComponent(targetFile)}/stats`, {
           method: "GET",
         });
 
@@ -297,8 +298,8 @@ export class RemoteToolExecutor implements ToolExecutor {
   async codebaseSearch(
     query: string,
     options?: SearchOptions
-  ): Promise<CodebaseSearchResult> {
-    const fallback: CodebaseSearchResult = {
+  ): Promise<CodebaseSearchToolResult> {
+    const fallback: CodebaseSearchToolResult = {
       success: false,
       error: "Remote execution unavailable",
       message: `Failed to search codebase for: ${query}`,
@@ -310,7 +311,7 @@ export class RemoteToolExecutor implements ToolExecutor {
     return this.withErrorHandling(
       `codebaseSearch(${query})`,
       async () => {
-        return await this.sidecarClient.request<CodebaseSearchResult>("/search/codebase", {
+        return await this.sidecarClient.request<CodebaseSearchToolResult>("/search/codebase", {
           method: "POST",
           body: JSON.stringify({
             query,
@@ -384,6 +385,87 @@ export class RemoteToolExecutor implements ToolExecutor {
       // Fallback to ripgrep if indexing service is unavailable
       return this.codebaseSearch(query, options);
     }
+  }
+
+  async webSearch(query: string, domain?: string): Promise<WebSearchResult> {
+    const fallback: WebSearchResult = {
+      success: false,
+      results: [],
+      query,
+      domain,
+      message: `Failed to perform web search: ${query}`,
+      error: "Web search unavailable",
+    };
+
+    return this.withErrorHandling(
+      `webSearch(${query})`,
+      async () => {
+        if (!config.exaApiKey) {
+          throw new Error("EXA_API_KEY is not configured");
+        }
+
+        interface ExaApiRequestBody {
+          query: string;
+          type: "fast" | "auto" | "keyword" | "neural";
+          contents: {
+            text: boolean;
+          };
+          num_results: number;
+          include_domains?: string[];
+        }
+
+        const requestBody: ExaApiRequestBody = {
+          query,
+          type: "fast",
+          contents: {
+            text: true
+          },
+          num_results: 5
+        };
+
+        if (domain) {
+          requestBody.include_domains = [domain];
+        }
+
+        // Use node-fetch to make the API call
+        const response = await fetch("https://api.exa.ai/search", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-api-key": config.exaApiKey
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Exa API error (${response.status}): ${errorText}`);
+        }
+
+        interface ExaSearchResult {
+          text: string;
+          url: string;
+          title?: string;
+        }
+
+        const data = await response.json() as { results?: ExaSearchResult[] };
+
+        const results = data.results?.map((result: ExaSearchResult) => ({
+          text: result.text || "",
+          url: result.url || "",
+          title: result.title || undefined
+        })) || [];
+
+        return {
+          success: true,
+          results,
+          query,
+          domain,
+          message: `Found ${results.length} web search results for query: ${query}`
+        } as WebSearchResult;
+      },
+      fallback
+    );
   }
 
   async executeCommand(

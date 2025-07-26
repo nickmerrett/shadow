@@ -9,7 +9,7 @@ import {
   GitDiffResponse,
   GitCommitResponse,
   GitPushResponse,
-} from "../types";
+} from "@repo/types";
 import {
   validateGitOperation,
   validateGitUser,

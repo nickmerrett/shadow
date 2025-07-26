@@ -1,12 +1,11 @@
 import { prisma } from "@repo/db";
-import { StreamChunk, ServerToClientEvents, ClientToServerEvents, TerminalEntry } from "@repo/types";
+import { StreamChunk, ServerToClientEvents, ClientToServerEvents, TerminalEntry, AgentMode } from "@repo/types";
 import http from "http";
 import { Server, Socket } from "socket.io";
 import { ChatService, DEFAULT_MODEL } from "./chat";
 import config from "./config";
 import { updateTaskStatus } from "./utils/task-status";
 import { createToolExecutor } from "./execution";
-import { AgentMode } from "./execution/interfaces/types";
 import { setupSidecarNamespace } from "./services/sidecar-socket-handler";
 
 // Enhanced connection management

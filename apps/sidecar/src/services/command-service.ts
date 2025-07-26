@@ -3,7 +3,7 @@ import { EventEmitter } from "events";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import { WorkspaceService } from "./workspace-service";
-import { CommandResponse } from "../types";
+import { CommandResponse } from "@repo/types";
 import {
   validateCommand,
   parseCommand,

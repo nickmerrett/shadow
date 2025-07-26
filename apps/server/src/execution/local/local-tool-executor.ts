@@ -13,7 +13,6 @@ import { execAsync } from "../../utils/exec";
 import { ToolExecutor } from "../interfaces/tool-executor";
 import {
   CommandOptions,
-  CommandResult,
   DeleteResult,
   DirectoryListing,
   FileResult,
@@ -23,10 +22,11 @@ import {
   GrepResult,
   ReadFileOptions,
   WriteResult,
-  CodebaseSearchResult,
+  CodebaseSearchToolResult,
   SearchOptions,
   WebSearchResult,
-} from "../interfaces/types";
+} from "@repo/types";
+import { CommandResult } from "../interfaces/types";
 
 
 /**
@@ -42,10 +42,10 @@ export class LocalToolExecutor implements ToolExecutor {
     this.workspacePath = workspacePath || config.workspaceDir;
     // Console logger for local execution
     this.securityLogger = {
-      warn: (message: string, details?: Record<string, any>) => {
+      warn: (message: string, details?: Record<string, unknown>) => {
         console.warn(`[LOCAL_SECURITY] ${message}`, details);
       },
-      info: (message: string, details?: Record<string, any>) => {
+      info: (message: string, details?: Record<string, unknown>) => {
         console.log(`[LOCAL_SECURITY] ${message}`, details);
       },
     };
@@ -376,7 +376,7 @@ export class LocalToolExecutor implements ToolExecutor {
   async codebaseSearch(
     query: string,
     options?: SearchOptions
-  ): Promise<CodebaseSearchResult> {
+  ): Promise<CodebaseSearchToolResult> {
     try {
       // Use ripgrep for a basic semantic-like search with multiple patterns
       const searchTerms = query.split(" ").filter((term) => term.length > 2);
@@ -413,7 +413,7 @@ export class LocalToolExecutor implements ToolExecutor {
           query,
           searchTerms,
         };
-      } catch (error) {
+      } catch (_error) {
         // If ripgrep fails (no matches), return empty results
         return {
           success: true,
@@ -682,9 +682,12 @@ export class LocalToolExecutor implements ToolExecutor {
         if (code === 0) {
           resolve({ stdout, stderr });
         } else {
-          const error = new Error(`Command failed with exit code ${code}: ${stderr || stdout}`);
-          (error as any).stdout = stdout;
-          (error as any).stderr = stderr;
+          const error = new Error(`Command failed with exit code ${code}: ${stderr || stdout}`) as Error & {
+            stdout: string;
+            stderr: string;
+          };
+          error.stdout = stdout;
+          error.stderr = stderr;
           reject(error);
         }
       });

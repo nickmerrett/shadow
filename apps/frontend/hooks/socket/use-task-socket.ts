@@ -3,16 +3,14 @@
 import { useSocket } from "./use-socket";
 import { useEffect, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { 
-  AssistantMessagePart, 
-  Message, 
-  StreamChunk, 
+import type {
+  AssistantMessagePart,
+  Message,
+  StreamChunk,
   TaskStatusUpdateEvent,
-  TextPart,
-  ToolCallPart,
-  ToolResultPart,
   ModelType
 } from "@repo/types";
+import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 
 interface FileChange {
   filePath: string;
@@ -38,19 +36,19 @@ function updateFileChangesOptimistically(
   fsChange: FsChangeEvent
 ): FileChange[] {
   const { operation, filePath, isDirectory } = fsChange;
-  
+
   console.log(`[OPTIMISTIC_UPDATE] ${operation} ${filePath} (isDirectory: ${isDirectory})`);
-  
+
   // Skip directory changes for now (we focus on files)
   if (isDirectory) {
     console.log(`[OPTIMISTIC_UPDATE] Skipping directory change: ${filePath}`);
     return existingChanges;
   }
-  
+
   // Remove existing entry for this file (if any)
   const filtered = existingChanges.filter(change => change.filePath !== filePath);
   const wasExisting = filtered.length !== existingChanges.length;
-  
+
   // Handle each operation type
   switch (operation) {
     case 'file-created':
@@ -62,7 +60,7 @@ function updateFileChangesOptimistically(
         deletions: 0,
         createdAt: new Date().toISOString()
       }];
-      
+
     case 'file-modified':
       console.log(`[OPTIMISTIC_UPDATE] Updating existing file: ${filePath} (was existing: ${wasExisting})`);
       return [...filtered, {
@@ -72,18 +70,18 @@ function updateFileChangesOptimistically(
         deletions: 0,
         createdAt: new Date().toISOString()
       }];
-      
+
     case 'file-deleted':
       console.log(`[OPTIMISTIC_UPDATE] Removing deleted file: ${filePath}`);
       // For deletions, just return filtered array (file removed from list)
       return filtered;
-      
+
     case 'directory-created':
     case 'directory-deleted':
       // Should not reach here due to isDirectory check above, but handle gracefully
       console.log(`[OPTIMISTIC_UPDATE] Ignoring directory operation: ${operation} ${filePath}`);
       return existingChanges;
-      
+
     default:
       console.warn(`[OPTIMISTIC_UPDATE] Unknown operation: ${operation} ${filePath}`);
       return existingChanges;
@@ -93,7 +91,7 @@ function updateFileChangesOptimistically(
 export function useTaskSocket(taskId: string | undefined) {
   const { socket, isConnected } = useSocket();
   const queryClient = useQueryClient();
-  
+
   // All the state that was previously in task-content.tsx
   const [streamingAssistantParts, setStreamingAssistantParts] = useState<AssistantMessagePart[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -103,7 +101,7 @@ export function useTaskSocket(taskId: string | undefined) {
     if (socket && taskId && isConnected) {
       socket.emit('join-task', { taskId });
       console.log(`[SOCKET] Joined task room: ${taskId}`);
-      
+
       return () => {
         socket.emit('leave-task', { taskId });
         console.log(`[SOCKET] Left task room: ${taskId}`);
@@ -202,26 +200,26 @@ export function useTaskSocket(taskId: string | undefined) {
         case "fs-change":
           if (chunk.fsChange) {
             console.log("File system change:", chunk.fsChange);
-            
+
             // Optimistically update file changes in React Query cache
             queryClient.setQueryData(
               ["task", taskId],
               (oldData: any) => {
                 if (!oldData) return oldData;
-                
+
                 // Add/update/remove from fileChanges array based on operation
                 const updatedFileChanges = updateFileChangesOptimistically(
                   oldData.fileChanges || [],
                   chunk.fsChange!
                 );
-                
+
                 return {
                   ...oldData,
                   fileChanges: updatedFileChanges
                 };
               }
             );
-            
+
             // Note: Diff stats are NOT invalidated here to avoid expensive git operations
             // They will refresh on: 1) stream completion, 2) 30s stale time, 3) manual refresh
           }
@@ -349,7 +347,7 @@ export function useTaskSocket(taskId: string | undefined) {
   // Socket actions (methods to call from components)
   const sendMessage = useCallback((message: string, model: string) => {
     if (!socket || !taskId || !message.trim()) return;
-    
+
     console.log("Sending message:", { taskId, message, model });
     socket.emit('user-message', {
       taskId,
@@ -360,7 +358,7 @@ export function useTaskSocket(taskId: string | undefined) {
 
   const stopStream = useCallback(() => {
     if (!socket || !taskId || !isStreaming) return;
-    
+
     console.log("Stopping stream for task:", taskId);
     socket.emit('stop-stream', { taskId });
     setIsStreaming(false);
@@ -370,11 +368,11 @@ export function useTaskSocket(taskId: string | undefined) {
   return {
     // Connection state
     isConnected,
-    
+
     // Chat state
     streamingAssistantParts,
     isStreaming,
-    
+
     // Actions
     sendMessage,
     stopStream,
