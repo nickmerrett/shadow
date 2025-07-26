@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import type { Message, ToolExecutionStatusType } from "@repo/types";
 import { CheckIcon, Loader, Terminal, X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 
 interface TerminalOutputProps {
   output: string;
@@ -82,6 +83,8 @@ function StatusBadge({ status }: { status: ToolExecutionStatusType }) {
 }
 
 export function RunTerminalCmdTool({ message }: { message: Message }) {
+  const { rightPanelRef } = useAgentEnvironment();
+
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
@@ -92,20 +95,32 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
   // Error may not be available in the current type definition
   const error = (toolMeta as any)?.error;
 
+  const handleClick = () => {
+    // Expand the right panel if it's collapsed
+    const panel = rightPanelRef.current;
+    if (panel && panel.isCollapsed()) {
+      panel.expand();
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-2">
+    <button
+      onClick={handleClick}
+      className={cn(
+        "text-muted-foreground hover:text-foreground hover:bg-secondary flex w-full cursor-pointer flex-col gap-2 rounded-md px-3 py-1.5 text-left text-[13px] transition-colors"
+      )}
+    >
       {/* Header */}
-      <div className="text-muted-foreground flex items-center gap-2 text-[13px] [&_svg:not([class*='size-'])]:size-3.5">
+      <div className="flex items-center gap-2 [&_svg:not([class*='size-'])]:size-3.5">
         <Terminal />
         <span>Terminal Command{isBackground ? " (Background)" : ""}</span>
       </div>
 
-      <div className="flex flex-col gap-2 pl-6">
+      {/* <div className="flex flex-col gap-2 pl-6">
         <div className="flex items-center gap-2">
           <StatusBadge status={status} />
         </div>
 
-        {/* Command display */}
         <div className="rounded-md border bg-gray-100 p-3 dark:bg-gray-800/50">
           <div className="text-muted-foreground mb-1 text-xs">Command:</div>
           <code className="text-foreground break-all font-mono text-sm">
@@ -113,7 +128,6 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
           </code>
         </div>
 
-        {/* Terminal output */}
         {(result || error || status === "RUNNING") && (
           <div>
             <div className="text-muted-foreground mb-2 text-xs">Output:</div>
@@ -124,7 +138,7 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
             />
           </div>
         )}
-      </div>
-    </div>
+      </div> */}
+    </button>
   );
 }

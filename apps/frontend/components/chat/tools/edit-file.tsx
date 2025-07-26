@@ -1,8 +1,13 @@
 import type { Message } from "@repo/types";
 import { Edit3 } from "lucide-react";
-import { CollapsibleTool, ToolType } from "./collapsible-tool";
+import { cn } from "@/lib/utils";
+import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
+
+const TOOL_PREFIX = "Edited";
 
 export function EditFileTool({ message }: { message: Message }) {
+  const { setSelectedFilePath, rightPanelRef } = useAgentEnvironment();
+
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
@@ -21,15 +26,31 @@ export function EditFileTool({ message }: { message: Message }) {
       ? ` (+${linesAdded} -${linesRemoved})`
       : "";
 
+  const handleClick = () => {
+    // Set the active file in agent environment
+    setSelectedFilePath(filePath);
+
+    // Expand the right panel if it's collapsed
+    const panel = rightPanelRef.current;
+    if (panel && panel.isCollapsed()) {
+      panel.expand();
+    }
+  };
+
   return (
-    <CollapsibleTool
-      icon={<Edit3 />}
-      type={ToolType.EDIT_FILE}
-      title={`${filePath}${changeSummary}`}
-    >
-      {instructions && (
-        <div className="text-muted-foreground text-xs">{instructions}</div>
+    <button
+      onClick={handleClick}
+      className={cn(
+        "text-muted-foreground hover:text-foreground hover:bg-secondary flex w-full cursor-pointer flex-col gap-2 rounded-md px-3 py-1.5 text-left text-[13px] transition-colors"
       )}
-    </CollapsibleTool>
+    >
+      <div className="flex items-center gap-2 [&_svg:not([class*='size-'])]:size-3.5">
+        <Edit3 />
+        <div className="flex items-center gap-1">
+          <span className="opacity-70">{TOOL_PREFIX}</span>
+          <span>{`${filePath}${changeSummary}`}</span>
+        </div>
+      </div>
+    </button>
   );
 }
