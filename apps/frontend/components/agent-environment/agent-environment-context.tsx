@@ -10,8 +10,7 @@ import {
   useMemo,
   useRef,
   useEffect,
-  useCallback,
-  useCallback,
+  useCallback
 } from "react";
 import { ImperativePanelHandle } from "react-resizable-panels";
 
@@ -176,6 +175,7 @@ export function AgentEnvironmentProvider({
     () => ({
       selectedFilePath,
       selectedFileWithContent: finalSelectedFileContent,
+      setSelectedFilePath,
       updateSelectedFilePath,
       setSelectedSummary,
       isLoadingContent: fileContentQuery.isLoading && !selectedFileContentOverride,
@@ -187,8 +187,8 @@ export function AgentEnvironmentProvider({
     [
       selectedFilePath,
       finalSelectedFileContent,
-      updateSelectedFilePath,
       setSelectedFilePath,
+      updateSelectedFilePath,
       setSelectedSummary,
       fileContentQuery.isLoading,
       fileContentQuery.error?.message,
