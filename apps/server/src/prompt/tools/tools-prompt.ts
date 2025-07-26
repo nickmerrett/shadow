@@ -3,7 +3,7 @@ import { join, dirname } from "path";
 
 // Helper function to read tool instruction files
 function readToolInstructions(toolName: string): string {
-  const instructionsPath = join(dirname(__filename), 'tools', toolName, 'instructions.md');
+  const instructionsPath = join(dirname(__filename), toolName, 'instructions.md');
   return readFileSync(instructionsPath, 'utf-8').trim();
 }
 
