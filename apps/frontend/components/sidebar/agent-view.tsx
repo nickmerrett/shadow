@@ -13,17 +13,20 @@ import {
   FolderGit2,
   GitBranch,
   ListTodo,
+  RefreshCcw,
   Square,
   SquareCheck,
   XCircle,
 } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { statusColorsConfig } from "./status";
 import {
   FileExplorer,
   type FileNode,
 } from "@/components/agent-environment/file-explorer";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
+import { Button } from "@/components/ui/button";
+import { indexRepo } from "@/lib/actions/index-repo";
 
 // Todo status config - aligned with main status colors
 const todoStatusConfig = {
@@ -77,6 +80,8 @@ function createFileTree(filePaths: string[]): FileNode[] {
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
   const { setSelectedFilePath, rightPanelRef } = useAgentEnvironment();
+  const repoName = task!.repoUrl.split("/").slice(-2).join("/") || "";
+  const [isIndexing, setIsIndexing] = useState(false);
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
@@ -111,6 +116,26 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         <SidebarGroupContent>
           {/* Live task status */}
           <SidebarMenuItem>
+            <div className="flex h-8 items-center gap-2 text-sm">
+              <Button
+                variant="link"
+                className="transition-all ease-out duration-100"
+                size="sm"
+                onClick={async () => {
+                  setIsIndexing(true);
+                  try {
+                    await indexRepo(repoName, task.id, true);
+                  } finally {
+                    setIsIndexing(false);
+                  }
+                }}
+              >
+                <RefreshCcw
+                  className={cn("size-4 mr-1", isIndexing && "animate-spin")}
+                />
+                <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
+              </Button>
+            </div>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               {(() => {
                 const StatusIcon =

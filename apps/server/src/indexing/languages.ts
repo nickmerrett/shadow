@@ -14,9 +14,12 @@ interface ExtendedLanguageSpec extends LanguageSpec {
   language: any;
 }
 
-async function safeRequire(name: string): Promise<any> {
+function safeRequire(name: string): any {
   try {
-    const mod = await import(name);
+    const mod = require(name);
+    if (name === "tree-sitter-typescript") {
+      return mod.typescript || mod;
+    }
     return mod.default || mod;
   } catch (err) {
     logger.warn(`Language grammar not installed: ${name}`);
@@ -117,7 +120,7 @@ export async function getLanguageForPath(
   }
 
   const loadPromise = (async () => {
-    const mod = await safeRequire(spec.pkg);
+    const mod = safeRequire(spec.pkg);
     if (mod) {
       const result = {
         ...spec,
