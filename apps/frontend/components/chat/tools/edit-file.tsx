@@ -19,11 +19,6 @@ export function EditFileTool({ message }: { message: Message }) {
   const linesAdded = result?.linesAdded || 0;
   const linesRemoved = result?.linesRemoved || 0;
 
-  const changeSummary =
-    status === "COMPLETED" && (linesAdded > 0 || linesRemoved > 0)
-      ? ` (+${linesAdded} -${linesRemoved})`
-      : "";
-
   const handleClick = () => {
     // Set the active file in agent environment
     setSelectedFilePath(filePath);
@@ -46,7 +41,15 @@ export function EditFileTool({ message }: { message: Message }) {
         <Edit3 />
         <div className="flex items-center gap-1">
           <span className="opacity-70">{TOOL_PREFIX}</span>
-          <span>{`${filePath}${changeSummary}`}</span>
+          <span>{filePath}</span>
+          <span>
+            {status === "COMPLETED" && (linesAdded > 0 || linesRemoved > 0) && (
+              <>
+                <span className="text-green-400">+{linesAdded}</span>
+                <span className="ml-1 text-red-400">-{linesRemoved}</span>
+              </>
+            )}
+          </span>
         </div>
       </div>
     </button>

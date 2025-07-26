@@ -12,6 +12,7 @@ export enum ToolType {
   LIST_DIR = "list_dir",
   DELETE_FILE = "delete_file",
   WEB_SEARCH = "web_search",
+  TODO_WRITE = "todo_write",
 }
 
 const TOOL_PREFIXES: Record<ToolType, string> = {
@@ -25,15 +26,17 @@ const TOOL_PREFIXES: Record<ToolType, string> = {
   [ToolType.LIST_DIR]: "Listed",
   [ToolType.DELETE_FILE]: "Deleted",
   [ToolType.WEB_SEARCH]: "Searched web",
+  [ToolType.TODO_WRITE]: "Updated todo list",
 };
 
-interface CollapsibleToolProps {
+type CollapsibleToolProps = {
   icon: React.ReactNode;
   type: ToolType;
-  title: string; // This is the suffix that comes after the prefix
+  title: string; // This is the suffix that comes after the tool-associated prefix
   children: React.ReactNode;
   className?: string;
-}
+  prefix?: string;
+};
 
 export function CollapsibleTool({
   icon,
@@ -41,6 +44,7 @@ export function CollapsibleTool({
   title,
   children,
   className,
+  prefix,
 }: CollapsibleToolProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -55,7 +59,7 @@ export function CollapsibleTool({
       <div className="flex items-center gap-2 [&_svg:not([class*='size-'])]:size-3.5">
         {icon}
         <div className="flex items-center gap-1">
-          <span className="opacity-70">{TOOL_PREFIXES[type]}</span>
+          <span className="opacity-70">{prefix || TOOL_PREFIXES[type]}</span>
           <span>{title}</span>
         </div>
       </div>
