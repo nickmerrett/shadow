@@ -2,8 +2,10 @@
 
 import { Button } from "@/components/ui/button";
 import { SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel } from "@/components/ui/sidebar";
-import { Brain, FileText, Folder, FolderGit2, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Brain, ChevronDown, FileText, Folder, FolderGit2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useCodebaseUnderstanding } from "@/components/codebase-understanding/codebase-understanding-context";
 
 interface CodebaseSummary {
   id: string;
@@ -15,10 +17,10 @@ interface CodebaseSummary {
 
 interface CodebaseViewProps {
   taskId: string;
-  onSummarySelect: (summary: CodebaseSummary) => void;
 }
 
-export function SidebarCodebaseView({ taskId, onSummarySelect }: CodebaseViewProps) {
+export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
+  const { selectSummary } = useCodebaseUnderstanding();
   const [summaries, setSummaries] = useState<CodebaseSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isIndexing, setIsIndexing] = useState(false);
@@ -34,7 +36,36 @@ export function SidebarCodebaseView({ taskId, onSummarySelect }: CodebaseViewPro
       
       if (summariesData && summariesData.length > 0) {
         // Type assertion to ensure compatibility
-        setSummaries(summariesData as CodebaseSummary[]);
+        const typedSummaries = summariesData as CodebaseSummary[];
+        setSummaries(typedSummaries);
+        
+        // Look for the most appropriate root overview summary to select by default
+        // First priority: Look for a summary with filePath exactly "root_overview"
+        let rootSummary = typedSummaries.find(s => s.filePath === "root_overview");
+        
+        // Second priority: Look for repo_summary type
+        if (!rootSummary) {
+          rootSummary = typedSummaries.find(s => s.type === "repo_summary");
+        }
+        
+        // Third priority: Look for summaries with "root" or "overview" in their path
+        if (!rootSummary) {
+          rootSummary = typedSummaries.find(s => 
+            (s.filePath?.toLowerCase().includes("root") && s.filePath?.toLowerCase().includes("overview")) ||
+            s.filePath === ""
+          );
+        }
+        
+        // Fourth priority: Just take the first summary if available
+        if (!rootSummary && typedSummaries.length > 0) {
+          rootSummary = typedSummaries[0];
+        }
+        
+        // Select the root summary if one was found
+        if (rootSummary) {
+          console.log("Selecting default summary:", rootSummary);
+          selectSummary(rootSummary);
+        }
       } else {
         setSummaries([]);
       }
@@ -74,6 +105,76 @@ export function SidebarCodebaseView({ taskId, onSummarySelect }: CodebaseViewPro
   const directorySummaries = summaries.filter(s => s.type === "directory_summary");
   const repoSummaries = summaries.filter(s => s.type === "repo_summary");
 
+  // Organize files by directory structure
+  const directoryMap = new Map<string, CodebaseSummary[]>();
+  const [rootOverviewSummary] = repoSummaries.length > 0 ? [repoSummaries[0]] : [null];
+  const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(new Set());
+  
+  const toggleDirectoryCollapse = (dirName: string) => {
+    setCollapsedDirs(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(dirName)) {
+        newSet.delete(dirName);
+      } else {
+        newSet.add(dirName);
+      }
+      return newSet;
+    });
+  };
+  
+  // First, populate with directory summaries to ensure they appear first
+  directorySummaries.forEach(dirSummary => {
+    const dirName = dirSummary.filePath;
+    if (dirName && !directoryMap.has(dirName)) {
+      directoryMap.set(dirName, [dirSummary]);
+    } else if (dirName) {
+      directoryMap.get(dirName)!.unshift(dirSummary);
+    }
+  });
+  
+  // Then add file summaries to their respective directories
+  fileSummaries.forEach(fileSummary => {
+    const filePath = fileSummary.filePath || "";
+    const lastSlashIndex = filePath.lastIndexOf("/");
+    
+    if (lastSlashIndex > -1) {
+      // This is a file within a directory
+      const dirName = filePath.substring(0, lastSlashIndex);
+      const fileName = filePath.substring(lastSlashIndex + 1);
+      
+      // Create dir if it doesn't exist
+      if (!directoryMap.has(dirName)) {
+        directoryMap.set(dirName, []);
+      }
+      
+      // Add file with just the filename showing in the UI but full path stored
+      const fileWithShortName = {
+        ...fileSummary,
+        displayName: fileName // Add a displayName for UI but keep filePath intact
+      };
+      directoryMap.get(dirName)!.push(fileWithShortName);
+    } else {
+      // This is a root-level file
+      if (!directoryMap.has("root")) {
+        directoryMap.set("root", []);
+      }
+      directoryMap.get("root")!.push(fileSummary);
+    }
+  });
+  
+  // Sort directories for consistent display
+  const sortedDirectories = Array.from(directoryMap.entries())
+    .sort(([dirA], [dirB]) => dirA.localeCompare(dirB));
+
+  // Move "root" to the beginning if it exists
+  const rootDirIndex = sortedDirectories.findIndex(([dir]) => dir === "root");
+  if (rootDirIndex > 0) {
+    const rootDir = sortedDirectories.splice(rootDirIndex, 1)[0];
+    if (rootDir) {
+      sortedDirectories.unshift(rootDir);
+    }
+  }
+
   const getIcon = (type: string) => {
     switch (type) {
       case "file_summary":
@@ -87,15 +188,16 @@ export function SidebarCodebaseView({ taskId, onSummarySelect }: CodebaseViewPro
     }
   };
 
-  const SummaryItem = ({ summary }: { summary: CodebaseSummary }) => (
+  // File or summary item component with shortened display name
+  const SummaryItem = ({ summary }: { summary: CodebaseSummary & { displayName?: string } }) => (
     <div
       className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent"
-      onClick={() => onSummarySelect(summary)}
+      onClick={() => selectSummary(summary)}
     >
       {getIcon(summary.type)}
       <div className="flex-1 truncate">
         <div className="truncate font-medium">
-          {summary.filePath || "Overview"}
+          {summary.displayName || summary.filePath || "Overview"}
         </div>
         {summary.language && (
           <div className="text-xs text-muted-foreground">
@@ -103,6 +205,24 @@ export function SidebarCodebaseView({ taskId, onSummarySelect }: CodebaseViewPro
           </div>
         )}
       </div>
+    </div>
+  );
+  
+  // Directory header component with collapse toggle
+  const DirectoryHeader = ({ dirName, filesCount }: { dirName: string, filesCount: number }) => (
+    <div 
+      className="flex items-center gap-2 px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md cursor-pointer"
+      onClick={() => toggleDirectoryCollapse(dirName)}
+    >
+      <Folder className="size-4 text-yellow-500" />
+      <span className="truncate flex-1">{dirName === "root" ? "Root Files" : dirName}</span>
+      <span className="text-xs text-muted-foreground">{filesCount}</span>
+      <ChevronDown 
+        className={cn(
+          "size-3.5 text-muted-foreground transition-transform", 
+          !collapsedDirs.has(dirName) ? "rotate-0" : "rotate-[-90deg]"
+        )} 
+      />
     </div>
   );
 
@@ -181,30 +301,60 @@ export function SidebarCodebaseView({ taskId, onSummarySelect }: CodebaseViewPro
                     </div>
                   )}
 
-                  {/* Directory Summaries */}
-                  {directorySummaries.length > 0 && (
+                  {/* Organized Directory Structure */}
+                  {directoryMap.size > 0 && (
                     <div>
                       <h4 className="text-xs font-medium text-muted-foreground mb-2">
-                        Directory Summaries ({directorySummaries.length})
+                        Codebase Structure
                       </h4>
-                      <div className="space-y-1">
-                        {directorySummaries.map((summary) => (
-                          <SummaryItem key={summary.id} summary={summary} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* File Summaries */}
-                  {fileSummaries.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-medium text-muted-foreground mb-2">
-                        File Summaries ({fileSummaries.length})
-                      </h4>
-                      <div className="space-y-1">
-                        {fileSummaries.map((summary) => (
-                          <SummaryItem key={summary.id} summary={summary} />
-                        ))}
+                      
+                      <div className="space-y-3">
+                        {/* root_overview summary */}
+                        {summaries.find(s => s.filePath === "root_overview") && (
+                          <SummaryItem 
+                            key={summaries.find(s => s.filePath === "root_overview")!.id} 
+                            summary={summaries.find(s => s.filePath === "root_overview")!}
+                          />
+                        )}
+                        {/* Root level files */}
+                        {directoryMap.has("root") && directoryMap.get("root")!.length > 0 && (
+                          <div className="pl-2">
+                            <div className="space-y-1">
+                              {directoryMap.get("root")!.map((summary) => (
+                                <SummaryItem key={summary.id} summary={summary} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Directories with their files */}
+                        {Array.from(directoryMap.entries())
+                          .filter(([dir]) => dir !== "root")
+                          .sort(([dirA], [dirB]) => dirA.localeCompare(dirB))
+                          .map(([directory, files]) => (
+                            <div key={directory} className="pb-1">
+                              {/* Directory name */}
+                              <div className="flex items-center gap-2 px-1 py-1 text-sm font-medium">
+                                <Folder className="size-4 text-yellow-500" />
+                                <span className="truncate">{directory}</span>
+                              </div>
+                              
+                              {/* Files in this directory */}
+                              {files.length > 0 && (
+                                <div className="space-y-1 pl-5 mt-1">
+                                  {files.map((summary) => (
+                                    <SummaryItem 
+                                      key={summary.id} 
+                                      summary={{
+                                        ...summary,
+                                        filePath: summary.filePath.substring(summary.filePath.lastIndexOf("/") + 1)
+                                      }} 
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
                       </div>
                     </div>
                   )}
