@@ -10,9 +10,7 @@ export function FileSearchTool({ message }: { message: Message }) {
   const { args, status } = toolMeta;
   const query = args.query as string;
 
-  // Use typed tool result accessor
   const result = getToolResult(toolMeta, "file_search");
-  // Convert files array to display format
   const filesList =
     result?.files?.join("\n") || result?.message || "No files found";
 

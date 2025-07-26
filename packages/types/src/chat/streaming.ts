@@ -15,7 +15,8 @@ export interface StreamChunk {
   | "tool-call"
   | "tool-result"
   | "init-progress"
-  | "fs-change";
+  | "fs-change"
+  | "todo-update";
 
   // For content chunks
   content?: string;
@@ -57,6 +58,19 @@ export interface StreamChunk {
     timestamp: number;
     source: 'local' | 'remote';
     isDirectory: boolean;
+  };
+
+  // For todo updates
+  todoUpdate?: {
+    todos: Array<{
+      id: string;
+      content: string;
+      status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+      sequence: number;
+    }>;
+    action: 'updated' | 'replaced';
+    totalTodos?: number;
+    completedTodos?: number;
   };
 }
 

@@ -96,7 +96,7 @@ model Task {
 }
 
 model Todo {
-  id        String     @id @default(cuid())
+  id        String     @default(cuid())
   content   String
   status    TodoStatus @default(PENDING)
   sequence  Int
@@ -105,6 +105,7 @@ model Todo {
   taskId    String
   task      Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
+  @@id([taskId, id])
   @@index([taskId, sequence])
   @@index([taskId, status])
 }
@@ -182,10 +183,10 @@ model CodebaseUnderstanding {
   type      String?  @default("file_summary") // "file_summary", "directory_summary", "repo_summary"
   filePath  String?
   language  String?
-  content   Json     // Store structured summary data as JSON
+  content   Json // Store structured summary data as JSON
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([taskId])
   @@index([type])
 }

@@ -17,10 +17,7 @@ import { saveLayoutCookie } from "@/lib/actions/save-sidebar-cookie";
 import { cn } from "@/lib/utils";
 import { AppWindowMac } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-  ImperativePanelGroupHandle,
-  ImperativePanelHandle,
-} from "react-resizable-panels";
+import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { StickToBottom, type StickToBottomContext } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
 import { TaskPageContent } from "./task-content";
@@ -33,7 +30,7 @@ import { CodebaseUnderstandingView } from "../codebase-understanding/codebase-un
 export function TaskPageLayout({
   initialLayout,
 }: {
-  initialLayout?: number[];
+  initialLayout: number[] | null;
 }) {
   const { taskId } = useParams<{ taskId: string }>();
   const { open } = useSidebar();
@@ -57,7 +54,7 @@ export function TaskPageLayout({
   Resizable panel state
   */
 
-  const { rightPanelRef } = useAgentEnvironment();
+  const { rightPanelRef, lastPanelSizeRef } = useAgentEnvironment();
   const resizablePanelGroupRef = useRef<ImperativePanelGroupHandle>(null);
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
@@ -99,7 +96,11 @@ export function TaskPageLayout({
     if (!panel) return;
     if (panel.isCollapsed()) {
       panel.expand();
+      if (!lastPanelSizeRef.current) {
+        panel.resize(40);
+      }
     } else {
+      lastPanelSizeRef.current = rightPanelRef.current?.getSize() ?? null;
       panel.collapse();
     }
   }, [rightPanelRef]);

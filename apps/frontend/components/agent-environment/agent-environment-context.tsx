@@ -11,6 +11,7 @@ import {
   useRef,
   useEffect,
   useCallback,
+  useCallback,
 } from "react";
 import { ImperativePanelHandle } from "react-resizable-panels";
 
@@ -36,6 +37,8 @@ type AgentEnvironmentContextType = {
   isLoadingContent: boolean;
   contentError: string | undefined;
   rightPanelRef: React.RefObject<ImperativePanelHandle | null>;
+  lastPanelSizeRef: React.RefObject<number | null>;
+  expandRightPanel: () => void;
 };
 
 const AgentEnvironmentContext = createContext<
@@ -46,11 +49,9 @@ const AgentEnvironmentContext = createContext<
 function findReadmeFile(tree: Array<any>): string | null {
   // Only look for README.md at the root level (case insensitive)
   const rootReadme = tree.find(
-    (node) => 
-      node.type === "file" && 
-      node.name.toLowerCase() === "readme.md"
+    (node) => node.type === "file" && node.name.toLowerCase() === "readme.md"
   );
-  
+
   return rootReadme ? rootReadme.path : null;
 }
 
@@ -63,9 +64,17 @@ export function AgentEnvironmentProvider({
 }) {
   // This is for the resizable agent environment panel
   const rightPanelRef = useRef<ImperativePanelHandle>(null);
-  
+
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
-  
+
+  function updateSelectedFilePath(path: string | null) {
+    if (path && !path.startsWith("/")) {
+      setSelectedFilePath("/" + path);
+    } else {
+      setSelectedFilePath(path);
+    }
+  }
+
   // Get file tree to find README.md
   const treeQuery = useCodebaseTree(taskId);
 
@@ -138,10 +147,23 @@ export function AgentEnvironmentProvider({
     if (!selectedFilePath && treeQuery.data?.success && treeQuery.data.tree) {
       const readmePath = findReadmeFile(treeQuery.data.tree);
       if (readmePath) {
-        setSelectedFilePath(readmePath);
+        updateSelectedFilePath(readmePath);
       }
     }
   }, [treeQuery.data, selectedFilePath]);
+
+  const lastPanelSizeRef = useRef<number | null>(null);
+
+  const expandRightPanel = useCallback(() => {
+    if (rightPanelRef.current && rightPanelRef.current.isCollapsed()) {
+      const panel = rightPanelRef.current;
+
+      panel.expand();
+      if (!lastPanelSizeRef.current) {
+        panel.resize(50);
+      }
+    }
+  }, [rightPanelRef]);
 
   // Reset summary override when selecting a file
   useEffect(() => {
@@ -154,20 +176,24 @@ export function AgentEnvironmentProvider({
     () => ({
       selectedFilePath,
       selectedFileWithContent: finalSelectedFileContent,
-      setSelectedFilePath,
+      updateSelectedFilePath,
       setSelectedSummary,
       isLoadingContent: fileContentQuery.isLoading && !selectedFileContentOverride,
       contentError: fileContentQuery.error?.message,
       rightPanelRef,
+      lastPanelSizeRef,
+      expandRightPanel,
     }),
     [
       selectedFilePath,
       finalSelectedFileContent,
+      updateSelectedFilePath,
       setSelectedFilePath,
       setSelectedSummary,
       fileContentQuery.isLoading,
       fileContentQuery.error?.message,
       rightPanelRef,
+      expandRightPanel,
       selectedFileContentOverride
     ]
   );
