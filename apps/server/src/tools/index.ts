@@ -144,6 +144,9 @@ export function createTools(taskId: string, workspacePath?: string) {
             }
           }
 
+          // Get total todos count for progress tracking (only needed for merge operations)
+          const totalTodos = merge ? await prisma.todo.count({ where: { taskId } }) : todos.length;
+
           const summary = `${merge ? "Merged" : "Replaced"} todos: ${results
             .map((r) => `${r.action} "${r.content}" (${r.status})`)
             .join(", ")}`;
@@ -157,7 +160,8 @@ export function createTools(taskId: string, workspacePath?: string) {
                 content: todo.content,
                 status: todo.status as 'pending' | 'in_progress' | 'completed' | 'cancelled'
               })),
-              action: merge ? "updated" : "replaced"
+              action: merge ? "updated" : "replaced",
+              totalTodos
             }
           }, taskId);
 
@@ -166,6 +170,7 @@ export function createTools(taskId: string, workspacePath?: string) {
             message: summary,
             todos: results,
             count: results.length,
+            totalTodos,
           };
         } catch (error) {
           console.error(`[TODO_WRITE_ERROR]`, error);

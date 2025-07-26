@@ -1,10 +1,7 @@
 import type { Message } from "@repo/types";
 import {
-  CheckCircle,
   CheckSquare2,
-  Circle,
   CircleDashed,
-  Clock,
   ListTodo,
   Square,
   SquareX,
@@ -101,6 +98,7 @@ export function TodoWriteTool({ message }: { message: Message }) {
   const merge = args.merge as boolean;
   const todos = args.todos as TodoItem[];
 
+  // Parse result to get totalTodos for merge operations
   let parsedResult;
   try {
     parsedResult = typeof result === "string" ? JSON.parse(result) : result;
@@ -108,7 +106,11 @@ export function TodoWriteTool({ message }: { message: Message }) {
     parsedResult = null;
   }
 
-  const title = `(${todos.length} item${todos.length === 1 ? "" : "s"})`;
+  // Calculate title based on operation type
+  const title =
+    merge && parsedResult?.totalTodos
+      ? `(${todos.filter((t) => t.status === "completed").length}/${parsedResult.totalTodos})`
+      : `(${todos.length} item${todos.length === 1 ? "" : "s"})`;
 
   return (
     <CollapsibleTool
