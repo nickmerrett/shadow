@@ -101,14 +101,13 @@ function createFileTree(filePaths: string[]): FileNode[] {
 
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
-  const { setSelectedFilePath, rightPanelRef } = useAgentEnvironment();
+  const { setSelectedFilePath, rightPanelRef, setSelectedSummary } = useAgentEnvironment();
   const repoName = gitHubUrlToRepoName(task!.repoUrl);
   const [isIndexing, setIsIndexing] = useState(false);
   const [isWorkspaceIndexing, setIsWorkspaceIndexing] = useState(false);
   const [workspaceSummaries, setWorkspaceSummaries] = useState<any[]>([]);
+  const [isLoadingSummaries, setIsLoadingSummaries] = useState(false);
   const [summariesCollapsed, setSummariesCollapsed] = useState(false);
-  const [selectedSummary, setSelectedSummary] = useState<any>(null);
-  const [modalOpen, setModalOpen] = useState(false);
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
@@ -116,15 +115,33 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
     return createFileTree(filePaths);
   }, [fileChanges]);
 
-  // Handle workspace indexing
-  const handleWorkspaceIndexing = async () => {
-    setIsWorkspaceIndexing(true);
+  // Index workspace with ShallowWiki
+  const handleIndexWorkspace = async () => {
+    if (!taskId) return;
+
     try {
-      await callWorkspaceIndexApi(taskId, true);
-      // After indexing, load the summaries
+      setIsWorkspaceIndexing(true);
+      
+      // Call the indexing API directly
+      const response = await fetch(
+        `/api/indexing/shallowwiki/generate-workspace-summaries`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ taskId, forceRefresh: true }),
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Failed to index workspace: ${response.status}`);
+      }
+      
+      // Reload the summaries after indexing
       await loadWorkspaceSummaries();
     } catch (error) {
-      console.error("Workspace indexing failed:", error);
+      console.error("Error indexing workspace", error);
     } finally {
       setIsWorkspaceIndexing(false);
     }
@@ -132,25 +149,45 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   // Load workspace summaries
   const loadWorkspaceSummaries = async () => {
+    if (!taskId) return;
+    
     try {
-      const data = await getWorkspaceSummaries(taskId);
-      if (data.summaries) {
-        setWorkspaceSummaries(data.summaries);
+      console.log("Loading workspace summaries for task", taskId);
+      setIsLoadingSummaries(true);
+      const { getWorkspaceSummaries } = await import("@/lib/actions/summaries");
+      const summariesData = await getWorkspaceSummaries(taskId);
+      
+      console.log("Summaries data received from server action:", summariesData);
+      
+      if (summariesData && summariesData.length > 0) {
+        console.log("Setting workspace summaries:", summariesData.length, "items");
+        setWorkspaceSummaries(summariesData);
+      } else {
+        console.log("No summaries data available, setting empty array");
+        setWorkspaceSummaries([]);
       }
     } catch (error) {
-      console.error("Failed to load workspace summaries:", error);
+      console.error("Failed to load workspace summaries", error);
       setWorkspaceSummaries([]);
+    } finally {
+      setIsLoadingSummaries(false);
     }
   };
 
-  // Handle opening summary in modal
-  const openSummaryModal = async (summary: any) => {
+  // Handle opening summary in Shadow Realm environment
+  const openSummaryInEnvironment = async (summary: any) => {
     try {
-      // Get full summary content
-      const { getWorkspaceSummary } = await import("@/lib/actions/index-workspace");
-      const fullSummary = await getWorkspaceSummary(taskId, summary.type, summary.filePath);
-      setSelectedSummary(fullSummary.result);
-      setModalOpen(true);
+      // Get full summary content directly from Prisma
+      const { getWorkspaceSummaryById } = await import("@/lib/actions/summaries");
+      const fullSummary = await getWorkspaceSummaryById(summary.id);
+      
+      if (fullSummary) {
+        // Pass the summary to the environment context
+        setSelectedSummary(fullSummary);
+        console.log("Full summary loaded in environment:", fullSummary);
+      } else {
+        console.error("Summary not found");
+      }
     } catch (error) {
       console.error("Failed to load full summary:", error);
     }
@@ -213,7 +250,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 variant="link"
                 className="transition-all ease-out duration-100"
                 size="sm"
-                onClick={handleWorkspaceIndexing}
+                onClick={handleIndexWorkspace}
               >
                 <FileText
                   className={cn("size-4 mr-1", isWorkspaceIndexing && "animate-spin")}
@@ -343,7 +380,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             variant="ghost"
             size="sm"
             className="h-6 px-2 ml-2"
-            onClick={handleWorkspaceIndexing}
+            onClick={handleIndexWorkspace}
             disabled={isWorkspaceIndexing}
           >
             <RefreshCcw className={cn("size-3", isWorkspaceIndexing && "animate-spin")} />
@@ -353,8 +390,10 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         <Collapsible open={!summariesCollapsed} onOpenChange={(open) => setSummariesCollapsed(!open)}>
           <CollapsibleContent>
             <SidebarGroupContent>
+              {/* Debug logs */}
               {workspaceSummaries.length === 0 ? (
                 <SidebarMenuItem>
+                  {/* Debug empty state */}
                   <div className="flex flex-col items-center gap-2 px-2 py-4 text-center text-muted-foreground">
                     <FileText className="size-8 opacity-50" />
                     <div className="text-sm">
@@ -368,7 +407,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                   <SidebarMenuItem key={summary.id || index}>
                     <div 
                       className="flex flex-col gap-1 px-2 py-1 text-sm cursor-pointer hover:bg-muted/50 rounded-sm transition-colors"
-                      onClick={() => openSummaryModal(summary)}
+                      onClick={() => openSummaryInEnvironment(summary)}
                     >
                       <div className="flex items-center gap-2">
                         {summary.type === 'file_summary' ? (
@@ -401,32 +440,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         </Collapsible>
       </SidebarGroup>
 
-      {/* Summary Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedSummary?.metadata?.type === 'file_summary' ? (
-                <FileText className="size-4 text-blue-500" />
-              ) : selectedSummary?.metadata?.type === 'directory_summary' ? (
-                <Folder className="size-4 text-yellow-500" />
-              ) : (
-                <FolderGit2 className="size-4 text-green-500" />
-              )}
-              {selectedSummary?.metadata?.filePath || 'Workspace Overview'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            {selectedSummary?.metadata?.summary && (
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                <pre className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-md overflow-x-auto">
-                  {selectedSummary.metadata.summary}
-                </pre>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+
     </>
   );
 }

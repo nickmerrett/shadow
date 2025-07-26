@@ -10,20 +10,29 @@ import {
   useMemo,
   useRef,
   useEffect,
+  useCallback,
 } from "react";
 import { ImperativePanelHandle } from "react-resizable-panels";
 
 type FileWithContent = {
   name: string;
-  type: "file";
+  type: "file" | "summary";
   path: string;
   content: string;
+  language?: string;
+  summaryData?: {
+    type: 'file_summary' | 'directory_summary' | 'repo_summary';
+    filePath: string;
+    summary: string;
+    language?: string;
+  };
 };
 
 type AgentEnvironmentContextType = {
   selectedFilePath: string | null;
   selectedFileWithContent: FileWithContent | null;
   setSelectedFilePath: (path: string | null) => void;
+  setSelectedSummary: (summary: any) => void;
   isLoadingContent: boolean;
   contentError: string | undefined;
   rightPanelRef: React.RefObject<ImperativePanelHandle | null>;
@@ -68,19 +77,59 @@ export function AgentEnvironmentProvider({
 
   // Create selected file object with content for the editor
   const selectedFileWithContent = useMemo(
-    () =>
-      selectedFilePath &&
-      fileContentQuery.data?.success &&
-      fileContentQuery.data.content
-        ? {
-            name: selectedFilePath.split("/").pop() || "",
-            type: "file" as const,
-            path: selectedFilePath,
-            content: fileContentQuery.data.content,
-          }
-        : null,
+    () => {
+      // Handle regular file content
+      if (selectedFilePath &&
+        fileContentQuery.data?.success &&
+        fileContentQuery.data.content) {
+        return {
+          name: selectedFilePath.split("/").pop() || "",
+          type: "file" as const,
+          path: selectedFilePath,
+          content: fileContentQuery.data.content,
+        };
+      }
+      return null;
+    },
     [selectedFilePath, fileContentQuery.data]
   );
+  
+  // Handle workspace summary selection
+  const setSelectedSummary = useCallback((summary: any) => {
+    if (!summary) return;
+    
+    // Expand the right panel if collapsed
+    if (rightPanelRef.current?.isCollapsed()) {
+      rightPanelRef.current.expand();
+    }
+    
+    // Create a virtual file with the summary content
+    const summaryContent = {
+      name: summary.filePath || "Workspace Overview",
+      type: "summary" as const,
+      path: `summary://${summary.type}/${summary.filePath || "overview"}`,
+      content: summary.summary || "",
+      language: summary.language,
+      summaryData: {
+        type: summary.type,
+        filePath: summary.filePath || "",
+        summary: summary.summary || "",
+        language: summary.language
+      }
+    };
+    
+    // Clear any selected file path
+    setSelectedFilePath(null);
+    
+    // Set the summary as the selected file content
+    setSelectedFileContentOverride(summaryContent);
+  }, []);
+  
+  // State to hold summary content override
+  const [selectedFileContentOverride, setSelectedFileContentOverride] = useState<FileWithContent | null>(null);
+  
+  // Final selected file content is either the regular file or summary override
+  const finalSelectedFileContent = selectedFileContentOverride || selectedFileWithContent;
 
   // Automatically select README.md when the file tree loads
   useEffect(() => {
@@ -94,21 +143,32 @@ export function AgentEnvironmentProvider({
     }
   }, [treeQuery.data, selectedFilePath]);
 
+  // Reset summary override when selecting a file
+  useEffect(() => {
+    if (selectedFilePath) {
+      setSelectedFileContentOverride(null);
+    }
+  }, [selectedFilePath]);
+
   const value: AgentEnvironmentContextType = useMemo(
     () => ({
       selectedFilePath,
-      selectedFileWithContent,
+      selectedFileWithContent: finalSelectedFileContent,
       setSelectedFilePath,
-      isLoadingContent: fileContentQuery.isLoading,
+      setSelectedSummary,
+      isLoadingContent: fileContentQuery.isLoading && !selectedFileContentOverride,
       contentError: fileContentQuery.error?.message,
       rightPanelRef,
     }),
     [
       selectedFilePath,
-      selectedFileWithContent,
+      finalSelectedFileContent,
+      setSelectedFilePath,
+      setSelectedSummary,
       fileContentQuery.isLoading,
       fileContentQuery.error?.message,
       rightPanelRef,
+      selectedFileContentOverride
     ]
   );
 
