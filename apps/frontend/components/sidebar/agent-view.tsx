@@ -127,7 +127,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
     try {
       setIsWorkspaceIndexing(true);
-      
+
       // Call the indexing API directly
       const response = await fetch(
         `/api/indexing/shallowwiki/generate-workspace-summaries`,
@@ -139,11 +139,11 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           body: JSON.stringify({ taskId, forceRefresh: true }),
         }
       );
-      
+
       if (!response.ok) {
         throw new Error(`Failed to index workspace: ${response.status}`);
       }
-      
+
       // Reload the summaries after indexing
       await loadWorkspaceSummaries();
     } catch (error) {
@@ -156,15 +156,15 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   // Load workspace summaries
   const loadWorkspaceSummaries = async () => {
     if (!taskId) return;
-    
+
     try {
       console.log("Loading workspace summaries for task", taskId);
       setIsLoadingSummaries(true);
       const { getWorkspaceSummaries } = await import("@/lib/actions/summaries");
       const summariesData = await getWorkspaceSummaries(taskId);
-      
+
       console.log("Summaries data received from server action:", summariesData);
-      
+
       if (summariesData && summariesData.length > 0) {
         console.log("Setting workspace summaries:", summariesData.length, "items");
         setWorkspaceSummaries(summariesData);
@@ -186,10 +186,10 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       // Get full summary content directly from Prisma
       const { getWorkspaceSummaryById } = await import("@/lib/actions/summaries");
       const fullSummary = await getWorkspaceSummaryById(summary.id);
-      
+
       if (fullSummary) {
         console.log("Received full summary:", fullSummary);
-        
+
         // The summary is now already formatted correctly from the server action
         // Pass the summary directly to the environment context
         setSelectedSummary(fullSummary);
@@ -230,37 +230,24 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         <SidebarGroupContent>
           {/* Live task status */}
           <SidebarMenuItem>
-            <div className="flex h-8 items-center gap-2 text-sm">
-              <Button
-                variant="link"
-                className="transition-all duration-100 ease-out"
-                size="sm"
-                onClick={async () => {
-                  setIsIndexing(true);
-                  try {
-                    await callIndexApi(repoName, task.id, true);
-                  } finally {
-                    setIsIndexing(false);
-                  }
-                }}
-              >
-                <RefreshCcw
-                  className={cn("mr-1 size-4", isIndexing && "animate-spin")}
-                />
-                <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
-              </Button>
-              <Button
-                variant="link"
-                className="transition-all ease-out duration-100"
-                size="sm"
-                onClick={handleIndexWorkspace}
-              >
-                <FileText
-                  className={cn("size-4 mr-1", isWorkspaceIndexing && "animate-spin")}
-                />
-                <span>{isWorkspaceIndexing ? "Generating..." : "Generate Summaries"}</span>
-              </Button>
-            </div>
+            <Button
+              variant="link"
+              className="transition-all duration-100 ease-out"
+              size="sm"
+              onClick={async () => {
+                setIsIndexing(true);
+                try {
+                  await callIndexApi(repoName, task.id, true);
+                } finally {
+                  setIsIndexing(false);
+                }
+              }}
+            >
+              <RefreshCcw
+                className={cn("mr-1 size-4", isIndexing && "animate-spin")}
+              />
+              <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
+            </Button>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               {(() => {
                 const StatusIcon =
@@ -297,6 +284,20 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 {task.shadowBranch}
               </Link>
             </div>
+          </SidebarMenuItem>
+
+          <SidebarMenuItem>
+            <Button
+              variant="link"
+              className="transition-all ease-out duration-100"
+              size="sm"
+              onClick={handleIndexWorkspace}
+            >
+              <FileText
+                className={cn("size-4 mr-1", isWorkspaceIndexing && "animate-spin")}
+              />
+              <span>{isWorkspaceIndexing ? "Generating..." : "Generate Summaries"}</span>
+            </Button>
           </SidebarMenuItem>
 
           {/* Task total diff */}
@@ -343,7 +344,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                       className={cn(
                         "flex min-h-8 items-start gap-2 p-2 pb-0 text-sm",
                         todo.status === "COMPLETED" &&
-                          "text-muted-foreground line-through"
+                        "text-muted-foreground line-through"
                       )}
                     >
                       <TodoIcon className={cn("size-4", iconClass)} />
