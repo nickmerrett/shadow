@@ -13,9 +13,11 @@ import {
   CodebaseSearchToolResult,
   SearchOptions,
   WebSearchResult,
+  CodebaseSearchResult,
 } from "@repo/types";
 import { CommandResult } from "../interfaces/types";
-
+import config from "../../config";
+import { EmbeddingSearchResult } from "../../indexing/embedding/types";
 /**
  * MockRemoteToolExecutor simulates HTTP calls to a sidecar API
  * Used for testing the abstraction layer without real infrastructure
@@ -288,6 +290,58 @@ export class MockRemoteToolExecutor implements ToolExecutor {
     });
   }
 
+  async semanticSearch(query: string, repo: string, options?: SearchOptions): Promise<CodebaseSearchToolResult> {
+    if (!config.useSemanticSearch) {
+      console.log("semanticSearch disabled, falling back to codebaseSearch");
+      return this.codebaseSearch(query, options);
+    }
+    try {
+      console.log("semanticSearch enabled");
+      console.log("semanticSearchParams", query, repo);
+      const response = await fetch(`${config.apiUrl}/api/indexing/search`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query,
+          namespace: repo,
+          topK: 5,
+          fields: ["content", "filePath", "language"]
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Indexing service error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json() as { matches: EmbeddingSearchResult[] };
+      const matches = data.matches;
+
+      const parsedData = {
+        success: !!matches,
+        results: matches.map((match: EmbeddingSearchResult, i: number) => ({
+          id: i + 1,
+          content: match?.fields?.code || match?.fields?.text || "",
+          relevance: typeof match?._score === "number" ? match._score : 0.8,
+        })),
+        query,
+        searchTerms: query.split(/\s+/),
+        message: matches?.length
+          ? `Found ${matches.length} relevant code snippets for "${query}"`
+          : `No relevant code found for "${query}"`,
+      }
+      console.log("semanticSearch", parsedData);
+
+      return parsedData;
+    } catch (error) {
+      console.error(`[SEMANTIC_SEARCH_ERROR] Failed to query indexing service:`, error);
+
+      // Fallback to ripgrep if indexing service is unavailable
+      return this.codebaseSearch(query, options);
+    }
+  }
+  
   async webSearch(query: string, domain?: string): Promise<WebSearchResult> {
     return this.simulateNetworkCall("webSearch", () => {
       // Generate mock web search results

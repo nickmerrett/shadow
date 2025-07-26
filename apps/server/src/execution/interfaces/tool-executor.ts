@@ -57,6 +57,11 @@ export interface ToolExecutor {
     options?: SearchOptions
   ): Promise<CodebaseSearchToolResult>;
 
+  semanticSearch(
+    query: string,
+    repo: string,
+    options?: SearchOptions
+  ): Promise<CodebaseSearchResult>;
   webSearch(
     query: string,
     domain?: string
