@@ -4,6 +4,7 @@ import { CheckIcon, Loader, Terminal, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { getToolResult } from "@repo/types";
+import { ToolTrigger, ToolType } from "./collapsible-tool";
 
 interface TerminalOutputProps {
   output: string;
@@ -84,40 +85,30 @@ function StatusBadge({ status }: { status: ToolExecutionStatusType }) {
 }
 
 export function RunTerminalCmdTool({ message }: { message: Message }) {
-  const { rightPanelRef } = useAgentEnvironment();
+  const { expandRightPanel } = useAgentEnvironment();
 
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
-  const { args, status } = toolMeta;
+  const { args } = toolMeta;
   const command = args.command as string;
   const isBackground = args.is_background as boolean;
 
-  // Use typed tool result accessor
-  const result = getToolResult(toolMeta, "run_terminal_cmd");
-  const output = result?.stdout || result?.stderr || "";
-  const error = result?.error;
-
-  const handleClick = () => {
-    // Expand the right panel if it's collapsed
-    const panel = rightPanelRef.current;
-    if (panel && panel.isCollapsed()) {
-      panel.expand();
-    }
-  };
+  const title = isBackground ? "Terminal Command (Background)" : "Terminal Command";
 
   return (
     <button
-      onClick={handleClick}
+      onClick={() => expandRightPanel()}
       className={cn(
         "text-muted-foreground hover:text-foreground hover:bg-secondary flex w-full cursor-pointer flex-col gap-2 rounded-md px-3 py-1.5 text-left text-[13px] transition-colors"
       )}
     >
-      {/* Header */}
-      <div className="flex items-center gap-2 [&_svg:not([class*='size-'])]:size-3.5">
-        <Terminal />
-        <span>Terminal Command{isBackground ? " (Background)" : ""}</span>
-      </div>
+      <ToolTrigger
+        icon={<Terminal />}
+        type={ToolType.RUN_TERMINAL_CMD}
+        title={title}
+        prefix=""
+      />
 
       {/* <div className="flex flex-col gap-2 pl-6">
         <div className="flex items-center gap-2">

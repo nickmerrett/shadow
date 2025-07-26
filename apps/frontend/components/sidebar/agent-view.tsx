@@ -93,7 +93,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
 
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
-  const { setSelectedFilePath, rightPanelRef } = useAgentEnvironment();
+  const { setSelectedFilePath, expandRightPanel } = useAgentEnvironment();
   const repoName = gitHubUrlToRepoName(task!.repoUrl);
   const [isIndexing, setIsIndexing] = useState(false);
 
@@ -119,14 +119,9 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   const handleFileSelect = useCallback(
     (file: FileNode) => {
       setSelectedFilePath("/" + file.path);
-
-      const panel = rightPanelRef.current;
-      if (!panel) return;
-      if (panel.isCollapsed()) {
-        panel.expand();
-      }
+      expandRightPanel();
     },
-    [rightPanelRef, setSelectedFilePath]
+    [expandRightPanel, setSelectedFilePath]
   );
 
   return (

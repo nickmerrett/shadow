@@ -13,7 +13,6 @@ export function GrepSearchTool({ message }: { message: Message }) {
   const excludePattern = args.exclude_pattern as string;
   const caseSensitive = args.case_sensitive as boolean;
 
-  // Use typed tool result accessor
   const result = getToolResult(toolMeta, "grep_search");
   const matches = result?.matches?.join("\n") || "";
 

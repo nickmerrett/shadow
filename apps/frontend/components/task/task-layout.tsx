@@ -28,7 +28,7 @@ import { useAgentEnvironment } from "../agent-environment/agent-environment-cont
 export function TaskPageLayout({
   initialLayout,
 }: {
-  initialLayout?: number[];
+  initialLayout: number[] | null;
 }) {
   const { taskId } = useParams<{ taskId: string }>();
   const { open } = useSidebar();
@@ -51,7 +51,7 @@ export function TaskPageLayout({
   Resizable panel state
   */
 
-  const { rightPanelRef } = useAgentEnvironment();
+  const { rightPanelRef, lastPanelSizeRef } = useAgentEnvironment();
   const resizablePanelGroupRef = useRef<ImperativePanelGroupHandle>(null);
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
@@ -83,7 +83,6 @@ export function TaskPageLayout({
   };
 
   const { leftSize, rightSize } = getInitialSizes();
-  const lastPanelSizeRef = useRef<number | null>(null);
 
   /* 
   Keyboard shortcuts

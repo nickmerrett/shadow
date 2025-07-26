@@ -10,6 +10,7 @@ import {
   useMemo,
   useRef,
   useEffect,
+  useCallback,
 } from "react";
 import { ImperativePanelHandle } from "react-resizable-panels";
 
@@ -27,6 +28,8 @@ type AgentEnvironmentContextType = {
   isLoadingContent: boolean;
   contentError: string | undefined;
   rightPanelRef: React.RefObject<ImperativePanelHandle | null>;
+  lastPanelSizeRef: React.RefObject<number | null>;
+  expandRightPanel: () => void;
 };
 
 const AgentEnvironmentContext = createContext<
@@ -37,11 +40,9 @@ const AgentEnvironmentContext = createContext<
 function findReadmeFile(tree: Array<any>): string | null {
   // Only look for README.md at the root level (case insensitive)
   const rootReadme = tree.find(
-    (node) => 
-      node.type === "file" && 
-      node.name.toLowerCase() === "readme.md"
+    (node) => node.type === "file" && node.name.toLowerCase() === "readme.md"
   );
-  
+
   return rootReadme ? rootReadme.path : null;
 }
 
@@ -54,9 +55,9 @@ export function AgentEnvironmentProvider({
 }) {
   // This is for the resizable agent environment panel
   const rightPanelRef = useRef<ImperativePanelHandle>(null);
-  
+
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
-  
+
   // Get file tree to find README.md
   const treeQuery = useCodebaseTree(taskId);
 
@@ -94,6 +95,19 @@ export function AgentEnvironmentProvider({
     }
   }, [treeQuery.data, selectedFilePath]);
 
+  const lastPanelSizeRef = useRef<number | null>(null);
+
+  const expandRightPanel = useCallback(() => {
+    if (rightPanelRef.current && rightPanelRef.current.isCollapsed()) {
+      const panel = rightPanelRef.current;
+
+      panel.expand();
+      if (!lastPanelSizeRef.current) {
+        panel.resize(40);
+      }
+    }
+  }, [rightPanelRef]);
+
   const value: AgentEnvironmentContextType = useMemo(
     () => ({
       selectedFilePath,
@@ -102,6 +116,8 @@ export function AgentEnvironmentProvider({
       isLoadingContent: fileContentQuery.isLoading,
       contentError: fileContentQuery.error?.message,
       rightPanelRef,
+      lastPanelSizeRef,
+      expandRightPanel,
     }),
     [
       selectedFilePath,
