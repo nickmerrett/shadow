@@ -17,14 +17,17 @@ import {
   SquareCheck,
   XCircle,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { statusColorsConfig } from "./status";
 import { FileExplorer } from "@/components/agent-environment/file-explorer";
 import { FileNode } from "@repo/types";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { Button } from "@/components/ui/button";
 import callIndexApi, { gitHubUrlToRepoName } from "@/lib/actions/index-repo";
+import callWorkspaceIndexApi, { getWorkspaceSummaries } from "@/lib/actions/index-workspace";
 import Link from "next/link";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, FileText, Folder } from "lucide-react";
 
 // Todo status config - aligned with main status colors
 const todoStatusConfig = {
@@ -95,12 +98,49 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { setSelectedFilePath, rightPanelRef } = useAgentEnvironment();
   const repoName = gitHubUrlToRepoName(task!.repoUrl);
   const [isIndexing, setIsIndexing] = useState(false);
+  const [isWorkspaceIndexing, setIsWorkspaceIndexing] = useState(false);
+  const [workspaceSummaries, setWorkspaceSummaries] = useState<any[]>([]);
+  const [summariesCollapsed, setSummariesCollapsed] = useState(false);
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
     const filePaths = fileChanges.map((change) => change.filePath);
     return createFileTree(filePaths);
   }, [fileChanges]);
+
+  // Handle workspace indexing
+  const handleWorkspaceIndexing = async () => {
+    setIsWorkspaceIndexing(true);
+    try {
+      await callWorkspaceIndexApi(taskId, true);
+      // After indexing, load the summaries
+      await loadWorkspaceSummaries();
+    } catch (error) {
+      console.error("Workspace indexing failed:", error);
+    } finally {
+      setIsWorkspaceIndexing(false);
+    }
+  };
+
+  // Load workspace summaries
+  const loadWorkspaceSummaries = async () => {
+    try {
+      const data = await getWorkspaceSummaries(taskId);
+      if (data.summaries) {
+        setWorkspaceSummaries(data.summaries);
+      }
+    } catch (error) {
+      console.error("Failed to load workspace summaries:", error);
+      setWorkspaceSummaries([]);
+    }
+  };
+
+  // Load summaries on component mount
+  useEffect(() => {
+    if (taskId) {
+      loadWorkspaceSummaries();
+    }
+  }, [taskId]);
 
   if (!task) {
     return (
@@ -147,6 +187,17 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                   className={cn("size-4 mr-1", isIndexing && "animate-spin")}
                 />
                 <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
+              </Button>
+              <Button
+                variant="link"
+                className="transition-all ease-out duration-100"
+                size="sm"
+                onClick={handleWorkspaceIndexing}
+              >
+                <FileText
+                  className={cn("size-4 mr-1", isWorkspaceIndexing && "animate-spin")}
+                />
+                <span>{isWorkspaceIndexing ? "Generating..." : "Generate Summaries"}</span>
               </Button>
             </div>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
@@ -254,6 +305,77 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           </SidebarGroupContent>
         </SidebarGroup>
       )}
+
+      {/* Workspace Summaries - Always show */}
+      <SidebarGroup>
+        <div className="flex items-center justify-between px-2 py-1">
+          <Collapsible open={!summariesCollapsed} onOpenChange={(open) => setSummariesCollapsed(!open)} className="flex-1">
+            <CollapsibleTrigger asChild>
+              <SidebarGroupLabel className="hover:text-muted-foreground cursor-pointer flex items-center">
+                <FileText className="mr-1.5 !size-3.5" />
+                Workspace Summaries ({workspaceSummaries.length})
+                <ChevronDown className={cn("ml-4 size-4 transition-transform", summariesCollapsed && "rotate-180")} />
+              </SidebarGroupLabel>
+            </CollapsibleTrigger>
+          </Collapsible>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 ml-2"
+            onClick={handleWorkspaceIndexing}
+            disabled={isWorkspaceIndexing}
+          >
+            <RefreshCcw className={cn("size-3", isWorkspaceIndexing && "animate-spin")} />
+          </Button>
+        </div>
+        
+        <Collapsible open={!summariesCollapsed} onOpenChange={(open) => setSummariesCollapsed(!open)}>
+          <CollapsibleContent>
+            <SidebarGroupContent>
+              {workspaceSummaries.length === 0 ? (
+                <SidebarMenuItem>
+                  <div className="flex flex-col items-center gap-2 px-2 py-4 text-center text-muted-foreground">
+                    <FileText className="size-8 opacity-50" />
+                    <div className="text-sm">
+                      <p className="font-medium">No summaries yet</p>
+                      <p className="text-xs">Click "Generate Summaries" to analyze your workspace</p>
+                    </div>
+                  </div>
+                </SidebarMenuItem>
+              ) : (
+                workspaceSummaries.map((summary, index) => (
+                  <SidebarMenuItem key={summary.id || index}>
+                    <div className="flex flex-col gap-1 px-2 py-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        {summary.type === 'file_summary' ? (
+                          <FileText className="size-3 text-blue-500" />
+                        ) : summary.type === 'directory_summary' ? (
+                          <Folder className="size-3 text-yellow-500" />
+                        ) : (
+                          <FolderGit2 className="size-3 text-green-500" />
+                        )}
+                        <span className="font-medium truncate flex-1">
+                          {summary.filePath || summary.type}
+                        </span>
+                        {summary.language && (
+                          <span className="text-xs text-muted-foreground bg-muted px-1 rounded">
+                            {summary.language}
+                          </span>
+                        )}
+                      </div>
+                      {summary.summary && (
+                        <p className="text-xs text-muted-foreground line-clamp-2 pl-5">
+                          {summary.summary}
+                        </p>
+                      )}
+                    </div>
+                  </SidebarMenuItem>
+                ))
+              )}
+            </SidebarGroupContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </SidebarGroup>
     </>
   );
 }
