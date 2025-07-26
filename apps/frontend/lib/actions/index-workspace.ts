@@ -4,7 +4,7 @@
 import { getWorkspaceSummaries as fetchSummaries, getWorkspaceSummaryById } from './summaries';
 
 // Redirects to the direct approach for backward compatibility
-export const callWorkspaceIndexApi = async (taskId: string, forceRefresh: boolean = false) => {
+export const callWorkspaceIndexApi = async (taskId: string, forceRefresh: boolean = false, skipEmptyFiles: boolean = true) => {
   try {
     console.log("[DEPRECATED] Using direct indexing approach instead of API");
     // Make a direct fetch to the API endpoint instead
@@ -15,7 +15,7 @@ export const callWorkspaceIndexApi = async (taskId: string, forceRefresh: boolea
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ taskId, forceRefresh }),
+        body: JSON.stringify({ taskId, forceRefresh, skipEmptyFiles }),
       }
     );
     const data = await response.json();
