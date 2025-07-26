@@ -22,13 +22,28 @@ export default async function TaskLayout({
   const { taskId } = await params;
   const user = await getUser();
 
-  const [initialTasks, { task, todos, fileChanges }, taskMessages, models] =
-    await Promise.all([
-      user ? getTasks(user.id) : [],
-      getTaskWithDetails(taskId),
-      getTaskMessages(taskId),
-      getModels(),
-    ]);
+  const getDiffStats = async () => {
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:4000";
+    const res = await fetch(`${backendUrl}/api/tasks/${taskId}/diff-stats`);
+
+    if (!res.ok) console.error("Failed to fetch diff stats");
+
+    return await res.json();
+  };
+
+  const [
+    initialTasks,
+    { task, todos, fileChanges },
+    taskMessages,
+    models,
+    diffStats,
+  ] = await Promise.all([
+    user ? getTasks(user.id) : [],
+    getTaskWithDetails(taskId),
+    getTaskMessages(taskId),
+    getModels(),
+    getDiffStats(),
+  ]);
 
   if (!task) {
     notFound();
@@ -52,6 +67,13 @@ export default async function TaskLayout({
     queryClient.prefetchQuery({
       queryKey: ["models"],
       queryFn: () => models,
+    }),
+    queryClient.prefetchQuery({
+      queryKey: ["task-diff-stats", taskId],
+      queryFn: () =>
+        diffStats.success
+          ? diffStats.diffStats
+          : { additions: 0, deletions: 0, totalFiles: 0 },
     }),
   ]);
 
