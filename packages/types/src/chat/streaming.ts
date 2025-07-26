@@ -1,4 +1,5 @@
 import type { InitStepType } from "@repo/db";
+import { ToolResultTypes } from "../tools/results";
 
 export interface StreamChunk {
   type:
@@ -48,7 +49,7 @@ export interface StreamChunk {
   // For tool results
   toolResult?: {
     id: string;
-    result: import('../tools/results.js').ToolResultTypes['result'] | string; // Support both objects and legacy strings
+    result: ToolResultTypes['result']
   };
 
   // For initialization progress

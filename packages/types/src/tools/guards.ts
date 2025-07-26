@@ -1,10 +1,10 @@
-import type { MessageMetadata } from '../chat/messages.js';
-import type { 
-  WriteResult, 
-  CommandResult, 
-  FileResult, 
-  ToolResultTypes 
-} from './results.js';
+import type { MessageMetadata } from '../chat/messages';
+import type {
+  WriteResult,
+  CommandResult,
+  FileResult,
+  ToolResultTypes
+} from './results';
 
 // Type-safe accessor for tool results
 export function getToolResult<T extends ToolResultTypes['toolName']>(

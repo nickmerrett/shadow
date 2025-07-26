@@ -1,5 +1,7 @@
 import type { CoreMessage } from "ai";
 import { randomUUID } from "crypto";
+import { ToolExecutionStatusType } from "../tools/execution";
+import { ToolResultTypes } from "../tools/results";
 
 // AI SDK message parts for structured assistant content
 export interface TextPart {
@@ -44,8 +46,8 @@ export interface MessageMetadata {
   tool?: {
     name: string;
     args: Record<string, any>;
-    status: import('../tools/execution.js').ToolExecutionStatusType;
-    result?: import('../tools/results.js').ToolResultTypes['result'] | string; // Support both new objects and legacy strings
+    status: ToolExecutionStatusType;
+    result?: ToolResultTypes['result'] | string; // Support both new objects and legacy strings
   };
 
   // For structured assistant messages - required for chronological tool call ordering

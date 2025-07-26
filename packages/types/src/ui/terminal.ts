@@ -1,6 +1,6 @@
-import type { Message } from '../chat/messages.js';
-import type { StreamChunk } from '../chat/streaming.js';
-import type { ModelType } from '../llm/models.js';
+import type { Message } from '../chat/messages';
+import type { StreamChunk } from '../chat/streaming';
+import type { ModelType } from '../llm/models';
 
 export interface TerminalEntry {
   id: number;
