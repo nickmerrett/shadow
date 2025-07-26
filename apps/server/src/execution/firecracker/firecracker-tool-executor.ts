@@ -98,8 +98,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
-        path: targetFile,
-        content: "",
+        message: `Failed to read file: ${targetFile}`,
       };
     }
   }
@@ -124,10 +123,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
-        path: targetFile,
-        size: 0,
-        isDirectory: false,
-        lastModified: 0,
+        message: `Failed to get file stats: ${targetFile}`,
       };
     }
   }
@@ -158,7 +154,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
-        path: targetFile,
+        message: `Failed to write file: ${targetFile}`,
       };
     }
   }
@@ -183,7 +179,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
-        path: targetFile,
+        message: `Failed to delete file: ${targetFile}`,
       };
     }
   }
@@ -214,7 +210,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
-        path: filePath,
+        message: `Failed to search and replace in file: ${filePath}`,
       };
     }
   }
@@ -240,7 +236,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
         path: relativeWorkspacePath,
-        files: [],
+        message: `Failed to list directory: ${relativeWorkspacePath}`,
       };
     }
   }
@@ -268,6 +264,8 @@ export class FirecrackerToolExecutor implements ToolExecutor {
         error: error instanceof Error ? error.message : "Unknown error",
         query,
         files: [],
+        count: 0,
+        message: `Failed to search files: ${query}`,
       };
     }
   }
@@ -298,6 +296,8 @@ export class FirecrackerToolExecutor implements ToolExecutor {
         error: error instanceof Error ? error.message : "Unknown error",
         query,
         matches: [],
+        matchCount: 0,
+        message: `Failed to search with grep: ${query}`,
       };
     }
   }
@@ -328,6 +328,8 @@ export class FirecrackerToolExecutor implements ToolExecutor {
         error: error instanceof Error ? error.message : "Unknown error",
         query,
         results: [],
+        searchTerms: [],
+        message: `Failed to search codebase: ${query}`,
       };
     }
   }
@@ -358,6 +360,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
         error: error instanceof Error ? error.message : "Unknown error",
         query,
         results: [],
+        message: `Failed to search web: ${query}`,
       };
     }
   }
@@ -389,7 +392,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
         command,
         stdout: "",
         stderr: "",
-        exitCode: 1,
+        message: `Failed to execute command: ${command}`,
       };
     }
   }

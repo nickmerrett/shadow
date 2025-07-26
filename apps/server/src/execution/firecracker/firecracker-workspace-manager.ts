@@ -454,8 +454,8 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
     const match = limitStr.match(/^(\d+)([KMGT]i?)$/);
     if (!match) return 10 * 1024 * 1024 * 1024; // Default 10GB
 
-    const value = parseInt(match[1]);
-    const unit = match[2];
+    const value = parseInt(match[1]!);
+    const unit = match[2]!
 
     const multipliers: Record<string, number> = {
       'K': 1024,
@@ -492,7 +492,7 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
   async healthCheck(taskId: string): Promise<HealthStatus> {
     try {
       const status = await this.getWorkspaceStatus(taskId);
-      
+
       if (!status.exists) {
         return {
           healthy: false,
