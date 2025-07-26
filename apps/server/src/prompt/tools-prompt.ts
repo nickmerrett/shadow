@@ -111,6 +111,7 @@ BAD:
 **Purpose**: Read file contents with context awareness and completeness responsibility
 
 **Critical Responsibility**: Ensure you have COMPLETE context for your task
+**Path Requirement**: Always use relative paths from workspace root, not absolute paths
 
 **Strategy:**
 1. Assess if contents viewed are sufficient to proceed

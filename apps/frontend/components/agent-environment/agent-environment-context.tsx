@@ -111,7 +111,7 @@ export function AgentEnvironmentProvider({
 
       panel.expand();
       if (!lastPanelSizeRef.current) {
-        panel.resize(40);
+        panel.resize(50);
       }
     }
   }, [rightPanelRef]);
