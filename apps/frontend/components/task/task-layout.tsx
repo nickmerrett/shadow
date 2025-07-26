@@ -213,8 +213,11 @@ export function TaskPageLayout({
               </Tooltip>
             </div>
           </div>
+          {/* Render the appropriate content based on the sidebar view */}
           {sidebarView === "codebase" ? (
             <CodebaseUnderstandingView taskId={taskId} />
+          ) : sidebarView === "agent" ? (
+            <TaskPageContent isAtTop={isAtTop} />
           ) : (
             <TaskPageContent isAtTop={isAtTop} />
           )}

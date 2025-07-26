@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { ChevronRight, FileText, Folder, FolderGit2, RefreshCw } from "lucide-react";
+import { ChevronRight, FileText, Folder, FolderGit2, Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useCodebaseUnderstanding } from "@/components/codebase-understanding/codebase-understanding-context";
 
@@ -281,7 +281,7 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
                 <div className="text-center text-sm text-muted-foreground">
                   {isLoading ? (
                     <>
-                      <RefreshCw className="mx-auto mb-2 size-8 opacity-50 animate-spin" />
+                      <Loader2 className="mx-auto mb-2 size-8 opacity-50 animate-spin" />
                       <p>Loading summaries...</p>
                     </>
                   ) : (
