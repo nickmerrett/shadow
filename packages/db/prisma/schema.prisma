@@ -71,7 +71,7 @@ model Verification {
 
 model Task {
   id                    String                  @id @default(cuid())
-  title                 String?
+  title                 String                  @default("Untitled Task")
   description           String?
   status                TaskStatus              @default(INITIALIZING)
   repoUrl               String
