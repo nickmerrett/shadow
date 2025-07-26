@@ -87,16 +87,16 @@ model Task {
   updatedAt             DateTime                @updatedAt
   userId                String
   messages              ChatMessage[]
+  CodebaseUnderstanding CodebaseUnderstanding[]
   FileChange            FileChange[]
   user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions              TaskSession[]
   commands              TerminalCommand[]
   todos                 Todo[]
-  CodebaseUnderstanding CodebaseUnderstanding[]
 }
 
 model Todo {
-  id        String     @default(cuid())
+  id        String     @id @default(cuid())
   content   String
   status    TodoStatus @default(PENDING)
   sequence  Int
@@ -105,7 +105,6 @@ model Todo {
   taskId    String
   task      Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  @@id([taskId, id])
   @@index([taskId, sequence])
   @@index([taskId, status])
 }
@@ -178,14 +177,14 @@ model FileChange {
 model CodebaseUnderstanding {
   id        String   @id @default(cuid())
   taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   fileName  String
-  type      String?  @default("file_summary") // "file_summary", "directory_summary", "repo_summary"
+  type      String?  @default("file_summary")
   filePath  String?
   language  String?
-  content   Json // Store structured summary data as JSON
+  content   Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
   @@index([type])
