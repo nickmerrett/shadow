@@ -19,7 +19,7 @@ const TOOL_PREFIXES: Record<ToolType, string> = {
   [ToolType.READ_FILE]: "Read",
   [ToolType.SEARCH_REPLACE]: "Replaced in",
   [ToolType.CODEBASE_SEARCH]: "Searched codebase",
-  [ToolType.SEMANTIC_SEARCH]: "Searched indexed codebase",
+  [ToolType.SEMANTIC_SEARCH]: "Semantic search",
   [ToolType.GREP_SEARCH]: "Grepped",
   [ToolType.FILE_SEARCH]: "Searched files",
   [ToolType.LIST_DIR]: "Listed",
