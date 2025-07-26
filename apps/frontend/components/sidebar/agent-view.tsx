@@ -218,10 +218,10 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   const handleFileSelect = useCallback(
     (file: FileNode) => {
-      updateSelectedFilePath(file.path);
+      setSelectedFilePath(file.path);
       expandRightPanel();
     },
-    [expandRightPanel, updateSelectedFilePath]
+    [expandRightPanel, setSelectedFilePath]
   );
 
   return (
