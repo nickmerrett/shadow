@@ -33,12 +33,7 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
     try {
       const savedView = localStorage.getItem(SIDEBAR_VIEW_KEY) as SidebarView;
       if (savedView && ["tasks", "agent", "codebase"].includes(savedView)) {
-        // Only use saved view if it makes sense for the current page
-        if (pathname.startsWith("/tasks/") && savedView !== "tasks") {
-          setSidebarViewState(savedView);
-        } else if (!pathname.startsWith("/tasks/") && savedView === "tasks") {
-          setSidebarViewState(savedView);
-        }
+        setSidebarViewState(savedView);
       }
     } catch (error) {
       console.warn("Failed to load sidebar view from localStorage:", error);
@@ -46,21 +41,18 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
     setIsInitialized(true);
   }, [pathname]);
 
-  // Update default view when pathname changes (e.g., navigating to/from task pages)
+  // Set smart defaults when navigating between different page types
   useEffect(() => {
     if (!isInitialized) return;
     
     const newDefaultView = getDefaultView(pathname);
     
-    // If we're on a task page and current view is "tasks", switch to agent
-    if (pathname.startsWith("/tasks/") && sidebarView === "tasks") {
-      setSidebarViewState("agent");
+    // Only auto-switch if we don't have a saved preference
+    const savedView = localStorage.getItem(SIDEBAR_VIEW_KEY);
+    if (!savedView) {
+      setSidebarViewState(newDefaultView);
     }
-    // If we're on home page and current view is agent/codebase, switch to tasks
-    else if (!pathname.startsWith("/tasks/") && (sidebarView === "agent" || sidebarView === "codebase")) {
-      setSidebarViewState("tasks");
-    }
-  }, [pathname, sidebarView, isInitialized]);
+  }, [pathname, isInitialized]);
 
   // Wrapper function to save to localStorage when view changes
   const setSidebarView = (view: SidebarView) => {
