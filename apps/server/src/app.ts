@@ -11,6 +11,7 @@ import { createSocketServer } from "./socket";
 import { getGitHubAccessToken } from "./utils/github-account";
 import { updateTaskStatus } from "./utils/task-status";
 import { createWorkspaceManager } from "./execution";
+import { filesRouter } from "./routes/files";
 
 const app = express();
 const chatService = new ChatService();
@@ -28,12 +29,15 @@ app.use(
 app.use(express.json());
 
 /* ROUTES */
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
   res.send("<h1>Hello world</h1>");
 });
 
 // Indexing routes
 app.use("/api/indexing", IndexingRouter);
+
+// Files routes
+app.use("/api/tasks", filesRouter);
 
 // Get task details
 app.get("/api/tasks/:taskId", async (req, res) => {
@@ -88,7 +92,6 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
     );
 
     try {
-      // Get user's GitHub access token to validate authentication
       const githubAccessToken = await getGitHubAccessToken(userId);
 
       if (!githubAccessToken) {
@@ -96,7 +99,6 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
           `[TASK_INITIATE] No GitHub access token found for user ${userId}`
         );
 
-        // Update task status to failed
         await updateTaskStatus(taskId, "FAILED", "INIT");
 
         return res.status(400).json({
@@ -105,11 +107,9 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         });
       }
 
-      // Update task status to initializing
       await updateTaskStatus(taskId, "INITIALIZING", "INIT");
 
-      // Run initialization steps using userId (token management is handled internally)
-      const initSteps = initializationEngine.getDefaultStepsForTask("simple");
+      const initSteps = initializationEngine.getDefaultStepsForTask();
       await initializationEngine.initializeTask(taskId, initSteps, userId);
 
       // Get updated task with workspace info
@@ -144,10 +144,8 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         initError
       );
 
-      // Update task status to failed with specific error message
       await updateTaskStatus(taskId, "FAILED", "INIT");
 
-      // Update description if it's an auth error
       if (
         initError instanceof Error &&
         initError.message.includes("authentication")
@@ -160,7 +158,6 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         });
       }
 
-      // Return appropriate error response
       if (
         initError instanceof Error &&
         (initError.message.includes("authentication") ||
@@ -186,7 +183,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 });
 
 // Get available models
-app.get("/api/models", async (req, res) => {
+app.get("/api/models", async (_req, res) => {
   try {
     const availableModels = chatService.getAvailableModels();
     const modelsWithInfo = availableModels.map((modelId) => ({
@@ -223,20 +220,20 @@ app.delete("/api/tasks/:taskId/cleanup", async (req, res) => {
     // Verify task exists and get current status
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { 
-        id: true, 
-        status: true, 
-        workspacePath: true, 
+      select: {
+        id: true,
+        status: true,
+        workspacePath: true,
         workspaceCleanedUp: true,
-        repoUrl: true 
+        repoUrl: true
       },
     });
 
     if (!task) {
       console.warn(`[TASK_CLEANUP] Task ${taskId} not found`);
-      return res.status(404).json({ 
-        success: false, 
-        error: "Task not found" 
+      return res.status(404).json({
+        success: false,
+        error: "Task not found"
       });
     }
 
@@ -257,7 +254,7 @@ app.delete("/api/tasks/:taskId/cleanup", async (req, res) => {
 
     // Create workspace manager using abstraction layer
     const workspaceManager = createWorkspaceManager();
-    
+
     console.log(`[TASK_CLEANUP] Cleaning up workspace for task ${taskId} using ${workspaceManager.isRemote() ? 'remote' : 'local'} mode`);
 
     // Perform cleanup
@@ -296,8 +293,8 @@ app.delete("/api/tasks/:taskId/cleanup", async (req, res) => {
 
   } catch (error) {
     console.error(`[TASK_CLEANUP] Error cleaning up task ${req.params.taskId}:`, error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: "Failed to cleanup task",
       details: error instanceof Error ? error.message : "Unknown error"
     });

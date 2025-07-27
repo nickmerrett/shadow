@@ -2,42 +2,59 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useTask } from "@/hooks/use-task";
 import { cn } from "@/lib/utils";
 import {
   CircleDashed,
-  File,
   FileDiff,
   Folder,
   FolderGit2,
-  FolderOpen,
   GitBranch,
   ListTodo,
+  RefreshCcw,
   Square,
   SquareCheck,
-  XCircle,
+  SquareX,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { statusColorsConfig } from "./status";
+import { useCallback, useMemo, useState, useEffect } from "react";
+import { statusColorsConfig, getDisplayStatus } from "./status";
+import { FileExplorer } from "@/components/agent-environment/file-explorer";
+import { FileNode, getStatusText } from "@repo/types";
+import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
+import { Button } from "@/components/ui/button";
+import { fetchIndexApi } from "@/lib/actions/index-repo";
+import Link from "next/link";
+import { Badge } from "../ui/badge";
+import { FileText } from "lucide-react";
 
 // Todo status config - aligned with main status colors
 const todoStatusConfig = {
-  PENDING: { icon: Square, className: "text-neutral-500" },
-  IN_PROGRESS: { icon: CircleDashed, className: "text-blue-400" },
-  COMPLETED: { icon: SquareCheck, className: "text-green-400" },
-  CANCELLED: { icon: XCircle, className: "text-red-400" },
+  PENDING: { icon: Square, className: "text-muted-foreground" },
+  IN_PROGRESS: { icon: CircleDashed, className: "" },
+  COMPLETED: { icon: SquareCheck, className: "" },
+  CANCELLED: { icon: SquareX, className: "text-red-400" },
 };
 
+// Intermediate tree node structure for building the tree
+interface TreeNode {
+  name: string;
+  type: "file" | "folder";
+  path: string;
+  children?: Record<string, TreeNode>;
+}
+
+// Type for the intermediate tree structure during construction
+type FileTree = Record<string, TreeNode>;
+
 // Create file tree structure from file paths
-function createFileTree(filePaths: string[]) {
-  const tree: any = {};
+function createFileTree(filePaths: string[]): FileNode[] {
+  const tree: FileTree = {};
 
   filePaths.forEach((filePath) => {
     const parts = filePath.split("/");
-    let current = tree;
+    let current: FileTree = tree;
 
     parts.forEach((part, index) => {
       if (!current[part]) {
@@ -55,127 +72,141 @@ function createFileTree(filePaths: string[]) {
   });
 
   // Convert to array and sort (folders first, then files)
-  const convertToArray = (obj: any): any[] => {
+  const convertToArray = (obj: FileTree): FileNode[] => {
     return Object.values(obj)
-      .sort((a: any, b: any) => {
+      .sort((a: TreeNode, b: TreeNode) => {
         if (a.type !== b.type) {
           return a.type === "folder" ? -1 : 1;
         }
         return a.name.localeCompare(b.name);
       })
-      .map((item: any) => ({
-        ...item,
-        children: item.children ? convertToArray(item.children) : undefined,
-      }));
+      .map(
+        (item: TreeNode): FileNode => ({
+          name: item.name,
+          type: item.type,
+          path: item.path,
+          children: item.children ? convertToArray(item.children) : undefined,
+        })
+      );
   };
 
   return convertToArray(tree);
 }
 
-// FileNode component to handle individual file/folder nodes
-function FileNode({
-  node,
-  depth = 0,
-  fileChanges,
-}: {
-  node: any;
-  depth?: number;
-  fileChanges: any[];
-}) {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const fileChange = fileChanges.find(
-    (change) => change.filePath === node.path
-  );
-  const operation = fileChange?.operation;
-
-  const getOperationColor = (op: string) => {
-    switch (op) {
-      case "CREATE":
-        return "text-green-400";
-      case "UPDATE":
-        return "text-yellow-500";
-      case "DELETE":
-        return "text-red-400";
-      default:
-        return "text-neutral-500";
-    }
-  };
-
-  const getOperationLetter = (op: string) => {
-    switch (op) {
-      case "CREATE":
-        return "A";
-      case "UPDATE":
-        return "M";
-      case "DELETE":
-        return "D";
-      case "RENAME":
-        return "R";
-      case "MOVE":
-        return "M";
-      default:
-        return "?";
-    }
-  };
-
-  return (
-    <div key={node.path}>
-      <SidebarMenuItem>
-        <SidebarMenuButton
-          className="justify-between"
-          onClick={() => node.type === "folder" && setIsExpanded(!isExpanded)}
-        >
-          <div
-            className="flex w-full items-center gap-1.5"
-            style={{ paddingLeft: `${depth * 8}px` }}
-          >
-            {node.type === "folder" ? (
-              isExpanded ? (
-                <FolderOpen className="size-4" />
-              ) : (
-                <Folder className="size-4" />
-              )
-            ) : (
-              <File className="size-4" />
-            )}
-            <div className="line-clamp-1 flex-1">{node.name}</div>
-          </div>
-          {node.type === "file" && operation && (
-            <span
-              className={cn(
-                "text-xs font-medium",
-                getOperationColor(operation)
-              )}
-            >
-              {getOperationLetter(operation)}
-            </span>
-          )}
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-      {node.type === "folder" && isExpanded && node.children && (
-        <div>
-          {node.children.map((child: any) => (
-            <FileNode
-              key={child.path}
-              node={child}
-              depth={depth + 1}
-              fileChanges={fileChanges}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
+  const { setSelectedFilePath, expandRightPanel, setSelectedSummary } =
+    useAgentEnvironment();
+
+  const [isIndexing, setIsIndexing] = useState(false);
+
+  const completedTodos = useMemo(
+    () => todos.filter((todo) => todo.status === "COMPLETED").length,
+    [todos]
+  );
+  const [isWorkspaceIndexing, setIsWorkspaceIndexing] = useState(false);
+  const [workspaceSummaries, setWorkspaceSummaries] = useState<any[]>([]);
+  const [isLoadingSummaries, setIsLoadingSummaries] = useState(false);
+  const [summariesCollapsed, setSummariesCollapsed] = useState(false);
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
     const filePaths = fileChanges.map((change) => change.filePath);
     return createFileTree(filePaths);
   }, [fileChanges]);
+
+  // Index workspace with ShallowWiki
+  const handleIndexWorkspace = async () => {
+    if (!taskId) return;
+
+    try {
+      setIsWorkspaceIndexing(true);
+
+      // Call the indexing API directly
+      const response = await fetch(
+        `/api/indexing/shallowwiki/generate-workspace-summaries`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ taskId, forceRefresh: true }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to index workspace: ${response.status}`);
+      }
+
+      // Reload the summaries after indexing
+      await loadWorkspaceSummaries();
+    } catch (error) {
+      console.error("Error indexing workspace", error);
+    } finally {
+      setIsWorkspaceIndexing(false);
+    }
+  };
+
+  // Load workspace summaries
+  const loadWorkspaceSummaries = async () => {
+    if (!taskId) return;
+
+    try {
+      console.log("Loading workspace summaries for task", taskId);
+      setIsLoadingSummaries(true);
+      const { getWorkspaceSummaries } = await import("@/lib/actions/summaries");
+      const summariesData = await getWorkspaceSummaries(taskId);
+
+      console.log("Summaries data received from server action:", summariesData);
+
+      if (summariesData && summariesData.length > 0) {
+        console.log(
+          "Setting workspace summaries:",
+          summariesData.length,
+          "items"
+        );
+        setWorkspaceSummaries(summariesData);
+      } else {
+        console.log("No summaries data available, setting empty array");
+        setWorkspaceSummaries([]);
+      }
+    } catch (error) {
+      console.error("Failed to load workspace summaries", error);
+      setWorkspaceSummaries([]);
+    } finally {
+      setIsLoadingSummaries(false);
+    }
+  };
+
+  // Handle opening summary in Shadow Realm environment
+  const openSummaryInEnvironment = async (summary: any) => {
+    try {
+      // Get full summary content directly from Prisma
+      const { getWorkspaceSummaryById } = await import(
+        "@/lib/actions/summaries"
+      );
+      const fullSummary = await getWorkspaceSummaryById(summary.id);
+
+      if (fullSummary) {
+        console.log("Received full summary:", fullSummary);
+
+        // The summary is now already formatted correctly from the server action
+        // Pass the summary directly to the environment context
+        setSelectedSummary(fullSummary);
+      } else {
+        console.error("Summary not found");
+      }
+    } catch (error) {
+      console.error("Failed to load full summary:", error);
+    }
+  };
+
+  // Load summaries on component mount
+  useEffect(() => {
+    if (taskId) {
+      loadWorkspaceSummaries();
+    }
+  }, [taskId]);
 
   if (!task) {
     return (
@@ -185,43 +216,72 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
     );
   }
 
+  const handleFileSelect = useCallback(
+    (file: FileNode) => {
+      setSelectedFilePath(file.path);
+      expandRightPanel();
+    },
+    [expandRightPanel, setSelectedFilePath]
+  );
+
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupContent>
-          {/* Live task status */}
+        <SidebarGroupContent className="flex flex-col gap-0.5">
           <SidebarMenuItem>
-            <div className="flex h-8 items-center gap-2 px-2 text-sm">
-              {(() => {
-                const StatusIcon =
-                  statusColorsConfig[
-                    task.status as keyof typeof statusColorsConfig
-                  ]?.icon || CircleDashed;
-                const statusClass =
-                  statusColorsConfig[
-                    task.status as keyof typeof statusColorsConfig
-                  ]?.className || "text-gray-500";
-                return (
-                  <>
-                    <StatusIcon className={cn("size-4", statusClass)} />
-                    <span className="capitalize">
-                      {task.status.toLowerCase().replace("_", " ")}
-                    </span>
-                  </>
-                );
-              })()}
-            </div>
+            <Button
+              variant="ghost"
+              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+              asChild
+            >
+              <Link href={`${task.repoUrl}`} target="_blank">
+                <Folder className="size-4 shrink-0" />
+                <span className="truncate">{task.repoFullName}</span>
+              </Link>
+            </Button>
           </SidebarMenuItem>
 
-          {/* Task branch name */}
           <SidebarMenuItem>
-            <div className="flex h-8 items-center gap-2 px-2 text-sm">
-              <GitBranch className="size-4" />
-              <span className="line-clamp-1">{task.shadowBranch}</span>
-            </div>
+            <Button
+              variant="ghost"
+              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+              asChild
+            >
+              <Link
+                href={`${task.repoUrl}/tree/${task.shadowBranch}`}
+                target="_blank"
+              >
+                <GitBranch className="size-4 shrink-0" />
+                <span className="truncate">{task.shadowBranch}</span>
+              </Link>
+            </Button>
           </SidebarMenuItem>
 
-          {/* Task total diff */}
+          {/* items-start custom alignment to allow max 2 lines of text for things like error messages, etc. */}
+          <div className="flex min-h-8 items-start gap-2 px-2 pb-0 pt-1 text-sm">
+            {(() => {
+              const displayStatus = getDisplayStatus(task);
+              const StatusIcon =
+                statusColorsConfig[
+                  displayStatus as keyof typeof statusColorsConfig
+                ]?.icon || CircleDashed;
+              const statusClass =
+                statusColorsConfig[
+                  displayStatus as keyof typeof statusColorsConfig
+                ]?.className || "text-muted-foreground";
+              return (
+                <>
+                  <StatusIcon
+                    className={cn("mt-0.5 size-4 shrink-0", statusClass)}
+                  />
+                  <span className="line-clamp-2 capitalize">
+                    {getStatusText(task)}
+                  </span>
+                </>
+              );
+            })()}
+          </div>
+
           {diffStats.totalFiles > 0 && (
             <SidebarMenuItem>
               <div className="flex h-8 items-center gap-2 px-2 text-sm">
@@ -236,36 +296,85 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         </SidebarGroupContent>
       </SidebarGroup>
 
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenuItem>
+            <Button
+              variant="ghost"
+              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+              onClick={async () => {
+                setIsIndexing(true);
+                try {
+                  await fetchIndexApi({
+                    repoFullName: task.repoFullName,
+                    taskId: task.id,
+                    clearNamespace: true,
+                  });
+                } finally {
+                  setIsIndexing(false);
+                }
+              }}
+            >
+              <RefreshCcw className="size-4 shrink-0" />
+              <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
+            </Button>
+          </SidebarMenuItem>
+
+          <SidebarMenuItem>
+            <Button
+              variant="ghost"
+              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+              onClick={handleIndexWorkspace}
+            >
+              <FileText className="size-4 shrink-0" />
+              <span>
+                {isWorkspaceIndexing ? "Generating..." : "Generate Summaries"}
+              </span>
+            </Button>
+          </SidebarMenuItem>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
       {/* Task List (Todos) */}
       {todos.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel className="hover:text-muted-foreground">
-            <ListTodo className="mr-1.5 !size-3.5" />
+          <SidebarGroupLabel className="hover:text-muted-foreground select-none gap-1.5">
+            <ListTodo className="!size-3.5" />
             Task List
+            <Badge
+              variant="secondary"
+              className="bg-sidebar-accent border-sidebar-border text-muted-foreground rounded-full border px-1.5 py-0 text-[11px]"
+            >
+              {completedTodos}/{todos.length}
+            </Badge>
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            {todos.map((todo) => {
-              const TodoIcon =
-                todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
-                  .icon;
-              const iconClass =
-                todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
-                  .className;
-              return (
-                <SidebarMenuItem key={todo.id}>
-                  <div
-                    className={cn(
-                      "flex h-8 items-center gap-2 px-2 text-sm",
-                      todo.status === "COMPLETED" &&
-                        "text-muted-foreground line-through"
-                    )}
-                  >
-                    <TodoIcon className={cn("size-4", iconClass)} />
-                    <span className="line-clamp-1 flex-1">{todo.content}</span>
-                  </div>
-                </SidebarMenuItem>
-              );
-            })}
+            {todos
+              .sort((a, b) => a.sequence - b.sequence)
+              .map((todo) => {
+                const TodoIcon =
+                  todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
+                    .icon;
+                const iconClass =
+                  todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
+                    .className;
+                return (
+                  <SidebarMenuItem key={todo.id}>
+                    <div
+                      className={cn(
+                        "flex min-h-8 items-start gap-2 p-2 pb-0 text-sm",
+                        todo.status === "COMPLETED" &&
+                          "text-muted-foreground line-through"
+                      )}
+                    >
+                      <TodoIcon className={cn("size-4", iconClass)} />
+                      <span className="line-clamp-2 flex-1 leading-4">
+                        {todo.content}
+                      </span>
+                    </div>
+                  </SidebarMenuItem>
+                );
+              })}
           </SidebarGroupContent>
         </SidebarGroup>
       )}
@@ -273,14 +382,24 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       {/* Modified Files - Only show if file changes exist */}
       {fileChanges.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel className="hover:text-muted-foreground">
-            <FolderGit2 className="mr-1.5 !size-3.5" />
-            Modified Files ({diffStats.totalFiles})
+          <SidebarGroupLabel className="hover:text-muted-foreground select-none gap-1.5">
+            <FolderGit2 className="!size-3.5" />
+            Modified Files{" "}
+            <Badge
+              variant="secondary"
+              className="bg-sidebar-accent border-sidebar-border text-muted-foreground rounded-full border px-1.5 py-0 text-[11px]"
+            >
+              {diffStats.totalFiles}
+            </Badge>
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            {modifiedFileTree.map((node) => (
-              <FileNode key={node.path} node={node} fileChanges={fileChanges} />
-            ))}
+            <FileExplorer
+              files={modifiedFileTree}
+              showDiffOperation={true}
+              fileChanges={fileChanges}
+              defaultExpanded={true}
+              onFileSelect={handleFileSelect}
+            />
           </SidebarGroupContent>
         </SidebarGroup>
       )}

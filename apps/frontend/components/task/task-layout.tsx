@@ -17,20 +17,20 @@ import { saveLayoutCookie } from "@/lib/actions/save-sidebar-cookie";
 import { cn } from "@/lib/utils";
 import { AppWindowMac } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-  ImperativePanelGroupHandle,
-  ImperativePanelHandle,
-} from "react-resizable-panels";
+import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { StickToBottom, type StickToBottomContext } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
 import { TaskPageContent } from "./task-content";
 import { useTask } from "@/hooks/use-task";
 import { useParams } from "next/navigation";
+import { useAgentEnvironment } from "../agent-environment/agent-environment-context";
+import { useSidebarView } from "../sidebar/sidebar-context";
+import { CodebaseUnderstandingView } from "../codebase-understanding/codebase-understanding-view";
 
 export function TaskPageLayout({
   initialLayout,
 }: {
-  initialLayout?: number[];
+  initialLayout: number[] | null;
 }) {
   const { taskId } = useParams<{ taskId: string }>();
   const { open } = useSidebar();
@@ -39,13 +39,15 @@ export function TaskPageLayout({
 
   const { task } = useTask(taskId);
   const [editValue, setEditValue] = useState(task?.title || "");
+  // Use the sidebar context to get the current view
+  const { sidebarView } = useSidebarView();
 
   const stickToBottomContextRef = useRef<StickToBottomContext>(null);
   const { isAtTop } = useIsAtTop(0, stickToBottomContextRef.current?.scrollRef);
 
   useEffect(() => {
     if (task) {
-      setEditValue(task.title);
+      setEditValue(task.title || "");
     }
   }, [task]);
 
@@ -53,7 +55,7 @@ export function TaskPageLayout({
   Resizable panel state
   */
 
-  const rightPanelRef = useRef<ImperativePanelHandle>(null);
+  const { rightPanelRef, lastPanelSizeRef } = useAgentEnvironment();
   const resizablePanelGroupRef = useRef<ImperativePanelGroupHandle>(null);
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
@@ -95,8 +97,11 @@ export function TaskPageLayout({
     if (!panel) return;
     if (panel.isCollapsed()) {
       panel.expand();
-      resizablePanelGroupRef.current?.setLayout([40, 60]);
+      if (!lastPanelSizeRef.current) {
+        panel.resize(40);
+      }
     } else {
+      lastPanelSizeRef.current = rightPanelRef.current?.getSize() ?? null;
       panel.collapse();
     }
   }, [rightPanelRef]);
@@ -112,6 +117,8 @@ export function TaskPageLayout({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleToggleRightPanel]);
+
+  const titleRef = useRef<HTMLDivElement>(null);
 
   const handleTitleClick = () => {
     setIsEditing(true);
@@ -153,8 +160,8 @@ export function TaskPageLayout({
           initial="smooth"
           contextRef={stickToBottomContextRef}
         >
-          <div className="bg-background sticky top-0 z-10 flex w-full items-center justify-between p-3">
-            <div className="flex items-center gap-1">
+          <div className="bg-background sticky top-0 z-10 flex w-full items-center justify-between">
+            <div className="flex grow items-center gap-1 overflow-hidden p-3 pr-0">
               {!open && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -165,42 +172,54 @@ export function TaskPageLayout({
                   </TooltipContent>
                 </Tooltip>
               )}
-              {isEditing ? (
-                <input
-                  ref={inputRef}
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onKeyDown={handleInputKeyDown}
-                  onBlur={handleInputBlur}
-                  className="focus:ring-ring/10 focus:border-border flex h-7 max-w-48 items-center rounded-md border border-transparent bg-transparent px-2 focus:outline-none focus:ring-2"
-                />
-              ) : (
-                <div
-                  className="hover:border-border flex h-7 max-w-48 cursor-text items-center rounded-md border border-transparent px-2"
-                  onClick={handleTitleClick}
-                >
-                  <span className="truncate">{task?.title}</span>
-                </div>
-              )}
+              <input
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={handleInputKeyDown}
+                onBlur={handleInputBlur}
+                style={{ width: titleRef.current?.clientWidth }}
+                className={cn(
+                  "focus:ring-ring/10 focus:border-border h-7 w-full items-center rounded-md border border-transparent bg-transparent px-2 focus:outline-none focus:ring-2",
+                  isEditing ? "flex" : "hidden"
+                )}
+              />
+              <div
+                className={cn(
+                  "hover:border-border flex h-7 cursor-text items-center truncate rounded-md border border-transparent px-2",
+                  isEditing ? "pointer-events-none opacity-0" : "opacity-100"
+                )}
+                onClick={handleTitleClick}
+                ref={titleRef}
+              >
+                <span className="truncate">{task?.title}</span>
+              </div>
             </div>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("size-7 cursor-pointer")}
-                  onClick={handleToggleRightPanel}
-                >
-                  <AppWindowMac className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left" shortcut="⌘J">
-                Toggle Agent Environment
-              </TooltipContent>
-            </Tooltip>
+            <div className="p-3">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("size-7 cursor-pointer")}
+                    onClick={handleToggleRightPanel}
+                  >
+                    <AppWindowMac className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" shortcut="⌘J">
+                  Toggle Shadow Realm
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
-          <TaskPageContent isAtTop={isAtTop} />
+          {/* Render the appropriate content based on URL parameter */}
+          {sidebarView === "codebase" ? (
+            <CodebaseUnderstandingView taskId={taskId} />
+          ) : (
+            <TaskPageContent isAtTop={isAtTop} />
+          )}
         </StickToBottom>
       </ResizablePanel>
       <ResizableHandle />

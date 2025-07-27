@@ -41,7 +41,7 @@ export function PromptForm({
 }) {
   const [message, setMessage] = useState("");
   const [selectedModel, setSelectedModel] = useState<ModelType>(
-    AvailableModels.CLAUDE_SONNET_4
+    AvailableModels.GPT_4O
   );
   const [repo, setRepo] = useState<Repository | null>(
     initialGitState?.repo || null
@@ -72,6 +72,7 @@ export function PromptForm({
       formData.append("message", message);
       formData.append("model", selectedModel);
       formData.append("repoUrl", completeRepoUrl);
+      formData.append("repoFullName", repo.full_name);
       formData.append("baseBranch", branch.name);
       formData.append("baseCommitSha", branch.commitSha);
 
@@ -195,7 +196,7 @@ export function PromptForm({
               {isPending ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : isStreaming ? (
-                <Square className="size-4" />
+                <Square className="fill-primary-foreground size-3.5" />
               ) : (
                 <ArrowUp className="size-4" />
               )}

@@ -1,4 +1,7 @@
 import { SidebarViews } from "@/components/sidebar";
+import { AgentEnvironmentProvider } from "@/components/agent-environment/agent-environment-context";
+import { CodebaseUnderstandingProvider } from "@/components/codebase-understanding/codebase-understanding-context";
+import { SidebarProvider } from "@/components/sidebar/sidebar-context";
 import { getModels } from "@/lib/actions/get-models";
 import { getUser } from "@/lib/auth/get-user";
 import { getTaskMessages } from "@/lib/db-operations/get-task-messages";
@@ -20,14 +23,17 @@ export default async function TaskLayout({
 }>) {
   const { taskId } = await params;
   const user = await getUser();
-
-  const [initialTasks, { task, todos, fileChanges }, taskMessages, models] =
-    await Promise.all([
-      user ? getTasks(user.id) : [],
-      getTaskWithDetails(taskId),
-      getTaskMessages(taskId),
-      getModels(),
-    ]);
+  const [
+    initialTasks,
+    { task, todos, fileChanges, diffStats },
+    taskMessages,
+    models,
+  ] = await Promise.all([
+    user ? getTasks(user.id) : [],
+    getTaskWithDetails(taskId),
+    getTaskMessages(taskId),
+    getModels(),
+  ]);
 
   if (!task) {
     notFound();
@@ -42,6 +48,7 @@ export default async function TaskLayout({
         task,
         todos,
         fileChanges,
+        diffStats,
       }),
     }),
     queryClient.prefetchQuery({
@@ -56,8 +63,14 @@ export default async function TaskLayout({
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <SidebarViews initialTasks={initialTasks} currentTaskId={task.id} />
-      {children}
+      <AgentEnvironmentProvider taskId={taskId}>
+        <SidebarProvider>
+          <CodebaseUnderstandingProvider>
+            <SidebarViews initialTasks={initialTasks} currentTaskId={task.id} />
+            {children}
+          </CodebaseUnderstandingProvider>
+        </SidebarProvider>
+      </AgentEnvironmentProvider>
     </HydrationBoundary>
   );
 }

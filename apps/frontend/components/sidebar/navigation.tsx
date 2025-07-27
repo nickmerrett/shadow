@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
-import { LayoutGrid, Play, Plus } from "lucide-react";
+import { Brain, LayoutGrid, Play, Plus } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { SidebarView } from ".";
 import { SettingsDialog } from "../auth/settings-dialog";
 import { UserMenu } from "../auth/user-menu";
@@ -19,10 +20,12 @@ export function SidebarNavigation({
 }: {
   sidebarView: SidebarView;
   setSidebarView: (view: SidebarView) => void;
-  currentTaskId: string;
+  currentTaskId: string | null;
 }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { open, toggleSidebar } = useSidebar();
-  const { task } = useTask(currentTaskId);
+  const { task } = useTask(currentTaskId ?? "");
 
   const currentTaskStatus = task?.status;
 
@@ -122,6 +125,29 @@ export function SidebarNavigation({
             <>
               <div className="bg-border h-px w-full" />
               {agentViewTrigger}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="iconSm"
+                    variant="ghost"
+                    className={cn(
+                      "border",
+                      sidebarView === "codebase" && open
+                        ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
+                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
+                    )}
+                    onClick={() => {
+                      setSidebarView("codebase");
+                      if (!open) {
+                        toggleSidebar();
+                      }
+                    }}
+                  >
+                    <Brain />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Codebase Understanding</TooltipContent>
+              </Tooltip>
             </>
           ) : null}
         </div>

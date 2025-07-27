@@ -12,6 +12,9 @@
     "lint": "eslint 'src/**/*.ts'",
     "check-types": "tsc --noEmit"
   },
+  "dependencies": {
+    "@repo/command-security": "*"
+  },
   "devDependencies": {
     "@repo/db": "*",
     "@repo/eslint-config": "^0.0.0",

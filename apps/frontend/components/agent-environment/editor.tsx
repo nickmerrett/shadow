@@ -1,13 +1,14 @@
 "use client";
 
 import { patchMonacoWithShiki } from "@/lib/editor/highlighter";
-import { ChevronRight, ChevronsRight } from "lucide-react";
+import { AlertTriangle, ChevronRight, ChevronsRight, FileText, Folder, FolderGit2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Fragment, useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import type { FileNode } from "./file-explorer";
-import { cn } from "@/lib/utils";
+import { getLanguageFromPath } from "@repo/types";
+import { LogoHover } from "../logo/logo-hover";
+import { MarkdownRenderer } from "./markdown-renderer";
 
 // Dynamic import Monaco Editor to avoid SSR issues
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -20,55 +21,45 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 });
 
 export function Editor({
-  selectedFile,
+  selectedFilePath,
+  selectedFileContent,
   isExplorerCollapsed,
   onToggleCollapse,
+  isLoadingContent,
+  contentError,
 }: {
-  selectedFile?: FileNode;
+  selectedFilePath?: string | null;
+  selectedFileContent?: any; // Using any to support both string and FileWithContent
   isExplorerCollapsed: boolean;
   onToggleCollapse: () => void;
+  isLoadingContent?: boolean;
+  contentError?: string;
 }) {
   const [isShikiReady, setIsShikiReady] = useState(false);
+
+  // Extract content string or object
+  const fileContentString = typeof selectedFileContent === 'string' 
+    ? selectedFileContent 
+    : selectedFileContent?.content || '';
+    
+  // Extract metadata from content object if available
+  const fileMetadata = typeof selectedFileContent === 'object' ? selectedFileContent : null;
+  
+  // Check if the selected file is a markdown file
+  const isMarkdownFile =
+    selectedFilePath?.endsWith(".md") ||
+    selectedFilePath?.endsWith(".markdown");
+    
+  // Check if this is a summary display
+  const isSummaryContent = 
+    selectedFilePath?.startsWith("summary://") || 
+    fileMetadata?.type === "summary";
 
   useEffect(() => {
     patchMonacoWithShiki().then(() => {
       setIsShikiReady(true);
     });
   }, []);
-
-  const getLanguageFromPath = (path: string): string => {
-    const extension = path.split(".").pop()?.toLowerCase();
-    switch (extension) {
-      case "tsx":
-        return "tsx";
-      case "ts":
-        return "typescript";
-      case "js":
-        return "javascript";
-      case "jsx":
-        return "jsx";
-      case "json":
-        return "json";
-      case "md":
-        return "markdown";
-      case "css":
-        return "css";
-      case "html":
-        return "html";
-      case "c":
-        return "c";
-      case "h":
-        return "cpp"; // treat headers as C++ for highlighting
-      case "cpp":
-        return "cpp";
-      case "cc":
-        return "cpp";
-      case "cxx":
-        return "cpp";
-      default:
-        return "plaintext";
-    }
-  };
 
   return (
     <div className="bg-background flex size-full flex-col">
@@ -78,24 +69,22 @@ export function Editor({
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
-                size="icon"
-                className="hover:bg-sidebar-accent size-7 cursor-pointer"
+                size="iconSm"
+                className="hover:bg-sidebar-accent"
                 onClick={onToggleCollapse}
               >
                 <ChevronsRight className="size-4" />
               </Button>
             </TooltipTrigger>
 
-            <TooltipContent side="bottom" align="start">
-              Open File Explorer
-            </TooltipContent>
+            <TooltipContent side="right">Open File Explorer</TooltipContent>
           </Tooltip>
         )}
         <div className="flex flex-col items-start justify-center">
           <div className="select-none text-sm">Code Editor</div>
           <div className="text-muted-foreground flex items-center gap-0.5 text-[13px]">
-            {selectedFile
-              ? selectedFile.path.split("/").map((part, index) => (
+            {selectedFilePath
+              ? selectedFilePath.split("/").map((part, index) => (
                   <Fragment key={index}>
                     {index > 1 && (
                       <span className="text-muted-foreground">
@@ -111,29 +100,79 @@ export function Editor({
           </div>
         </div>
       </div>
-      <div className="code-editor flex-1 overflow-hidden pl-2">
-        <MonacoEditor
-          height="100%"
-          language={
-            selectedFile ? getLanguageFromPath(selectedFile.path) : "plaintext"
-          }
-          value={
-            selectedFile?.content || "// Select a file to view its content"
-          }
-          theme={isShikiReady ? "vesper" : "vs-dark"}
-          options={{
-            readOnly: true,
-            minimap: { enabled: false },
-            fontSize: 14,
-            wordWrap: "on",
-            scrollBeyondLastLine: false,
-            lineNumbersMinChars: 2,
-            padding: {
-              top: 8,
-              bottom: 8,
-            },
-          }}
-        />
+      <div className="code-editor relative z-0 flex-1 overflow-hidden pl-2">
+        {(isLoadingContent || contentError || !selectedFilePath) && (
+          <div className="bg-background text-muted-foreground absolute inset-0 z-10 flex select-none items-center justify-center gap-2 text-sm">
+            {isLoadingContent ? (
+              <div className="flex items-center gap-2">
+                <LogoHover size="sm" forceAnimate className="opacity-60" />
+                Loading file content
+              </div>
+            ) : contentError ? (
+              <div className="flex items-center justify-center gap-2 break-words leading-none">
+                <AlertTriangle className="text-destructive size-4 shrink-0" />
+                Error loading file: {contentError || "Unknown error"}
+              </div>
+            ) : (
+              <div>No file selected</div>
+            )}
+          </div>
+        )}
+        {(isMarkdownFile || isSummaryContent) && fileContentString ? (
+          <div className="h-full overflow-auto p-4">
+            {isSummaryContent && fileMetadata?.summaryData && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  {fileMetadata.summaryData.type === 'file_summary' ? (
+                    <span className="inline-flex items-center gap-1 text-blue-500 font-medium text-sm">
+                      <FileText className="size-4" /> File Summary
+                    </span>
+                  ) : fileMetadata.summaryData.type === 'directory_summary' ? (
+                    <span className="inline-flex items-center gap-1 text-yellow-500 font-medium text-sm">
+                      <Folder className="size-4" /> Directory Summary
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-green-500 font-medium text-sm">
+                      <FolderGit2 className="size-4" /> Repository Overview
+                    </span>
+                  )}
+                  {fileMetadata.summaryData.language && (
+                    <span className="bg-muted text-muted-foreground px-2 py-0.5 rounded text-xs">
+                      {fileMetadata.summaryData.language}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-lg font-medium mb-4">
+                  {fileMetadata.summaryData.filePath || "Workspace Overview"}
+                </h2>
+              </div>
+            )}
+            <MarkdownRenderer content={fileContentString} />
+          </div>
+        ) : (
+          <MonacoEditor
+            height="100%"
+            language={
+              selectedFilePath
+                ? getLanguageFromPath(selectedFilePath)
+                : fileMetadata?.language || "plaintext"
+            }
+            value={fileContentString}
+            theme={isShikiReady ? "vesper" : "vs-dark"}
+            options={{
+              readOnly: true,
+              minimap: { enabled: false },
+              fontSize: 13,
+              wordWrap: "on",
+              scrollBeyondLastLine: false,
+              lineNumbersMinChars: 2,
+              padding: {
+                top: 8,
+                bottom: 8,
+              },
+            }}
+          />
+        )}
       </div>
     </div>
   );

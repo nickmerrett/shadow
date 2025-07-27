@@ -1,17 +1,25 @@
 import {
   CommandOptions,
-  CommandResult,
   DeleteResult,
   DirectoryListing,
   FileResult,
   FileSearchResult,
+  FileStatsResult,
   GrepOptions,
   GrepResult,
   ReadFileOptions,
   SearchOptions,
   WriteResult,
-  CodebaseSearchResult,
-} from "./types";
+  CodebaseSearchToolResult,
+  WebSearchResult,
+  GitStatusResponse,
+  GitDiffResponse,
+  GitCommitResponse,
+  GitPushResponse,
+  GitCommitRequest,
+  GitPushRequest,
+} from "@repo/types";
+import { CommandResult } from "./types";
 
 /**
  * ToolExecutor interface abstracts all tool operations for both local and remote execution
@@ -22,6 +30,8 @@ export interface ToolExecutor {
     targetFile: string,
     options?: ReadFileOptions
   ): Promise<FileResult>;
+
+  getFileStats(targetFile: string): Promise<FileStatsResult>;
 
   writeFile(
     targetFile: string,
@@ -51,7 +61,17 @@ export interface ToolExecutor {
   codebaseSearch(
     query: string,
     options?: SearchOptions
-  ): Promise<CodebaseSearchResult>;
+  ): Promise<CodebaseSearchToolResult>;
+
+  semanticSearch(
+    query: string,
+    repo: string,
+    options?: SearchOptions
+  ): Promise<CodebaseSearchToolResult>;
+  webSearch(
+    query: string,
+    domain?: string
+  ): Promise<WebSearchResult>;
 
   // Command execution
   executeCommand(
@@ -65,4 +85,10 @@ export interface ToolExecutor {
 
   // Task context
   getTaskId(): string;
+
+  // Git operations
+  getGitStatus(): Promise<GitStatusResponse>;
+  getGitDiff(): Promise<GitDiffResponse>;
+  commitChanges(request: GitCommitRequest): Promise<GitCommitResponse>;
+  pushBranch(request: GitPushRequest): Promise<GitPushResponse>;
 }

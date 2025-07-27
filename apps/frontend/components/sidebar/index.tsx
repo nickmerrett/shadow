@@ -13,40 +13,27 @@ import {
 } from "@/components/ui/tooltip";
 import { useTasks } from "@/hooks/use-tasks";
 import { Task } from "@repo/db";
-import { useEffect, useRef, useState } from "react";
+import React from "react";
 import { SidebarAgentView } from "./agent-view";
+import { SidebarCodebaseView } from "./codebase-view";
 import { SidebarNavigation } from "./navigation";
 import { SidebarTasksView } from "./tasks-view";
+import { SidebarProvider, useSidebarView } from "./sidebar-context";
 
-export type SidebarView = "tasks" | "agent";
+export type SidebarView = "tasks" | "agent" | "codebase";
 
-export function SidebarViews({
+function SidebarViewsContent({
   initialTasks,
-  currentTaskId,
+  currentTaskId = null,
 }: {
   initialTasks: Task[];
-  currentTaskId: string;
+  currentTaskId?: string | null;
 }) {
   const { data: tasks, isLoading: loading, error } = useTasks(initialTasks);
-
-  const [sidebarView, setSidebarView] = useState<SidebarView>(
-    currentTaskId ? "agent" : "tasks"
-  );
-
-  // Initial render trick to avoid hydration issues on navigation
-  const isInitialRender = useRef(true);
-
-  useEffect(() => {
-    if (isInitialRender.current) {
-      isInitialRender.current = false;
-      return;
-    }
-    if (currentTaskId) {
-      setSidebarView("agent");
-    } else {
-      setSidebarView("tasks");
-    }
-  }, [currentTaskId]);
+  const { sidebarView, setSidebarView } = useSidebarView();
+  
+  // View switching is now handled in the SidebarProvider context
+  // based on pathname changes, so we don't need manual logic here
 
   return (
     <div className="flex">
@@ -56,29 +43,54 @@ export function SidebarViews({
         setSidebarView={setSidebarView}
       />
       <Sidebar>
-        <SidebarContent>
-          <SidebarGroup className="flex h-7 flex-row items-center justify-between">
-            <div className="font-medium">
-              {sidebarView === "tasks" ? "Tasks" : "Agent Environment"}
+        {currentTaskId && sidebarView === "codebase" ? (
+          // Codebase view takes up entire sidebar
+          <SidebarCodebaseView taskId={currentTaskId} />
+        ) : (
+          // Other views have the standard layout with header
+          <SidebarContent>
+            <SidebarGroup className="flex h-7 flex-row items-center justify-between">
+              <div className="font-medium">
+                {sidebarView === "tasks" ? "Tasks" : "Agent Environment"}
+              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SidebarTrigger className="hover:bg-sidebar-accent" />
+                </TooltipTrigger>
+                <TooltipContent side="right" shortcut="⌘B">
+                  Toggle Sidebar
+                </TooltipContent>
+              </Tooltip>
+            </SidebarGroup>
+            <div className="mt-6 flex flex-col gap-4">
+              {currentTaskId && sidebarView === "agent" ? (
+                <SidebarAgentView taskId={currentTaskId} />
+              ) : (
+                <SidebarTasksView tasks={tasks} loading={loading} error={error} />
+              )}
             </div>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <SidebarTrigger className="hover:bg-sidebar-accent" />
-              </TooltipTrigger>
-              <TooltipContent side="right" shortcut="⌘B">
-                Toggle Sidebar
-              </TooltipContent>
-            </Tooltip>
-          </SidebarGroup>
-          <div className="mt-6 flex flex-col gap-4">
-            {currentTaskId && sidebarView === "agent" ? (
-              <SidebarAgentView taskId={currentTaskId} />
-            ) : (
-              <SidebarTasksView tasks={tasks} loading={loading} error={error} />
-            )}
-          </div>
-        </SidebarContent>
+          </SidebarContent>
+        )}
       </Sidebar>
     </div>
   );
 }
+
+export function SidebarViews({
+  initialTasks,
+  currentTaskId = null,
+}: {
+  initialTasks: Task[];
+  currentTaskId?: string | null;
+}) {
+  return (
+    <SidebarProvider>
+      <SidebarViewsContent 
+        initialTasks={initialTasks}
+        currentTaskId={currentTaskId}
+      />
+    </SidebarProvider>
+  );
+}
+
+
