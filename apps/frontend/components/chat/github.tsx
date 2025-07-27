@@ -28,6 +28,7 @@ import { toast } from "sonner";
 
 import type { FilteredRepository as Repository } from "@/lib/github/types";
 import Image from "next/image";
+import Link from "next/link";
 
 export function GithubConnection({
   selectedRepo,
@@ -303,6 +304,19 @@ export function GithubConnection({
           ))
         )}
       </div>
+      <Link
+        href={`https://github.com/settings/installations/${githubStatus?.installationId}`}
+        target="_blank"
+        className="hover:bg-sidebar-accent flex h-9 w-full cursor-pointer items-center gap-2 border-t px-2 text-sm transition-colors"
+      >
+        <Image
+          src="/github.svg"
+          alt="GitHub"
+          width={16}
+          height={16}
+        />
+        <span>Manage Github</span>
+      </Link>
     </div>
   );
 
@@ -347,6 +361,20 @@ export function GithubConnection({
           ))
         )}
       </div>
+
+      <Link
+        href={`https://github.com/settings/installations/${githubStatus?.installationId}`}
+        target="_blank"
+        className="hover:bg-sidebar-accent flex h-9 w-full cursor-pointer items-center gap-2 border-t px-2 text-sm transition-colors"
+      >
+        <Image
+          src="/github.svg"
+          alt="GitHub"
+          width={16}
+          height={16}
+        />
+        <span>Manage Github</span>
+      </Link>
     </div>
   );
 
