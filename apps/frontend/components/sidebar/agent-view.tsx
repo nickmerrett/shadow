@@ -3,7 +3,6 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenuItem,
-  SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { useTask } from "@/hooks/use-task";
 import { cn } from "@/lib/utils";
@@ -19,13 +18,14 @@ import {
   SquareX,
 } from "lucide-react";
 import { useCallback, useMemo, useState, useEffect } from "react";
-import { statusColorsConfig } from "./status";
+import { statusColorsConfig, getDisplayStatus, getStatusText } from "./status";
 import { FileExplorer } from "@/components/agent-environment/file-explorer";
 import { FileNode } from "@repo/types";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { Button } from "@/components/ui/button";
 import callIndexApi, { gitHubUrlToRepoName } from "@/lib/actions/index-repo";
-import callWorkspaceIndexApi, { getWorkspaceSummaries } from "@/lib/actions/index-workspace";
+import callWorkspaceIndexApi from "@/lib/actions/index-workspace";
+import { getWorkspaceSummaries, getWorkspaceSummaryById } from "@/lib/actions/summaries";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -161,7 +161,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
     try {
       console.log("Loading workspace summaries for task", taskId);
       setIsLoadingSummaries(true);
-      const { getWorkspaceSummaries } = await import("@/lib/actions/summaries");
       const summariesData = await getWorkspaceSummaries(taskId);
 
       console.log("Summaries data received from server action:", summariesData);
@@ -185,7 +184,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   const openSummaryInEnvironment = async (summary: any) => {
     try {
       // Get full summary content directly from Prisma
-      const { getWorkspaceSummaryById } = await import("@/lib/actions/summaries");
       const fullSummary = await getWorkspaceSummaryById(summary.id);
 
       if (fullSummary) {
@@ -251,19 +249,20 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             </Button>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               {(() => {
+                const displayStatus = getDisplayStatus(task);
                 const StatusIcon =
                   statusColorsConfig[
-                    task.status as keyof typeof statusColorsConfig
+                    displayStatus as keyof typeof statusColorsConfig
                   ]?.icon || CircleDashed;
                 const statusClass =
                   statusColorsConfig[
-                    task.status as keyof typeof statusColorsConfig
+                    displayStatus as keyof typeof statusColorsConfig
                   ]?.className || "text-muted-foreground";
                 return (
                   <>
                     <StatusIcon className={cn("size-4", statusClass)} />
                     <span className="capitalize">
-                      {task.status.toLowerCase().replace("_", " ")}
+                      {getStatusText(task)}
                     </span>
                   </>
                 );
@@ -385,39 +384,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         </SidebarGroup>
       )}
 
-      {/* Workspace Summaries */}
-      {workspaceSummaries.length > 0 && (
-        <SidebarGroup>
-          <SidebarGroupLabel className="hover:text-muted-foreground select-none gap-1.5">
-            <FileText className="!size-3.5" />
-            Workspace Summaries{" "}
-            <Badge
-              variant="secondary"
-              className="bg-sidebar-accent border-sidebar-border text-muted-foreground rounded-full border px-1.5 py-0 text-[11px]"
-            >
-              {workspaceSummaries.length}
-            </Badge>
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            {workspaceSummaries.map((summary) => (
-              <SidebarMenuItem key={summary.id}>
-                <SidebarMenuButton
-                  onClick={() => openSummaryInEnvironment(summary)}
-                  className="w-full justify-start"
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  <div className="flex flex-col items-start">
-                    <span className="font-medium line-clamp-1">{summary.title}</span>
-                    <span className="text-xs text-muted-foreground line-clamp-1">
-                      {summary.filePath}
-                    </span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarGroupContent>
-        </SidebarGroup>
-      )}
+
 
     </>
   );

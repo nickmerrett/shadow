@@ -13,7 +13,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "../ui/collapsible";
-import { statusColorsConfig, statusOrder } from "./status";
+import { statusColorsConfig, statusOrder, getDisplayStatus, getStatusText } from "./status";
 
 type GroupedTasks = {
   [repoUrl: string]: {
@@ -93,7 +93,8 @@ export function SidebarTasksView({
               <CollapsibleContent>
                 <SidebarGroupContent>
                   {group.tasks.map((task) => {
-                    const StatusIcon = statusColorsConfig[task.status].icon;
+                    const displayStatus = getDisplayStatus(task);
+                    const StatusIcon = statusColorsConfig[displayStatus].icon;
                     return (
                       <SidebarMenuItem key={task.id}>
                         <SidebarMenuButton
@@ -110,10 +111,10 @@ export function SidebarTasksView({
                             </div>
                             <div className="text-muted-foreground flex items-center gap-1 text-xs">
                               <StatusIcon
-                                className={`!size-3 ${statusColorsConfig[task.status].className}`}
+                                className={`!size-3 ${statusColorsConfig[displayStatus].className}`}
                               />
                               <span className="text-xs capitalize">
-                                {task.status.toLowerCase().replace("_", " ")}
+                                {getStatusText(task)}
                               </span>
                               <GitBranch className="size-3" />{" "}
                               {truncateBranchName(task.shadowBranch, 20)}
