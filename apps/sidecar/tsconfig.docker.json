@@ -7,7 +7,7 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleDetection": "force",
-    "moduleResolution": "bundler",
+    "moduleResolution": "NodeNext",
     "declaration": true,
     "declarationMap": true,
     "esModuleInterop": true,

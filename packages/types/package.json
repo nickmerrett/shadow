@@ -13,7 +13,8 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@repo/command-security": "*"
+    "@repo/command-security": "*",
+    "ai": "^3.4.33"
   },
   "devDependencies": {
     "@repo/db": "*",
