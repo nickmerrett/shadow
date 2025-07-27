@@ -35,11 +35,9 @@ export function SidebarTasksView({
   // Group tasks by repository and sort within each group
   const groupedTasks: GroupedTasks = tasks.reduce(
     (groups: GroupedTasks, task: Task) => {
-      const repoName = task.repoUrl.split("/").slice(-2).join("/"); // Extract owner/repo from URL
-
-      if (!groups[task.repoUrl]) {
-        groups[task.repoUrl] = {
-          repoName,
+      if (!groups[task.repoFullName]) {
+        groups[task.repoFullName] = {
+          repoName: task.repoFullName,
           tasks: [],
         };
       }
