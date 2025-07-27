@@ -443,7 +443,7 @@ export class LocalToolExecutor implements ToolExecutor {
   }
 
   async semanticSearch(query: string, repo: string, options?: SearchOptions): Promise<CodebaseSearchToolResult> {
-    if (!config.useSemanticSearch) {
+    if (!config.enableSemanticSearch) {
       console.log("semanticSearch disabled, falling back to codebaseSearch");
       return this.codebaseSearch(query, options);
     }
