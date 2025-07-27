@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import { spawn, ChildProcess } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as net from 'net';
 
 /**
  * VM Console Proxy handles communication with Firecracker VM via serial console
@@ -12,9 +13,11 @@ export class VMConsoleProxy extends EventEmitter {
   private taskId: string;
   private vmSocketPath: string;
   private vmProcess: ChildProcess | null = null;
+  private consoleSocket: net.Socket | null = null;
   private isConnected: boolean = false;
   private messageBuffer: string = '';
   private isBooting: boolean = true;
+  private consoleReady: boolean = false;
 
   // Protocol prefixes for message multiplexing
   private static readonly TERMINAL_PREFIX = 'TERM:';
@@ -28,9 +31,6 @@ export class VMConsoleProxy extends EventEmitter {
     this.vmSocketPath = `/var/lib/firecracker/${taskId}/firecracker.socket`;
   }
 
-  /**
-   * Start the VM and connect to its console
-   */
   async startVM(): Promise<void> {
     try {
       logger.info(`[VM_CONSOLE] Starting VM for task ${this.taskId}`);
@@ -88,9 +88,6 @@ export class VMConsoleProxy extends EventEmitter {
     }
   }
 
-  /**
-   * Connect to VM serial console for I/O
-   */
   private async connectToConsole(): Promise<void> {
     try {
       // Wait for VM socket to be available
@@ -111,9 +108,8 @@ export class VMConsoleProxy extends EventEmitter {
         throw new Error(`VM socket not available after ${maxAttempts} seconds`);
       }
 
-      // Start console connection process
-      this.isConnected = true;
-      this.emit('connected');
+      // Connect to Firecracker console socket
+      await this.connectToFirecrackerConsole();
 
       logger.info(`[VM_CONSOLE] Connected to VM console for ${this.taskId}`);
 
@@ -126,8 +122,51 @@ export class VMConsoleProxy extends EventEmitter {
   }
 
   /**
-   * Generate Firecracker VM configuration
+   * Connect to Firecracker console via Unix socket
    */
+  private async connectToFirecrackerConsole(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // Create socket connection to Firecracker console
+      this.consoleSocket = net.createConnection(this.vmSocketPath);
+
+      this.consoleSocket.on('connect', () => {
+        logger.info(`[VM_CONSOLE] Console socket connected for ${this.taskId}`);
+        this.isConnected = true;
+        this.consoleReady = true;
+        this.emit('connected');
+        resolve();
+      });
+
+      this.consoleSocket.on('data', (data: Buffer) => {
+        const dataStr = data.toString();
+        this.processConsoleData(dataStr);
+      });
+
+      this.consoleSocket.on('error', (error) => {
+        logger.error(`[VM_CONSOLE] Console socket error for ${this.taskId}:`, error);
+        this.isConnected = false;
+        this.consoleReady = false;
+        this.emit('error', error);
+        reject(error);
+      });
+
+      this.consoleSocket.on('close', () => {
+        logger.info(`[VM_CONSOLE] Console socket closed for ${this.taskId}`);
+        this.isConnected = false;
+        this.consoleReady = false;
+        this.emit('disconnected');
+      });
+
+      // Set socket timeout
+      this.consoleSocket.setTimeout(5000);
+      this.consoleSocket.on('timeout', () => {
+        logger.warn(`[VM_CONSOLE] Console socket timeout for ${this.taskId}`);
+        this.consoleSocket?.destroy();
+        reject(new Error('Console socket connection timeout'));
+      });
+    });
+  }
+
   private async generateVMConfig(): Promise<any> {
     const vmDir = `/var/lib/firecracker/${this.taskId}`;
     const rootfsPath = '/var/lib/vm-images/shadow-rootfs.ext4';
@@ -171,9 +210,6 @@ export class VMConsoleProxy extends EventEmitter {
     };
   }
 
-  /**
-   * Detect when VM has completed boot process
-   */
   private detectBootCompletion(): void {
     // Monitor for specific boot completion markers
     const bootMarkers = [
@@ -212,9 +248,6 @@ export class VMConsoleProxy extends EventEmitter {
     }, 120000); // 2 minute boot timeout
   }
 
-  /**
-   * Send command to VM via console
-   */
   async sendCommand(command: string): Promise<void> {
     if (!this.isConnected) {
       throw new Error('VM console not connected');
@@ -224,9 +257,6 @@ export class VMConsoleProxy extends EventEmitter {
     await this.writeToConsole(message);
   }
 
-  /**
-   * Send terminal input to VM
-   */
   async sendTerminalInput(input: string): Promise<void> {
     if (!this.isConnected) {
       throw new Error('VM console not connected');
@@ -236,9 +266,6 @@ export class VMConsoleProxy extends EventEmitter {
     await this.writeToConsole(message);
   }
 
-  /**
-   * Send JSON API request to VM
-   */
   async sendJSONRequest(request: any): Promise<void> {
     if (!this.isConnected) {
       throw new Error('VM console not connected');
@@ -249,14 +276,14 @@ export class VMConsoleProxy extends EventEmitter {
   }
 
   /**
-   * Write data to VM console
+   * Write data to VM console via socket
    */
   private async writeToConsole(data: string): Promise<void> {
     try {
-      if (this.vmProcess?.stdin?.writable) {
-        this.vmProcess.stdin.write(data);
+      if (this.consoleSocket && this.consoleReady) {
+        this.consoleSocket.write(data);
       } else {
-        throw new Error('VM process stdin not writable');
+        throw new Error('Console socket not ready for writing');
       }
     } catch (error) {
       logger.error(`[VM_CONSOLE] Failed to write to console for ${this.taskId}:`, error);
@@ -264,9 +291,6 @@ export class VMConsoleProxy extends EventEmitter {
     }
   }
 
-  /**
-   * Process incoming console data and route based on protocol prefix
-   */
   private processConsoleData(data: string): void {
     this.messageBuffer += data;
 
@@ -300,12 +324,15 @@ export class VMConsoleProxy extends EventEmitter {
     });
   }
 
-  /**
-   * Stop the VM and cleanup resources
-   */
   async stopVM(): Promise<void> {
     try {
       logger.info(`[VM_CONSOLE] Stopping VM for task ${this.taskId}`);
+
+      // Close console socket first
+      if (this.consoleSocket) {
+        this.consoleSocket.destroy();
+        this.consoleSocket = null;
+      }
 
       if (this.vmProcess) {
         // Send graceful shutdown signal
@@ -322,6 +349,7 @@ export class VMConsoleProxy extends EventEmitter {
 
       this.isConnected = false;
       this.isBooting = false;
+      this.consoleReady = false;
       this.emit('stopped');
 
       logger.info(`[VM_CONSOLE] VM stopped for task ${this.taskId}`);
@@ -331,9 +359,6 @@ export class VMConsoleProxy extends EventEmitter {
     }
   }
 
-  /**
-   * Get VM status
-   */
   getStatus(): {
     connected: boolean;
     booting: boolean;
@@ -346,12 +371,9 @@ export class VMConsoleProxy extends EventEmitter {
     };
   }
 
-  /**
-   * Health check for VM
-   */
   async healthCheck(): Promise<boolean> {
     try {
-      if (!this.isConnected || this.isBooting) {
+      if (!this.isConnected || this.isBooting || !this.consoleReady) {
         return false;
       }
 
