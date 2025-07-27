@@ -17,21 +17,20 @@ import { saveLayoutCookie } from "@/lib/actions/save-sidebar-cookie";
 import { cn } from "@/lib/utils";
 import { AppWindowMac } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-  ImperativePanelGroupHandle,
-  ImperativePanelHandle,
-} from "react-resizable-panels";
+import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { StickToBottom, type StickToBottomContext } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
 import { TaskPageContent } from "./task-content";
 import { useTask } from "@/hooks/use-task";
 import { useParams } from "next/navigation";
 import { useAgentEnvironment } from "../agent-environment/agent-environment-context";
+import { useSidebarView } from "../sidebar/sidebar-context";
+import { CodebaseUnderstandingView } from "../codebase-understanding/codebase-understanding-view";
 
 export function TaskPageLayout({
   initialLayout,
 }: {
-  initialLayout?: number[];
+  initialLayout: number[] | null;
 }) {
   const { taskId } = useParams<{ taskId: string }>();
   const { open } = useSidebar();
@@ -40,13 +39,15 @@ export function TaskPageLayout({
 
   const { task } = useTask(taskId);
   const [editValue, setEditValue] = useState(task?.title || "");
+  // Use the sidebar context to get the current view
+  const { sidebarView } = useSidebarView();
 
   const stickToBottomContextRef = useRef<StickToBottomContext>(null);
   const { isAtTop } = useIsAtTop(0, stickToBottomContextRef.current?.scrollRef);
 
   useEffect(() => {
     if (task) {
-      setEditValue(task.title);
+      setEditValue(task.title || "");
     }
   }, [task]);
 
@@ -54,7 +55,7 @@ export function TaskPageLayout({
   Resizable panel state
   */
 
-  const { rightPanelRef } = useAgentEnvironment();
+  const { rightPanelRef, lastPanelSizeRef } = useAgentEnvironment();
   const resizablePanelGroupRef = useRef<ImperativePanelGroupHandle>(null);
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
@@ -96,7 +97,11 @@ export function TaskPageLayout({
     if (!panel) return;
     if (panel.isCollapsed()) {
       panel.expand();
+      if (!lastPanelSizeRef.current) {
+        panel.resize(40);
+      }
     } else {
+      lastPanelSizeRef.current = rightPanelRef.current?.getSize() ?? null;
       panel.collapse();
     }
   }, [rightPanelRef]);
@@ -209,7 +214,12 @@ export function TaskPageLayout({
               </Tooltip>
             </div>
           </div>
-          <TaskPageContent isAtTop={isAtTop} />
+          {/* Render the appropriate content based on URL parameter */}
+          {sidebarView === "codebase" ? (
+            <CodebaseUnderstandingView taskId={taskId} />
+          ) : (
+            <TaskPageContent isAtTop={isAtTop} />
+          )}
         </StickToBottom>
       </ResizablePanel>
       <ResizableHandle />

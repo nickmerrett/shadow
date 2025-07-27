@@ -3,11 +3,10 @@ import { Replace } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { getToolResult } from "@repo/types";
-
-const TOOL_PREFIX = "Replaced in";
+import { ToolTrigger, ToolType } from "./collapsible-tool";
 
 export function SearchReplaceTool({ message }: { message: Message }) {
-  const { setSelectedFilePath, rightPanelRef } = useAgentEnvironment();
+  const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
 
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
@@ -17,36 +16,31 @@ export function SearchReplaceTool({ message }: { message: Message }) {
   // const oldString = args.old_string as string;
   // const newString = args.new_string as string;
 
-  // Use typed tool result accessor
   const result = getToolResult(toolMeta, "search_replace");
   const linesAdded = result?.linesAdded || 0;
   const linesRemoved = result?.linesRemoved || 0;
 
-  const changeSummary =
+  const changes =
     status === "COMPLETED" && (linesAdded > 0 || linesRemoved > 0)
-      ? ` (+${linesAdded} -${linesRemoved})`
-      : "";
+      ? { linesAdded, linesRemoved }
+      : undefined;
 
   return (
     <button
       onClick={() => {
-        setSelectedFilePath(filePath);
-        const panel = rightPanelRef.current;
-        if (panel && panel.isCollapsed()) {
-          panel.expand();
-        }
+        updateSelectedFilePath(filePath);
+        expandRightPanel();
       }}
       className={cn(
         "text-muted-foreground hover:text-foreground hover:bg-secondary flex w-full cursor-pointer flex-col gap-2 rounded-md px-3 py-1.5 text-left text-[13px] transition-colors"
       )}
     >
-      <div className="flex items-center gap-2 [&_svg:not([class*='size-'])]:size-3.5">
-        <Replace />
-        <div className="flex items-center gap-1">
-          <span className="opacity-70">{TOOL_PREFIX}</span>
-          <span>{`${filePath}${changeSummary}`}</span>
-        </div>
-      </div>
+      <ToolTrigger
+        icon={<Replace />}
+        type={ToolType.SEARCH_REPLACE}
+        title={filePath}
+        changes={changes}
+      />
       {/* {status !== "RUNNING" && (
         <div className="space-y-2 pl-6">
           <div>

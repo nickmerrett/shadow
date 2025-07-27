@@ -266,11 +266,15 @@ async function embedGraphChunks(
 async function embedAndUpsertToPinecone(
   nodes: GraphNode[],
   repo: string,
+  clearNamespace: boolean,
   opts: EmbedTextsOptions = {}
 ): Promise<number> {
   const pinecone = new PineconeHandler();
   const namespace = getNamespaceFromRepo(repo);
-
+  if (clearNamespace) {
+    console.log("Clearing namespace", namespace);
+    await pinecone.clearNamespace(namespace);
+  }
   // Chunk by line ranges and upload
   const recordChunks: GraphNode[][] = await pinecone.chunkRecords(nodes);
 

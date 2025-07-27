@@ -11,12 +11,10 @@ export function CodebaseSearchTool({ message }: { message: Message }) {
   const query = args.query as string;
   const targetDirectories = (args.target_directories as string[]) || [];
 
-  // Use typed tool result accessor
   const result = getToolResult(
     toolMeta,
     "codebase_search"
   ) as CodebaseSearchToolResult | null;
-  // Convert results to display format
   const displayContent =
     result?.results?.map((r) => r.content).join("\n\n---\n\n") ||
     result?.message ||

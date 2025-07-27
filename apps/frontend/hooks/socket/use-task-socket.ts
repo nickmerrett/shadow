@@ -8,9 +8,13 @@ import type {
   Message,
   StreamChunk,
   TaskStatusUpdateEvent,
-  ModelType
+  ModelType,
+  FileNode
 } from "@repo/types";
 import { TextPart, ToolCallPart, ToolResultPart } from "ai";
+import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
+import { CodebaseTreeResponse } from "../use-codebase-tree";
+import { Task, TodoStatus } from "@repo/db";
 
 interface FileChange {
   filePath: string;
@@ -26,6 +30,120 @@ interface FsChangeEvent {
   timestamp: number;
   source: 'local' | 'remote';
   isDirectory: boolean;
+}
+
+/**
+ * Optimistically update codebase tree based on filesystem events
+ */
+function updateCodebaseTreeOptimistically(
+  existingTree: FileNode[],
+  fsChange: FsChangeEvent
+): FileNode[] {
+  const { operation, filePath, isDirectory } = fsChange;
+
+  console.log(`[OPTIMISTIC_TREE_UPDATE] ${operation} ${filePath} (isDirectory: ${isDirectory})`);
+
+  // Handle file/directory creation
+  if (operation === 'file-created' || operation === 'directory-created') {
+    return addNodeToTree(existingTree, filePath, isDirectory ? 'folder' : 'file');
+  }
+
+  // Handle file/directory deletion
+  if (operation === 'file-deleted' || operation === 'directory-deleted') {
+    return removeNodeFromTree(existingTree, filePath);
+  }
+
+  // For modifications, no tree structure change needed
+  return existingTree;
+}
+
+/**
+ * Add a new node to the file tree
+ */
+function addNodeToTree(tree: FileNode[], filePath: string, type: 'file' | 'folder'): FileNode[] {
+  const parts = filePath.split('/').filter(Boolean);
+  if (parts.length === 0) return tree;
+
+  const [firstPart, ...restParts] = parts;
+  if (!firstPart) return tree;
+
+  const treeCopy = [...tree];
+
+  // Find existing node at this level
+  const existingIndex = treeCopy.findIndex(node => node.name === firstPart);
+
+  if (restParts.length === 0) {
+    // This is the target node
+    if (existingIndex === -1) {
+      // Add new node
+      const newNode = {
+        name: firstPart,
+        type,
+        path: `/${filePath}`,
+        ...(type === 'folder' && { children: [] })
+      };
+      treeCopy.push(newNode);
+      // Sort: folders first, then files, both alphabetically
+      treeCopy.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+    }
+    return treeCopy;
+  }
+
+  if (existingIndex === -1) {
+    // Create intermediate folder
+    const newFolder = {
+      name: firstPart,
+      type: 'folder' as const,
+      path: `/${parts.slice(0, 1).join('/')}`,
+      children: []
+    };
+    treeCopy.push(newFolder);
+  }
+
+  // Ensure the node at this level is a folder with children
+  const nodeIndex = treeCopy.findIndex(node => node.name === firstPart);
+  if (nodeIndex !== -1 && treeCopy[nodeIndex]?.type === 'folder') {
+    if (!treeCopy[nodeIndex].children) {
+      treeCopy[nodeIndex].children = [];
+    }
+    // Recursively add to children
+    treeCopy[nodeIndex].children = addNodeToTree(treeCopy[nodeIndex].children || [], restParts.join('/'), type);
+  }
+
+  return treeCopy;
+}
+
+/**
+ * Remove a node from the file tree
+ */
+function removeNodeFromTree(tree: FileNode[], filePath: string): FileNode[] {
+  const parts = filePath.split('/').filter(Boolean);
+  if (parts.length === 0) return tree;
+
+  const [firstPart, ...restParts] = parts;
+  if (!firstPart) return tree;
+
+  const treeCopy = [...tree];
+
+  if (restParts.length === 0) {
+    // Remove the target node
+    return treeCopy.filter(node => node.name !== firstPart);
+  }
+
+  // Recursively remove from children
+  const nodeIndex = treeCopy.findIndex(node => node.name === firstPart);
+  if (nodeIndex !== -1 && treeCopy[nodeIndex]?.type === 'folder' && treeCopy[nodeIndex]?.children) {
+    treeCopy[nodeIndex].children = removeNodeFromTree(treeCopy[nodeIndex].children || [], restParts.join('/'));
+    // Remove empty folders
+    if (treeCopy[nodeIndex].children?.length === 0) {
+      return treeCopy.filter((_, index) => index !== nodeIndex);
+    }
+  }
+
+  return treeCopy;
 }
 
 /**
@@ -204,7 +322,7 @@ export function useTaskSocket(taskId: string | undefined) {
             // Optimistically update file changes in React Query cache
             queryClient.setQueryData(
               ["task", taskId],
-              (oldData: any) => {
+              (oldData: TaskWithDetails) => {
                 if (!oldData) return oldData;
 
                 // Add/update/remove from fileChanges array based on operation
@@ -216,6 +334,24 @@ export function useTaskSocket(taskId: string | undefined) {
                 return {
                   ...oldData,
                   fileChanges: updatedFileChanges
+                };
+              }
+            );
+
+            // Optimistically update codebase tree in React Query cache
+            queryClient.setQueryData(
+              ["codebase-tree", taskId],
+              (oldData: CodebaseTreeResponse) => {
+                if (!oldData || !oldData.success || !oldData.tree) return oldData;
+
+                const updatedTree = updateCodebaseTreeOptimistically(
+                  oldData.tree,
+                  chunk.fsChange!
+                );
+
+                return {
+                  ...oldData,
+                  tree: updatedTree
                 };
               }
             );
@@ -253,26 +389,72 @@ export function useTaskSocket(taskId: string | undefined) {
         case "thinking":
           console.log("Thinking:", chunk.thinking);
           break;
+
+        case "todo-update":
+          if (chunk.todoUpdate) {
+            console.log("Todo update:", chunk.todoUpdate);
+            const todos = chunk.todoUpdate.todos;
+
+            // Optimistically update todos in React Query cache
+            queryClient.setQueryData(
+              ["task", taskId],
+              (oldData: TaskWithDetails) => {
+                if (!oldData) return oldData;
+
+                // Create a map of existing todos by ID for efficient lookup
+                const existingTodosMap = new Map(
+                  (oldData.todos || []).map(todo => [todo.id, todo])
+                );
+
+                // Process each incoming todo update
+                todos.forEach(incomingTodo => {
+                  const existingTodo = existingTodosMap.get(incomingTodo.id);
+
+                  if (existingTodo) {
+                    existingTodosMap.set(incomingTodo.id, {
+                      ...existingTodo,
+                      ...incomingTodo,
+                      status: incomingTodo.status.toUpperCase() as TodoStatus,
+                      sequence: incomingTodo.sequence,
+                      updatedAt: new Date(),
+                    });
+                  } else {
+                    // Add new todo
+                    existingTodosMap.set(incomingTodo.id, {
+                      ...incomingTodo,
+                      status: incomingTodo.status.toUpperCase() as TodoStatus,
+                      taskId: taskId!,
+                      sequence: incomingTodo.sequence,
+                      createdAt: new Date(),
+                      updatedAt: new Date(),
+                    });
+                  }
+                });
+
+                return {
+                  ...oldData,
+                  todos: Array.from(existingTodosMap.values()).sort((a, b) => a.sequence - b.sequence)
+                };
+              }
+            );
+          }
+          break;
       }
     }
 
     function onStreamComplete() {
       setIsStreaming(false);
       console.log("Stream completed");
-      // Refresh messages when stream is complete
       if (taskId) {
         socket.emit("get-chat-history", { taskId: taskId as string });
       }
 
-      console.log(`[STREAM_COMPLETE] Invalidating queries for completed stream, task: ${taskId}`);
       queryClient.invalidateQueries({ queryKey: ["task", taskId] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      // Refresh diff stats after LLM completion for accuracy
-      console.log(`[STREAM_COMPLETE] Invalidating diff stats for accuracy after LLM completion`);
-      queryClient.invalidateQueries({ queryKey: ["task-diff-stats", taskId] });
+      queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
     }
 
-    function onStreamError(error: any) {
+    function onStreamError(error: unknown) {
       setIsStreaming(false);
       console.error("Stream error:", error);
 
@@ -291,24 +473,29 @@ export function useTaskSocket(taskId: string | undefined) {
 
     function onTaskStatusUpdate(data: TaskStatusUpdateEvent) {
       if (data.taskId === taskId) {
+        console.log(`[TASK_SOCKET] Received task status update:`, data);
+
         // Optimistically update the task status in React Query cache
         queryClient.setQueryData(
           ["task", taskId],
-          (oldData: any) => {
-            if (oldData) {
+          (oldData: TaskWithDetails) => {
+            if (oldData && oldData.task) {
               return {
                 ...oldData,
-                status: data.status,
-                updatedAt: data.timestamp,
+                task: {
+                  ...oldData.task,
+                  status: data.status,
+                  updatedAt: data.timestamp,
+                }
               };
             }
             return oldData;
           }
         );
 
-        queryClient.setQueryData(["tasks"], (oldTasks: any[]) => {
+        queryClient.setQueryData(["tasks"], (oldTasks: Task[]) => {
           if (oldTasks) {
-            return oldTasks.map((task: any) =>
+            return oldTasks.map((task: Task) =>
               task.id === taskId
                 ? { ...task, status: data.status, updatedAt: data.timestamp }
                 : task

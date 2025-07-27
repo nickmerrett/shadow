@@ -1,11 +1,11 @@
 import indexRepo, { IndexRepoOptions } from "@/indexing/indexer";
 import express from "express";
-import TreeSitter from "tree-sitter";
 import PineconeHandler from "./embedding/pineconeService";
-import { getLanguageForPath } from "./languages";
 import { retrieve } from "./retrieval";
-import { isValidRepo } from "./utils/repository";
+import { getNamespaceFromRepo, isValidRepo } from "./utils/repository";
+import config from "@/config";
 import { shallowwikiRouter } from "./shallowwiki/routes";
+
 
 const router = express.Router();
 const pinecone = new PineconeHandler();
@@ -24,29 +24,20 @@ router.get("/", (req, res) => {
 router.use("/shallowwiki", shallowwikiRouter);
 
 router.post(
-  "/tree-sitter",
-  async (req: express.Request<{}, {}, CodeBody>, res) => {
-    const { text, filePath } = req.body;
-    const parser = new TreeSitter();
-    const languageSpec = await getLanguageForPath(filePath);
-    if (!languageSpec || !languageSpec.language) {
-      res.status(400).json({ error: "Unsupported language" });
-      return;
-    }
-    parser.setLanguage(languageSpec.language);
-    const tree = parser.parse(text);
-    res.json({ tree: tree.rootNode, language: languageSpec.id });
-  }
-);
-
-router.post(
   "/index",
   async (
-    req: express.Request<{}, {}, { repo: string; options?: IndexRepoOptions }>,
+    req: express.Request<object, object, { repo: string; taskId: string; options: IndexRepoOptions }>,
     res,
     next
   ) => {
-    const { repo, options } = req.body;
+    console.log("Indexing repo", req.body.repo);
+    console.log("Semantic search enabled: ", config.useSemanticSearch);
+    if (!config.useSemanticSearch) {
+      console.log("Semantic search is not enabled - skipping indexing");
+      return res.status(200).json({ message: "Semantic search is not enabled - skipping indexing" });
+    }
+    const { repo, taskId, options } = req.body;
+    const clearNamespace = options.clearNamespace;
     if (!repo || !isValidRepo(repo)) {
       return res
         .status(400)
@@ -54,7 +45,7 @@ router.post(
     }
 
     try {
-      const result = await indexRepo(repo, { ...options });
+      const result = await indexRepo(repo, taskId, { ...options, clearNamespace: clearNamespace });
       res.json({ message: "Indexing complete", ...result });
     } catch (error: any) {
       if (error.message.includes("Not Found")) {
@@ -70,11 +61,7 @@ router.post(
 router.post(
   "/search",
   async (
-    req: express.Request<
-      {},
-      {},
-      { query: string; namespace: string; topK?: number; fields?: string[] }
-    >,
+    req: express.Request<object, object, { query: string; namespace: string; topK?: number; fields?: string[] }>,
     res,
     next
   ) => {
@@ -85,7 +72,11 @@ router.post(
           .status(400)
           .json({ error: "Missing required parameters: query, namespace" });
       }
-      const response = await retrieve(query, namespace, topK, fields);
+      let namespaceToUse = namespace;
+      if (isValidRepo(namespace)) {
+        namespaceToUse = getNamespaceFromRepo(namespace);
+      }
+      const response = await retrieve(query, namespaceToUse, topK, fields);
       // The response from pinecone is { result: { hits: [] } }, let's return a `matches` property as expected by the test
       res.json({ matches: response.result?.hits || [] });
     } catch (error) {
@@ -96,7 +87,7 @@ router.post(
 
 router.delete(
   "/clear-namespace",
-  async (req: express.Request<{}, {}, { namespace: string }>, res, next) => {
+  async (req: express.Request<object, object, { namespace: string }>, res, next) => {
     try {
       const { namespace } = req.body;
       if (!namespace) {

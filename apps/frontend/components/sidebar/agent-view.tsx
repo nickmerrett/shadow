@@ -12,23 +12,36 @@ import {
   FolderGit2,
   GitBranch,
   ListTodo,
+  RefreshCcw,
   Square,
   SquareCheck,
-  XCircle,
+  SquareX,
 } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { statusColorsConfig } from "./status";
 import { FileExplorer } from "@/components/agent-environment/file-explorer";
 import { FileNode } from "@repo/types";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
+import { Button } from "@/components/ui/button";
+import callIndexApi, { gitHubUrlToRepoName } from "@/lib/actions/index-repo";
+import callWorkspaceIndexApi, { getWorkspaceSummaries } from "@/lib/actions/index-workspace";
 import Link from "next/link";
+import { Badge } from "../ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, FileText, Folder } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Todo status config - aligned with main status colors
 const todoStatusConfig = {
-  PENDING: { icon: Square, className: "text-neutral-500" },
-  IN_PROGRESS: { icon: CircleDashed, className: "text-blue-400" },
-  COMPLETED: { icon: SquareCheck, className: "text-green-400" },
-  CANCELLED: { icon: XCircle, className: "text-red-400" },
+  PENDING: { icon: Square, className: "text-muted-foreground" },
+  IN_PROGRESS: { icon: CircleDashed, className: "" },
+  COMPLETED: { icon: SquareCheck, className: "" },
+  CANCELLED: { icon: SquareX, className: "text-red-400" },
 };
 
 // Intermediate tree node structure for building the tree
@@ -89,13 +102,111 @@ function createFileTree(filePaths: string[]): FileNode[] {
 
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
-  const { setSelectedFilePath, rightPanelRef } = useAgentEnvironment();
+  const { setSelectedFilePath, expandRightPanel, setSelectedSummary } = useAgentEnvironment();
+  const repoName = gitHubUrlToRepoName(task!.repoUrl);
+  const [isIndexing, setIsIndexing] = useState(false);
+
+  const completedTodos = useMemo(
+    () => todos.filter((todo) => todo.status === "COMPLETED").length,
+    [todos]
+  );
+  const [isWorkspaceIndexing, setIsWorkspaceIndexing] = useState(false);
+  const [workspaceSummaries, setWorkspaceSummaries] = useState<any[]>([]);
+  const [isLoadingSummaries, setIsLoadingSummaries] = useState(false);
+  const [summariesCollapsed, setSummariesCollapsed] = useState(false);
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
     const filePaths = fileChanges.map((change) => change.filePath);
     return createFileTree(filePaths);
   }, [fileChanges]);
+
+  // Index workspace with ShallowWiki
+  const handleIndexWorkspace = async () => {
+    if (!taskId) return;
+
+    try {
+      setIsWorkspaceIndexing(true);
+
+      // Call the indexing API directly
+      const response = await fetch(
+        `/api/indexing/shallowwiki/generate-workspace-summaries`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ taskId, forceRefresh: true }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to index workspace: ${response.status}`);
+      }
+
+      // Reload the summaries after indexing
+      await loadWorkspaceSummaries();
+    } catch (error) {
+      console.error("Error indexing workspace", error);
+    } finally {
+      setIsWorkspaceIndexing(false);
+    }
+  };
+
+  // Load workspace summaries
+  const loadWorkspaceSummaries = async () => {
+    if (!taskId) return;
+
+    try {
+      console.log("Loading workspace summaries for task", taskId);
+      setIsLoadingSummaries(true);
+      const { getWorkspaceSummaries } = await import("@/lib/actions/summaries");
+      const summariesData = await getWorkspaceSummaries(taskId);
+
+      console.log("Summaries data received from server action:", summariesData);
+
+      if (summariesData && summariesData.length > 0) {
+        console.log("Setting workspace summaries:", summariesData.length, "items");
+        setWorkspaceSummaries(summariesData);
+      } else {
+        console.log("No summaries data available, setting empty array");
+        setWorkspaceSummaries([]);
+      }
+    } catch (error) {
+      console.error("Failed to load workspace summaries", error);
+      setWorkspaceSummaries([]);
+    } finally {
+      setIsLoadingSummaries(false);
+    }
+  };
+
+  // Handle opening summary in Shadow Realm environment
+  const openSummaryInEnvironment = async (summary: any) => {
+    try {
+      // Get full summary content directly from Prisma
+      const { getWorkspaceSummaryById } = await import("@/lib/actions/summaries");
+      const fullSummary = await getWorkspaceSummaryById(summary.id);
+
+      if (fullSummary) {
+        console.log("Received full summary:", fullSummary);
+
+        // The summary is now already formatted correctly from the server action
+        // Pass the summary directly to the environment context
+        setSelectedSummary(fullSummary);
+      } else {
+        console.error("Summary not found");
+      }
+    } catch (error) {
+      console.error("Failed to load full summary:", error);
+    }
+  };
+
+  // Load summaries on component mount
+  useEffect(() => {
+    if (taskId) {
+      loadWorkspaceSummaries();
+    }
+  }, [taskId]);
 
   if (!task) {
     return (
@@ -107,15 +218,10 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   const handleFileSelect = useCallback(
     (file: FileNode) => {
-      setSelectedFilePath("/" + file.path);
-
-      const panel = rightPanelRef.current;
-      if (!panel) return;
-      if (panel.isCollapsed()) {
-        panel.expand();
-      }
+      setSelectedFilePath(file.path);
+      expandRightPanel();
     },
-    [rightPanelRef, setSelectedFilePath]
+    [expandRightPanel, setSelectedFilePath]
   );
 
   return (
@@ -124,6 +230,24 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         <SidebarGroupContent>
           {/* Live task status */}
           <SidebarMenuItem>
+            <Button
+              variant="link"
+              className="transition-all duration-100 ease-out"
+              size="sm"
+              onClick={async () => {
+                setIsIndexing(true);
+                try {
+                  await callIndexApi(repoName, task.id, true);
+                } finally {
+                  setIsIndexing(false);
+                }
+              }}
+            >
+              <RefreshCcw
+                className={cn("mr-1 size-4", isIndexing && "animate-spin")}
+              />
+              <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
+            </Button>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               {(() => {
                 const StatusIcon =
@@ -162,6 +286,20 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             </div>
           </SidebarMenuItem>
 
+          <SidebarMenuItem>
+            <Button
+              variant="link"
+              className="transition-all ease-out duration-100"
+              size="sm"
+              onClick={handleIndexWorkspace}
+            >
+              <FileText
+                className={cn("size-4 mr-1", isWorkspaceIndexing && "animate-spin")}
+              />
+              <span>{isWorkspaceIndexing ? "Generating..." : "Generate Summaries"}</span>
+            </Button>
+          </SidebarMenuItem>
+
           {/* Task total diff */}
           {diffStats.totalFiles > 0 && (
             <SidebarMenuItem>
@@ -180,33 +318,43 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       {/* Task List (Todos) */}
       {todos.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel className="hover:text-muted-foreground">
-            <ListTodo className="mr-1.5 !size-3.5" />
+          <SidebarGroupLabel className="hover:text-muted-foreground select-none gap-1.5">
+            <ListTodo className="!size-3.5" />
             Task List
+            <Badge
+              variant="secondary"
+              className="bg-sidebar-accent border-sidebar-border text-muted-foreground rounded-full border px-1.5 py-0 text-[11px]"
+            >
+              {completedTodos}/{todos.length}
+            </Badge>
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            {todos.map((todo) => {
-              const TodoIcon =
-                todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
-                  .icon;
-              const iconClass =
-                todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
-                  .className;
-              return (
-                <SidebarMenuItem key={todo.id}>
-                  <div
-                    className={cn(
-                      "flex h-8 items-center gap-2 px-2 text-sm",
-                      todo.status === "COMPLETED" &&
+            {todos
+              .sort((a, b) => a.sequence - b.sequence)
+              .map((todo) => {
+                const TodoIcon =
+                  todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
+                    .icon;
+                const iconClass =
+                  todoStatusConfig[todo.status as keyof typeof todoStatusConfig]
+                    .className;
+                return (
+                  <SidebarMenuItem key={todo.id}>
+                    <div
+                      className={cn(
+                        "flex min-h-8 items-start gap-2 p-2 pb-0 text-sm",
+                        todo.status === "COMPLETED" &&
                         "text-muted-foreground line-through"
-                    )}
-                  >
-                    <TodoIcon className={cn("size-4", iconClass)} />
-                    <span className="line-clamp-1 flex-1">{todo.content}</span>
-                  </div>
-                </SidebarMenuItem>
-              );
-            })}
+                      )}
+                    >
+                      <TodoIcon className={cn("size-4", iconClass)} />
+                      <span className="line-clamp-2 flex-1 leading-4">
+                        {todo.content}
+                      </span>
+                    </div>
+                  </SidebarMenuItem>
+                );
+              })}
           </SidebarGroupContent>
         </SidebarGroup>
       )}
@@ -214,9 +362,15 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       {/* Modified Files - Only show if file changes exist */}
       {fileChanges.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel className="hover:text-muted-foreground">
-            <FolderGit2 className="mr-1.5 !size-3.5" />
-            Modified Files ({diffStats.totalFiles})
+          <SidebarGroupLabel className="hover:text-muted-foreground select-none gap-1.5">
+            <FolderGit2 className="!size-3.5" />
+            Modified Files{" "}
+            <Badge
+              variant="secondary"
+              className="bg-sidebar-accent border-sidebar-border text-muted-foreground rounded-full border px-1.5 py-0 text-[11px]"
+            >
+              {diffStats.totalFiles}
+            </Badge>
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <FileExplorer
@@ -229,6 +383,9 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           </SidebarGroupContent>
         </SidebarGroup>
       )}
+
+
+
     </>
   );
 }

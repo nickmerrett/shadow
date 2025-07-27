@@ -4,7 +4,8 @@ import { createHash } from "crypto";
 import { writeFileSync, readFileSync, statSync } from "fs";
 import { OpenAI } from "openai";
 import path from "path";
-import { DeepWikiStorage } from "./storage";
+// (Line removed)
+import { DbWikiStorage } from "./db-storage";
 
 // Tree-sitter imports
 import Parser from "tree-sitter";
@@ -17,7 +18,6 @@ config();
 // Configuration
 const ROOT = path.resolve(process.argv[2] || ".");
 const TEMP = 0.15;
-const USE_PINECONE = process.env.USE_PINECONE !== "false";
 
 // Output directory
 const OUT_DIR = path.join(ROOT, ".shadow", "tree");
@@ -76,19 +76,19 @@ function ensureDir(dirPath: string) {
 
 // Tree-sitter language setup
 const parserJS = new Parser();
-parserJS.setLanguage(JavaScript as unknown as Parser.Language);
+parserJS.setLanguage(JavaScript as any);
 const parserTS = new Parser();
-parserTS.setLanguage((TS as any).typescript as Parser.Language);
+parserTS.setLanguage((TS as any).typescript);
 const parserTSX = new Parser();
-parserTSX.setLanguage((TS as any).tsx as Parser.Language);
+parserTSX.setLanguage((TS as any).tsx);
 const parserPy = new Parser();
-parserPy.setLanguage(Python as unknown as Parser.Language);
+parserPy.setLanguage(Python as any);
 
 // Typed language aliases for tree-sitter
-const LangJS = JavaScript as unknown as Parser.Language;
-const LangTS = (TS as any).typescript as Parser.Language;
-const LangTSX = (TS as any).tsx as Parser.Language;
-const LangPy = Python as unknown as Parser.Language;
+const LangJS = JavaScript as any;
+const LangTS = (TS as any).typescript;
+const LangTSX = (TS as any).tsx;
+const LangPy = Python as any;
 
 type LangKey = "js" | "ts" | "tsx" | "py";
 interface LangSpec {
@@ -122,32 +122,22 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
     extensions: [".ts", ".mts", ".cts"],
     queryDefs: new Parser.Query(LangTS, `
       (function_declaration name: (identifier) @def.name)
-      (method_definition name: (property_identifier) @def.name)
-      (class_declaration name: (identifier) @def.name)
-      (interface_declaration name: (identifier) @def.name)
-      (enum_declaration name: (identifier) @def.name)
-      (type_alias_declaration name: (type_identifier) @def.name)
     `),
-    queryCalls: new Parser.Query(LangTS, `
-      (call_expression function: (identifier) @call.name)
+    queryCalls: new Parser.Query(LangTS, ``),
+    queryImports: new Parser.Query(LangTS, `
+      (import_statement source: (string) @import.source)
     `),
-    queryImports: new Parser.Query(LangTS, ``),
   },
   tsx: {
     parser: parserTSX,
     extensions: [".tsx"],
     queryDefs: new Parser.Query(LangTSX, `
       (function_declaration name: (identifier) @def.name)
-      (method_definition name: (property_identifier) @def.name)
-      (class_declaration name: (identifier) @def.name)
-      (interface_declaration name: (identifier) @def.name)
-      (enum_declaration name: (identifier) @def.name)
-      (type_alias_declaration name: (type_identifier) @def.name)
     `),
-    queryCalls: new Parser.Query(LangTSX, `
-      (call_expression function: (identifier) @call.name)
+    queryCalls: new Parser.Query(LangTSX, ``),
+    queryImports: new Parser.Query(LangTSX, `
+      (import_statement source: (string) @import.source)
     `),
-    queryImports: new Parser.Query(LangTSX, ``),
   },
   py: {
     parser: parserPy,
@@ -176,6 +166,11 @@ function loadCache() {
   }
 }
 function saveCache() {
+  // Ensure the output directory exists
+  const fs = require('fs');
+  if (!fs.existsSync(OUT_DIR)) {
+    fs.mkdirSync(OUT_DIR, { recursive: true });
+  }
   writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2));
 }
 function fingerprint(abs: string) {
@@ -395,7 +390,7 @@ function analyzeFileComplexity(symbols: Symbols, fileSize: number): { needsDeepA
 }
 
 // Summarise a file (tree-sitter → markdown list)
-async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<string> {
+async function summariseFile(rel: string, dbStorage: DbWikiStorage): Promise<string> {
   const abs = path.join(ROOT, rel);
   const src = readFileSync(abs, "utf8");
   const fp = fingerprint(abs);
@@ -425,6 +420,13 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
   // Extract symbols using Tree-sitter with the correct language spec
   const symbols = extractSymbols(src, langSpec);
 
+  // Initialize tokenUsage tracking
+  const tokenUsage = {
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0
+  };
+
   // Analyze file complexity to decide if we need deep analysis
   const complexity = analyzeFileComplexity(symbols, src.length);
 
@@ -447,25 +449,24 @@ async function summariseFile(rel: string, storage?: DeepWikiStorage): Promise<st
     summary = symbolsToMarkdown(symbols) || "_(no symbols found)_";
   }
 
-  // Store in Pinecone if enabled
-  if (storage && USE_PINECONE) {
-    const symbolNames = Array.from(symbols.defs);
-    const dependencies = Array.from(symbols.imports);
-    const language = Object.keys(LANGUAGES).find(k => {
-      const langSpec = LANGUAGES[k as keyof typeof LANGUAGES];
-      return langSpec && langSpec.extensions && langSpec.extensions.some((ext: string) => rel.endsWith(ext));
-    });
+  // Store in DB
+  const symbolNames = Array.from(symbols.defs);
+  const dependencies = Array.from(symbols.imports);
+  const language = Object.keys(LANGUAGES).find(k => {
+    const langSpec = LANGUAGES[k as keyof typeof LANGUAGES];
+    return langSpec && langSpec.extensions && langSpec.extensions.some((ext: string) => rel.endsWith(ext));
+  });
 
-    await storage.storeFileSummary(
-      ROOT,
-      rel,
-      summary,
-      symbolNames,
-      dependencies,
-      language,
-      complexity.needsDeepAnalysis ? 1 : 0
-    );
-  }
+  await dbStorage.storeFileSummary(
+    ROOT,
+    rel,
+    summary,
+    symbolNames,
+    dependencies,
+    language,
+    complexity.needsDeepAnalysis ? 1 : 0,
+    tokenUsage
+  );
 
   // Update cache
   cache[rel] = {
@@ -624,17 +625,23 @@ Use bullet points and fragments. Grammar not important. Ultra-concise technical 
 
 // Main orchestrator
 export async function run() {
-  // Initialize storage
-  const storage = USE_PINECONE ? new DeepWikiStorage(ROOT) : null;
+  // Get taskId from directory path if available
+  const pathParts = ROOT.split('/');
+  const taskId = pathParts[pathParts.length - 1]; // Extract the last part which could be a taskId
 
-  if (USE_PINECONE) {
-    console.log(bold(`Using Pinecone storage (namespace: ${storage!.getNamespace()})`));
-    // Clear existing data for this repository
-    await storage!.clearRepository();
+  // Initialize storage
+  let dbStorage: DbWikiStorage | null = null;
+  if (taskId) {
+    dbStorage = new DbWikiStorage(taskId);
+    console.log(bold(`Using Database storage for task: ${taskId}`));
+    await dbStorage.clearRepository();
   } else {
-    console.log(bold("Using legacy file storage"));
-    ensureDir(OUT_DIR);
+    throw new Error('Unable to extract taskId from path. Ensure the directory path ends with a valid taskId, such as "/path/to/directory/taskId".');
   }
+
+  // Always use file storage as fallback
+  console.log(bold("Also using file storage for compatibility"));
+  ensureDir(OUT_DIR);
 
   loadCache();
 
@@ -665,7 +672,10 @@ export async function run() {
   //----------------------------------------------
   // File symbol extraction (parallel, throttled)
   //----------------------------------------------  // Define file processing function
-  const processFile = async (rel: string) => { return summariseFile(rel, storage || undefined); };
+  const processFile = async (rel: string) => { 
+    // Send summaries to all enabled storage backends
+    return summariseFile(rel, dbStorage); 
+  };
   const fileTasks: Promise<void>[] = [];
   let totalFiles = 0;
   for (const nid in tree.nodes) {
@@ -731,9 +741,9 @@ export async function run() {
     // Generate directory summary
     node.summary_md = await summariseDir(node, blocks);
 
-    // Store in Pinecone if enabled
-    if (storage && USE_PINECONE) {
-      await storage.storeDirectorySummary(
+    // Store in DB
+    if (dbStorage) {
+      await dbStorage.storeDirectorySummary(
         ROOT,
         node.relPath,
         node.summary_md,
@@ -743,7 +753,7 @@ export async function run() {
     }
 
     // Legacy file output (optional)
-    if (!USE_PINECONE) {
+    if (true) { // Always write file output for compatibility
       const front = `---\nid: ${node.id}\ntitle: ${node.name}\nlevel: ${node.level}\n---\n\n`;
       const fullContent = isDataDir
         ? `${node.summary_md}\n\n## Files\n${fileBlocks.join('\n')}`
@@ -776,19 +786,19 @@ export async function run() {
   // Generate comprehensive root summary
   root.summary_md = await summariseRoot(root, topBlocks);
 
-  // Store in Pinecone if enabled
-  if (storage && USE_PINECONE) {
-    await storage.storeRootOverview(
+  // Store in DB
+  if (dbStorage) {
+    await dbStorage.storeRootOverview(
       ROOT,
       root.summary_md,
       processingStats.filesProcessed,
       processingStats.directoriesProcessed
     );
-    console.log(bold(`DeepWiki stored in Pinecone (namespace: ${storage.getNamespace()})`));
+    console.log(bold(`DeepWiki stored in Database for task: ${dbStorage.getNamespace()}`));
   }
 
   // Legacy file output (optional)
-  if (!USE_PINECONE) {
+  if (true) { // Always write file output for compatibility
     const toc = ['## Project Structure'];
     root.children.forEach(cid => {
       const child = tree.nodes[cid];

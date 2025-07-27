@@ -2,6 +2,7 @@ import type { Message } from "@repo/types";
 
 // Tool-specific components
 import { CodebaseSearchTool } from "./codebase-search";
+import { SemanticSearchTool } from "./semantic-search";
 import { DeleteFileTool } from "./delete-file";
 import { EditFileTool } from "./edit-file";
 import { FileSearchTool } from "./file-search";
@@ -20,6 +21,7 @@ export { ToolType } from "./collapsible-tool";
 const TOOL_COMPONENTS = {
   todo_write: TodoWriteTool,
   codebase_search: CodebaseSearchTool,
+  semantic_search: SemanticSearchTool,
   read_file: ReadFileTool,
   run_terminal_cmd: RunTerminalCmdTool,
   list_dir: ListDirTool,
@@ -64,7 +66,7 @@ export function ToolMessage({ message }: { message: Message }) {
   }
 
   const ToolComponent = TOOL_COMPONENTS[toolMeta.name as ToolName];
-
+  
   if (!ToolComponent) {
     return (
       <div className="text-muted-foreground">
@@ -80,6 +82,7 @@ export function ToolMessage({ message }: { message: Message }) {
 // Export all tool components for potential individual use
 export {
   CodebaseSearchTool,
+  SemanticSearchTool,
   DeleteFileTool,
   EditFileTool,
   FileSearchTool,
