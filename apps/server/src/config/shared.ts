@@ -6,6 +6,8 @@ import { z } from "zod";
  */
 export const sharedConfigSchema = z.object({
   // Server configuration
+  API_PORT: z.coerce.number().default(4000),
+  SOCKET_PORT: z.coerce.number().default(4001),
   CLIENT_URL: z.string().default("http://localhost:3000"),
   API_URL: z.string().default("http://localhost:4000"),
 
@@ -63,6 +65,8 @@ export const sharedValidationRules = (data: any) => {
  */
 export const createSharedConfig = (data: z.infer<typeof sharedConfigSchema>) => ({
   // Server
+  apiPort: data.API_PORT,
+  socketPort: data.SOCKET_PORT,
   clientUrl: data.CLIENT_URL,
   apiUrl: data.API_URL,
   nodeEnv: data.NODE_ENV,

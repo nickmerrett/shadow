@@ -1,33 +1,28 @@
-/**
- * Smart configuration selector
- * Automatically exports the appropriate configuration based on NODE_ENV
- * 
- * - development/test: Uses development schema (local mode, minimal validation)
- * - production: Uses production schema (firecracker mode, strict validation)
- */
+import type { DevConfig } from "./dev";
+import type { ProdConfig } from "./prod";
 
-import devConfig from "./dev";
-import prodConfig from "./prod";
-
-// Get NODE_ENV to determine which config to use
 const nodeEnv = process.env.NODE_ENV || "development";
 
-let config: typeof devConfig | typeof prodConfig;
+let config: DevConfig | ProdConfig;
 
 if (nodeEnv === "production") {
   // Production environment: Use Firecracker-focused configuration
   console.log("[CONFIG] Loading production configuration (Firecracker mode)");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { default: prodConfig } = require("./prod");
   config = prodConfig;
 } else {
   // Development/test environment: Use local-focused configuration
   console.log(`[CONFIG] Loading development configuration (Local mode) - NODE_ENV: ${nodeEnv}`);
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { default: devConfig } = require("./dev");
   config = devConfig;
 }
 
-// Default export
+console.log(config);
+
 export default config;
 
-// Type exports for TypeScript
 export type { DevConfig } from "./dev";
 export type { ProdConfig } from "./prod";
 export type { SharedConfig } from "./shared";

@@ -189,8 +189,11 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
   // Initialize chat service
   chatService = new ChatService();
 
-  // Set up sidecar namespace for filesystem watching
-  setupSidecarNamespace(io);
+  // Set up sidecar namespace for filesystem watching (only in firecracker mode)
+  const agentMode = (process.env.AGENT_MODE || "local") as AgentMode;
+  if (agentMode === "firecracker") {
+    setupSidecarNamespace(io);
+  }
 
   io.on("connection", (socket: TypedSocket) => {
     const connectionId = socket.id;
