@@ -81,7 +81,7 @@ export function SidebarNavigation({
   );
 
   return (
-    <div className="bg-card flex h-svh flex-col justify-between border-r p-3">
+    <div className="bg-card fixed inset-y-0 left-0 z-20 flex w-[53px] flex-col justify-between border-r p-3">
       <div className="flex flex-col gap-7">
         <Link
           href="/"
@@ -114,7 +114,7 @@ export function SidebarNavigation({
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
                 )}
                 onClick={() => {
-                  // Just switch the sidebar view without navigating or re-rendering
+                  // Just switch the sidebar view without navigating
                   if (sidebarView !== "tasks") {
                     setSidebarView("tasks");
                   }
@@ -136,7 +136,7 @@ export function SidebarNavigation({
                 variant="ghost"
                 className={cn(
                   "border",
-                  (sidebarView === "codebase" || pathname.startsWith("/codebase")) && open
+                  sidebarView === "codebase" && open
                     ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
                 )}

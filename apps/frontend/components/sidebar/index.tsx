@@ -97,16 +97,31 @@ export function SidebarViews({
       setOptimizedSidebarView("codebase");
     } else if (pathname?.startsWith("/tasks") && currentTaskId) {
       setOptimizedSidebarView("agent");
-    } else if (!pathname?.startsWith("/tasks")) {
+    } else if (pathname === "/" || !pathname?.startsWith("/tasks")) {
       setOptimizedSidebarView("tasks");
     }
   }, [currentTaskId, pathname, setOptimizedSidebarView]);
 
-  // Memoize the CodebaseSidebar to prevent re-renders
-  // Using a more aggressive memoization strategy with an empty dependency array
-  // This ensures the component is only created once and never re-rendered
-  const MemoizedCodebaseSidebar = useMemo(() => {
-    return <CodebaseSidebar key="static-codebase-sidebar" />;
+  // Memoize the CodebaseSidebar content
+  const CodebaseSidebarContent = useMemo(() => {
+    return (
+      <SidebarContent>
+        <SidebarGroup className="flex h-7 flex-row items-center justify-between">
+          <div className="font-medium">Codebase Understanding</div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SidebarTrigger className="hover:bg-sidebar-accent" />
+            </TooltipTrigger>
+            <TooltipContent side="right" shortcut="⌘B">
+              Toggle Sidebar
+            </TooltipContent>
+          </Tooltip>
+        </SidebarGroup>
+        <div className="mt-6 flex flex-col gap-4">
+          <CodebaseSidebar />
+        </div>
+      </SidebarContent>
+    );
   }, []);
 
   // Memoize the TasksView sidebar content
@@ -155,7 +170,7 @@ export function SidebarViews({
         setSidebarView={setSidebarView}
       />
       <Sidebar>
-        {sidebarView === "codebase" ? MemoizedCodebaseSidebar : TasksViewSidebar}
+        {sidebarView === "codebase" ? CodebaseSidebarContent : TasksViewSidebar}
       </Sidebar>
     </div>
   );
