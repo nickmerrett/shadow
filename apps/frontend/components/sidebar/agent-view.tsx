@@ -1,3 +1,4 @@
+"use client";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -270,7 +271,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 <GitBranch className="size-4 shrink-0" />
                 <span className="truncate">{task.shadowBranch}</span>
               </Link>
-            </div>
+            </Button>
           </SidebarMenuItem>
 
           {/* <SidebarMenuItem>
