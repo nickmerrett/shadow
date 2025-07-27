@@ -141,7 +141,7 @@ export function SidebarNavigation({
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
                 )}
                 onClick={() => {
-                  // Just switch the sidebar view without causing re-renders
+                  // Just switch the sidebar view - NO navigation
                   if (sidebarView !== "codebase") {
                     setSidebarView("codebase");
                   }
@@ -149,11 +149,6 @@ export function SidebarNavigation({
                   // Toggle sidebar if not open
                   if (!open) {
                     toggleSidebar();
-                  }
-                  
-                  // Only navigate if not already on a codebase route
-                  if (!pathname.startsWith("/codebase")) {
-                    router.push("/codebase");
                   }
                 }}
               >
