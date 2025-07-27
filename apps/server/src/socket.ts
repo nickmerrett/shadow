@@ -8,15 +8,14 @@ import { updateTaskStatus } from "./utils/task-status";
 import { createToolExecutor } from "./execution";
 import { setupSidecarNamespace } from "./services/sidecar-socket-handler";
 
-// Enhanced connection management
 interface ConnectionState {
   lastSeen: number;
   taskId?: string;
   reconnectCount: number;
-  bufferPosition: number; // Track buffer position for incremental updates
+  // Track buffer position for incremental updates
+  bufferPosition: number;
 }
 
-// Typed socket interface
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 const connectionStates = new Map<string, ConnectionState>();
@@ -25,10 +24,8 @@ let isStreaming = false;
 let io: Server<ClientToServerEvents, ServerToClientEvents>;
 let chatService: ChatService;
 
-// Terminal helper functions
 async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
   try {
-    // Get task to determine execution mode and workspace
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: { workspacePath: true },
@@ -42,10 +39,7 @@ async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
     const agentMode = (process.env.AGENT_MODE || "local") as AgentMode;
     const executor = createToolExecutor(taskId, task.workspacePath || undefined, agentMode);
 
-    // For remote mode, we'd call the sidecar terminal API
-    // For local mode, we'd need to implement local terminal buffer
     if (executor.isRemote()) {
-      // Call sidecar terminal history API
       const response = await fetch(`http://localhost:8080/terminal/history?count=100`);
       if (!response.ok) {
         throw new Error(`Sidecar terminal API error: ${response.status}`);
@@ -65,7 +59,6 @@ async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
 
 async function clearTerminal(taskId: string): Promise<void> {
   try {
-    // Get task to determine execution mode
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: { workspacePath: true },
@@ -157,7 +150,6 @@ function stopTerminalPolling(taskId: string) {
   }
 }
 
-// Helper function to verify task access (basic implementation)
 async function verifyTaskAccess(_socketId: string, taskId: string): Promise<boolean> {
   try {
     // For now, just check if task exists
@@ -172,7 +164,6 @@ async function verifyTaskAccess(_socketId: string, taskId: string): Promise<bool
   }
 }
 
-// Emit to specific task room
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function emitToTask(taskId: string, event: keyof ServerToClientEvents, data: any) {
   console.log(`[SOCKET] !!!! Emitting to task ${taskId}:`, event, data);
@@ -210,7 +201,6 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
     };
     connectionStates.set(connectionId, connectionState);
 
-    // Send connection info
     socket.emit("connection-info", {
       connectionId,
       reconnectCount: connectionState.reconnectCount,
@@ -233,7 +223,6 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
       });
     }
 
-    // Handle task room management
     socket.on("join-task", async (data) => {
       try {
         const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
@@ -279,7 +268,6 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
       try {
         console.log("Received user message:", data);
 
-        // Verify user has access to this task
         const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
         if (!hasAccess) {
           socket.emit("message-error", { error: "Access denied to task" });
@@ -313,7 +301,6 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
     // Handle request for chat history
     socket.on("get-chat-history", async (data) => {
       try {
-        // Verify access
         const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
         if (!hasAccess) {
           socket.emit("chat-history-error", { error: "Access denied to task" });
@@ -330,25 +317,20 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
       }
     });
 
-    // Handle stop stream request
     socket.on("stop-stream", async (data) => {
       try {
         console.log("Received stop stream request for task:", data.taskId);
 
-        // Verify access
         const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
         if (!hasAccess) {
           socket.emit("message-error", { error: "Access denied to task" });
           return;
         }
 
-        // Stop the current streaming operation
         await chatService.stopStream(data.taskId);
 
-        // Update stream state
         endStream(data.taskId);
 
-        // Notify all clients in the task room that the stream has been stopped
         emitToTask(data.taskId, "stream-complete", undefined);
       } catch (error) {
         console.error("Error stopping stream:", error);
@@ -356,12 +338,10 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
       }
     });
 
-    // Handle terminal history request
     socket.on("get-terminal-history", async (data) => {
       try {
         console.log(`[SOCKET] Getting terminal history for task: ${data.taskId}`);
 
-        // Verify access
         const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
         if (!hasAccess) {
           socket.emit("terminal-history-error", { error: "Access denied to task" });
@@ -383,12 +363,10 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
       }
     });
 
-    // Handle terminal clear request
     socket.on("clear-terminal", async (data) => {
       try {
         console.log(`[SOCKET] Clearing terminal for task: ${data.taskId}`);
 
-        // Verify access
         const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
         if (!hasAccess) {
           socket.emit("terminal-error", { error: "Access denied to task" });
@@ -417,10 +395,8 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
       }
     });
 
-    // Handle reconnection requests
     socket.on("request-history", async (data) => {
       try {
-        // Verify access
         const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
         if (!hasAccess) {
           socket.emit("history-error", { error: "Access denied to task" });
@@ -506,7 +482,6 @@ export function emitTaskStatusUpdate(taskId: string, status: string) {
     };
 
     console.log(`[SOCKET] Emitting task status update:`, statusUpdateEvent);
-    // Emit to specific task room instead of all clients
     emitToTask(taskId, "task-status-updated", statusUpdateEvent);
   }
 }
