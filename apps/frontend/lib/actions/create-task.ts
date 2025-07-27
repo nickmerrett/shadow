@@ -12,6 +12,7 @@ import { fetchIndexApi } from "./index-repo";
 const createTaskSchema = z.object({
   message: z.string().min(1, "Message is required").max(1000, "Message too long"),
   model: z.string().min(1, "Model is required"),
+  repoFullName: z.string().min(1, "Repository name is required"),
   repoUrl: z.string().url("Invalid repository URL").refine(
     (url) => url.includes("github.com"),
     "Only GitHub repositories are supported"
@@ -30,21 +31,20 @@ export async function createTask(formData: FormData) {
   // Reset the agent environment layout cookie on task creation. This can happen asynchronously so no need to await.
   saveLayoutCookie("taskLayout", [100, 0]);
 
-  // Extract and validate form data
   const rawData = {
     message: formData.get("message") as string,
     model: formData.get("model") as string,
+    repoFullName: formData.get("repoFullName") as string,
     repoUrl: formData.get("repoUrl") as string,
     baseBranch: (formData.get("baseBranch") as string) || "main",
   };
-
   const validation = createTaskSchema.safeParse(rawData);
   if (!validation.success) {
     const errorMessage = validation.error.errors.map(err => err.message).join(", ");
     throw new Error(`Validation failed: ${errorMessage}`);
   }
 
-  const { message, model, repoUrl, baseBranch } = validation.data;
+  const { message, model, repoUrl, baseBranch, repoFullName } = validation.data;
 
   const taskId = crypto.randomUUID();
   let task: Task;
@@ -59,6 +59,7 @@ export async function createTask(formData: FormData) {
         id: taskId,
         title,
         description: message,
+        repoFullName,
         repoUrl,
         baseBranch,
         shadowBranch,
@@ -101,7 +102,7 @@ export async function createTask(formData: FormData) {
           }
         );
 
-        await fetchIndexApi({ repoUrl, taskId: task.id, clearNamespace: true });
+        await fetchIndexApi({ repoFullName: task.repoFullName, taskId: task.id, clearNamespace: true });
         console.log("Repo indexed");
         if (!response.ok) {
           console.error("Failed to initiate task:", await response.text());

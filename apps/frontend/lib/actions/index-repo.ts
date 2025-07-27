@@ -1,7 +1,7 @@
 "use server";
 
-export async function fetchIndexApi({ repoUrl, taskId, clearNamespace = true }: {
-  repoUrl: string;
+export async function fetchIndexApi({ repoFullName, taskId, clearNamespace = true }: {
+  repoFullName: string;
   taskId: string;
   clearNamespace?: boolean;
 }) {
@@ -14,7 +14,7 @@ export async function fetchIndexApi({ repoUrl, taskId, clearNamespace = true }: 
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ repo: repoUrl, taskId: taskId, options: { embed: true, clearNamespace: clearNamespace } }),
+        body: JSON.stringify({ repo: repoFullName, taskId: taskId, options: { embed: true, clearNamespace: clearNamespace } }),
       }
     );
     const data = await response.json();

@@ -5,7 +5,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useTask } from "@/hooks/use-task";
-import { cn, parseRepoUrl } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   CircleDashed,
   FileDiff,
@@ -96,7 +96,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
   const { setSelectedFilePath, expandRightPanel, setSelectedSummary } = useAgentEnvironment();
 
-  const { owner, repo } = parseRepoUrl(task!.repoUrl);
   const [isIndexing, setIsIndexing] = useState(false);
 
   const completedTodos = useMemo(
@@ -231,7 +230,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 className="line-clamp-1 text-sm transition-colors hover:underline"
                 title="View branch on GitHub"
               >
-                {parseRepoUrl(task.repoUrl).repo}
+                {task.repoFullName}
               </Link>
             </div>
           </SidebarMenuItem>
@@ -259,7 +258,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               onClick={async () => {
                 setIsIndexing(true);
                 try {
-                  await fetchIndexApi({ repoUrl: `${owner}/${repo}`, taskId: task.id, clearNamespace: true });
+                  await fetchIndexApi({ repoFullName: task.repoFullName, taskId: task.id, clearNamespace: true });
                 } finally {
                   setIsIndexing(false);
                 }
