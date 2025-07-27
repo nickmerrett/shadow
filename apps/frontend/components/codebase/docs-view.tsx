@@ -1,13 +1,10 @@
 "use client";
 
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { FileText, FolderOpen, Code, RefreshCw } from "lucide-react";
+import { FileText, FolderOpen, Code } from "lucide-react";
 import { useEffect, useState } from "react";
 import { MarkdownRenderer } from "@/components/agent-environment/markdown-renderer";
 import { getRepositorySummaries } from "@/lib/actions/summaries";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface Summary {
   id: string;
@@ -17,7 +14,7 @@ interface Summary {
   language?: string;
 }
 
-interface RepoDocsViewProps {
+interface DocsViewProps {
   taskId: string;
 }
 
@@ -28,7 +25,7 @@ interface DirectoryGroup {
   files: Summary[];
 }
 
-export function RepoDocsView({ taskId }: RepoDocsViewProps) {
+export function DocsView({ taskId }: DocsViewProps) {
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [organizedData, setOrganizedData] = useState<{ overview?: Summary, rootFiles: Summary[], directories: DirectoryGroup[] }>({
@@ -51,11 +48,6 @@ export function RepoDocsView({ taskId }: RepoDocsViewProps) {
     }
   };
 
-  const handleRefresh = () => {
-    if (taskId) {
-      loadSummaries(taskId);
-    }
-  };
 
   const organizeSummaries = (summaries: Summary[]) => {
     const overview = summaries.find(s => s.name === "root_overview");

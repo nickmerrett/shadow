@@ -1,4 +1,4 @@
-import { RepoDocsView } from "@/components/codebase/repo-docs-view";
+import { DocsView } from "@/components/codebase/docs-view";
 
 interface RepoPageProps {
   params: {
@@ -11,6 +11,6 @@ export default async function RepoPage({ params }: RepoPageProps) {
   const { repoId } = await params;
   
   // Return the repo docs view directly, which will be wrapped by the main layout
-  return <RepoDocsView taskId={repoId} />;
+  return <DocsView taskId={repoId} />;
 
 }
