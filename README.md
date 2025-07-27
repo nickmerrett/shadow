@@ -43,8 +43,8 @@ Fill out environment variables:
 **apps/frontend/.env.local**
 
 ```
-NEXT_PUBLIC_API_URL=localhost:4000
-NEXT_PUBLIC_SOCKET_URL=localhost:4001
+NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_SOCKET_URL=http://localhost:4001
 
 BETTER_AUTH_SECRET=
 GITHUB_CLIENT_ID=

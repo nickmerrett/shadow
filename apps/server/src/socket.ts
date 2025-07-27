@@ -36,7 +36,7 @@ async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
     }
 
     // Create executor based on current mode
-    const agentMode = (process.env.AGENT_MODE || "local") as AgentMode;
+    const agentMode = config.agentMode
     const executor = createToolExecutor(taskId, task.workspacePath || undefined, agentMode);
 
     if (executor.isRemote()) {
@@ -68,7 +68,7 @@ async function clearTerminal(taskId: string): Promise<void> {
       throw new Error(`Task ${taskId} not found`);
     }
 
-    const agentMode = (process.env.AGENT_MODE || "local") as AgentMode;
+    const agentMode = config.agentMode;
     const executor = createToolExecutor(taskId, task.workspacePath || undefined, agentMode);
 
     if (executor.isRemote()) {
@@ -113,7 +113,7 @@ function startTerminalPolling(taskId: string) {
         return;
       }
 
-      const agentMode = (process.env.AGENT_MODE || "local") as AgentMode;
+      const agentMode = config.agentMode;
       const executor = createToolExecutor(taskId, task.workspacePath || undefined, agentMode);
 
       if (executor.isRemote()) {
@@ -181,7 +181,7 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
   chatService = new ChatService();
 
   // Set up sidecar namespace for filesystem watching (only in firecracker mode)
-  const agentMode = (process.env.AGENT_MODE || "local") as AgentMode;
+  const agentMode = config.agentMode;
   if (agentMode === "firecracker") {
     setupSidecarNamespace(io);
   }
