@@ -70,11 +70,16 @@ model Verification {
 }
 
 model Task {
-  id                  String            @id @default(cuid())
-  title               String
-  description         String?
-  status              TaskStatus        @default(INITIALIZING)
-  repoUrl             String
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus @default(INITIALIZING)
+
+  // Repo full name "owner/repo"
+  repoFullName String
+  // Repo URL "https://github.com/owner/repo"
+  repoUrl      String
+
   workspacePath       String?
   lastCompletedStep   InitStepType?
   initializationError String?
