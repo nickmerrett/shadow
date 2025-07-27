@@ -29,7 +29,7 @@ export const sharedConfigSchema = z.object({
   ENABLE_SEMANTIC_SEARCH: z.union([
     z.boolean(),
     z.string().transform(val => val === 'true')
-  ]).default(false),
+  ]),
 
   // GitHub integration (required for all environments)
   GITHUB_CLIENT_ID: z.string(),
