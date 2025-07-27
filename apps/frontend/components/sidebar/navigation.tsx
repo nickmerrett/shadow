@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Brain, LayoutGrid, Play, Plus } from "lucide-react";
+import { Brain, LayoutGrid, Play, Plus, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SidebarView } from ".";
@@ -10,8 +10,9 @@ import { useSidebar } from "../ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { statusColorsConfig } from "./status";
 import { useTask } from "@/hooks/use-task";
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { LogoHover } from "../logo/logo-hover";
+import { useRouter } from "next/navigation";
 
 export function SidebarNavigation({
   sidebarView,
@@ -23,6 +24,7 @@ export function SidebarNavigation({
   currentTaskId: string | null;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { open, toggleSidebar } = useSidebar();
   const { task } = useTask(currentTaskId ?? "");
 
@@ -61,7 +63,10 @@ export function SidebarNavigation({
                 : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
             )}
             onClick={() => {
-              setSidebarView("agent");
+              // Just switch the sidebar view without navigating or re-rendering
+              if (sidebarView !== "agent") {
+                setSidebarView("agent");
+              }
               if (!open) {
                 toggleSidebar();
               }
@@ -96,7 +101,7 @@ export function SidebarNavigation({
             </TooltipTrigger>
             <TooltipContent side="right">New Task</TooltipContent>
           </Tooltip>
-          
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -109,7 +114,10 @@ export function SidebarNavigation({
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
                 )}
                 onClick={() => {
-                  setSidebarView("tasks");
+                  // Just switch the sidebar view without navigating or re-rendering
+                  if (sidebarView !== "tasks") {
+                    setSidebarView("tasks");
+                  }
                   if (!open) {
                     toggleSidebar();
                   }
@@ -118,7 +126,7 @@ export function SidebarNavigation({
                 <LayoutGrid />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">Tasks</TooltipContent>
+            <TooltipContent side="right">Tasks View</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -126,23 +134,39 @@ export function SidebarNavigation({
               <Button
                 size="iconSm"
                 variant="ghost"
-                className="border text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
-                asChild
+                className={cn(
+                  "border",
+                  (sidebarView === "codebase" || pathname.startsWith("/codebase")) && open
+                    ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
+                    : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
+                )}
+                onClick={() => {
+                  // Just switch the sidebar view without causing re-renders
+                  if (sidebarView !== "codebase") {
+                    setSidebarView("codebase");
+                  }
+                  
+                  // Toggle sidebar if not open
+                  if (!open) {
+                    toggleSidebar();
+                  }
+                  
+                  // Only navigate if not already on a codebase route
+                  if (!pathname.startsWith("/codebase")) {
+                    router.push("/codebase");
+                  }
+                }}
               >
-                <Link href="/codebase">
-                  <Brain />
-                </Link>
+                <Brain />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">Codebase Understanding</TooltipContent>
           </Tooltip>
 
-          {currentTaskId ? (
-            <>
-              <div className="bg-border h-px w-full" />
-              {agentViewTrigger}
-            </>
-          ) : null}
+          <div className="bg-border h-px w-full" />
+
+          {/* Agent View - Show when there's a current task */}
+          {currentTaskId && agentViewTrigger}
         </div>
       </div>
       <div className="flex flex-col gap-4">
