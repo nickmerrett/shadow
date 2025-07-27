@@ -1,10 +1,16 @@
-import { InitializationStatus, InitStepType, prisma } from "@repo/db";
+import { InitStepType, prisma } from "@repo/db";
 import {
   InitializationProgress,
 } from "@repo/types";
 import { emitStreamChunk } from "../socket";
 import { createWorkspaceManager, createToolExecutor, getAgentMode } from "../execution";
 import type { WorkspaceManager as AbstractWorkspaceManager } from "../execution";
+import { 
+  setTaskInProgress, 
+  setTaskCompleted, 
+  setTaskFailed, 
+  clearTaskProgress 
+} from "../utils/task-status";
 
 // Helper for async delays
 const delay = (ms: number) =>
@@ -15,46 +21,46 @@ const STEP_DEFINITIONS: Record<
   InitStepType,
   { name: string; description: string }
 > = {
+  // Shared steps (both local and firecracker)
+  VALIDATE_ACCESS: {
+    name: "Validating Access",
+    description: "Verify GitHub token and repository permissions",
+  },
+  PREPARE_WORKSPACE: {
+    name: "Preparing Workspace",
+    description: "Create workspace directory and setup environment",
+  },
   CLONE_REPOSITORY: {
     name: "Cloning Repository",
     description: "Clone the specified GitHub repository",
   },
-  PROVISION_MICROVM: {
-    name: "Provisioning Environment",
-    description: "Set up isolated microVM environment",
-  },
   SETUP_ENVIRONMENT: {
-    name: "Setting up Environment",
-    description: "Configure development environment",
-  },
-  INSTALL_DEPENDENCIES: {
-    name: "Installing Dependencies",
-    description: "Install project dependencies",
-  },
-  CONFIGURE_TOOLS: {
-    name: "Configuring Tools",
-    description: "Set up development tools and configurations",
+    name: "Setting Up Environment",
+    description: "Configure development environment and install dependencies",
   },
   VALIDATE_SETUP: {
     name: "Validating Setup",
     description: "Verify environment is ready for development",
   },
-  // Firecracker mode specific steps
-  CREATE_POD: {
+  
+  // Firecracker-specific steps
+  CREATE_VM: {
     name: "Creating VM",
     description: "Create Firecracker VM for task execution",
   },
-  WAIT_SIDECAR_READY: {
-    name: "Waiting for VM",
-    description: "Wait for VM and sidecar service to become ready",
+  WAIT_VM_READY: {
+    name: "Starting VM",
+    description: "Wait for VM boot and sidecar service to become ready",
   },
-  VERIFY_WORKSPACE: {
+  VERIFY_VM_WORKSPACE: {
     name: "Verifying Workspace",
     description: "Verify workspace is ready and contains repository",
   },
-  CLEANUP_POD: {
-    name: "Cleaning up VM",
-    description: "Destroy Firecracker VM and cleanup resources",
+  
+  // Cleanup steps
+  CLEANUP_WORKSPACE: {
+    name: "Cleaning Up",
+    description: "Clean up workspace and resources",
   },
 };
 
@@ -78,8 +84,8 @@ export class TaskInitializationEngine {
     );
 
     try {
-      // Set overall status to in progress
-      await this.updateTaskInit(taskId, "IN_PROGRESS", null);
+      // Clear any previous progress and start fresh
+      await clearTaskProgress(taskId);
 
       // Emit start event
       this.emitProgress(taskId, {
@@ -96,8 +102,8 @@ export class TaskInitializationEngine {
         const stepNumber = i + 1;
 
         try {
-          // Update current step
-          await this.updateTaskInit(taskId, "IN_PROGRESS", step);
+          // Set step as in progress
+          await setTaskInProgress(taskId, step);
 
           // Emit step start
           this.emitProgress(taskId, {
@@ -117,6 +123,9 @@ export class TaskInitializationEngine {
           // Execute the step
           await this.executeStep(taskId, step, userId);
 
+          // Mark step as completed
+          await setTaskCompleted(taskId, step);
+
           console.log(
             `[TASK_INIT] ${taskId}: Completed step ${stepNumber}/${steps.length}: ${step}`
           );
@@ -126,8 +135,8 @@ export class TaskInitializationEngine {
             error
           );
 
-          // Mark as failed
-          await this.updateTaskInit(taskId, "FAILED", step);
+          // Mark as failed with error details
+          await setTaskFailed(taskId, step, error instanceof Error ? error.message : "Unknown error");
 
           // Emit error
           this.emitProgress(taskId, {
@@ -145,8 +154,11 @@ export class TaskInitializationEngine {
         }
       }
 
-      // All steps completed successfully
-      await this.updateTaskInit(taskId, "COMPLETED", null);
+      // All steps completed successfully - final completion
+      const finalStep = steps[steps.length - 1];
+      if (finalStep) {
+        await setTaskCompleted(taskId, finalStep);
+      }
 
       console.log(
         `[TASK_INIT] ${taskId}: Initialization completed successfully`
@@ -174,45 +186,43 @@ export class TaskInitializationEngine {
     userId: string
   ): Promise<void> {
     switch (step) {
-      case "CLONE_REPOSITORY":
-        await this.executeCloneRepository(taskId, userId);
+      // Shared steps (both local and firecracker)
+      case "VALIDATE_ACCESS":
+        await this.executeValidateAccess(taskId, userId);
         break;
 
-      case "PROVISION_MICROVM":
-        await this.executeProvisionMicroVM(taskId);
+      case "PREPARE_WORKSPACE":
+        await this.executePrepareWorkspace(taskId, userId);
+        break;
+
+      case "CLONE_REPOSITORY":
+        await this.executeCloneRepository(taskId, userId);
         break;
 
       case "SETUP_ENVIRONMENT":
         await this.executeSetupEnvironment(taskId);
         break;
 
-      case "INSTALL_DEPENDENCIES":
-        await this.executeInstallDependencies(taskId);
-        break;
-
-      case "CONFIGURE_TOOLS":
-        await this.executeConfigureTools(taskId);
-        break;
-
       case "VALIDATE_SETUP":
         await this.executeValidateSetup(taskId);
         break;
 
-      // Firecracker mode specific steps
-      case "CREATE_POD":
-        await this.executeCreatePod(taskId, userId);
+      // Firecracker-specific steps
+      case "CREATE_VM":
+        await this.executeCreateVM(taskId, userId);
         break;
 
-      case "WAIT_SIDECAR_READY":
-        await this.executeWaitSidecarReady(taskId);
+      case "WAIT_VM_READY":
+        await this.executeWaitVMReady(taskId);
         break;
 
-      case "VERIFY_WORKSPACE":
-        await this.executeVerifyWorkspace(taskId, userId);
+      case "VERIFY_VM_WORKSPACE":
+        await this.executeVerifyVMWorkspace(taskId, userId);
         break;
 
-      case "CLEANUP_POD":
-        await this.executeCleanupPod(taskId);
+      // Cleanup steps
+      case "CLEANUP_WORKSPACE":
+        await this.executeCleanupWorkspace(taskId);
         break;
 
       default:
@@ -221,7 +231,39 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Clone repository step
+   * Validate access step - check GitHub token and permissions
+   */
+  private async executeValidateAccess(
+    taskId: string,
+    userId: string
+  ): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Validating GitHub access for user ${userId}`);
+    
+    // This is a placeholder - validation happens in the task initiation process
+    // Could add additional checks here if needed
+    await delay(500);
+  }
+
+  /**
+   * Prepare workspace step - unified for local/firecracker modes
+   */
+  private async executePrepareWorkspace(
+    taskId: string,
+    userId: string
+  ): Promise<void> {
+    const agentMode = getAgentMode();
+    
+    if (agentMode === "firecracker") {
+      // In firecracker mode, this creates the VM and the VM handles repo cloning
+      await this.executeCreateVM(taskId, userId);
+    } else {
+      // In local mode, prepare the local workspace
+      await this.executeCloneRepository(taskId, userId);
+    }
+  }
+
+  /**
+   * Clone repository step (local mode only)
    */
   private async executeCloneRepository(
     taskId: string,
@@ -320,9 +362,9 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Create pod step - Create Firecracker VM for execution
+   * Create VM step - Create Firecracker VM for execution
    */
-  private async executeCreatePod(taskId: string, userId: string): Promise<void> {
+  private async executeCreateVM(taskId: string, userId: string): Promise<void> {
     console.log(`[TASK_INIT] ${taskId}: Creating Firecracker VM for execution`);
 
     try {
@@ -377,9 +419,9 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Wait for sidecar ready step - Wait for sidecar API to become healthy and repository to be cloned
+   * Wait for VM ready step - Wait for VM boot and sidecar API to become healthy
    */
-  private async executeWaitSidecarReady(taskId: string): Promise<void> {
+  private async executeWaitVMReady(taskId: string): Promise<void> {
     console.log(`[TASK_INIT] ${taskId}: Waiting for sidecar service and repository clone to complete`);
 
     try {
@@ -417,9 +459,9 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Verify workspace step - Verify workspace is ready and contains repository
+   * Verify VM workspace step - Verify workspace is ready and contains repository
    */
-  private async executeVerifyWorkspace(taskId: string, _userId: string): Promise<void> {
+  private async executeVerifyVMWorkspace(taskId: string, _userId: string): Promise<void> {
     console.log(`[TASK_INIT] ${taskId}: Verifying workspace is ready and contains repository`);
 
     try {
@@ -453,9 +495,9 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Cleanup pod step - Destroy Firecracker VM and cleanup resources
+   * Cleanup workspace step - Clean up resources (local or VM)
    */
-  private async executeCleanupPod(taskId: string): Promise<void> {
+  private async executeCleanupWorkspace(taskId: string): Promise<void> {
     console.log(`[TASK_INIT] ${taskId}: Cleaning up Firecracker VM`);
 
     try {
@@ -515,54 +557,72 @@ export class TaskInitializationEngine {
     const agentMode = getAgentMode();
 
     if (agentMode === "firecracker") {
-      // Firecracker mode uses VM-based execution
+      // Firecracker mode: VM handles repository cloning internally
       switch (taskType) {
         case "simple":
-          return ["CREATE_POD", "WAIT_SIDECAR_READY", "VERIFY_WORKSPACE"];
+          return [
+            "VALIDATE_ACCESS",
+            "CREATE_VM", 
+            "WAIT_VM_READY",
+            "VERIFY_VM_WORKSPACE"
+          ];
 
         case "microvm":
           return [
-            "CREATE_POD",
-            "WAIT_SIDECAR_READY",
-            "VERIFY_WORKSPACE",
+            "VALIDATE_ACCESS",
+            "CREATE_VM",
+            "WAIT_VM_READY", 
+            "VERIFY_VM_WORKSPACE",
             "SETUP_ENVIRONMENT"
           ];
 
         case "full":
           return [
-            "CREATE_POD",
-            "WAIT_SIDECAR_READY",
-            "VERIFY_WORKSPACE",
+            "VALIDATE_ACCESS",
+            "CREATE_VM",
+            "WAIT_VM_READY",
+            "VERIFY_VM_WORKSPACE", 
             "SETUP_ENVIRONMENT",
-            "INSTALL_DEPENDENCIES",
-            "CONFIGURE_TOOLS",
             "VALIDATE_SETUP",
           ];
 
         default:
-          return ["CREATE_POD", "WAIT_SIDECAR_READY", "VERIFY_WORKSPACE"];
+          return [
+            "VALIDATE_ACCESS",
+            "CREATE_VM",
+            "WAIT_VM_READY", 
+            "VERIFY_VM_WORKSPACE"
+          ];
       }
     } else {
-      // Local mode uses traditional local execution
+      // Local mode: direct repository cloning and local setup
       switch (taskType) {
         case "simple":
-          return ["CLONE_REPOSITORY"];
+          return [
+            "VALIDATE_ACCESS",
+            "PREPARE_WORKSPACE"
+          ];
 
         case "microvm":
-          return ["CLONE_REPOSITORY", "PROVISION_MICROVM", "SETUP_ENVIRONMENT"];
+          return [
+            "VALIDATE_ACCESS", 
+            "PREPARE_WORKSPACE",
+            "SETUP_ENVIRONMENT"
+          ];
 
         case "full":
           return [
-            "CLONE_REPOSITORY",
-            "PROVISION_MICROVM",
+            "VALIDATE_ACCESS",
+            "PREPARE_WORKSPACE",
             "SETUP_ENVIRONMENT",
-            "INSTALL_DEPENDENCIES",
-            "CONFIGURE_TOOLS",
             "VALIDATE_SETUP",
           ];
 
         default:
-          return ["CLONE_REPOSITORY"];
+          return [
+            "VALIDATE_ACCESS",
+            "PREPARE_WORKSPACE"
+          ];
       }
     }
   }
@@ -574,7 +634,7 @@ export class TaskInitializationEngine {
     const agentMode = getAgentMode();
 
     if (agentMode === "firecracker") {
-      return ["CLEANUP_POD"];
+      return ["CLEANUP_WORKSPACE"];
     } else {
       return []; // Local mode cleanup is handled automatically
     }

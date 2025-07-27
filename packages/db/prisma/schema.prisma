@@ -70,29 +70,27 @@ model Verification {
 }
 
 model Task {
-  id                    String                  @id @default(cuid())
-  title                 String                  @default("Untitled Task")
-  description           String?
-  status                TaskStatus              @default(INITIALIZING)
-  repoUrl               String
-  workspacePath         String?
-  baseBranch            String
-  shadowBranch          String
-  baseCommitSha         String
-  initializationStatus  InitializationStatus    @default(PENDING)
-  currentInitStep       InitStepType?
-  mode                  TaskMode                @default(FULL_AUTO)
-  workspaceCleanedUp    Boolean                 @default(false)
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  userId                String
-  messages              ChatMessage[]
-  CodebaseUnderstanding CodebaseUnderstanding[]
-  FileChange            FileChange[]
-  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions              TaskSession[]
-  commands              TerminalCommand[]
-  todos                 Todo[]
+  id                   String               @id @default(cuid())
+  title                String
+  description          String?
+  status               TaskStatus           @default(INITIALIZING)
+  repoUrl              String
+  workspacePath        String?
+  lastCompletedStep    InitStepType?
+  initializationError  String?
+  mode                 TaskMode             @default(FULL_AUTO)
+  workspaceCleanedUp   Boolean              @default(false)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  userId               String
+  baseBranch           String
+  baseCommitSha        String
+  shadowBranch         String
+  messages             ChatMessage[]
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions             TaskSession[]
+  commands             TerminalCommand[]
+  todos                Todo[]
 }
 
 model Todo {
@@ -158,38 +156,6 @@ model TaskSession {
   @@index([taskId, isActive])
 }
 
-model FileChange {
-  id         String   @id
-  filePath   String
-  operation  FileOp
-  oldContent String?
-  newContent String?
-  diffPatch  String?
-  additions  Int      @default(0)
-  deletions  Int      @default(0)
-  createdAt  DateTime @default(now())
-  taskId     String
-  Task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@index([taskId, createdAt])
-}
-
-model CodebaseUnderstanding {
-  id        String   @id @default(cuid())
-  taskId    String
-  fileName  String
-  type      String?  @default("file_summary")
-  filePath  String?
-  language  String?
-  content   Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@index([taskId])
-  @@index([type])
-}
-
 enum TaskStatus {
   STOPPED
   INITIALIZING
@@ -220,24 +186,21 @@ enum TodoStatus {
   CANCELLED
 }
 
-enum InitializationStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  FAILED
-}
-
 enum InitStepType {
+  // Shared steps (both local and firecracker)
+  VALIDATE_ACCESS
+  PREPARE_WORKSPACE
   CLONE_REPOSITORY
-  PROVISION_MICROVM
   SETUP_ENVIRONMENT
-  INSTALL_DEPENDENCIES
-  CONFIGURE_TOOLS
   VALIDATE_SETUP
-  CREATE_POD
-  WAIT_SIDECAR_READY
-  VERIFY_WORKSPACE
-  CLEANUP_POD
+  
+  // Firecracker-specific steps
+  CREATE_VM
+  WAIT_VM_READY
+  VERIFY_VM_WORKSPACE
+  
+  // Cleanup steps
+  CLEANUP_WORKSPACE
 }
 
 enum FileOp {
@@ -247,3 +210,4 @@ enum FileOp {
   RENAME
   MOVE
 }
+
