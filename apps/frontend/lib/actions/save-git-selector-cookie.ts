@@ -33,7 +33,7 @@ export async function getGitSelectorCookie(): Promise<{
 } | null> {
   const cookieStore = await cookies();
   const gitSelectorCookie = cookieStore.get(GIT_SELECTOR_COOKIE_NAME);
-  
+
   if (gitSelectorCookie?.value) {
     try {
       return JSON.parse(gitSelectorCookie.value);
@@ -42,6 +42,6 @@ export async function getGitSelectorCookie(): Promise<{
       return null;
     }
   }
-  
+
   return null;
 }
