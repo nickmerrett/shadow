@@ -43,14 +43,14 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
 
       // Create the Firecracker VM pod using the VM runner
       const createdPod = await this.vmRunner.createVMPod(taskConfig, githubToken);
-      console.log(`[FIRECRACKER_WM] Created Firecracker VM pod: ${createdPod.metadata.name}`);
+      console.log(`[FIRECRACKER_WM] Created Firecracker VM pod: ${createdPod.metadata?.name}`);
 
       // Wait for VM to be ready (this includes VM boot time and sidecar startup)
       await this.vmRunner.waitForVMReady(taskConfig.id);
 
       // Get the pod details to extract networking information
       const podDetails = await this.vmRunner.getVMPodStatus(taskConfig.id);
-      const podIP = podDetails.status.podIP;
+      const podIP = podDetails.status?.podIP;
       const workspacePath = `/workspace`; // Standard workspace path in VM
 
       console.log(`[FIRECRACKER_WM] Firecracker VM workspace ready at ${podIP}:8080`);
@@ -59,8 +59,8 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
       return {
         success: true,
         workspacePath,
-        podName: createdPod.metadata.name,
-        podNamespace: createdPod.metadata.namespace,
+        podName: createdPod.metadata?.name,
+        podNamespace: createdPod.metadata?.namespace,
         serviceName: `http://${podIP}:8080`,
       };
     } catch (error) {
@@ -99,9 +99,9 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
     try {
       const pod = await this.vmRunner.getVMPodStatus(taskId);
 
-      const phase = pod.status.phase;
-      const conditions = pod.status.conditions || [];
-      const readyCondition = conditions.find((c: any) => c.type === "Ready");
+      const phase = pod.status?.phase;
+      const conditions = pod.status?.conditions || [];
+      const readyCondition = conditions.find((c) => c.type === "Ready");
 
       return {
         exists: true,
@@ -162,7 +162,7 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
 
   async getExecutor(taskId: string): Promise<ToolExecutor> {
     const pod = await this.vmRunner.getVMPodStatus(taskId);
-    const podIP = pod.status.podIP;
+    const podIP = pod.status?.podIP;
     const sidecarUrl = `http://${podIP}:8080`;
 
     return new FirecrackerToolExecutor(taskId, sidecarUrl);

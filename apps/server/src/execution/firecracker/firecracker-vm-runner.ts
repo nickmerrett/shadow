@@ -1,11 +1,11 @@
 import { TaskConfig } from "../interfaces/types";
 import config from "../../config";
+import * as k8s from '@kubernetes/client-node';
 
 export class FirecrackerVMRunner {
-  private k8sApiUrl: string;
   private namespace: string;
-  private token: string;
-  private timeout: number;
+  private k8sConfig: k8s.KubeConfig;
+  private coreV1Api: k8s.CoreV1Api;
 
   constructor(options: {
     k8sApiUrl?: string;
@@ -13,62 +13,20 @@ export class FirecrackerVMRunner {
     token?: string;
     timeout?: number;
   } = {}) {
-    this.k8sApiUrl = options.k8sApiUrl || this.getK8sApiUrl();
     this.namespace = options.namespace || config.kubernetesNamespace;
-    this.token = options.token || this.getServiceAccountToken();
-    this.timeout = options.timeout || 60000;
+    
+    // Initialize Kubernetes client
+    this.k8sConfig = new k8s.KubeConfig();
+    this.k8sConfig.loadFromDefault();
+    this.coreV1Api = this.k8sConfig.makeApiClient(k8s.CoreV1Api);
   }
 
-  private getK8sApiUrl(): string {
-    return config.kubernetesServiceHost && config.kubernetesServicePort
-      ? `https://${config.kubernetesServiceHost}:${config.kubernetesServicePort}`
-      : "https://kubernetes.default.svc";
-  }
-
-  private getServiceAccountToken(): string {
-    return config.k8sServiceAccountToken || "mock-token";
-  }
-
-  private async makeK8sRequest<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.k8sApiUrl}${endpoint}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          "Authorization": `Bearer ${this.token}`,
-          "Content-Type": "application/json",
-          ...options.headers,
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Kubernetes API error ${response.status}: ${response.statusText}. ${errorText}`
-        );
-      }
-
-      return await response.json();
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
-    }
-  }
 
   /**
    * Create Firecracker VM pod specification using init container pattern
    * This creates a pod that starts a Firecracker VM instead of running a Docker container
    */
-  createFirecrackerVMPodSpec(taskConfig: TaskConfig, githubToken: string) {
+  createFirecrackerVMPodSpec(taskConfig: TaskConfig, githubToken: string): k8s.V1Pod {
     return {
       apiVersion: "v1",
       kind: "Pod",
@@ -416,39 +374,52 @@ export class FirecrackerVMRunner {
     };
   }
 
-  async createVMPod(taskConfig: TaskConfig, githubToken: string) {
+  async createVMPod(taskConfig: TaskConfig, githubToken: string): Promise<k8s.V1Pod> {
     const podSpec = this.createFirecrackerVMPodSpec(taskConfig, githubToken);
 
-    const createdPod = await this.makeK8sRequest<any>(
-      `/api/v1/namespaces/${this.namespace}/pods`,
-      {
-        method: "POST",
-        body: JSON.stringify(podSpec),
-      }
-    );
+    try {
+      const response = await this.coreV1Api.createNamespacedPod({
+        namespace: this.namespace,
+        body: podSpec
+      });
 
-    return createdPod;
+      return response;
+    } catch (error) {
+      console.error(`[FIRECRACKER_VM_RUNNER] Failed to create VM pod:`, error);
+      throw new Error(`Failed to create Firecracker VM pod: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
-  async deleteVMPod(taskId: string) {
+  async deleteVMPod(taskId: string): Promise<void> {
     const podName = `shadow-vm-${taskId}`;
 
-    await this.makeK8sRequest(
-      `/api/v1/namespaces/${this.namespace}/pods/${podName}`,
-      {
-        method: "DELETE",
-      }
-    );
+    try {
+      await this.coreV1Api.deleteNamespacedPod({
+        name: podName,
+        namespace: this.namespace
+      });
+      
+      console.log(`[FIRECRACKER_VM_RUNNER] Deleted VM pod: ${podName}`);
+    } catch (error) {
+      console.error(`[FIRECRACKER_VM_RUNNER] Failed to delete VM pod ${podName}:`, error);
+      throw new Error(`Failed to delete Firecracker VM pod: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
-  async getVMPodStatus(taskId: string) {
+  async getVMPodStatus(taskId: string): Promise<k8s.V1Pod> {
     const podName = `shadow-vm-${taskId}`;
 
-    const pod = await this.makeK8sRequest<any>(
-      `/api/v1/namespaces/${this.namespace}/pods/${podName}`
-    );
+    try {
+      const pod = await this.coreV1Api.readNamespacedPod({
+        name: podName,
+        namespace: this.namespace
+      });
 
-    return pod;
+      return pod;
+    } catch (error) {
+      console.error(`[FIRECRACKER_VM_RUNNER] Failed to get VM pod status for ${podName}:`, error);
+      throw new Error(`Failed to get Firecracker VM pod status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   async waitForVMReady(taskId: string, maxWaitTime: number = 300000): Promise<void> {
@@ -458,13 +429,14 @@ export class FirecrackerVMRunner {
 
     while (Date.now() - startTime < maxWaitTime) {
       try {
-        const pod = await this.makeK8sRequest<any>(
-          `/api/v1/namespaces/${this.namespace}/pods/${podName}`
-        );
+        const pod = await this.coreV1Api.readNamespacedPod({
+          name: podName,
+          namespace: this.namespace
+        });
 
-        const phase = pod.status.phase;
-        const conditions = pod.status.conditions || [];
-        const readyCondition = conditions.find((c: any) => c.type === "Ready");
+        const phase = pod.status?.phase;
+        const conditions = pod.status?.conditions || [];
+        const readyCondition = conditions.find((c: k8s.V1PodCondition) => c.type === "Ready");
 
         if (phase === "Running" && readyCondition?.status === "True") {
           console.log(`[FIRECRACKER_VM_RUNNER] VM pod ${podName} is ready`);
