@@ -19,8 +19,9 @@ import { SidebarAgentView } from "./agent-view";
 import { SidebarNavigation } from "./navigation";
 import { SidebarTasksView } from "./tasks-view";
 import { CodebaseSidebar } from "../codebase/codebase-sidebar";
+import { RepoSidebar } from "../codebase/repo-sidebar";
 
-export type SidebarView = "tasks" | "agent" | "codebase";
+export type SidebarView = "tasks" | "agent" | "codebase" | "repo";
 
 // Simple component to wrap task data fetching separately
 const TaskDataProvider = memo(function TaskDataProvider({
@@ -56,10 +57,17 @@ export function SidebarViews({
     pathnameRef.current = pathname || "";
   }, [pathname]);
   
+  // Extract current repo ID from pathname
+  const currentRepoId = pathname?.match(/^\/codebase\/([^\/]+)/)?.[1];
+  
   // Determine initial sidebar view based on current path and task
   const getInitialSidebarView = (): SidebarView => {
-    // All codebase routes use the same codebase view now
-    if (pathname?.startsWith("/codebase")) {
+    // Individual repo page shows repo sidebar
+    if (currentRepoId) {
+      return "repo";
+    }
+    // General codebase page shows codebase list
+    if (pathname === "/codebase") {
       return "codebase";
     }
     // Handle task routes
@@ -93,14 +101,16 @@ export function SidebarViews({
     }
     
     // Only update sidebar view based on pathname changes
-    if (pathname?.startsWith("/codebase")) {
+    if (currentRepoId) {
+      setOptimizedSidebarView("repo");
+    } else if (pathname === "/codebase") {
       setOptimizedSidebarView("codebase");
     } else if (pathname?.startsWith("/tasks") && currentTaskId) {
       setOptimizedSidebarView("agent");
     } else if (pathname === "/" || !pathname?.startsWith("/tasks")) {
       setOptimizedSidebarView("tasks");
     }
-  }, [currentTaskId, pathname, setOptimizedSidebarView]);
+  }, [currentTaskId, pathname, currentRepoId, setOptimizedSidebarView]);
 
   // Memoize the CodebaseSidebar content - keep it simple
   const CodebaseSidebarContent = useMemo(() => {
@@ -123,6 +133,28 @@ export function SidebarViews({
       </SidebarContent>
     );
   }, []);
+
+  // Memoize the RepoSidebar content
+  const RepoSidebarContent = useMemo(() => {
+    return (
+      <SidebarContent>
+        <SidebarGroup className="flex h-7 flex-row items-center justify-between">
+          <div className="font-medium">Repository Documentation</div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SidebarTrigger className="hover:bg-sidebar-accent" />
+            </TooltipTrigger>
+            <TooltipContent side="right" shortcut="⌘B">
+              Toggle Sidebar
+            </TooltipContent>
+          </Tooltip>
+        </SidebarGroup>
+        <div className="mt-6 flex flex-col gap-4">
+          {currentRepoId && <RepoSidebar repoId={currentRepoId} />}
+        </div>
+      </SidebarContent>
+    );
+  }, [currentRepoId]);
 
   // Memoize the TasksView sidebar content
   const TasksViewSidebar = useMemo(() => {
@@ -170,7 +202,9 @@ export function SidebarViews({
         setSidebarView={setSidebarView}
       />
       <Sidebar>
-        {sidebarView === "codebase" ? CodebaseSidebarContent : TasksViewSidebar}
+        {sidebarView === "codebase" ? CodebaseSidebarContent : 
+         sidebarView === "repo" ? RepoSidebarContent :
+         TasksViewSidebar}
       </Sidebar>
     </div>
   );

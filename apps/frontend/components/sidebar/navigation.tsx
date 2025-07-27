@@ -80,6 +80,47 @@ export function SidebarNavigation({
     </div>
   );
 
+  const codebaseViewTrigger = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          size="iconSm"
+          variant="ghost"
+          className={cn(
+            "border",
+            sidebarView === "repo" && open
+              ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
+              : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
+          )}
+          onClick={() => {
+            // Extract current repo ID to determine behavior
+            const currentRepoId = pathname?.match(/^\/codebase\/([^\/]+)/)?.[1];
+            
+            if (currentRepoId) {
+              // On individual repo page, switch to repo sidebar view
+              if (sidebarView !== "repo") {
+                setSidebarView("repo");
+              }
+            } else {
+              // Not on repo page, navigate to general codebase
+              router.push("/codebase");
+              if (sidebarView !== "codebase") {
+                setSidebarView("codebase");
+              }
+            }
+            
+            if (!open) {
+              toggleSidebar();
+            }
+          }}
+        >
+          <BookOpen />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="right">Codebase View</TooltipContent>
+    </Tooltip>
+  );
+
   return (
     <div className="bg-card fixed inset-y-0 left-0 z-20 flex w-[53px] flex-col justify-between border-r p-3">
       <div className="flex flex-col gap-7">
@@ -160,8 +201,9 @@ export function SidebarNavigation({
 
           <div className="bg-border h-px w-full" />
 
-          {/* Agent View - Show when there's a current task */}
+          {/* Page-specific navigation buttons below the divider */}
           {currentTaskId && agentViewTrigger}
+          {pathname?.startsWith("/codebase") && codebaseViewTrigger}
         </div>
       </div>
       <div className="flex flex-col gap-4">

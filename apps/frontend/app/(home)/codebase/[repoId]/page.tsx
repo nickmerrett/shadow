@@ -12,4 +12,5 @@ export default async function RepoPage({ params }: RepoPageProps) {
   
   // Return the repo docs view directly, which will be wrapped by the main layout
   return <RepoDocsView taskId={repoId} />;
+
 }
