@@ -390,6 +390,43 @@ export function useTaskSocket(taskId: string | undefined) {
           console.log("Thinking:", chunk.thinking);
           break;
 
+        case "init-progress":
+          if (chunk.initProgress) {
+            console.log("Initialization progress:", chunk.initProgress);
+            
+            // Optimistically update task initialization state
+            queryClient.setQueryData(
+              ["task", taskId],
+              (oldData: any) => {
+                if (!oldData) return oldData;
+                return {
+                  ...oldData,
+                  lastCompletedStep: chunk.initProgress?.currentStep || oldData.lastCompletedStep,
+                  initializationError: chunk.initProgress?.error || null,
+                  updatedAt: new Date().toISOString()
+                };
+              }
+            );
+            
+            // Also update in task list
+            queryClient.setQueryData(["tasks"], (oldTasks: any[]) => {
+              if (oldTasks) {
+                return oldTasks.map((task: any) =>
+                  task.id === taskId
+                    ? { 
+                        ...task, 
+                        lastCompletedStep: chunk.initProgress?.currentStep || task.lastCompletedStep,
+                        initializationError: chunk.initProgress?.error || null,
+                        updatedAt: new Date().toISOString()
+                      }
+                    : task
+                );
+              }
+              return oldTasks;
+            });
+          }
+          break;
+
         case "todo-update":
           if (chunk.todoUpdate) {
             console.log("Todo update:", chunk.todoUpdate);

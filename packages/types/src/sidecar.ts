@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { CommandSecurityLevel } from "@repo/command-security";
+import { z } from "zod";
 
 // === Base Response Interface ===
 export interface SidecarResponse {

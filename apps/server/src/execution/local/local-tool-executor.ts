@@ -25,6 +25,12 @@ import {
   CodebaseSearchToolResult,
   SearchOptions,
   WebSearchResult,
+  GitStatusResponse,
+  GitDiffResponse,
+  GitCommitResponse,
+  GitPushResponse,
+  GitCommitRequest,
+  GitPushRequest,
 } from "@repo/types";
 import { EmbeddingSearchResult } from "../../indexing/embedding/types";
 import { CommandResult } from "../interfaces/types";
@@ -713,6 +719,56 @@ export class LocalToolExecutor implements ToolExecutor {
 
   getTaskId(): string {
     return this.taskId;
+  }
+
+  /**
+   * Get git status (stub - delegates to GitManager in chat.ts for local mode)
+   */
+  async getGitStatus(): Promise<GitStatusResponse> {
+    // For local mode, git operations are handled directly by GitManager in chat.ts
+    // This is a stub implementation for interface compatibility
+    return {
+      success: false,
+      message: "Git operations in local mode are handled by GitManager",
+      hasChanges: false,
+    };
+  }
+
+  /**
+   * Get git diff (stub - delegates to GitManager in chat.ts for local mode)
+   */
+  async getGitDiff(): Promise<GitDiffResponse> {
+    // For local mode, git operations are handled directly by GitManager in chat.ts
+    // This is a stub implementation for interface compatibility
+    return {
+      success: false,
+      message: "Git operations in local mode are handled by GitManager",
+      diff: "",
+    };
+  }
+
+  /**
+   * Commit changes (stub - delegates to GitManager in chat.ts for local mode)
+   */
+  async commitChanges(_request: GitCommitRequest): Promise<GitCommitResponse> {
+    // For local mode, git operations are handled directly by GitManager in chat.ts
+    // This is a stub implementation for interface compatibility
+    return {
+      success: false,
+      message: "Git operations in local mode are handled by GitManager",
+    };
+  }
+
+  /**
+   * Push branch (stub - delegates to GitManager in chat.ts for local mode)
+   */
+  async pushBranch(_request: GitPushRequest): Promise<GitPushResponse> {
+    // For local mode, git operations are handled directly by GitManager in chat.ts
+    // This is a stub implementation for interface compatibility
+    return {
+      success: false,
+      message: "Git operations in local mode are handled by GitManager",
+    };
   }
 
 }

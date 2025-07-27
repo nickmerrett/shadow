@@ -136,7 +136,7 @@ class LocalCodingAgent {
           userId: defaultUser.id,
           mode: "FULL_AUTO",
           status: "RUNNING",
-          initializationStatus: "COMPLETED", // Local mode doesn't need initialization
+          lastCompletedStep: "PREPARE_WORKSPACE", // Local mode completes with workspace preparation
           workspacePath: config.workspaceDir,
         },
       });

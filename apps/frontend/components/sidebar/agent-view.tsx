@@ -18,7 +18,7 @@ import {
   SquareX,
 } from "lucide-react";
 import { useCallback, useMemo, useState, useEffect } from "react";
-import { statusColorsConfig } from "./status";
+import { statusColorsConfig, getDisplayStatus, getStatusText } from "./status";
 import { FileExplorer } from "@/components/agent-environment/file-explorer";
 import { FileNode } from "@repo/types";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
@@ -250,19 +250,20 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             </Button>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               {(() => {
+                const displayStatus = getDisplayStatus(task);
                 const StatusIcon =
                   statusColorsConfig[
-                    task.status as keyof typeof statusColorsConfig
+                    displayStatus as keyof typeof statusColorsConfig
                   ]?.icon || CircleDashed;
                 const statusClass =
                   statusColorsConfig[
-                    task.status as keyof typeof statusColorsConfig
+                    displayStatus as keyof typeof statusColorsConfig
                   ]?.className || "text-muted-foreground";
                 return (
                   <>
                     <StatusIcon className={cn("size-4", statusClass)} />
                     <span className="capitalize">
-                      {task.status.toLowerCase().replace("_", " ")}
+                      {getStatusText(task)}
                     </span>
                   </>
                 );

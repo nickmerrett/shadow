@@ -23,3 +23,6 @@ export * from './socket';
 
 // === Sidecar API Types ===
 export * from './sidecar';
+
+// === Initialization Types ===
+export * from './init/steps';
