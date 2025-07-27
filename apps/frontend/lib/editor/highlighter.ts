@@ -39,7 +39,7 @@ let monacoPatched = false;
 export async function getHighlighter() {
   if (!highlighterPromise) {
     highlighterPromise = createHighlighter({
-      themes: [theme as unknown as ThemeInput],
+      themes: [theme as unknown as ThemeInput, 'github-dark'],
       langs: LANGUAGES.map((lang) => lang.id),
       engine: jsEngine,
     });
@@ -66,8 +66,8 @@ export async function patchMonacoWithShiki() {
 
     // Define the theme
     monaco.editor.defineTheme("vesper", {
-      base: "vs-dark",
-      inherit: true,
+      base: "vs",
+      inherit: false,
       rules: [],
       colors: theme.colors as any,
     });

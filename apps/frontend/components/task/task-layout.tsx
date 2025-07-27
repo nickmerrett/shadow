@@ -150,7 +150,7 @@ export function TaskPageLayout({
     <ResizablePanelGroup
       ref={resizablePanelGroupRef}
       direction="horizontal"
-      className="min-h-svh"
+      className="ml-[53px] min-h-svh"
       onLayout={handleLayout}
     >
       <ResizablePanel minSize={30} defaultSize={leftSize}>
