@@ -43,17 +43,14 @@ function updateCodebaseTreeOptimistically(
 
   console.log(`[OPTIMISTIC_TREE_UPDATE] ${operation} ${filePath} (isDirectory: ${isDirectory})`);
 
-  // Handle file/directory creation
   if (operation === 'file-created' || operation === 'directory-created') {
     return addNodeToTree(existingTree, filePath, isDirectory ? 'folder' : 'file');
   }
 
-  // Handle file/directory deletion
   if (operation === 'file-deleted' || operation === 'directory-deleted') {
     return removeNodeFromTree(existingTree, filePath);
   }
 
-  // For modifications, no tree structure change needed
   return existingTree;
 }
 
@@ -69,13 +66,10 @@ function addNodeToTree(tree: FileNode[], filePath: string, type: 'file' | 'folde
 
   const treeCopy = [...tree];
 
-  // Find existing node at this level
   const existingIndex = treeCopy.findIndex(node => node.name === firstPart);
 
   if (restParts.length === 0) {
-    // This is the target node
     if (existingIndex === -1) {
-      // Add new node
       const newNode = {
         name: firstPart,
         type,
@@ -83,6 +77,7 @@ function addNodeToTree(tree: FileNode[], filePath: string, type: 'file' | 'folde
         ...(type === 'folder' && { children: [] })
       };
       treeCopy.push(newNode);
+
       // Sort: folders first, then files, both alphabetically
       treeCopy.sort((a, b) => {
         if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
@@ -183,7 +178,7 @@ function updateFileChangesOptimistically(
       console.log(`[OPTIMISTIC_UPDATE] Updating existing file: ${filePath} (was existing: ${wasExisting})`);
       return [...filtered, {
         filePath,
-        operation: wasExisting ? 'UPDATE' : 'CREATE', // Could be new file being written
+        operation: wasExisting ? 'UPDATE' : 'CREATE',
         additions: 0, // Will be updated by background git refresh
         deletions: 0,
         createdAt: new Date().toISOString()
@@ -191,12 +186,10 @@ function updateFileChangesOptimistically(
 
     case 'file-deleted':
       console.log(`[OPTIMISTIC_UPDATE] Removing deleted file: ${filePath}`);
-      // For deletions, just return filtered array (file removed from list)
       return filtered;
 
     case 'directory-created':
     case 'directory-deleted':
-      // Should not reach here due to isDirectory check above, but handle gracefully
       console.log(`[OPTIMISTIC_UPDATE] Ignoring directory operation: ${operation} ${filePath}`);
       return existingChanges;
 
@@ -237,16 +230,13 @@ export function useTaskSocket(taskId: string | undefined) {
     }
 
     function onDisconnect() {
-      // Connection lost
       console.log("[TASK-SOCKET] Disconnected");
     }
 
     function onChatHistory(data: { taskId: string; messages: Message[] }) {
       if (data.taskId === taskId) {
-        // Update the query cache directly with fresh data from server
         queryClient.setQueryData(["task-messages", taskId], data.messages);
 
-        // Clear streaming state when we have the updated chat history
         setStreamingAssistantParts([]);
         setIsStreaming(false);
       }
@@ -264,7 +254,6 @@ export function useTaskSocket(taskId: string | undefined) {
       switch (chunk.type) {
         case "content":
           if (chunk.content) {
-            // Add text part to structured assistant parts
             const textPart: TextPart = {
               type: "text",
               text: chunk.content,
@@ -277,7 +266,6 @@ export function useTaskSocket(taskId: string | undefined) {
           if (chunk.toolCall) {
             console.log("Tool call:", chunk.toolCall);
 
-            // Add tool call part to structured assistant parts
             const toolCallPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
@@ -292,7 +280,6 @@ export function useTaskSocket(taskId: string | undefined) {
           if (chunk.toolResult) {
             console.log("Tool result:", chunk.toolResult);
 
-            // Add tool result part to structured assistant parts
             const toolResultPart: ToolResultPart = {
               type: "tool-result",
               toolCallId: chunk.toolResult.id,
@@ -319,13 +306,11 @@ export function useTaskSocket(taskId: string | undefined) {
           if (chunk.fsChange) {
             console.log("File system change:", chunk.fsChange);
 
-            // Optimistically update file changes in React Query cache
             queryClient.setQueryData(
               ["task", taskId],
               (oldData: TaskWithDetails) => {
                 if (!oldData) return oldData;
 
-                // Add/update/remove from fileChanges array based on operation
                 const updatedFileChanges = updateFileChangesOptimistically(
                   oldData.fileChanges || [],
                   chunk.fsChange!
@@ -338,7 +323,6 @@ export function useTaskSocket(taskId: string | undefined) {
               }
             );
 
-            // Optimistically update codebase tree in React Query cache
             queryClient.setQueryData(
               ["codebase-tree", taskId],
               (oldData: CodebaseTreeResponse) => {
@@ -356,7 +340,7 @@ export function useTaskSocket(taskId: string | undefined) {
               }
             );
 
-            // Note: Diff stats are NOT invalidated here to avoid expensive git operations
+            // Note: Diff stats aren't invalidated here to avoid recomputation on every change
             // They will refresh on: 1) stream completion, 2) 30s stale time, 3) manual refresh
           }
           break;
@@ -393,32 +377,31 @@ export function useTaskSocket(taskId: string | undefined) {
         case "init-progress":
           if (chunk.initProgress) {
             console.log("Initialization progress:", chunk.initProgress);
-            
+
             // Optimistically update task initialization state
             queryClient.setQueryData(
               ["task", taskId],
-              (oldData: any) => {
+              (oldData: TaskWithDetails) => {
                 if (!oldData) return oldData;
                 return {
                   ...oldData,
-                  lastCompletedStep: chunk.initProgress?.currentStep || oldData.lastCompletedStep,
+                  lastCompletedStep: chunk.initProgress?.currentStep || oldData.task?.lastCompletedStep,
                   initializationError: chunk.initProgress?.error || null,
                   updatedAt: new Date().toISOString()
                 };
               }
             );
-            
-            // Also update in task list
-            queryClient.setQueryData(["tasks"], (oldTasks: any[]) => {
+
+            queryClient.setQueryData(["tasks"], (oldTasks: Task[]) => {
               if (oldTasks) {
-                return oldTasks.map((task: any) =>
+                return oldTasks.map((task: Task) =>
                   task.id === taskId
-                    ? { 
-                        ...task, 
-                        lastCompletedStep: chunk.initProgress?.currentStep || task.lastCompletedStep,
-                        initializationError: chunk.initProgress?.error || null,
-                        updatedAt: new Date().toISOString()
-                      }
+                    ? {
+                      ...task,
+                      lastCompletedStep: chunk.initProgress?.currentStep || task.lastCompletedStep,
+                      initializationError: chunk.initProgress?.error || null,
+                      updatedAt: new Date().toISOString()
+                    }
                     : task
                 );
               }
@@ -432,7 +415,6 @@ export function useTaskSocket(taskId: string | undefined) {
             console.log("Todo update:", chunk.todoUpdate);
             const todos = chunk.todoUpdate.todos;
 
-            // Optimistically update todos in React Query cache
             queryClient.setQueryData(
               ["task", taskId],
               (oldData: TaskWithDetails) => {
@@ -443,7 +425,6 @@ export function useTaskSocket(taskId: string | undefined) {
                   (oldData.todos || []).map(todo => [todo.id, todo])
                 );
 
-                // Process each incoming todo update
                 todos.forEach(incomingTodo => {
                   const existingTodo = existingTodosMap.get(incomingTodo.id);
 
@@ -456,7 +437,6 @@ export function useTaskSocket(taskId: string | undefined) {
                       updatedAt: new Date(),
                     });
                   } else {
-                    // Add new todo
                     existingTodosMap.set(incomingTodo.id, {
                       ...incomingTodo,
                       status: incomingTodo.status.toUpperCase() as TodoStatus,
@@ -512,7 +492,6 @@ export function useTaskSocket(taskId: string | undefined) {
       if (data.taskId === taskId) {
         console.log(`[TASK_SOCKET] Received task status update:`, data);
 
-        // Optimistically update the task status in React Query cache
         queryClient.setQueryData(
           ["task", taskId],
           (oldData: TaskWithDetails) => {
@@ -543,7 +522,6 @@ export function useTaskSocket(taskId: string | undefined) {
       }
     }
 
-    // Register all event listeners
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('chat-history', onChatHistory);
@@ -555,7 +533,6 @@ export function useTaskSocket(taskId: string | undefined) {
     socket.on('task-status-updated', onTaskStatusUpdate);
 
     return () => {
-      // Cleanup all listeners
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('chat-history', onChatHistory);
@@ -590,14 +567,9 @@ export function useTaskSocket(taskId: string | undefined) {
   }, [socket, taskId, isStreaming]);
 
   return {
-    // Connection state
     isConnected,
-
-    // Chat state
     streamingAssistantParts,
     isStreaming,
-
-    // Actions
     sendMessage,
     stopStream,
   };
