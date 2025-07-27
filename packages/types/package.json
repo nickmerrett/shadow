@@ -14,10 +14,10 @@
   },
   "dependencies": {
     "@repo/command-security": "*",
+    "@repo/db": "*",
     "ai": "^3.4.33"
   },
   "devDependencies": {
-    "@repo/db": "*",
     "@repo/eslint-config": "^0.0.0",
     "@repo/typescript-config": "*",
     "eslint": "^9.31.0",

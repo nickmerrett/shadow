@@ -26,26 +26,30 @@ RUN npm install
 
 # Copy source files and build
 COPY --from=builder /app/out/full/ .
+
+# Generate Prisma client first (required before TypeScript compilation)
+RUN npm run generate --filter=@repo/db
+
 WORKDIR /app/apps/sidecar
-RUN npx tsc -p tsconfig.docker.json
+RUN npx tsc
 
 # Runtime stage
 FROM base AS runner
 
 # Install runtime dependencies
 RUN apk add --no-cache \
-    bash \
-    git \
-    openssh-client \
-    ripgrep \
-    findutils \
-    coreutils \
-    curl \
-    && rm -rf /var/cache/apk/*
+  bash \
+  git \
+  openssh-client \
+  ripgrep \
+  findutils \
+  coreutils \
+  curl \
+  && rm -rf /var/cache/apk/*
 
 # Create non-root user
 RUN addgroup -g 1001 sidecar && \
-    adduser -D -u 1001 -G sidecar sidecar
+  adduser -D -u 1001 -G sidecar sidecar
 
 WORKDIR /app
 
@@ -56,7 +60,7 @@ COPY --from=installer --chown=sidecar:sidecar /app/node_modules ./node_modules
 
 # Create workspace directory
 RUN mkdir -p /workspace && \
-    chown -R sidecar:sidecar /workspace
+  chown -R sidecar:sidecar /workspace
 
 # Switch to non-root user
 USER sidecar
@@ -71,7 +75,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+  CMD curl -f http://localhost:8080/health || exit 1
 
 # Start the application
 CMD ["node", "apps/sidecar/dist/server.js"]
