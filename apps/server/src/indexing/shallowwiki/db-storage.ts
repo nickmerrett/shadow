@@ -8,7 +8,7 @@ interface TokenUsage {
 }
 
 interface SummaryMetadata {
-  type: 'file_summary' | 'directory_summary' | 'root_overview';
+  type: "file_summary" | "directory_summary" | "root_overview";
   repoPath?: string;
   filePath?: string;
   language?: string;
@@ -27,7 +27,10 @@ export class DbWikiStorage {
   }
 
   private generateId(type: string, path: string): string {
-    return createHash('sha256').update(`${type}_${path}`).digest('hex').slice(0, 16);
+    return createHash("sha256")
+      .update(`${type}_${path}`)
+      .digest("hex")
+      .slice(0, 16);
   }
 
   /**
@@ -37,12 +40,17 @@ export class DbWikiStorage {
     try {
       await db.codebaseUnderstanding.deleteMany({
         where: {
-          taskId: this.taskId
-        }
+          taskId: this.taskId,
+        },
       });
-      console.log(`🗑️  Cleared CodebaseUnderstanding data for task: ${this.taskId}`);
+      console.log(
+        `🗑️  Cleared CodebaseUnderstanding data for task: ${this.taskId}`
+      );
     } catch (error) {
-      console.error(`Failed to clear CodebaseUnderstanding for task ${this.taskId}:`, error);
+      console.error(
+        `Failed to clear CodebaseUnderstanding for task ${this.taskId}:`,
+        error
+      );
     }
   }
 
@@ -62,7 +70,7 @@ export class DbWikiStorage {
   ): Promise<void> {
     // Create the content for storage - include metadata in the content
     const metadata: SummaryMetadata = {
-      type: 'file_summary',
+      type: "file_summary",
       repoPath,
       filePath,
       language,
@@ -70,12 +78,12 @@ export class DbWikiStorage {
       dependencies,
       complexity,
       lastUpdated: new Date().toISOString(),
-      tokenUsage
+      tokenUsage,
     };
 
     const fullContent = JSON.stringify({
       metadata,
-      summary
+      summary,
     });
 
     await this.upsertRecord(filePath, fullContent);
@@ -95,19 +103,19 @@ export class DbWikiStorage {
   ): Promise<void> {
     // Create the content for storage - include metadata in the content
     const metadata: SummaryMetadata = {
-      type: 'directory_summary',
+      type: "directory_summary",
       repoPath,
       filePath: dirPath,
       symbols: childFiles,
       dependencies: childDirs,
       complexity: childFiles.length + childDirs.length,
       lastUpdated: new Date().toISOString(),
-      tokenUsage
+      tokenUsage,
     };
 
     const fullContent = JSON.stringify({
       metadata,
-      summary
+      summary,
     });
 
     await this.upsertRecord(dirPath, fullContent);
@@ -126,40 +134,37 @@ export class DbWikiStorage {
   ): Promise<void> {
     // Create the content for storage - include metadata in the content
     const metadata: SummaryMetadata = {
-      type: 'root_overview',
+      type: "root_overview",
       repoPath,
       symbols: [],
       dependencies: [],
       complexity: totalFiles + totalDirs,
       lastUpdated: new Date().toISOString(),
-      tokenUsage
+      tokenUsage,
     };
 
     const fullContent = JSON.stringify({
       metadata,
-      summary: overview
+      summary: overview,
     });
 
-    await this.upsertRecord('root_overview', fullContent);
+    await this.upsertRecord("root_overview", fullContent);
   }
 
   /**
    * Internal method to create or update a record in the database
    */
-  private async upsertRecord(
-    fileName: string,
-    content: string
-  ): Promise<void> {
+  private async upsertRecord(fileName: string, content: string): Promise<void> {
     try {
       // Generate a unique ID for the file
       const recordId = this.generateId(fileName, this.taskId);
-      
+
       // Parse content to extract metadata
       let parsedContent;
       let type = "file_summary";
       let filePath = "";
       let language = null;
-      
+
       try {
         parsedContent = JSON.parse(content);
         if (parsedContent.metadata?.type) {
@@ -175,20 +180,20 @@ export class DbWikiStorage {
         console.warn("Could not parse content JSON", e);
         parsedContent = { content };
       }
-      
+
       const now = new Date();
-      
+
       // Create or update the record
       await db.codebaseUnderstanding.upsert({
         where: {
-          id: recordId
+          id: recordId,
         },
         update: {
           content: content,
           type: type,
           filePath: filePath,
           language: language,
-          updatedAt: now
+          updatedAt: now,
         },
         create: {
           id: recordId,
@@ -199,8 +204,8 @@ export class DbWikiStorage {
           filePath: filePath,
           language: language,
           createdAt: now,
-          updatedAt: now
-        }
+          updatedAt: now,
+        },
       });
 
       console.log(`💾 Stored ${fileName}`);
@@ -217,8 +222,8 @@ export class DbWikiStorage {
     try {
       const records = await db.codebaseUnderstanding.findMany({
         where: {
-          taskId: this.taskId
-        }
+          taskId: this.taskId,
+        },
       });
 
       return records.map((record: any) => {
@@ -227,8 +232,8 @@ export class DbWikiStorage {
           id: record.id,
           metadata: {
             ...parsed.metadata,
-            text: parsed.summary // Include summary in text field for compatibility
-          }
+            text: parsed.summary, // Include summary in text field for compatibility
+          },
         };
       });
     } catch (error) {
@@ -240,26 +245,31 @@ export class DbWikiStorage {
   /**
    * Helper method to parse stored content JSON
    */
-  private parseContent(content: any, recordId: string): { metadata: SummaryMetadata, summary: string } {
+  private parseContent(
+    content: any,
+    recordId: string
+  ): { metadata: SummaryMetadata; summary: string } {
     try {
       // Handle case where content is already a parsed JSON object
-      const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+      const parsed =
+        typeof content === "string" ? JSON.parse(content) : content;
       return {
         metadata: parsed.metadata || {
-          type: 'file_summary',
+          type: "file_summary",
           lastUpdated: new Date().toISOString(),
         },
-        summary: parsed.summary || ''
+        summary: parsed.summary || "",
       };
     } catch (e) {
       console.error(`Error parsing content for record ${recordId}:`, e);
       // Return fallback if parsing fails
       return {
         metadata: {
-          type: 'file_summary',
+          type: "file_summary",
           lastUpdated: new Date().toISOString(),
         },
-        summary: typeof content === 'string' ? content : JSON.stringify(content) // Use the raw content as the summary
+        summary:
+          typeof content === "string" ? content : JSON.stringify(content), // Use the raw content as the summary
       };
     }
   }
@@ -272,12 +282,12 @@ export class DbWikiStorage {
       const record = await db.codebaseUnderstanding.findFirst({
         where: {
           taskId: this.taskId,
-          fileName: filePath
-        }
+          fileName: filePath,
+        },
       });
 
       if (!record) return null;
-      
+
       const parsed = this.parseContent(record.content, record.id);
 
       return {
@@ -285,8 +295,8 @@ export class DbWikiStorage {
         metadata: {
           ...parsed.metadata,
           summary: parsed.summary,
-          text: parsed.summary
-        }
+          text: parsed.summary,
+        },
       };
     } catch (error) {
       console.error(`Error getting file summary for ${filePath}:`, error);
@@ -305,9 +315,9 @@ export class DbWikiStorage {
    * Get root overview
    */
   async getRootOverview(): Promise<any | null> {
-    return this.getFileSummary('root_overview');
+    return this.getFileSummary("root_overview");
   }
-  
+
   /**
    * Get a namespace identifier (needed for API compatibility with Pinecone version)
    */

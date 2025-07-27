@@ -11,7 +11,7 @@ import { DbWikiStorage } from "./db-storage";
 import Parser from "tree-sitter";
 import JavaScript from "tree-sitter-javascript";
 import TS from "tree-sitter-typescript";
-import Python from "tree-sitter-python";
+// import Python from "tree-sitter-python";
 
 // Configuration
 const ROOT = path.resolve(process.argv[2] || ".");
@@ -80,15 +80,15 @@ parserTS.setLanguage((TS as any).typescript);
 const parserTSX = new Parser();
 parserTSX.setLanguage((TS as any).tsx);
 const parserPy = new Parser();
-parserPy.setLanguage(Python as any);
+// parserPy.setLanguage(Python as any);
 
 // Typed language aliases for tree-sitter
 const LangJS = JavaScript as any;
 const LangTS = (TS as any).typescript;
 const LangTSX = (TS as any).tsx;
-const LangPy = Python as any;
+// const LangPy = Python as any;
 
-type LangKey = "js" | "ts" | "tsx" | "py";
+type LangKey = "js" | "ts" | "tsx";
 interface LangSpec {
   parser: Parser;
   queryDefs: Parser.Query;
@@ -158,30 +158,30 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
     `
     ),
   },
-  py: {
-    parser: parserPy,
-    extensions: [".py"],
-    queryDefs: new Parser.Query(
-      LangPy,
-      `
-      (function_definition name: (identifier) @def.name)
-      (class_definition name: (identifier) @def.name)
-    `
-    ),
-    queryCalls: new Parser.Query(
-      LangPy,
-      `
-      (call function: (identifier) @call.name)
-    `
-    ),
-    queryImports: new Parser.Query(
-      LangPy,
-      `
-      (import_from_statement module_name: (dotted_name) @import.module)
-      (import_statement name: (dotted_name) @import.module)
-    `
-    ),
-  },
+  // py: {
+  //   parser: parserPy,
+  //   extensions: [".py"],
+  //   queryDefs: new Parser.Query(
+  //     LangPy,
+  //     `
+  //     (function_definition name: (identifier) @def.name)
+  //     (class_definition name: (identifier) @def.name)
+  //   `
+  //   ),
+  //   queryCalls: new Parser.Query(
+  //     LangPy,
+  //     `
+  //     (call function: (identifier) @call.name)
+  //   `
+  //   ),
+  //   queryImports: new Parser.Query(
+  //     LangPy,
+  //     `
+  //     (import_from_statement module_name: (dotted_name) @import.module)
+  //     (import_statement name: (dotted_name) @import.module)
+  //   `
+  //   ),
+  // },
 };
 
 // Caching helpers
