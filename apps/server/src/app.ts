@@ -34,7 +34,7 @@ app.get("/", (_req, res) => {
 });
 
 // Indexing routes
-app.use("/api/indexing", IndexingRouter);
+// app.use("/api/indexing", IndexingRouter);
 
 // Files routes
 app.use("/api/tasks", filesRouter);
