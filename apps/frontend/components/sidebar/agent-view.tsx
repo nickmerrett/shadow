@@ -250,6 +250,28 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             </div>
           </SidebarMenuItem>
 
+          <div className="flex h-8 items-center gap-2 px-2 text-sm">
+            {(() => {
+              const displayStatus = getDisplayStatus(task);
+              const StatusIcon =
+                statusColorsConfig[
+                  displayStatus as keyof typeof statusColorsConfig
+                ]?.icon || CircleDashed;
+              const statusClass =
+                statusColorsConfig[
+                  displayStatus as keyof typeof statusColorsConfig
+                ]?.className || "text-muted-foreground";
+              return (
+                <>
+                  <StatusIcon className={cn("size-4", statusClass)} />
+                  <span className="capitalize">
+                    {getStatusText(task)}
+                  </span>
+                </>
+              );
+            })()}
+          </div>
+
           <SidebarMenuItem>
             <Button
               variant="link"
@@ -269,27 +291,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               />
               <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
             </Button>
-            <div className="flex h-8 items-center gap-2 px-2 text-sm">
-              {(() => {
-                const displayStatus = getDisplayStatus(task);
-                const StatusIcon =
-                  statusColorsConfig[
-                    displayStatus as keyof typeof statusColorsConfig
-                  ]?.icon || CircleDashed;
-                const statusClass =
-                  statusColorsConfig[
-                    displayStatus as keyof typeof statusColorsConfig
-                  ]?.className || "text-muted-foreground";
-                return (
-                  <>
-                    <StatusIcon className={cn("size-4", statusClass)} />
-                    <span className="capitalize">
-                      {getStatusText(task)}
-                    </span>
-                  </>
-                );
-              })()}
-            </div>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
