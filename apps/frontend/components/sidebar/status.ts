@@ -7,7 +7,6 @@ import {
   StopCircle,
   XCircleIcon,
 } from "lucide-react";
-import type { InitStepType } from "@repo/db";
 
 export const statusOrder = {
   RUNNING: 0,
@@ -45,67 +44,3 @@ export const statusColorsConfig = {
   },
   CANCELLED: { icon: XCircleIcon, className: "text-red-400", bg: "bg-red-500" },
 };
-
-/**
- * Task with initialization fields for status helpers
- */
-interface TaskWithInitFields {
-  lastCompletedStep?: InitStepType | null;
-  initializationError?: string | null;
-  status?: string;
-}
-
-/**
- * Check if task initialization has failed
- */
-export function isTaskFailed(task: TaskWithInitFields): boolean {
-  return !!task.initializationError;
-}
-
-/**
- * Check if task initialization is currently in progress
- */
-export function isTaskInProgress(task: TaskWithInitFields): boolean {
-  return !!task.lastCompletedStep && !task.initializationError;
-}
-
-/**
- * Check if task initialization has completed successfully
- */
-export function isTaskCompleted(task: TaskWithInitFields): boolean {
-  return !!task.lastCompletedStep && !task.initializationError && task.status !== 'INITIALIZING';
-}
-
-/**
- * Get display status for task (for icon/color selection)
- */
-export function getDisplayStatus(task: TaskWithInitFields): string {
-  if (isTaskFailed(task)) return "FAILED";
-  if (isTaskInProgress(task)) return "INITIALIZING"; 
-  return task.status || "STOPPED";
-}
-
-/**
- * Get status text for display (including initialization step)
- */
-// Helper to get a user-friendly name for an initialization step
-function getStepDisplayNameLocal(step?: InitStepType | null): string {
-  if (!step) return "";
-  return step
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-}
-
-export function getStatusText(task: TaskWithInitFields): string {
-  if (isTaskFailed(task)) {
-    return `Failed: ${task.initializationError}`;
-  }
-  
-  if (isTaskInProgress(task)) {
-    const stepName = getStepDisplayNameLocal(task.lastCompletedStep);
-    return `Initializing: ${stepName}`;
-  }
-  
-  return task.status?.toLowerCase().replace("_", " ") || "stopped";
-}
