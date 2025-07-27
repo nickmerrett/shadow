@@ -22,9 +22,8 @@ import { StickToBottom, type StickToBottomContext } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
 import { TaskPageContent } from "./task-content";
 import { useTask } from "@/hooks/use-task";
-import { useParams, usePathname } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useAgentEnvironment } from "../agent-environment/agent-environment-context";
-import { CodebaseUnderstandingView } from "../codebase-understanding/codebase-understanding-view";
 
 export function TaskPageWrapper({
   initialLayout,
@@ -32,7 +31,6 @@ export function TaskPageWrapper({
   initialLayout: number[] | null;
 }) {
   const { taskId } = useParams<{ taskId: string }>();
-  const pathname = usePathname();
   const { open } = useSidebar();
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -214,12 +212,7 @@ export function TaskPageWrapper({
               </Tooltip>
             </div>
           </div>
-          {/* Render the appropriate content based on URL pathname */}
-          {pathname && pathname.startsWith("/codebase") ? (
-            <CodebaseUnderstandingView taskId={taskId} />
-          ) : (
-            <TaskPageContent isAtTop={isAtTop} />
-          )}
+          <TaskPageContent isAtTop={isAtTop} />
         </StickToBottom>
       </ResizablePanel>
       <ResizableHandle />
