@@ -15,7 +15,7 @@ const shallowwikiRouter = express.Router();
  * This uses the workspace manager to get files from the task workspace
  */
 shallowwikiRouter.post(
-  "/generate-workspace-summaries",
+  "/codebase-understanding",
   async (
     req: express.Request<{}, {}, { taskId: string; forceRefresh?: boolean }>,
     res,

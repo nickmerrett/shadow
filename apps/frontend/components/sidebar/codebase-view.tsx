@@ -18,7 +18,7 @@ import {
 import { useEffect, useState } from "react";
 import { useCodebaseUnderstanding } from "@/components/codebase-understanding/codebase-understanding-context";
 import { getWorkspaceSummaries } from "@/lib/actions/summaries";
-import { callWorkspaceIndexApi } from "@/lib/actions/index-workspace";
+import { useRunShallowWiki } from "@/hooks/use-shallow-wiki";
 
 interface CodebaseSummary {
   id: string;
@@ -36,7 +36,7 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
   const { selectSummary } = useCodebaseUnderstanding();
   const [summaries, setSummaries] = useState<CodebaseSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isIndexing, setIsIndexing] = useState(false);
+  const runShallowWiki = useRunShallowWiki();
 
   // Load workspace summaries
   const loadSummaries = async () => {
@@ -98,15 +98,11 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
     if (!taskId) return;
 
     try {
-      setIsIndexing(true);
-      await callWorkspaceIndexApi(taskId, false, true);
-
+      await runShallowWiki.mutateAsync({ taskId, forceRefresh: true });
       // Reload summaries after indexing
       await loadSummaries();
     } catch (error) {
       console.error("Error generating summaries", error);
-    } finally {
-      setIsIndexing(false);
     }
   };
 
@@ -287,11 +283,11 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
         <div className="border-sidebar-border flex-shrink-0 border-b p-4">
           <Button
             onClick={generateSummaries}
-            disabled={isIndexing}
+            disabled={runShallowWiki.isPending}
             className="w-full"
             size="sm"
           >
-            {isIndexing ? (
+            {runShallowWiki.isPending ? (
               <>
                 <RefreshCw className="mr-2 size-4 animate-spin" />
                 Reindexing...
