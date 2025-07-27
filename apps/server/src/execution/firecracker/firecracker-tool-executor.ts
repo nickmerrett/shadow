@@ -22,7 +22,7 @@ import {
 } from "@repo/types";
 import { CommandResult } from "../interfaces/types";
 import { EmbeddingSearchResult } from "@/indexing/embedding/types";
-import config from "../../config/index";
+import config from "../../config";
 
 /**
  * FirecrackerToolExecutor executes tools in Firecracker microVMs via sidecar API
