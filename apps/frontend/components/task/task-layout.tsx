@@ -22,9 +22,8 @@ import { StickToBottom, type StickToBottomContext } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
 import { TaskPageContent } from "./task-content";
 import { useTask } from "@/hooks/use-task";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { useAgentEnvironment } from "../agent-environment/agent-environment-context";
-import { useSidebarView } from "../sidebar/sidebar-context";
 import { CodebaseUnderstandingView } from "../codebase-understanding/codebase-understanding-view";
 
 export function TaskPageLayout({
@@ -33,14 +32,15 @@ export function TaskPageLayout({
   initialLayout: number[] | null;
 }) {
   const { taskId } = useParams<{ taskId: string }>();
+  const pathname = usePathname();
   const { open } = useSidebar();
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { task } = useTask(taskId);
   const [editValue, setEditValue] = useState(task?.title || "");
-  // Use the sidebar context to get the current view
-  const { sidebarView } = useSidebarView();
+  // We don't need to access the sidebar view from context anymore
+  // Just check the pathname directly to determine what to render
 
   const stickToBottomContextRef = useRef<StickToBottomContext>(null);
   const { isAtTop } = useIsAtTop(0, stickToBottomContextRef.current?.scrollRef);
@@ -214,8 +214,8 @@ export function TaskPageLayout({
               </Tooltip>
             </div>
           </div>
-          {/* Render the appropriate content based on URL parameter */}
-          {sidebarView === "codebase" ? (
+          {/* Render the appropriate content based on URL pathname */}
+          {pathname && pathname.startsWith('/codebase') ? (
             <CodebaseUnderstandingView taskId={taskId} />
           ) : (
             <TaskPageContent isAtTop={isAtTop} />
