@@ -42,6 +42,14 @@ export const sharedConfigSchema = z.object({
   PINECONE_API_KEY: z.string().optional(),
   PINECONE_INDEX_NAME: z.string().default("shadow"),
   EMBEDDING_MODEL: z.string().default("llama-text-embed-v2"),
+  // ShallowWiki model and concurrency settings
+  CONCURRENCY: z.coerce.number().default(4),
+  MODEL: z.string().default("gpt-4o"),
+  MODEL_MINI: z.string().default("gpt-4o-mini"),
+  USE_PINECONE: z.union([
+    z.boolean(),
+    z.string().transform(val => val === 'true')
+  ]).default(false),
 });
 
 /**
@@ -91,6 +99,11 @@ export const createSharedConfig = (data: z.infer<typeof sharedConfigSchema>) => 
   pineconeApiKey: data.PINECONE_API_KEY,
   pineconeIndexName: data.PINECONE_INDEX_NAME,
   embeddingModel: data.EMBEDDING_MODEL,
+  // ShallowWiki settings
+  concurrency: data.CONCURRENCY,
+  model: data.MODEL,
+  modelMini: data.MODEL_MINI,
+  usePinecone: data.USE_PINECONE,
 });
 
 export type SharedConfig = ReturnType<typeof createSharedConfig>;
