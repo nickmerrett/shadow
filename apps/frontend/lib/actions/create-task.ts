@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { after } from "next/server";
 import { z } from "zod";
 import { generateTaskTitleAndBranch } from "./generate-title-branch";
-import { saveLayoutCookie } from "./save-sidebar-cookie";
+import { saveResizableTaskLayoutCookie } from "./resizable-task-cookie";
 import { fetchIndexApi } from "./index-repo";
 
 const createTaskSchema = z.object({
@@ -29,7 +29,7 @@ export async function createTask(formData: FormData) {
   }
 
   // Reset the agent environment layout cookie on task creation. This can happen asynchronously so no need to await.
-  saveLayoutCookie("taskLayout", [100, 0]);
+  saveResizableTaskLayoutCookie("taskLayout", [100, 0]);
 
   const rawData = {
     message: formData.get("message") as string,
