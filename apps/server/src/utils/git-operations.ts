@@ -355,6 +355,8 @@ export async function hasGitRepository(taskId: string): Promise<boolean> {
   try {
     const { stdout } = await execAsync('git rev-parse --git-dir', { cwd: workspacePath });
 
+    // This check is necessary in case our local workspace directory has an ancestor git repository
+    // That would cause git status to return the parent's changes if the git clone failed, leading to file status bugs
     return (stdout.trim() === `${workspacePath}/.git`)
   } catch {
     return false;
