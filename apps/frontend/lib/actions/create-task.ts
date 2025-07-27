@@ -7,7 +7,7 @@ import { after } from "next/server";
 import { z } from "zod";
 import { generateTaskTitleAndBranch } from "./generate-title-branch";
 import { saveLayoutCookie } from "./save-sidebar-cookie";
-import callIndexApi, { gitHubUrlToRepoName } from "./index-repo";
+import { fetchIndexApi } from "./index-repo";
 
 const createTaskSchema = z.object({
   message: z.string().min(1, "Message is required").max(1000, "Message too long"),
@@ -85,7 +85,7 @@ export async function createTask(formData: FormData) {
       try {
         // Initiate the task on the backend
         const baseUrl =
-          process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
         const response = await fetch(
           `${baseUrl}/api/tasks/${task.id}/initiate`,
           {
@@ -100,10 +100,8 @@ export async function createTask(formData: FormData) {
             }),
           }
         );
-        
-        const repoName = gitHubUrlToRepoName(repoUrl);
-        console.log("Indexing repo", repoName);
-        await callIndexApi(repoName, task.id, true);
+
+        await fetchIndexApi({ repoUrl, taskId: task.id, clearNamespace: true });
         console.log("Repo indexed");
         if (!response.ok) {
           console.error("Failed to initiate task:", await response.text());

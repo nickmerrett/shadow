@@ -10,16 +10,6 @@ import { shallowwikiRouter } from "./shallowwiki/routes";
 const router = express.Router();
 const pinecone = new PineconeHandler();
 
-interface CodeBody {
-  text: string;
-  language: string;
-  filePath: string;
-}
-// Basic hello world route
-router.get("/", (req, res) => {
-  res.json({ message: "Hello from indexing API!" });
-});
-
 // Mount the ShallowWiki router
 router.use("/shallowwiki", shallowwikiRouter);
 
@@ -31,8 +21,8 @@ router.post(
     next
   ) => {
     console.log("Indexing repo", req.body.repo);
-    console.log("Semantic search enabled: ", config.useSemanticSearch);
-    if (!config.useSemanticSearch) {
+    console.log("Semantic search enabled: ", config.enableSemanticSearch);
+    if (!config.enableSemanticSearch) {
       console.log("Semantic search is not enabled - skipping indexing");
       return res.status(200).json({ message: "Semantic search is not enabled - skipping indexing" });
     }
@@ -47,10 +37,10 @@ router.post(
     try {
       const result = await indexRepo(repo, taskId, { ...options, clearNamespace: clearNamespace });
       res.json({ message: "Indexing complete", ...result });
-    } catch (error: any) {
-      if (error.message.includes("Not Found")) {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes("Not Found")) {
         return res.status(500).json({
-          error: `Failed to fetch repository: ${error.message}`,
+          error: `Failed to fetch repository: ${error.message}`
         });
       }
       next(error);
@@ -133,7 +123,7 @@ router.post(
         message: "DeepWiki indexing complete",
         ...result
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("DeepWiki indexing error:", error);
       next(error);
     }
@@ -184,7 +174,7 @@ router.post(
           lastUpdated: result.metadata?.lastUpdated
         }))
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("DeepWiki search error:", error);
       next(error);
     }
@@ -243,7 +233,7 @@ router.post(
         namespace: storage.getNamespace(),
         result
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("DeepWiki get summary error:", error);
       next(error);
     }

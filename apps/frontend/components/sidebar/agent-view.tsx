@@ -5,7 +5,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useTask } from "@/hooks/use-task";
-import { cn } from "@/lib/utils";
+import { cn, parseRepoUrl } from "@/lib/utils";
 import {
   CircleDashed,
   FileDiff,
@@ -18,23 +18,15 @@ import {
   SquareX,
 } from "lucide-react";
 import { useCallback, useMemo, useState, useEffect } from "react";
-import { statusColorsConfig, getDisplayStatus, getStatusText } from "./status";
+import { statusColorsConfig, getDisplayStatus } from "./status";
 import { FileExplorer } from "@/components/agent-environment/file-explorer";
-import { FileNode } from "@repo/types";
+import { FileNode, getStatusText } from "@repo/types";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { Button } from "@/components/ui/button";
-import callIndexApi, { gitHubUrlToRepoName } from "@/lib/actions/index-repo";
-import callWorkspaceIndexApi, { getWorkspaceSummaries } from "@/lib/actions/index-workspace";
+import { fetchIndexApi } from "@/lib/actions/index-repo";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, FileText, Folder } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FileText } from "lucide-react";
 
 // Todo status config - aligned with main status colors
 const todoStatusConfig = {
@@ -103,7 +95,8 @@ function createFileTree(filePaths: string[]): FileNode[] {
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
   const { setSelectedFilePath, expandRightPanel, setSelectedSummary } = useAgentEnvironment();
-  const repoName = gitHubUrlToRepoName(task!.repoUrl);
+
+  const { owner, repo } = parseRepoUrl(task!.repoUrl);
   const [isIndexing, setIsIndexing] = useState(false);
 
   const completedTodos = useMemo(
@@ -228,7 +221,36 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
     <>
       <SidebarGroup>
         <SidebarGroupContent>
-          {/* Live task status */}
+          <SidebarMenuItem>
+            <div className="flex h-8 items-center gap-2 px-2 text-sm">
+              <GitBranch className="size-4" />
+              <Link
+                href={`${task.repoUrl}/tree/${task.shadowBranch}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="line-clamp-1 text-sm transition-colors hover:underline"
+                title="View branch on GitHub"
+              >
+                {parseRepoUrl(task.repoUrl).repo}
+              </Link>
+            </div>
+          </SidebarMenuItem>
+
+          <SidebarMenuItem>
+            <div className="flex h-8 items-center gap-2 px-2 text-sm">
+              <GitBranch className="size-4" />
+              <Link
+                href={`${task.repoUrl}/tree/${task.shadowBranch}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="line-clamp-1 text-sm transition-colors hover:underline"
+                title="View branch on GitHub"
+              >
+                {task.shadowBranch}
+              </Link>
+            </div>
+          </SidebarMenuItem>
+
           <SidebarMenuItem>
             <Button
               variant="link"
@@ -237,7 +259,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               onClick={async () => {
                 setIsIndexing(true);
                 try {
-                  await callIndexApi(repoName, task.id, true);
+                  await fetchIndexApi({ repoUrl: `${owner}/${repo}`, taskId: task.id, clearNamespace: true });
                 } finally {
                   setIsIndexing(false);
                 }
@@ -271,31 +293,15 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             </div>
           </SidebarMenuItem>
 
-          {/* Task branch name */}
-          <SidebarMenuItem>
-            <div className="flex h-8 items-center gap-2 px-2 text-sm">
-              <GitBranch className="size-4" />
-              <Link
-                href={`${task.repoUrl}/tree/${task.shadowBranch}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="line-clamp-1 text-sm transition-colors hover:underline"
-                title="View branch on GitHub"
-              >
-                {task.shadowBranch}
-              </Link>
-            </div>
-          </SidebarMenuItem>
-
           <SidebarMenuItem>
             <Button
               variant="link"
-              className="transition-all ease-out duration-100"
+              className="transition-all duration-100 ease-out"
               size="sm"
               onClick={handleIndexWorkspace}
             >
               <FileText
-                className={cn("size-4 mr-1", isWorkspaceIndexing && "animate-spin")}
+                className={cn("mr-1 size-4", isWorkspaceIndexing && "animate-spin")}
               />
               <span>{isWorkspaceIndexing ? "Generating..." : "Generate Summaries"}</span>
             </Button>

@@ -26,3 +26,6 @@ export * from './sidecar';
 
 // === Initialization Types ===
 export * from './init/steps';
+
+// === Task Status Types ===
+export * from './tasks';

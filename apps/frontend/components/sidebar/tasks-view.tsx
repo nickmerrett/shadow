@@ -13,7 +13,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "../ui/collapsible";
-import { statusColorsConfig, statusOrder, getDisplayStatus, getStatusText } from "./status";
+import { statusColorsConfig, statusOrder, getDisplayStatus } from "./status";
+import { getStatusText } from "@repo/types";
 
 type GroupedTasks = {
   [repoUrl: string]: {

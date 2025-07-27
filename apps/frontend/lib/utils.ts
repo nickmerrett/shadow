@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import z from "zod";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -49,4 +50,19 @@ export function formatTimeAgo(dateString: string): string {
   if (diffMinutes < 60) return `${diffMinutes}m`;
   if (diffHours < 24) return `${diffHours}h`;
   return `${diffDays}d`;
+}
+
+export function parseRepoUrl(repoUrl: string): { owner: string; repo: string } {
+  const urlParts = repoUrl.replace("https://github.com/", "").split("/");
+  if (urlParts.length !== 2) {
+    throw new Error(`Invalid repository URL format: ${repoUrl}`);
+  }
+
+  const [owner, repo] = urlParts;
+
+  if (!owner || !repo) {
+    throw new Error(`Invalid repository URL format: ${repoUrl}`);
+  }
+
+  return { owner, repo };
 }

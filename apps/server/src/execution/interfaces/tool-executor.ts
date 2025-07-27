@@ -18,6 +18,7 @@ import {
   GitPushResponse,
   GitCommitRequest,
   GitPushRequest,
+  CodebaseSearchResult,
 } from "@repo/types";
 import { CommandResult } from "./types";
 
