@@ -76,7 +76,7 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
         )}
       />
 
-      <Messages messages={displayMessages} />
+      <Messages taskId={taskId} messages={displayMessages} />
 
       <ScrollToBottom />
 

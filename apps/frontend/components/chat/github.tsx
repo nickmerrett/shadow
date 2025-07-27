@@ -27,6 +27,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import type { FilteredRepository as Repository } from "@/lib/github/types";
+import Image from "next/image";
+import Link from "next/link";
 
 export function GithubConnection({
   selectedRepo,
@@ -205,7 +207,7 @@ export function GithubConnection({
   const renderConnectGitHub = (
     <div className="flex flex-col gap-2 p-4">
       <div className="flex items-center gap-2">
-        <img
+        <Image
           src="/github.svg"
           alt="GitHub"
           className="size-4"
@@ -214,24 +216,29 @@ export function GithubConnection({
         />
         <div className="font-medium">Connect Github</div>
       </div>
-      <div className="text-muted-foreground mb-4 text-sm">
-        {statusError
-          ? "Unable to check GitHub connection. Try again or report an issue."
-          : "For required access, install the Shadow GitHub App to your organization."}
-      </div>
+      {statusError ?
+        <div className="text-destructive mb-4 text-sm">
+          Unable to check GitHub connection. Try again or contact us to report.
+        </div>
+        :
+        <div className="text-muted-foreground mb-4 text-sm">
+          For full access, install Shadow into your organization. If you&apos;re seeing this and already installed, hit &apos;Save&apos; in Github.
+        </div>}
 
-      {githubStatus?.installationUrl && (
-        <Button
-          onClick={() => {
-            window.open(githubStatus.installationUrl, "_blank");
-            setIsOpen(false);
-          }}
-          className="w-full"
-        >
-          Install GitHub App
-        </Button>
-      )}
-    </div>
+      {
+        githubStatus?.installationUrl && (
+          <Button
+            onClick={() => {
+              window.open(githubStatus.installationUrl, "_blank");
+              setIsOpen(false);
+            }}
+            className="w-full"
+          >
+            Install GitHub App
+          </Button>
+        )
+      }
+    </div >
   );
 
   const renderRepos = (
@@ -297,6 +304,19 @@ export function GithubConnection({
           ))
         )}
       </div>
+      <Link
+        href={`https://github.com/settings/installations/${githubStatus?.installationId}`}
+        target="_blank"
+        className="hover:bg-sidebar-accent flex h-9 w-full cursor-pointer items-center gap-2 border-t px-2 text-sm transition-colors"
+      >
+        <Image
+          src="/github.svg"
+          alt="GitHub"
+          width={16}
+          height={16}
+        />
+        <span>Manage Github</span>
+      </Link>
     </div>
   );
 
@@ -341,6 +361,20 @@ export function GithubConnection({
           ))
         )}
       </div>
+
+      <Link
+        href={`https://github.com/settings/installations/${githubStatus?.installationId}`}
+        target="_blank"
+        className="hover:bg-sidebar-accent flex h-9 w-full cursor-pointer items-center gap-2 border-t px-2 text-sm transition-colors"
+      >
+        <Image
+          src="/github.svg"
+          alt="GitHub"
+          width={16}
+          height={16}
+        />
+        <span>Manage Github</span>
+      </Link>
     </div>
   );
 

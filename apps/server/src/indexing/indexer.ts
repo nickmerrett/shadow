@@ -347,7 +347,7 @@ async function indexRepo(
 // Quick signature to see what a function does
 function buildSignatureFromNode(
   node: { startIndex: number; endIndex: number } | undefined,
-  spec: any,
+  _spec: any,
   sourceText: string | undefined
 ): string {
   if (!node || !sourceText) return "";

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import {
   CircleDashed,
   FileDiff,
+  Folder,
   FolderGit2,
   GitBranch,
   ListTodo,
@@ -18,9 +19,9 @@ import {
   SquareX,
 } from "lucide-react";
 import { useCallback, useMemo, useState, useEffect } from "react";
-import { statusColorsConfig } from "./status";
+import { statusColorsConfig, getDisplayStatus } from "./status";
 import { FileExplorer } from "@/components/agent-environment/file-explorer";
-import { FileNode } from "@repo/types";
+import { FileNode, getStatusText } from "@repo/types";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { Button } from "@/components/ui/button";
 import callIndexApi, { gitHubUrlToRepoName } from "@/lib/actions/index-repo";
@@ -28,14 +29,7 @@ import callWorkspaceIndexApi from "@/lib/actions/index-workspace";
 import { getWorkspaceSummaries, getWorkspaceSummaryById } from "@/lib/actions/summaries";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, FileText, Folder } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FileText } from "lucide-react";
 
 // Todo status config - aligned with main status colors
 const todoStatusConfig = {
@@ -103,8 +97,9 @@ function createFileTree(filePaths: string[]): FileNode[] {
 
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
-  const { setSelectedFilePath, expandRightPanel, setSelectedSummary } = useAgentEnvironment();
-  const repoName = gitHubUrlToRepoName(task!.repoUrl);
+  const { setSelectedFilePath, expandRightPanel, setSelectedSummary } =
+    useAgentEnvironment();
+
   const [isIndexing, setIsIndexing] = useState(false);
 
   const completedTodos = useMemo(
@@ -166,7 +161,11 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       console.log("Summaries data received from server action:", summariesData);
 
       if (summariesData && summariesData.length > 0) {
-        console.log("Setting workspace summaries:", summariesData.length, "items");
+        console.log(
+          "Setting workspace summaries:",
+          summariesData.length,
+          "items"
+        );
         setWorkspaceSummaries(summariesData);
       } else {
         console.log("No summaries data available, setting empty array");
@@ -226,26 +225,17 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupContent>
-          {/* Live task status */}
+        <SidebarGroupContent className="flex flex-col gap-0.5">
           <SidebarMenuItem>
             <Button
-              variant="link"
-              className="transition-all duration-100 ease-out"
-              size="sm"
-              onClick={async () => {
-                setIsIndexing(true);
-                try {
-                  await callIndexApi(repoName, task.id, true);
-                } finally {
-                  setIsIndexing(false);
-                }
-              }}
+              variant="ghost"
+              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+              asChild
             >
-              <RefreshCcw
-                className={cn("mr-1 size-4", isIndexing && "animate-spin")}
-              />
-              <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
+              <Link href={`${task.repoUrl}`} target="_blank">
+                <Folder className="size-4 shrink-0" />
+                <span className="truncate">{task.repoFullName}</span>
+              </Link>
             </Button>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               {(() => {
@@ -267,18 +257,18 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             </div>
           </SidebarMenuItem>
 
-          {/* Task branch name */}
           <SidebarMenuItem>
-            <div className="flex h-8 items-center gap-2 px-2 text-sm">
-              <GitBranch className="size-4" />
+            <Button
+              variant="ghost"
+              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+              asChild
+            >
               <Link
                 href={`${task.repoUrl}/tree/${task.shadowBranch}`}
                 target="_blank"
-                rel="noopener noreferrer"
-                className="line-clamp-1 text-sm transition-colors hover:underline"
-                title="View branch on GitHub"
               >
-                {task.shadowBranch}
+                <GitBranch className="size-4 shrink-0" />
+                <span className="truncate">{task.shadowBranch}</span>
               </Link>
             </div>
           </SidebarMenuItem>
@@ -312,6 +302,45 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         </SidebarGroupContent>
       </SidebarGroup>
 
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenuItem>
+            <Button
+              variant="ghost"
+              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+              onClick={async () => {
+                setIsIndexing(true);
+                try {
+                  await fetchIndexApi({
+                    repoFullName: task.repoFullName,
+                    taskId: task.id,
+                    clearNamespace: true,
+                  });
+                } finally {
+                  setIsIndexing(false);
+                }
+              }}
+            >
+              <RefreshCcw className="size-4 shrink-0" />
+              <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
+            </Button>
+          </SidebarMenuItem>
+
+          <SidebarMenuItem>
+            <Button
+              variant="ghost"
+              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+              onClick={handleIndexWorkspace}
+            >
+              <FileText className="size-4 shrink-0" />
+              <span>
+                {isWorkspaceIndexing ? "Generating..." : "Generate Summaries"}
+              </span>
+            </Button>
+          </SidebarMenuItem>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
       {/* Task List (Todos) */}
       {todos.length > 0 && (
         <SidebarGroup>
@@ -341,7 +370,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                       className={cn(
                         "flex min-h-8 items-start gap-2 p-2 pb-0 text-sm",
                         todo.status === "COMPLETED" &&
-                        "text-muted-foreground line-through"
+                          "text-muted-foreground line-through"
                       )}
                     >
                       <TodoIcon className={cn("size-4", iconClass)} />
@@ -380,9 +409,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           </SidebarGroupContent>
         </SidebarGroup>
       )}
-
-
-
     </>
   );
 }
