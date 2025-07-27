@@ -17,7 +17,7 @@ const prodConfigSchema = sharedConfigSchema.extend({
   // === EXECUTION MODE ===
   // Controls how agent code executes - 'firecracker' for VM isolation, 'local' for direct execution
   AGENT_MODE: z.enum(["local", "firecracker"]).default("firecracker"),
-  
+
   // === FIRECRACKER VM CORE CONFIGURATION ===
   // Enable Firecracker microVM execution (hardware-isolated containers)
   FIRECRACKER_ENABLED: z.boolean().default(true),
@@ -30,8 +30,8 @@ const prodConfigSchema = sharedConfigSchema.extend({
   // Number of vCPUs allocated per VM (1-16 cores)
   VM_CPU_COUNT: z.coerce.number().min(1).max(16).default(1),
   // Memory allocated per VM in megabytes (512MB - 16GB)
-  VM_MEMORY_SIZE_MB: z.coerce.number().min(512).max(16384).default(1024),
-  
+  VM_MEMORY_SIZE_MB: z.coerce.number().min(512).max(16384).default(512),
+
   // === VM IMAGE BUILD CONFIGURATION ===
   // These control how VM images are built during deployment
   // Ubuntu base image version for VM filesystem
@@ -48,7 +48,7 @@ const prodConfigSchema = sharedConfigSchema.extend({
   ROOTFS_COMPRESSION: z.string().default("gzip"),
   // Compression for kernel image (reduces boot time)
   KERNEL_COMPRESSION: z.string().default("gzip"),
-  
+
   // === KUBERNETES CLUSTER CONFIGURATION ===
   // Namespace where Firecracker pods are deployed
   KUBERNETES_NAMESPACE: z.string().default("shadow"),
@@ -58,7 +58,7 @@ const prodConfigSchema = sharedConfigSchema.extend({
   KUBERNETES_SERVICE_PORT: z.string().optional(),
   // Service account token for pod creation and management
   K8S_SERVICE_ACCOUNT_TOKEN: z.string().min(1, "K8S_SERVICE_ACCOUNT_TOKEN is required in production"),
-  
+
   // === KUBERNETES POD CONFIGURATION ===
   // Node selector to target bare metal instances with KVM support
   FIRECRACKER_NODE_SELECTOR: z.string().default("firecracker=true"),
@@ -74,7 +74,7 @@ const prodConfigSchema = sharedConfigSchema.extend({
   PRIVILEGED_CONTAINERS: z.boolean().default(true),
   // Linux capabilities needed for VM management
   REQUIRED_CAPABILITIES: z.string().default("SYS_ADMIN,NET_ADMIN"),
-  
+
   // === STORAGE CONFIGURATION ===
   // AWS EFS volume ID for persistent workspace storage (optional)
   EFS_VOLUME_ID: z.string().optional(),
@@ -82,13 +82,13 @@ const prodConfigSchema = sharedConfigSchema.extend({
   WORKSPACE_STORAGE_CLASS: z.string().default("gp3"),
   // Storage class for VM ephemeral storage (fast-nvme = high IOPS)
   VM_STORAGE_CLASS: z.string().default("fast-nvme"),
-  
+
   // === NETWORK CONFIGURATION ===
   // Kubernetes cluster DNS suffix for service discovery
   CLUSTER_DNS_SUFFIX: z.string().default("cluster.local"),
   // Network policy name for VM traffic isolation
   VM_NETWORK_POLICY: z.string().default("shadow-vm-isolation"),
-  
+
   // === VM SECURITY SETTINGS ===
   // User ID for Firecracker jailer (isolates VM process)
   JAILER_UID: z.coerce.number().default(1000),
@@ -102,7 +102,7 @@ const prodConfigSchema = sharedConfigSchema.extend({
   VM_OPEN_FILES_LIMIT: z.coerce.number().default(1024),
   // Maximum processes per VM (prevents fork bombs)
   VM_PROCESS_LIMIT: z.coerce.number().default(100),
-  
+
   // === MONITORING & LOGGING ===
   // Application log level (debug/info/warn/error)
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
@@ -118,7 +118,7 @@ const prodConfigSchema = sharedConfigSchema.extend({
   HEALTH_CHECK_INTERVAL: z.coerce.number().default(30000),
   // Timeout for VM health check responses
   VM_HEALTH_CHECK_TIMEOUT: z.coerce.number().default(5000),
-  
+
   // === PERFORMANCE TUNING ===
   // Maximum time to wait for VM boot completion (2 minutes)
   VM_BOOT_TIMEOUT: z.coerce.number().default(120000), // 2 minutes
@@ -138,19 +138,19 @@ const prodConfigSchema = sharedConfigSchema.extend({
   TERMINAL_BUFFER_MEMORY_MB: z.coerce.number().default(50),
   // Interval to flush terminal buffers to storage
   TERMINAL_FLUSH_INTERVAL: z.coerce.number().default(60000),
-  
+
   // === AWS CONFIGURATION ===
   // AWS region for EKS cluster and supporting services
   AWS_REGION: z.string().default("us-west-2"),
   // EC2 instance types for Kubernetes nodes (metal instances support KVM)
   EC2_INSTANCE_TYPES: z.string().default("c5.metal,m6i.metal"),
-  
+
   // === CONTAINER REGISTRY CONFIGURATION ===
   // When to pull VM images (Always = latest security updates)
   IMAGE_PULL_POLICY: z.string().default("Always"),
   // Kubernetes secret for private registry authentication
   IMAGE_PULL_SECRETS: z.string().default("ecr-registry-secret"),
-  
+
   // === ERROR HANDLING & RESILIENCE ===
   // Timeout for individual VM operations (create, start, stop)
   VM_OPERATION_TIMEOUT: z.coerce.number().default(30000),
@@ -168,15 +168,15 @@ const prodConfigSchema = sharedConfigSchema.extend({
   AUTO_RESTART_FAILED_VMS: z.boolean().default(true),
   // Maximum attempts to restart a failed VM before giving up
   MAX_VM_RESTART_ATTEMPTS: z.coerce.number().default(3),
-  
+
   // === VM RESOURCE LIMITS ===
   // Kubernetes CPU limit per VM (1000m = 1 CPU core)
-  VM_CPU_LIMIT: z.string().regex(/^\d+(m|)$/, "VM_CPU_LIMIT must be valid CPU format (e.g., 1000m)").default("1000m"),
+  VM_CPU_LIMIT: z.string().regex(/^\d+(m|)$/, "VM_CPU_LIMIT must be valid CPU format (e.g., 1000m)").default("500m"),
   // Kubernetes memory limit per VM (2Gi = 2 gigabytes)
-  VM_MEMORY_LIMIT: z.string().regex(/^\d+(Mi|Gi)$/, "VM_MEMORY_LIMIT must be valid memory format (e.g., 2Gi)").default("2Gi"),
+  VM_MEMORY_LIMIT: z.string().regex(/^\d+(Mi|Gi)$/, "VM_MEMORY_LIMIT must be valid memory format (e.g., 2Gi)").default("1Gi"),
   // Kubernetes storage limit per VM (10Gi = 10 gigabytes)
   VM_STORAGE_LIMIT: z.string().regex(/^\d+(Mi|Gi)$/, "VM_STORAGE_LIMIT must be valid storage format (e.g., 10Gi)").default("10Gi"),
-  
+
   // === FALLBACK CONFIGURATION ===
   // Local workspace directory (used if AGENT_MODE falls back to 'local')
   WORKSPACE_DIR: z.string().default("/var/lib/shadow/workspaces"),
@@ -187,7 +187,7 @@ const prodConfigSchema = sharedConfigSchema.extend({
  */
 const prodValidationRules = (data: z.infer<typeof prodConfigSchema>) => {
   const errors: string[] = [];
-  
+
   // If firecracker mode is enabled, ensure required fields are present
   if (data.AGENT_MODE === "firecracker" && data.FIRECRACKER_ENABLED) {
     if (!data.VM_IMAGE_REGISTRY) {
@@ -197,7 +197,7 @@ const prodValidationRules = (data: z.infer<typeof prodConfigSchema>) => {
       errors.push("K8S_SERVICE_ACCOUNT_TOKEN is required when using firecracker mode");
     }
   }
-  
+
   // Validate VM resource consistency
   const memoryMB = data.VM_MEMORY_SIZE_MB;
   const memoryLimit = data.VM_MEMORY_LIMIT;
@@ -207,7 +207,7 @@ const prodValidationRules = (data: z.infer<typeof prodConfigSchema>) => {
       errors.push(`VM_MEMORY_SIZE_MB (${memoryMB}) cannot exceed VM_MEMORY_LIMIT (${memoryLimit})`);
     }
   }
-  
+
   if (errors.length > 0) {
     return {
       success: false,
@@ -217,7 +217,7 @@ const prodValidationRules = (data: z.infer<typeof prodConfigSchema>) => {
       },
     };
   }
-  
+
   return { success: true };
 };
 
@@ -251,13 +251,13 @@ if (!prodValidation.success) {
  */
 const prodConfig = {
   ...createSharedConfig(parsed.data),
-  
+
   // Execution mode
   agentMode: parsed.data.AGENT_MODE,
-  
+
   // Production workspace
   workspaceDir: parsed.data.WORKSPACE_DIR,
-  
+
   // Firecracker VM configuration
   firecrackerEnabled: parsed.data.FIRECRACKER_ENABLED,
   vmImageRegistry: parsed.data.VM_IMAGE_REGISTRY,
@@ -265,7 +265,7 @@ const prodConfig = {
   firecrackerKernelPath: parsed.data.FIRECRACKER_KERNEL_PATH,
   vmCpuCount: parsed.data.VM_CPU_COUNT,
   vmMemorySizeMB: parsed.data.VM_MEMORY_SIZE_MB,
-  
+
   // VM Image Build Configuration
   ubuntuVersion: parsed.data.UBUNTU_VERSION,
   nodeVersion: parsed.data.NODE_VERSION,
@@ -274,13 +274,13 @@ const prodConfig = {
   vmImageSize: parsed.data.VM_IMAGE_SIZE,
   rootfsCompression: parsed.data.ROOTFS_COMPRESSION,
   kernelCompression: parsed.data.KERNEL_COMPRESSION,
-  
+
   // Kubernetes configuration
   kubernetesNamespace: parsed.data.KUBERNETES_NAMESPACE,
   kubernetesServiceHost: parsed.data.KUBERNETES_SERVICE_HOST,
   kubernetesServicePort: parsed.data.KUBERNETES_SERVICE_PORT,
   k8sServiceAccountToken: parsed.data.K8S_SERVICE_ACCOUNT_TOKEN,
-  
+
   // Kubernetes Pod Configuration
   firecrackerNodeSelector: parsed.data.FIRECRACKER_NODE_SELECTOR,
   kvmDevicePath: parsed.data.KVM_DEVICE_PATH,
@@ -289,16 +289,16 @@ const prodConfig = {
   runtimeClass: parsed.data.RUNTIME_CLASS,
   privilegedContainers: parsed.data.PRIVILEGED_CONTAINERS,
   requiredCapabilities: parsed.data.REQUIRED_CAPABILITIES,
-  
+
   // Storage
   efsVolumeId: parsed.data.EFS_VOLUME_ID,
   workspaceStorageClass: parsed.data.WORKSPACE_STORAGE_CLASS,
   vmStorageClass: parsed.data.VM_STORAGE_CLASS,
-  
+
   // Network configuration
   clusterDnsSuffix: parsed.data.CLUSTER_DNS_SUFFIX,
   vmNetworkPolicy: parsed.data.VM_NETWORK_POLICY,
-  
+
   // VM Security settings
   jailerUid: parsed.data.JAILER_UID,
   jailerGid: parsed.data.JAILER_GID,
@@ -306,7 +306,7 @@ const prodConfig = {
   vmFileSizeLimit: parsed.data.VM_FILE_SIZE_LIMIT,
   vmOpenFilesLimit: parsed.data.VM_OPEN_FILES_LIMIT,
   vmProcessLimit: parsed.data.VM_PROCESS_LIMIT,
-  
+
   // Monitoring & Logging
   logLevel: parsed.data.LOG_LEVEL,
   enableVmLogging: parsed.data.ENABLE_VM_LOGGING,
@@ -315,7 +315,7 @@ const prodConfig = {
   enableVmMetrics: parsed.data.ENABLE_VM_METRICS,
   healthCheckInterval: parsed.data.HEALTH_CHECK_INTERVAL,
   vmHealthCheckTimeout: parsed.data.VM_HEALTH_CHECK_TIMEOUT,
-  
+
   // Performance Tuning
   vmBootTimeout: parsed.data.VM_BOOT_TIMEOUT,
   sidecarReadyTimeout: parsed.data.SIDECAR_READY_TIMEOUT,
@@ -326,15 +326,15 @@ const prodConfig = {
   terminalBufferSize: parsed.data.TERMINAL_BUFFER_SIZE,
   terminalBufferMemoryMB: parsed.data.TERMINAL_BUFFER_MEMORY_MB,
   terminalFlushInterval: parsed.data.TERMINAL_FLUSH_INTERVAL,
-  
+
   // AWS configuration
   awsRegion: parsed.data.AWS_REGION,
   ec2InstanceTypes: parsed.data.EC2_INSTANCE_TYPES,
-  
+
   // Container registry configuration
   imagePullPolicy: parsed.data.IMAGE_PULL_POLICY,
   imagePullSecrets: parsed.data.IMAGE_PULL_SECRETS,
-  
+
   // Error Handling & Resilience
   vmOperationTimeout: parsed.data.VM_OPERATION_TIMEOUT,
   vmConsoleTimeout: parsed.data.VM_CONSOLE_TIMEOUT,
@@ -344,7 +344,7 @@ const prodConfig = {
   vmCircuitBreakerTimeout: parsed.data.VM_CIRCUIT_BREAKER_TIMEOUT,
   autoRestartFailedVms: parsed.data.AUTO_RESTART_FAILED_VMS,
   maxVmRestartAttempts: parsed.data.MAX_VM_RESTART_ATTEMPTS,
-  
+
   // VM resource limits
   vmCpuLimit: parsed.data.VM_CPU_LIMIT,
   vmMemoryLimit: parsed.data.VM_MEMORY_LIMIT,
