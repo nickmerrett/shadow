@@ -1,4 +1,4 @@
-import { config } from "dotenv";
+import config from "@/config";
 import fg from "fast-glob";
 import { createHash } from "crypto";
 import { writeFileSync, readFileSync, statSync } from "fs";
@@ -13,7 +13,6 @@ import JavaScript from "tree-sitter-javascript";
 import TS from "tree-sitter-typescript";
 import Python from "tree-sitter-python";
 
-config();
 
 // Configuration
 const ROOT = path.resolve(process.argv[2] || ".");
@@ -481,8 +480,7 @@ async function summariseFile(rel: string, dbStorage: DbWikiStorage): Promise<str
 
 // Analyze file with GPT for deeper understanding
 async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, langKey: string): Promise<string> {
-  // Use a smaller context model (GPT-4o-mini) for file analysis
-  const MODEL_MINI = process.env.MODEL_MINI || "gpt-4o-mini";
+  // Use a smaller context model for file analysis
 
   // Get basic symbol information
   const basicSymbols = symbolsToMarkdown(symbols);
@@ -507,7 +505,7 @@ async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, la
   try {
 
     const res = await openai.chat.completions.create({
-      model: MODEL_MINI,
+      model: config.modelMini,
       temperature: 0.6,
       messages,
       max_tokens: 2048 // Reduced token limit for more concise analysis
@@ -526,13 +524,10 @@ async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, la
 // Directory / root summaries via LLM (still concise)
 const openai = new OpenAI();
 
-// Model selection - use environment variables or defaults
-
+// Model selection - use configured model settings
 async function chat(messages: any[], budget: number): Promise<string> {
-  const MODEL = process.env.MODEL || "gpt-4o";
-
   const res = await openai.chat.completions.create({
-    model: MODEL,
+    model: config.model,
     temperature: TEMP,
     messages,
     max_tokens: budget
@@ -855,23 +850,23 @@ export async function runDeepWiki(repoPath: string, options: {
 }) {
   // Store original values
   const originalPath = process.argv[2];
-  const originalConcurrency = process.env.CONCURRENCY;
-  const originalModel = process.env.MODEL;
-  const originalModelMini = process.env.MODEL_MINI;
+  const originalConcurrency = config.concurrency;
+  const originalModel = config.model;
+  const originalModelMini = config.modelMini;
 
   console.log(bold(`Generating summaries for ${repoPath}`));
 
   try {
-    // Set parameters as environment variables and argv
+    // Set parameters as config overrides and argv
     process.argv[2] = repoPath;
-    if (options.concurrency) {
-      process.env.CONCURRENCY = options.concurrency.toString();
+    if (options.concurrency !== undefined) {
+      config.concurrency = options.concurrency;
     }
     if (options.model) {
-      process.env.MODEL = options.model;
+      config.model = options.model;
     }
     if (options.modelMini) {
-      process.env.MODEL_MINI = options.modelMini;
+      config.modelMini = options.modelMini;
     }
 
     // Run the main function
@@ -889,9 +884,9 @@ export async function runDeepWiki(repoPath: string, options: {
       // Remove the argument if it wasn't there originally
       process.argv.splice(2, 1);
     }
-    if (originalConcurrency) process.env.CONCURRENCY = originalConcurrency;
-    if (originalModel) process.env.MODEL = originalModel;
-    if (originalModelMini) process.env.MODEL_MINI = originalModelMini;
+    config.concurrency = originalConcurrency;
+    config.model = originalModel;
+    config.modelMini = originalModelMini;
   }
 }
 
