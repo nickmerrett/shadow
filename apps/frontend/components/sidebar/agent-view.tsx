@@ -3,6 +3,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenuItem,
+  SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { useTask } from "@/hooks/use-task";
 import { cn } from "@/lib/utils";
@@ -384,7 +385,39 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         </SidebarGroup>
       )}
 
-
+      {/* Workspace Summaries */}
+      {workspaceSummaries.length > 0 && (
+        <SidebarGroup>
+          <SidebarGroupLabel className="hover:text-muted-foreground select-none gap-1.5">
+            <FileText className="!size-3.5" />
+            Workspace Summaries{" "}
+            <Badge
+              variant="secondary"
+              className="bg-sidebar-accent border-sidebar-border text-muted-foreground rounded-full border px-1.5 py-0 text-[11px]"
+            >
+              {workspaceSummaries.length}
+            </Badge>
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            {workspaceSummaries.map((summary) => (
+              <SidebarMenuItem key={summary.id}>
+                <SidebarMenuButton
+                  onClick={() => openSummaryInEnvironment(summary)}
+                  className="w-full justify-start"
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium line-clamp-1">{summary.title}</span>
+                    <span className="text-xs text-muted-foreground line-clamp-1">
+                      {summary.filePath}
+                    </span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarGroupContent>
+        </SidebarGroup>
+      )}
 
     </>
   );

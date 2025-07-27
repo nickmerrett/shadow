@@ -76,27 +76,25 @@ export function RepoDocsView({ taskId }: RepoDocsViewProps) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="mx-auto w-full max-w-4xl">
       {/* Header */}
       <div className="border-b p-6">
         <h1 className="text-2xl font-semibold">Repository Documentation</h1>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="space-y-8 p-6">
-          {summaries.slice().reverse().map((summary, index) => (
-            <div key={summary.id} id={summary.id}>
-              {summary.name != "root_overview" && <div className="mb-4 flex items-center gap-2">
-                <h3 className="text-xl font-semibold">{summary.name}</h3>
-              </div>}
-              <div className="prose prose-sm max-w-none">
-                <MarkdownRenderer content={summary.content} />
-              </div>
-              {index < summaries.length - 1 && <Separator className="mt-8" />}
+      <div className="space-y-8 p-6">
+        {summaries.slice().reverse().map((summary, index) => (
+          <div key={summary.id} id={summary.id}>
+            {summary.name != "root_overview" && <div className="mb-4 flex items-center gap-2">
+              <h3 className="text-xl font-semibold">{summary.name}</h3>
+            </div>}
+            <div className="prose prose-sm max-w-none">
+              <MarkdownRenderer content={summary.content} />
             </div>
-          ))}
-        </div>
+            {index < summaries.length - 1 && <Separator className="mt-8" />}
+          </div>
+        ))}
       </div>
     </div>
   );
