@@ -27,6 +27,7 @@ export class ChatService {
   private llmService: LLMService;
   private activeStreams: Map<string, AbortController> = new Map();
   private stopRequested: Set<string> = new Set();
+  private queuedMessages: Map<string, { message: string; model: ModelType; workspacePath?: string }> = new Map();
 
   constructor() {
     this.llmService = new LLMService();
@@ -278,6 +279,7 @@ export class ChatService {
     enableTools = true,
     skipUserMessageSave = false,
     workspacePath,
+    queue = false,
   }: {
     taskId: string;
     userMessage: string;
@@ -285,7 +287,27 @@ export class ChatService {
     enableTools?: boolean;
     skipUserMessageSave?: boolean;
     workspacePath?: string;
+    queue?: boolean;
   }) {
+    // Handle queuing logic
+    if (queue) {
+      // If there's already an active stream, queue this message
+      if (this.activeStreams.has(taskId)) {
+        console.log(`[CHAT] Queuing message for task ${taskId} (stream in progress)`);
+        this.queuedMessages.set(taskId, { message: userMessage, model: llmModel, workspacePath });
+        return;
+      }
+      // If no active stream, process normally (queue=true just means "queue if needed")
+    } else {
+      // queue=false: interrupt any active stream and process immediately
+      if (this.activeStreams.has(taskId)) {
+        console.log(`[CHAT] Interrupting active stream for task ${taskId} due to new message`);
+        await this.stopStream(taskId);
+        // Small delay to ensure stream cleanup completes
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
     // Save user message to database (unless skipped)
     if (!skipUserMessageSave) {
       await this.saveUserMessage(taskId, userMessage);
@@ -598,6 +620,9 @@ export class ChatService {
       this.activeStreams.delete(taskId);
       this.stopRequested.delete(taskId);
       endStream(taskId);
+
+      // Process any queued message
+      await this.processQueuedMessage(taskId);
     } catch (error) {
       console.error("Error processing user message:", error);
 
@@ -616,7 +641,38 @@ export class ChatService {
       this.activeStreams.delete(taskId);
       this.stopRequested.delete(taskId);
       handleStreamError(error, taskId);
+
+      // Process any queued message even after error
+      await this.processQueuedMessage(taskId);
       throw error;
+    }
+  }
+
+  private async processQueuedMessage(taskId: string): Promise<void> {
+    const queuedMessage = this.queuedMessages.get(taskId);
+    if (!queuedMessage) {
+      return; // No queued message for this task
+    }
+
+    // Remove the queued message from the queue
+    this.queuedMessages.delete(taskId);
+
+    console.log(`[CHAT] Processing queued message for task ${taskId}`);
+
+    try {
+      // Process the queued message
+      await this.processUserMessage({
+        taskId,
+        userMessage: queuedMessage.message,
+        llmModel: queuedMessage.model,
+        enableTools: true,
+        skipUserMessageSave: false,
+        workspacePath: queuedMessage.workspacePath,
+        queue: false, // Don't queue again, process directly
+      });
+    } catch (error) {
+      console.error(`[CHAT] Error processing queued message for task ${taskId}:`, error);
+      // Don't throw - we don't want to break the original flow
     }
   }
 

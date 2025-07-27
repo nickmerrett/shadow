@@ -290,6 +290,7 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
           userMessage: data.message,
           llmModel: data.llmModel || DEFAULT_MODEL,
           workspacePath: task?.workspacePath || undefined,
+          queue: data.queue || false,
         });
       } catch (error) {
         console.error("Error processing user message:", error);

@@ -554,6 +554,7 @@ export function useTaskSocket(taskId: string | undefined) {
       taskId,
       message: message.trim(),
       llmModel: model as ModelType,
+      queue: false, // Default to interrupting behavior for now
     });
   }, [socket, taskId]);
 

@@ -61,6 +61,7 @@ export interface ClientToServerEvents {
     taskId: string;
     message: string;
     llmModel?: ModelType;
+    queue?: boolean;
   }) => void;
   'get-chat-history': (data: { taskId: string }) => void;
   'stop-stream': (data: { taskId: string }) => void;
