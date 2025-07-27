@@ -193,9 +193,6 @@ enum TodoStatus {
 }
 
 enum InitStepType {
-  // Shared step (used by both modes)
-  VALIDATE_ACCESS
-
   // Local mode step
   PREPARE_WORKSPACE
 

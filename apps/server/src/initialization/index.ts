@@ -1,5 +1,6 @@
 import { InitStepType, prisma } from "@repo/db";
 import {
+  getStepsForMode,
   InitializationProgress,
 } from "@repo/types";
 import { emitStreamChunk } from "../socket";
@@ -21,12 +22,6 @@ const STEP_DEFINITIONS: Record<
   InitStepType,
   { name: string; description: string }
 > = {
-  // Shared step (used by both modes)
-  VALIDATE_ACCESS: {
-    name: "Validating Access",
-    description: "Verify GitHub token and repository permissions",
-  },
-
   // Local mode step
   PREPARE_WORKSPACE: {
     name: "Preparing Workspace",
@@ -176,11 +171,6 @@ export class TaskInitializationEngine {
     userId: string
   ): Promise<void> {
     switch (step) {
-      // Shared step (used by both modes)
-      case "VALIDATE_ACCESS":
-        await this.executeValidateAccess(taskId, userId);
-        break;
-
       // Local mode step
       case "PREPARE_WORKSPACE":
         await this.executePrepareWorkspace(taskId, userId);
@@ -208,20 +198,6 @@ export class TaskInitializationEngine {
       default:
         throw new Error(`Unknown initialization step: ${step}`);
     }
-  }
-
-  /**
-   * Validate access step - check GitHub token and permissions
-   */
-  private async executeValidateAccess(
-    taskId: string,
-    userId: string
-  ): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Validating GitHub access for user ${userId}`);
-
-    // This is a placeholder - validation happens in the task initiation process
-    // Could add additional checks here if needed
-    await delay(500);
   }
 
   /**
@@ -452,66 +428,11 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Get default initialization steps based on agent mode and task type
+   * Get default initialization steps based on agent mode
    */
-  getDefaultStepsForTask(
-    taskType: "simple" | "microvm" | "full" = "simple"
-  ): InitStepType[] {
+  getDefaultStepsForTask(): InitStepType[] {
     const agentMode = getAgentMode();
-
-    if (agentMode === "firecracker") {
-      // Firecracker mode: VM handles repository cloning internally
-      switch (taskType) {
-        case "simple":
-          return [
-            "VALIDATE_ACCESS",
-            "CREATE_VM",
-            "WAIT_VM_READY",
-            "VERIFY_VM_WORKSPACE"
-          ];
-
-        case "microvm":
-        case "full":
-          // All firecracker task types now use the same simple flow
-          return [
-            "VALIDATE_ACCESS",
-            "CREATE_VM",
-            "WAIT_VM_READY",
-            "VERIFY_VM_WORKSPACE"
-          ];
-
-        default:
-          return [
-            "VALIDATE_ACCESS",
-            "CREATE_VM",
-            "WAIT_VM_READY",
-            "VERIFY_VM_WORKSPACE"
-          ];
-      }
-    } else {
-      // Local mode: direct repository cloning and local setup
-      switch (taskType) {
-        case "simple":
-          return [
-            "VALIDATE_ACCESS",
-            "PREPARE_WORKSPACE"
-          ];
-
-        case "microvm":
-        case "full":
-          // All local task types now use the same simple flow
-          return [
-            "VALIDATE_ACCESS",
-            "PREPARE_WORKSPACE"
-          ];
-
-        default:
-          return [
-            "VALIDATE_ACCESS",
-            "PREPARE_WORKSPACE"
-          ];
-      }
-    }
+    return getStepsForMode(agentMode);
   }
 
   /**

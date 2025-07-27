@@ -109,7 +109,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 
       await updateTaskStatus(taskId, "INITIALIZING", "INIT");
 
-      const initSteps = initializationEngine.getDefaultStepsForTask("simple");
+      const initSteps = initializationEngine.getDefaultStepsForTask();
       await initializationEngine.initializeTask(taskId, initSteps, userId);
 
       // Get updated task with workspace info

@@ -166,7 +166,6 @@ async function verifyTaskAccess(_socketId: string, taskId: string): Promise<bool
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function emitToTask(taskId: string, event: keyof ServerToClientEvents, data: any) {
-  console.log(`[SOCKET] !!!! Emitting to task ${taskId}:`, event, data);
   io.to(`task-${taskId}`).emit(event, data);
 }
 
