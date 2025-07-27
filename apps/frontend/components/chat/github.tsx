@@ -45,7 +45,6 @@ export function GithubConnection({
   ) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mode, setMode] = useState<"repos" | "branches">("repos");
 
   const [repoSearch, setRepoSearch] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
@@ -69,7 +68,7 @@ export function GithubConnection({
     error: branchesError,
   } = useGitHubBranches(
     selectedRepo?.full_name || null,
-    !!selectedRepo && mode === "branches" && !!githubStatus?.isAppInstalled
+    !!selectedRepo && !!githubStatus?.isAppInstalled
   );
 
   if (statusError) {
@@ -129,7 +128,6 @@ export function GithubConnection({
 
   const handleRepoSelect = (repo: Repository) => {
     setSelectedRepo(repo);
-    setMode("branches");
     setBranchSearch("");
     // Don't save to cookie yet, wait for branch selection
   };
@@ -153,7 +151,6 @@ export function GithubConnection({
   };
 
   const handleBackToRepos = () => {
-    setMode("repos");
     setSelectedRepo(null);
     setSelectedBranch(null);
     setRepoSearch("");
@@ -403,10 +400,10 @@ export function GithubConnection({
           </div>
         ) : statusError || !githubStatus || !githubStatus.isAppInstalled ? (
           renderConnectGitHub
-        ) : mode === "repos" ? (
-          renderRepos
-        ) : (
+        ) : selectedRepo ? (
           renderBranches
+        ) : (
+          renderRepos
         )}
       </PopoverContent>
     </Popover>
