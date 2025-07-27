@@ -12,9 +12,11 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { FolderOpen, RefreshCw } from "lucide-react";
+import { FolderOpen, RefreshCw, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getAllIndexedRepositories } from "@/lib/actions/summaries";
+import { AddRepositoryDialog } from "./add-repository-dialog";
 
 interface Repository {
   id: string;
@@ -23,14 +25,11 @@ interface Repository {
   summaryCount: number;
 }
 
-interface CodebaseSidebarProps {
-  selectedRepo: string | null;
-  onSelectRepo: (repoId: string | null) => void;
-}
-
-export function CodebaseSidebar({ selectedRepo, onSelectRepo }: CodebaseSidebarProps) {
+export function CodebaseSidebar() {
+  const router = useRouter();
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   const loadRepositories = async () => {
     setIsLoading(true);
@@ -45,6 +44,11 @@ export function CodebaseSidebar({ selectedRepo, onSelectRepo }: CodebaseSidebarP
     }
   };
 
+  const handleRepositoryAdded = () => {
+    loadRepositories();
+    setShowAddDialog(false);
+  };
+
   useEffect(() => {
     loadRepositories();
   }, []);
@@ -54,7 +58,7 @@ export function CodebaseSidebar({ selectedRepo, onSelectRepo }: CodebaseSidebarP
       <SidebarContent>
         <SidebarGroup>
           <div className="flex items-center justify-between">
-            <SidebarGroupLabel>Indexed Repositories</SidebarGroupLabel>
+            <SidebarGroupLabel>Repositories</SidebarGroupLabel>
             <Button
               size="sm"
               variant="ghost"
@@ -66,6 +70,7 @@ export function CodebaseSidebar({ selectedRepo, onSelectRepo }: CodebaseSidebarP
             </Button>
           </div>
           <SidebarGroupContent>
+            {/* Add Repository button removed */}
             <SidebarMenu>
               {repositories.length === 0 ? (
                 <div className="text-muted-foreground flex flex-col items-center justify-center py-8 text-center text-sm">
@@ -77,18 +82,12 @@ export function CodebaseSidebar({ selectedRepo, onSelectRepo }: CodebaseSidebarP
                 repositories.map((repo) => (
                   <SidebarMenuItem key={repo.id}>
                     <SidebarMenuButton
-                      onClick={() => onSelectRepo(repo.id)}
-                      className={cn(
-                        "w-full justify-start",
-                        selectedRepo === repo.id && "bg-sidebar-accent"
-                      )}
+                      onClick={() => router.push(`/codebase/${repo.id}`)}
+                      className="w-full justify-start"
                     >
                       <FolderOpen className="mr-2 h-4 w-4" />
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{repo.name}</span>
-                        <span className="text-muted-foreground text-xs">
-                          {repo.summaryCount} summaries
-                        </span>
                       </div>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -98,6 +97,11 @@ export function CodebaseSidebar({ selectedRepo, onSelectRepo }: CodebaseSidebarP
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <AddRepositoryDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onRepositoryAdded={handleRepositoryAdded}
+      />
     </Sidebar>
   );
 }
