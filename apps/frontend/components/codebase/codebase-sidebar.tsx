@@ -14,7 +14,6 @@ import { FolderOpen, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAllIndexedRepositories } from "@/lib/actions/summaries";
-import { AddRepositoryDialog } from "./add-repository-dialog";
 
 interface Repository {
   id: string;
@@ -104,11 +103,6 @@ export function CodebaseSidebar() {
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
-      <AddRepositoryDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
-        onRepositoryAdded={handleRepositoryAdded}
-      />
     </>
   );
 }

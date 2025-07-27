@@ -6,7 +6,6 @@ import { FolderOpen, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAllIndexedRepositories } from "@/lib/actions/summaries";
-import { AddRepositoryDialog } from "./add-repository-dialog";
 import { cn } from "@/lib/utils";
 
 interface Repository {
