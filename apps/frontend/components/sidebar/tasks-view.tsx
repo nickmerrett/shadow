@@ -35,8 +35,8 @@ export function SidebarTasksView({
   // Group tasks by repository and sort within each group
   const groupedTasks: GroupedTasks = tasks.reduce(
     (groups: GroupedTasks, task: Task) => {
-      if (!groups[task.repoFullName]) {
-        groups[task.repoFullName] = {
+      if (!groups[task.repoUrl]) {
+        groups[task.repoUrl] = {
           repoName: task.repoFullName,
           tasks: [],
         };
@@ -110,10 +110,13 @@ export function SidebarTasksView({
                             </div>
                             <div className="text-muted-foreground flex items-center gap-1 text-xs">
                               <StatusIcon
-                                className={`!size-3 ${statusColorsConfig[displayStatus].className}`}
+                                className={`!size-3 shrink-0 ${statusColorsConfig[displayStatus].className}`}
                               />
                               <span className="text-xs capitalize">
-                                {getStatusText(task)}
+                                {/* Simplify failed status text in this view */}
+                                {getStatusText(task).startsWith("Failed")
+                                  ? "Failed"
+                                  : getStatusText(task)}
                               </span>
                               <GitBranch className="size-3" />{" "}
                               {truncateBranchName(task.shadowBranch, 20)}
