@@ -279,6 +279,11 @@ async function getUncommittedChanges(workspacePath: string, allFiles: Map<string
 export async function getFileChanges(taskId: string): Promise<{ fileChanges: FileChange[], diffStats: DiffStats }> {
   const workspacePath = getTaskWorkspacePath(taskId);
 
+  if (!(await hasGitRepository(taskId))) {
+    console.log(`[GIT_OPS] No git repository found for task ${taskId}, returning empty changes`);
+    return { fileChanges: [], diffStats: { additions: 0, deletions: 0, totalFiles: 0 } };
+  }
+
   try {
     const now = new Date().toISOString();
     const allFiles = new Map<string, FileChange>();
@@ -348,8 +353,9 @@ export async function hasGitRepository(taskId: string): Promise<boolean> {
   const workspacePath = getTaskWorkspacePath(taskId);
 
   try {
-    await execAsync('git rev-parse --git-dir', { cwd: workspacePath });
-    return true;
+    const { stdout } = await execAsync('git rev-parse --git-dir', { cwd: workspacePath });
+
+    return (stdout.trim() === `${workspacePath}/.git`)
   } catch {
     return false;
   }
@@ -360,6 +366,10 @@ export async function hasGitRepository(taskId: string): Promise<boolean> {
  */
 export async function getCurrentBranch(taskId: string): Promise<string | null> {
   const workspacePath = getTaskWorkspacePath(taskId);
+
+  if (!(await hasGitRepository(taskId))) {
+    return null;
+  }
 
   try {
     const { stdout } = await execAsync('git branch --show-current', { cwd: workspacePath });
