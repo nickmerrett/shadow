@@ -14,7 +14,7 @@ import {
 import { useGitHubBranches } from "@/hooks/use-github-branches";
 import { useGitHubRepositories } from "@/hooks/use-github-repositories";
 import { useGitHubStatus } from "@/hooks/use-github-status";
-import { saveGitSelectorCookie } from "@/lib/actions/save-sidebar-cookie";
+import { saveGitSelectorCookie } from "@/lib/actions/save-git-selector-cookie";
 import { cn, formatTimeAgo } from "@/lib/utils";
 import {
   ArrowLeft,

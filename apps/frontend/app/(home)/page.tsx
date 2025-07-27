@@ -6,8 +6,10 @@ import {
   getGitHubStatus,
 } from "@/lib/github/github-api";
 import { getModels } from "@/lib/actions/get-models";
-import { clearGitSelectorCookie } from "@/lib/actions/save-sidebar-cookie";
-import { cookies } from "next/headers";
+import { 
+  clearGitSelectorCookie,
+  getGitSelectorCookie 
+} from "@/lib/actions/save-git-selector-cookie";
 import type { FilteredRepository } from "@/lib/github/types";
 import {
   dehydrate,
@@ -20,21 +22,7 @@ export default async function Home() {
   const queryClient = new QueryClient();
 
   // Get git selector state from cookie
-  const cookieStore = await cookies();
-  const gitSelectorCookie = cookieStore.get("git-selector-state");
-  
-  let initialGitState: {
-    repo: FilteredRepository | null;
-    branch: { name: string; commitSha: string } | null;
-  } | null = null;
-
-  if (gitSelectorCookie?.value) {
-    try {
-      initialGitState = JSON.parse(gitSelectorCookie.value);
-    } catch {
-      // Invalid JSON, ignore
-    }
-  }
+  const initialGitState = await getGitSelectorCookie();
 
   // Prefetch data for better UX - each prefetch is independent
   // and failures won't break the page render
@@ -76,15 +64,17 @@ export default async function Home() {
 
   // Check if GitHub is connected and invalidate cookie if not
   const githubStatus = queryClient.getQueryData(["github", "status"]) as any;
+  let finalGitState = initialGitState;
+  
   if (initialGitState && githubStatus && !githubStatus.isAppInstalled) {
     await clearGitSelectorCookie();
-    initialGitState = null;
+    finalGitState = null;
   }
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <HomeLayoutWrapper>
-        <HomePageContent initialGitState={initialGitState} />
+        <HomePageContent initialGitState={finalGitState} />
       </HomeLayoutWrapper>
     </HydrationBoundary>
   );
