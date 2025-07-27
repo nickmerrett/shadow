@@ -327,18 +327,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             </Button>
           </SidebarMenuItem>
 
-          <SidebarMenuItem>
-            <Button
-              variant="ghost"
-              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
-              onClick={handleIndexWorkspace}
-            >
-              <FileText className="size-4 shrink-0" />
-              <span>
-                {isWorkspaceIndexing ? "Generating..." : "Generate Summaries"}
-              </span>
-            </Button>
-          </SidebarMenuItem>
         </SidebarGroupContent>
       </SidebarGroup>
 
