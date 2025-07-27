@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useTasks } from "@/hooks/use-tasks";
 import { Task } from "@repo/db";
-import { useEffect, useRef, useState, useMemo, memo, useCallback } from "react";
+import React, { useEffect, useRef, useState, useMemo, memo, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { SidebarAgentView } from "./agent-view";
 import { SidebarNavigation } from "./navigation";
@@ -102,7 +102,7 @@ export function SidebarViews({
     }
   }, [currentTaskId, pathname, setOptimizedSidebarView]);
 
-  // Memoize the CodebaseSidebar content
+  // Memoize the CodebaseSidebar content - keep it simple
   const CodebaseSidebarContent = useMemo(() => {
     return (
       <SidebarContent>
