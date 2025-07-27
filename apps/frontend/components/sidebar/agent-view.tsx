@@ -257,7 +257,8 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             </Button>
           </SidebarMenuItem>
 
-          <div className="flex h-8 items-center gap-2 px-2 text-sm">
+          {/* items-start custom alignment to allow max 2 lines of text for things like error messages, etc. */}
+          <div className="flex min-h-8 items-start gap-2 px-2 pb-0 pt-1 text-sm">
             {(() => {
               const displayStatus = getDisplayStatus(task);
               const StatusIcon =
@@ -270,8 +271,12 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 ]?.className || "text-muted-foreground";
               return (
                 <>
-                  <StatusIcon className={cn("size-4", statusClass)} />
-                  <span className="capitalize">{getStatusText(task)}</span>
+                  <StatusIcon
+                    className={cn("mt-0.5 size-4 shrink-0", statusClass)}
+                  />
+                  <span className="line-clamp-2 capitalize">
+                    {getStatusText(task)}
+                  </span>
                 </>
               );
             })()}
