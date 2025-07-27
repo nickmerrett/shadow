@@ -1,6 +1,6 @@
 import express from "express";
-import { DbWikiStorage } from './db-storage';
-import { db } from '@repo/db';
+import { DbWikiStorage } from "./db-storage";
+import { db } from "@repo/db";
 import { resolveRepoPath } from "./resolveRepoPath";
 import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
 import path from "path";
@@ -23,68 +23,74 @@ shallowwikiRouter.post(
   ) => {
     const { taskId, forceRefresh = false } = req.body;
     if (!taskId) {
-      return res.status(400).json({ error: "Missing required parameter: taskId" });
+      return res
+        .status(400)
+        .json({ error: "Missing required parameter: taskId" });
     }
 
     try {
-      console.log(`Processing workspace for task ${taskId} with forceRefresh=${forceRefresh}`);
-      
+      console.log(
+        `Processing workspace for task ${taskId} with forceRefresh=${forceRefresh}`
+      );
+
       // Create a temporary directory for the workspace files
       const tempDir = path.join(os.tmpdir(), "shallowwiki-workspace", taskId);
-      
+
       // Clear temp directory if force refresh or if it doesn't exist
       if (forceRefresh || !fs.existsSync(tempDir)) {
         if (fs.existsSync(tempDir)) {
           fs.rmSync(tempDir, { recursive: true, force: true });
         }
         fs.mkdirSync(tempDir, { recursive: true });
-        
+
         // Get files from workspace manager
         const workspaceManager = new LocalWorkspaceManager();
         const files = await workspaceManager.getAllFilesFromWorkspace(taskId);
-        
+
         // Write files to temp directory
         for (const file of files) {
           if (file.type !== "file") continue;
-          
+
           const filePath = path.join(tempDir, file.path);
           const fileDir = path.dirname(filePath);
-          
+
           // Create directory structure
           fs.mkdirSync(fileDir, { recursive: true });
-          
+
           // Write file content
           fs.writeFileSync(filePath, file.content, "utf8");
         }
-        
-        console.log(`Copied ${files.length} files to temp directory: ${tempDir}`);
+
+        console.log(
+          `Copied ${files.length} files to temp directory: ${tempDir}`
+        );
       }
-      
-// (Lines removed as they are unnecessary)
-      
+
+      // (Lines removed as they are unnecessary)
+
       // Change to temp directory and run ShallowWiki
       const originalCwd = process.cwd();
       const originalArgv = process.argv[2] || "";
-      
+
       process.chdir(tempDir);
       process.argv[2] = tempDir;
-      
+
       // Import and run the ShallowWiki summarizer
       const { runDeepWiki } = await import("./index.js");
       await runDeepWiki(tempDir, {
         concurrency: 12,
-        model: "gpt-4o", 
-        modelMini: "gpt-4o-mini"
+        model: "gpt-4o",
+        modelMini: "gpt-4o-mini",
       });
-      
+
       // Restore original state
       process.argv[2] = originalArgv;
       process.chdir(originalCwd);
-      
-      res.json({ 
+
+      res.json({
         message: "Workspace summaries generated successfully",
         tempDir,
-        taskId
+        taskId,
       });
     } catch (error: any) {
       console.error("ShallowWiki workspace generation error:", error);
@@ -106,51 +112,51 @@ shallowwikiRouter.post(
   ) => {
     const { repo, forceRefresh = false } = req.body;
     if (!repo) {
-      return res.status(400).json({ error: "Missing required parameter: repo" });
+      return res
+        .status(400)
+        .json({ error: "Missing required parameter: repo" });
     }
 
     try {
       console.log(`Processing repo ${repo} with forceRefresh=${forceRefresh}`);
       const repoPath = await resolveRepoPath(repo, forceRefresh);
-      
-      
+
       // Change to repo directory and run ShallowWiki
       const originalCwd = process.cwd();
       const originalArgv = process.argv[2] || "";
-      
+
       process.chdir(repoPath);
       process.argv[2] = repoPath;
-      
+
       // Import and run the ShallowWiki summarizer with the new runDeepWiki function
       const { runDeepWiki } = await import("./index.js");
       await runDeepWiki(repoPath, {
         concurrency: 12,
-        model: "gpt-4o", 
-        modelMini: "gpt-4o-mini"
+        model: "gpt-4o",
+        modelMini: "gpt-4o-mini",
       });
-      
+
       // Restore original state
       process.argv[2] = originalArgv;
       process.chdir(originalCwd);
-      
+
       // Read the generated summaries from .shadow/tree directory
       const fs = await import("fs");
       const path = await import("path");
       const summaryDir = path.join(repoPath, ".shadow", "tree");
-      
+
       let summaries: string[] = [];
       if (fs.existsSync(summaryDir)) {
         // Get all .md files, excluding cache.json and index.json
-        summaries = fs.readdirSync(summaryDir)
-          .filter(f => f.endsWith(".md"));
+        summaries = fs.readdirSync(summaryDir).filter((f) => f.endsWith(".md"));
       }
-      
-      return res.json({ 
+
+      return res.json({
         message: "ShallowWiki summaries generated successfully",
         repoPath,
         summaryDir,
         summariesGenerated: summaries.length,
-        summaries
+        summaries,
       });
     } catch (error) {
       console.error("Error generating ShallowWiki summaries:", error);
@@ -171,26 +177,30 @@ shallowwikiRouter.post(
   ) => {
     const { repo, fileName } = req.body;
     if (!repo || !fileName) {
-      return res.status(400).json({ error: "Missing required parameters: repo, fileName" });
+      return res
+        .status(400)
+        .json({ error: "Missing required parameters: repo, fileName" });
     }
 
     try {
       const repoPath = await resolveRepoPath(repo);
       const fs = await import("fs");
       const path = await import("path");
-      
+
       const summaryPath = path.join(repoPath, ".shadow", "tree", fileName);
-      
+
       if (!fs.existsSync(summaryPath)) {
-        return res.status(404).json({ error: `Summary file not found: ${fileName}` });
+        return res
+          .status(404)
+          .json({ error: `Summary file not found: ${fileName}` });
       }
-      
+
       const content = fs.readFileSync(summaryPath, "utf-8");
-      
+
       return res.json({
         message: "Summary retrieved successfully",
         fileName,
-        content
+        content,
       });
     } catch (error) {
       console.error("Error getting summary:", error);
@@ -204,67 +214,67 @@ shallowwikiRouter.post(
  */
 shallowwikiRouter.post(
   "/list-summaries",
-  async (
-    req: express.Request<{}, {}, { repo: string }>,
-    res,
-    next
-  ) => {
+  async (req: express.Request<{}, {}, { repo: string }>, res, next) => {
     const { repo } = req.body;
     if (!repo) {
-      return res.status(400).json({ error: "Missing required parameter: repo" });
+      return res
+        .status(400)
+        .json({ error: "Missing required parameter: repo" });
     }
 
     try {
       const repoPath = await resolveRepoPath(repo);
-      
+
       // Read summary files directly from the .shadow/tree directory
       const summaries: any[] = [];
       const shadowDir = path.join(repoPath, ".shadow", "tree");
       const files = fs.existsSync(shadowDir) ? fs.readdirSync(shadowDir) : [];
-      
+
       for (const file of files) {
-        if (file.endsWith('.md')) {
+        if (file.endsWith(".md")) {
           try {
             const filePath = path.join(shadowDir, file);
-            const content = fs.readFileSync(filePath, 'utf8');
-            const lines = content.split('\n');
-            
+            const content = fs.readFileSync(filePath, "utf8");
+            const lines = content.split("\n");
+
             // Parse frontmatter
-            let metadata: any = {};
-            if (lines[0] === '---') {
-              const endIndex = lines.findIndex((line, index) => index > 0 && line === '---');
+            const metadata: any = {};
+            if (lines[0] === "---") {
+              const endIndex = lines.findIndex(
+                (line, index) => index > 0 && line === "---"
+              );
               if (endIndex > 0) {
                 const frontmatter = lines.slice(1, endIndex);
-                frontmatter.forEach(line => {
-                  const [key, ...valueParts] = line.split(':');
+                frontmatter.forEach((line) => {
+                  const [key, ...valueParts] = line.split(":");
                   if (key && valueParts.length > 0) {
-                    metadata[key.trim()] = valueParts.join(':').trim();
+                    metadata[key.trim()] = valueParts.join(":").trim();
                   }
                 });
               }
             }
-            
+
             summaries.push({
-              id: metadata.id || file.replace('.md', ''),
-              type: metadata.type || 'file',
-              filePath: metadata.filePath || file.replace('.md', ''),
+              id: metadata.id || file.replace(".md", ""),
+              type: metadata.type || "file",
+              filePath: metadata.filePath || file.replace(".md", ""),
               language: metadata.language,
               complexity: metadata.complexity,
               lastUpdated: metadata.lastUpdated,
               symbols: [],
-              dependencies: []
+              dependencies: [],
             });
           } catch (err) {
             console.error(`Error reading summary file ${file}:`, err);
           }
         }
       }
-      
+
       return res.json({
         message: "Summaries retrieved successfully",
         namespace: repo,
         count: summaries.length,
-        summaries
+        summaries,
       });
     } catch (error) {
       console.error("Error listing summaries:", error);
@@ -279,85 +289,99 @@ shallowwikiRouter.post(
 shallowwikiRouter.post(
   "/get-summary",
   async (
-    req: express.Request<{}, {}, { repo: string; filePath: string; type?: 'file' | 'directory' | 'root' }>,
+    req: express.Request<
+      {},
+      {},
+      { repo: string; filePath: string; type?: "file" | "directory" | "root" }
+    >,
     res,
     next
   ) => {
-    const { repo, filePath, type = 'file' } = req.body;
+    const { repo, filePath, type = "file" } = req.body;
     if (!repo || !filePath) {
-      return res.status(400).json({ error: "Missing required parameters: repo, filePath" });
+      return res
+        .status(400)
+        .json({ error: "Missing required parameters: repo, filePath" });
     }
 
     try {
       const repoPath = await resolveRepoPath(repo);
-      
+
       // Read summary files directly from the .shadow/tree directory
       const shadowDir = path.join(repoPath, ".shadow", "tree");
       let summary = null;
-      
-      if (type === 'file') {
-        const fileFile = path.join(shadowDir, `${filePath.replace(/\//g, '_')}.md`);
+
+      if (type === "file") {
+        const fileFile = path.join(
+          shadowDir,
+          `${filePath.replace(/\//g, "_")}.md`
+        );
         if (fs.existsSync(fileFile)) {
-          const content = fs.readFileSync(fileFile, 'utf8');
+          const content = fs.readFileSync(fileFile, "utf8");
           summary = {
             id: filePath,
             metadata: {
-              type: 'file',
+              type: "file",
               filePath: filePath,
               summary: content,
-              language: filePath.split('.').pop() || 'text',
+              language: filePath.split(".").pop() || "text",
               symbols: [],
               dependencies: [],
               complexity: 0,
               tokenUsage: {},
-              lastUpdated: new Date().toISOString()
-            }
+              lastUpdated: new Date().toISOString(),
+            },
           };
         }
-      } else if (type === 'directory') {
-        const dirFile = path.join(shadowDir, `${filePath.replace(/\//g, '_')}.md`);
+      } else if (type === "directory") {
+        const dirFile = path.join(
+          shadowDir,
+          `${filePath.replace(/\//g, "_")}.md`
+        );
         if (fs.existsSync(dirFile)) {
-          const content = fs.readFileSync(dirFile, 'utf8');
+          const content = fs.readFileSync(dirFile, "utf8");
           summary = {
             id: filePath,
             metadata: {
-              type: 'directory',
+              type: "directory",
               filePath: filePath,
               summary: content,
-              language: 'markdown',
+              language: "markdown",
               symbols: [],
               dependencies: [],
               complexity: 0,
               tokenUsage: {},
-              lastUpdated: new Date().toISOString()
-            }
+              lastUpdated: new Date().toISOString(),
+            },
           };
         }
-      } else if (type === 'root') {
-        const rootFile = path.join(shadowDir, 'root.md');
+      } else if (type === "root") {
+        const rootFile = path.join(shadowDir, "root.md");
         if (fs.existsSync(rootFile)) {
-          const content = fs.readFileSync(rootFile, 'utf8');
+          const content = fs.readFileSync(rootFile, "utf8");
           summary = {
-            id: 'root',
+            id: "root",
             metadata: {
-              type: 'root',
-              filePath: 'root',
+              type: "root",
+              filePath: "root",
               summary: content,
-              language: 'markdown',
+              language: "markdown",
               symbols: [],
               dependencies: [],
               complexity: 0,
               tokenUsage: {},
-              lastUpdated: new Date().toISOString()
-            }
+              lastUpdated: new Date().toISOString(),
+            },
           };
         }
       }
-      
+
       if (!summary) {
-        return res.status(404).json({ error: `Summary not found for ${type}: ${filePath}` });
+        return res
+          .status(404)
+          .json({ error: `Summary not found for ${type}: ${filePath}` });
       }
-      
+
       return res.json({
         message: "Summary retrieved successfully",
         namespace: repo,
@@ -371,8 +395,8 @@ shallowwikiRouter.post(
           complexity: summary.metadata.complexity,
           lastUpdated: summary.metadata.lastUpdated,
           tokenUsage: summary.metadata.tokenUsage,
-          content: summary.metadata.summary
-        }
+          content: summary.metadata.summary,
+        },
       });
     } catch (error) {
       console.error("Error getting summary:", error);
@@ -387,15 +411,21 @@ shallowwikiRouter.post(
 shallowwikiRouter.post(
   "/get-workspace-summaries",
   async (
-    req: express.Request<{}, {}, { taskId: string; type?: 'file' | 'directory' | 'root'; path?: string }>,
+    req: express.Request<
+      {},
+      {},
+      { taskId: string; type?: "file" | "directory" | "root"; path?: string }
+    >,
     res,
     next
   ) => {
-    const { taskId, type = 'root', path: requestPath = '' } = req.body;
+    const { taskId, type = "root", path: requestPath = "" } = req.body;
     const filePath = requestPath; // Use consistent naming for clarity
-    
+
     if (!taskId) {
-      return res.status(400).json({ error: "Missing required parameter: taskId" });
+      return res
+        .status(400)
+        .json({ error: "Missing required parameter: taskId" });
     }
 
     try {
@@ -406,39 +436,39 @@ shallowwikiRouter.post(
       // Get from Database storage only
       try {
         const dbStorage = new DbWikiStorage(taskId);
-        
+
         // Handle different types of summaries
-        if (type === 'root') {
+        if (type === "root") {
           const rootOverview = await dbStorage.getRootOverview();
           if (rootOverview) {
             result = {
-              id: 'root',
-              fileName: 'root',
-              type: 'root',
+              id: "root",
+              fileName: "root",
+              type: "root",
               metadata: rootOverview.metadata,
-              summary: rootOverview.summary
+              summary: rootOverview.summary,
             };
           }
-        } else if (type === 'directory' && filePath) {
+        } else if (type === "directory" && filePath) {
           const dirSummary = await dbStorage.getDirectorySummary(filePath);
           if (dirSummary) {
             result = {
               id: dirSummary.id,
               fileName: filePath,
-              type: 'directory',
+              type: "directory",
               metadata: dirSummary.metadata,
-              summary: dirSummary.summary
+              summary: dirSummary.summary,
             };
           }
-        } else if (type === 'file' && filePath) {
+        } else if (type === "file" && filePath) {
           const fileSummary = await dbStorage.getFileSummary(filePath);
           if (fileSummary) {
             result = {
               id: fileSummary.id,
               fileName: filePath,
-              type: 'file',
+              type: "file",
               metadata: fileSummary.metadata,
-              summary: fileSummary.summary
+              summary: fileSummary.summary,
             };
           }
         }
@@ -451,41 +481,47 @@ shallowwikiRouter.post(
         try {
           // Read summary files directly from the .shadow/tree directory
           const shadowDir = path.join(tempDir, ".shadow", "tree");
-          
-          if (type === 'root') {
-            const rootFile = path.join(shadowDir, 'root.md');
+
+          if (type === "root") {
+            const rootFile = path.join(shadowDir, "root.md");
             if (fs.existsSync(rootFile)) {
-              const content = fs.readFileSync(rootFile, 'utf8');
+              const content = fs.readFileSync(rootFile, "utf8");
               result = {
-                id: 'root',
-                fileName: 'root',
-                type: 'root',
+                id: "root",
+                fileName: "root",
+                type: "root",
                 metadata: {},
-                summary: content
+                summary: content,
               };
             }
-          } else if (type === 'directory' && filePath) {
-            const dirFile = path.join(shadowDir, `${filePath.replace(/\//g, '_')}.md`);
+          } else if (type === "directory" && filePath) {
+            const dirFile = path.join(
+              shadowDir,
+              `${filePath.replace(/\//g, "_")}.md`
+            );
             if (fs.existsSync(dirFile)) {
-              const content = fs.readFileSync(dirFile, 'utf8');
+              const content = fs.readFileSync(dirFile, "utf8");
               result = {
                 id: filePath,
                 fileName: filePath,
-                type: 'directory',
+                type: "directory",
                 metadata: {},
-                summary: content
+                summary: content,
               };
             }
-          } else if (type === 'file' && filePath) {
-            const fileFile = path.join(shadowDir, `${filePath.replace(/\//g, '_')}.md`);
+          } else if (type === "file" && filePath) {
+            const fileFile = path.join(
+              shadowDir,
+              `${filePath.replace(/\//g, "_")}.md`
+            );
             if (fs.existsSync(fileFile)) {
-              const content = fs.readFileSync(fileFile, 'utf8');
+              const content = fs.readFileSync(fileFile, "utf8");
               result = {
                 id: filePath,
                 fileName: filePath,
-                type: 'file',
+                type: "file",
                 metadata: {},
-                summary: content
+                summary: content,
               };
             }
           }
@@ -502,21 +538,24 @@ shallowwikiRouter.post(
             type: result.type,
             filePath: result.fileName,
             summary: result.summary,
-            language: result.type === 'file' ? result.fileName.split('.').pop() || 'text' : 'markdown',
+            language:
+              result.type === "file"
+                ? result.fileName.split(".").pop() || "text"
+                : "markdown",
             symbols: [],
             dependencies: [],
             complexity: 0,
             tokenUsage: {},
             lastUpdated: new Date().toISOString(),
-            ...(result.metadata || {})
-          }
+            ...(result.metadata || {}),
+          },
         };
-        
+
         return res.json({
           message: "Workspace summary retrieved successfully",
           namespace: `workspace_${taskId}`,
           taskId,
-          result: standardizedResult
+          result: standardizedResult,
         });
       }
 
@@ -526,53 +565,57 @@ shallowwikiRouter.post(
         const shadowDir = path.join(tempDir, ".shadow", "tree");
         let content: string;
         let result = null;
-        
-        if (type === 'root') {
+
+        if (type === "root") {
           // Look for root.md file
-          const rootFilePath = path.join(shadowDir, 'root.md');
+          const rootFilePath = path.join(shadowDir, "root.md");
           if (fs.existsSync(rootFilePath)) {
-            content = fs.readFileSync(rootFilePath, 'utf8');
+            content = fs.readFileSync(rootFilePath, "utf8");
             result = {
-              id: 'workspace_root',
+              id: "workspace_root",
               metadata: {
-                type: 'root_overview',
+                type: "root_overview",
                 summary: content,
-                lastUpdated: new Date().toISOString()
-              }
+                lastUpdated: new Date().toISOString(),
+              },
             };
           }
-        } else if (type === 'directory' && filePath) {
+        } else if (type === "directory" && filePath) {
           // Look for directory summary file
           const dirSummaryPath = path.join(shadowDir, `${filePath}.md`);
           if (fs.existsSync(dirSummaryPath)) {
-            content = fs.readFileSync(dirSummaryPath, 'utf8');
+            content = fs.readFileSync(dirSummaryPath, "utf8");
             result = {
               id: `workspace_${filePath}`,
               metadata: {
-                type: 'directory_summary',
+                type: "directory_summary",
                 filePath: filePath,
                 summary: content,
-                lastUpdated: new Date().toISOString()
-              }
+                lastUpdated: new Date().toISOString(),
+              },
             };
           }
-        } else if (type === 'file' && filePath) {
+        } else if (type === "file" && filePath) {
           // For individual files, return file content preview
-          const { LocalWorkspaceManager } = await import('../../execution/local/local-workspace-manager.js');
+          const { LocalWorkspaceManager } = await import(
+            "../../execution/local/local-workspace-manager.js"
+          );
           const workspaceManager = new LocalWorkspaceManager();
-          const files = await workspaceManager.getAllFilesFromWorkspace(taskId).catch(() => []);
-          const file = files.find(f => f.path === filePath);
-          
+          const files = await workspaceManager
+            .getAllFilesFromWorkspace(taskId)
+            .catch(() => []);
+          const file = files.find((f) => f.path === filePath);
+
           if (file) {
             result = {
-              id: `file_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}`,
+              id: `file_${filePath.replace(/[^a-zA-Z0-9]/g, "_")}`,
               metadata: {
-                type: 'file_summary',
+                type: "file_summary",
                 filePath: filePath,
                 summary: file.content.substring(0, 500),
-                language: filePath.split('.').pop() || 'text',
-                lastUpdated: new Date().toISOString()
-              }
+                language: filePath.split(".").pop() || "text",
+                lastUpdated: new Date().toISOString(),
+              },
             };
           }
         }
@@ -582,27 +625,28 @@ shallowwikiRouter.post(
           const standardizedResult = {
             id: result.id,
             metadata: {
-              type: result.metadata.type || 'file_summary',
-              filePath: result.metadata.filePath || '',
-              summary: result.metadata.summary || '',
-              language: result.metadata.language || 'text',
+              type: result.metadata.type || "file_summary",
+              filePath: result.metadata.filePath || "",
+              summary: result.metadata.summary || "",
+              language: result.metadata.language || "text",
               symbols: [],
               dependencies: [],
               complexity: 0,
               tokenUsage: {},
-              lastUpdated: result.metadata.lastUpdated || new Date().toISOString()
-            }
+              lastUpdated:
+                result.metadata.lastUpdated || new Date().toISOString(),
+            },
           };
-          
+
           return res.json({
             message: "Workspace summary retrieved from file",
             namespace: `workspace_${taskId}`,
             taskId,
-            result: standardizedResult
+            result: standardizedResult,
           });
         }
       }
-      
+
       // If we get here, no summary was found
       return res.status(404).json({ error: "Summary not found" });
     } catch (error: any) {
@@ -617,66 +661,76 @@ shallowwikiRouter.post(
  */
 shallowwikiRouter.post(
   "/list-workspace-summaries",
-  async (
-    req: express.Request<{}, {}, { taskId: string }>,
-    res,
-    next
-  ) => {
+  async (req: express.Request<{}, {}, { taskId: string }>, res, next) => {
     const { taskId } = req.body;
     if (!taskId) {
-      return res.status(400).json({ error: "Missing required parameter: taskId" });
+      return res
+        .status(400)
+        .json({ error: "Missing required parameter: taskId" });
     }
 
     try {
       // Get the temp directory where summaries are stored
       const tempDir = path.join(os.tmpdir(), "shallowwiki-workspace", taskId);
-      
+
       // Try to get summaries from the database first
       try {
         const dbSummaries = await db.codebaseUnderstanding.findMany({
           where: {
-            taskId: taskId
-          }
+            taskId: taskId,
+          },
         });
 
         if (dbSummaries && dbSummaries.length > 0) {
           // Parse content and format summaries
           const formattedSummaries = dbSummaries
-            .map(record => {
+            .map((record) => {
               try {
                 // Parse the JSON content which contains metadata and summary
                 let metadata = {};
-                let summaryText = '';
-                try {
-                  const parsed = JSON.parse(record.content);
-                  metadata = parsed.metadata || {};
-                  summaryText = parsed.summary || record.content;
-                } catch (parseError) {
-                  console.error("Error parsing content:", parseError);
-                  summaryText = record.content;
+                let summaryText = "";
+
+                // Check if content is not null before parsing
+                if (record.content && typeof record.content === "string") {
+                  try {
+                    const parsed = JSON.parse(record.content);
+                    metadata = parsed.metadata || {};
+                    summaryText = parsed.summary || record.content;
+                  } catch (parseError) {
+                    console.error("Error parsing content:", parseError);
+                    summaryText = record.content;
+                  }
+                } else {
+                  summaryText = record.content?.toString() || "";
                 }
-                
+
                 // Extract display path from fileName or fallback
-                let displayPath = record.fileName || '';
-                let type = (metadata as any).type || 'directory_summary';
-                
+                let displayPath = record.fileName?.toString() || "";
+                let type = (metadata as any).type || "directory_summary";
+
                 // Set appropriate type and display for root overview
-                if (displayPath === 'root_overview' || type === 'root_overview') {
-                  type = 'root_overview';
-                  displayPath = 'Root Overview';
+                if (
+                  displayPath === "root_overview" ||
+                  type === "root_overview"
+                ) {
+                  type = "root_overview";
+                  displayPath = "Root Overview";
                 }
-                
+
                 // Extract summary text, limiting to 200 chars
-                const shortSummary = typeof summaryText === 'string' ? 
-                  summaryText.substring(0, 200) + (summaryText.length > 200 ? '...' : '') : '';
-                
+                const shortSummary =
+                  typeof summaryText === "string"
+                    ? summaryText.substring(0, 200) +
+                      (summaryText.length > 200 ? "..." : "")
+                    : "";
+
                 return {
                   id: `workspace_${record.id}`,
                   type: type,
                   filePath: displayPath,
-                  language: type === 'root_overview' ? undefined : 'markdown',
+                  language: type === "root_overview" ? undefined : "markdown",
                   lastUpdated: record.createdAt.toISOString(),
-                  summary: shortSummary
+                  summary: shortSummary,
                 };
               } catch (itemError) {
                 console.error("Error processing summary item:", itemError);
@@ -684,111 +738,121 @@ shallowwikiRouter.post(
               }
             })
             .filter(Boolean); // Remove any null entries
-            
+
           return res.json({
             message: "Workspace summaries retrieved successfully from database",
             namespace: `workspace_${taskId}`,
             taskId,
             count: formattedSummaries.length,
-            summaries: formattedSummaries
+            summaries: formattedSummaries,
           });
         }
       } catch (dbError) {
-        console.log("Failed to get summaries from database, trying Pinecone", dbError);
+        console.log(
+          "Failed to get summaries from database, trying Pinecone",
+          dbError
+        );
       }
-      
+
       // Try file-based summaries as fallback
       try {
         const shadowDir = path.join(tempDir, ".shadow", "tree");
         const files = fs.existsSync(shadowDir) ? fs.readdirSync(shadowDir) : [];
         const fileResults: any[] = [];
-        
+
         // Read file-based summaries
         for (const file of files) {
-          if (file.endsWith('.md')) {
+          if (file.endsWith(".md")) {
             try {
               const filePath = path.join(shadowDir, file);
-              const content = fs.readFileSync(filePath, 'utf8');
-              const shortSummary = content.substring(0, 200) + (content.length > 200 ? '...' : '');
-              
+              const content = fs.readFileSync(filePath, "utf8");
+              const shortSummary =
+                content.substring(0, 200) + (content.length > 200 ? "..." : "");
+
               fileResults.push({
-                id: `workspace_${file.replace('.md', '')}`,
-                type: file === 'root.md' ? 'root_overview' : 'file',
-                filePath: file === 'root.md' ? 'Root Overview' : file.replace('.md', ''),
-                language: 'markdown',
+                id: `workspace_${file.replace(".md", "")}`,
+                type: file === "root.md" ? "root_overview" : "file",
+                filePath:
+                  file === "root.md"
+                    ? "Root Overview"
+                    : file.replace(".md", ""),
+                language: "markdown",
                 lastUpdated: new Date().toISOString(),
-                summary: shortSummary
+                summary: shortSummary,
               });
             } catch (err) {
               console.error(`Error reading file ${file}:`, err);
             }
           }
         }
-        
+
         if (fileResults.length > 0) {
           return res.json({
             message: "Workspace summaries retrieved successfully from files",
             namespace: `workspace_${taskId}`,
             taskId,
             count: fileResults.length,
-            summaries: fileResults
+            summaries: fileResults,
           });
         }
       } catch (pineconeError) {
-        console.log("Failed to get summaries from Pinecone, falling back to file-based summaries", pineconeError);
+        console.log(
+          "Failed to get summaries from Pinecone, falling back to file-based summaries",
+          pineconeError
+        );
       }
-      
+
       // Fallback to file-based approach
       if (fs.existsSync(tempDir)) {
         // Read summary files directly from the .shadow/tree directory
         const summaries: any[] = [];
         const shadowDir = path.join(tempDir, ".shadow", "tree");
         const files = fs.existsSync(shadowDir) ? fs.readdirSync(shadowDir) : [];
-        
+
         for (const file of files) {
-          if (file.endsWith('.md')) {
+          if (file.endsWith(".md")) {
             const filePath = path.join(shadowDir, file);
-            const content = fs.readFileSync(filePath, 'utf8');
-            
+            const content = fs.readFileSync(filePath, "utf8");
+
             // Parse the summary content
-            const fileName = file.replace('.md', '');
-            let type = 'directory_summary';
+            const fileName = file.replace(".md", "");
+            let type = "directory_summary";
             let displayPath = fileName;
-            
+
             // Determine if this is a special summary
-            if (fileName === 'root') {
-              type = 'root_overview';
-              displayPath = 'Root Overview';
+            if (fileName === "root") {
+              type = "root_overview";
+              displayPath = "Root Overview";
             }
-            
+
             // Extract first few lines as summary preview
-            const lines = content.split('\n').filter(line => line.trim());
-            const summary = lines.slice(0, 3).join(' ').substring(0, 200);
-            
+            const lines = content.split("\n").filter((line) => line.trim());
+            const summary = lines.slice(0, 3).join(" ").substring(0, 200);
+
             summaries.push({
               id: `workspace_${fileName}`,
               type,
               filePath: displayPath,
-              language: type === 'root_overview' ? undefined : 'markdown',
+              language: type === "root_overview" ? undefined : "markdown",
               lastUpdated: new Date().toISOString(),
-              summary: summary + (summary.length >= 200 ? '...' : '')
+              summary: summary + (summary.length >= 200 ? "..." : ""),
             });
           }
         }
-        
+
         return res.json({
           message: "Workspace summaries retrieved successfully from files",
           namespace: `workspace_${taskId}`,
           taskId,
           count: summaries.length,
-          summaries
+          summaries,
         });
       }
-      
+
       // No summaries found in either Pinecone or files
       return res.status(404).json({
         error: "No workspace summaries found. Please generate summaries first.",
-        taskId
+        taskId,
       });
     } catch (error) {
       console.error("Error listing workspace summaries:", error);

@@ -13,18 +13,16 @@ export default function RepoLayout({ children }: RepoLayoutProps) {
   const { open } = useSidebar();
 
   return (
-    <TooltipProvider>
-      <ResizablePanelGroup
-        direction="horizontal"
-        className={cn(
-          "flex h-full w-full overflow-hidden",
-          open ? "ml-[250px]" : "ml-[53px]"
-        )}
-      >
-        <ResizablePanel className="flex h-full flex-1 overflow-auto">
-          {children}
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    </TooltipProvider>
+    <ResizablePanelGroup
+      direction="horizontal"
+      className={cn(
+        "flex h-full w-full overflow-hidden",
+        open ? "ml-[250px]" : "ml-[53px]"
+      )}
+    >
+      <ResizablePanel className="flex h-full flex-1 overflow-auto">
+        {children}
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }

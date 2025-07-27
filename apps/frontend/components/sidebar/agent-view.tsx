@@ -19,20 +19,16 @@ import {
   SquareCheck,
   SquareX,
 } from "lucide-react";
-import { useCallback, useMemo, useState, useEffect } from "react";
-import { statusColorsConfig, getDisplayStatus } from "./status";
+import { useCallback, useMemo, useState } from "react";
+import { statusColorsConfig } from "./status";
 import { FileExplorer } from "@/components/agent-environment/file-explorer";
-import { FileNode, getStatusText } from "@repo/types";
+import { FileNode } from "@repo/types";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { Button } from "@/components/ui/button";
-import callIndexApi, { gitHubUrlToRepoName } from "@/lib/actions/index-repo";
-import callWorkspaceIndexApi from "@/lib/actions/index-workspace";
-import { getWorkspaceSummaries, getWorkspaceSummaryById } from "@/lib/actions/summaries";
+import { fetchIndexApi } from "@/lib/actions/index-repo";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
-import { FileText } from "lucide-react";
 
-// Todo status config - aligned with main status colors
 const todoStatusConfig = {
   PENDING: { icon: Square, className: "text-muted-foreground" },
   IN_PROGRESS: { icon: CircleDashed, className: "" },
@@ -47,11 +43,8 @@ interface TreeNode {
   path: string;
   children?: Record<string, TreeNode>;
 }
-
-// Type for the intermediate tree structure during construction
 type FileTree = Record<string, TreeNode>;
 
-// Create file tree structure from file paths
 function createFileTree(filePaths: string[]): FileNode[] {
   const tree: FileTree = {};
 
@@ -107,105 +100,12 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
     () => todos.filter((todo) => todo.status === "COMPLETED").length,
     [todos]
   );
-  const [isWorkspaceIndexing, setIsWorkspaceIndexing] = useState(false);
-  const [workspaceSummaries, setWorkspaceSummaries] = useState<any[]>([]);
-  const [isLoadingSummaries, setIsLoadingSummaries] = useState(false);
-  const [summariesCollapsed, setSummariesCollapsed] = useState(false);
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
     const filePaths = fileChanges.map((change) => change.filePath);
     return createFileTree(filePaths);
   }, [fileChanges]);
-
-  // Index workspace with ShallowWiki
-  // const handleIndexWorkspace = async () => {
-  //   if (!taskId) return;
-
-  //   try {
-  //     setIsWorkspaceIndexing(true);
-
-  //     // Call the indexing API directly
-  //     const response = await fetch(
-  //       `/api/indexing/shallowwiki/generate-workspace-summaries`,
-  //       {
-  //         method: "POST",
-  //         headers: {
-  //           "Content-Type": "application/json",
-  //         },
-  //         body: JSON.stringify({ taskId, forceRefresh: true }),
-  //       }
-  //     );
-
-  //     if (!response.ok) {
-  //       throw new Error(`Failed to index workspace: ${response.status}`);
-  //     }
-
-  //     // Reload the summaries after indexing
-  //     await loadWorkspaceSummaries();
-  //   } catch (error) {
-  //     console.error("Error indexing workspace", error);
-  //   } finally {
-  //     setIsWorkspaceIndexing(false);
-  //   }
-  // };
-
-  // Load workspace summaries
-  const loadWorkspaceSummaries = async () => {
-    if (!taskId) return;
-
-    try {
-      console.log("Loading workspace summaries for task", taskId);
-      setIsLoadingSummaries(true);
-      const summariesData = await getWorkspaceSummaries(taskId);
-
-      console.log("Summaries data received from server action:", summariesData);
-
-      if (summariesData && summariesData.length > 0) {
-        console.log(
-          "Setting workspace summaries:",
-          summariesData.length,
-          "items"
-        );
-        setWorkspaceSummaries(summariesData);
-      } else {
-        console.log("No summaries data available, setting empty array");
-        setWorkspaceSummaries([]);
-      }
-    } catch (error) {
-      console.error("Failed to load workspace summaries", error);
-      setWorkspaceSummaries([]);
-    } finally {
-      setIsLoadingSummaries(false);
-    }
-  };
-
-  // Handle opening summary in Shadow Realm environment
-  const openSummaryInEnvironment = async (summary: any) => {
-    try {
-      // Get full summary content directly from Prisma
-      const fullSummary = await getWorkspaceSummaryById(summary.id);
-
-      if (fullSummary) {
-        console.log("Received full summary:", fullSummary);
-
-        // The summary is now already formatted correctly from the server action
-        // Pass the summary directly to the environment context
-        setSelectedSummary(fullSummary);
-      } else {
-        console.error("Summary not found");
-      }
-    } catch (error) {
-      console.error("Failed to load full summary:", error);
-    }
-  };
-
-  // Load summaries on component mount
-  useEffect(() => {
-    if (taskId) {
-      loadWorkspaceSummaries();
-    }
-  }, [taskId]);
 
   if (!task) {
     return (
@@ -241,11 +141,13 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               {(() => {
                 const StatusIcon =
-                  statusColorsConfig[task.status as keyof typeof statusColorsConfig]?.icon ||
-                  CircleDashed;
+                  statusColorsConfig[
+                    task.status as keyof typeof statusColorsConfig
+                  ]?.icon || CircleDashed;
                 const statusClass =
-                  statusColorsConfig[task.status as keyof typeof statusColorsConfig]?.className ||
-                  "text-muted-foreground";
+                  statusColorsConfig[
+                    task.status as keyof typeof statusColorsConfig
+                  ]?.className || "text-muted-foreground";
                 return (
                   <>
                     <StatusIcon className={cn("size-4", statusClass)} />
@@ -273,20 +175,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               </Link>
             </Button>
           </SidebarMenuItem>
-
-          {/* <SidebarMenuItem>
-            <Button
-              variant="link"
-              className="transition-all ease-out duration-100"
-              size="sm"
-              onClick={handleIndexWorkspace}
-            >
-              <FileText
-                className={cn("size-4 mr-1", isWorkspaceIndexing && "animate-spin")}
-              />
-              <span>{isWorkspaceIndexing ? "Generating..." : "Generate Summaries"}</span>
-            </Button>
-          </SidebarMenuItem> */}
 
           {/* Task total diff */}
           {diffStats.totalFiles > 0 && (
@@ -326,7 +214,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
             </Button>
           </SidebarMenuItem>
-
         </SidebarGroupContent>
       </SidebarGroup>
 

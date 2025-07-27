@@ -132,7 +132,7 @@ PostgreSQL with Prisma ORM. Schema location: `packages/db/prisma/schema.prisma`
 - **Cleanup**: Mode-aware cleanup via `WorkspaceManager` interface
 
 **Agent Modes**:
-- **Local Mode**: Direct filesystem execution (default, backwards compatible)
+- **Local Mode**: Direct filesystem execution (default)
 - **Remote Mode**: Distributed execution via Kubernetes pods + sidecar APIs  
 - **Mock Mode**: Simulated remote behavior for testing
 - **Terminal Agent**: Basic terminal-based mode for local development testing (`apps/server/src/agent.ts`)
@@ -230,7 +230,7 @@ apps/server/src/execution/
 ```
 
 **Agent Modes:**
-- `local`: Direct filesystem execution (default, backwards compatible)
+- `local`: Direct filesystem execution (default)
 - `remote`: Distributed execution via Kubernetes pods + sidecar APIs
 - `mock`: Simulated remote behavior for testing and development
 
@@ -249,7 +249,6 @@ const manager = createWorkspaceManager("remote");
 - All tool operations abstracted behind common interfaces
 - Remote mode uses HTTP communication to sidecar service in pods
 - Mock mode simulates network delays and failures for testing
-- Backwards compatible - existing code works unchanged in local mode
 
 ### Sidecar Service
 

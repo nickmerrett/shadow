@@ -26,7 +26,7 @@ import { useParams, usePathname } from "next/navigation";
 import { useAgentEnvironment } from "../agent-environment/agent-environment-context";
 import { CodebaseUnderstandingView } from "../codebase-understanding/codebase-understanding-view";
 
-export function TaskPageLayout({
+export function TaskPageWrapper({
   initialLayout,
 }: {
   initialLayout: number[] | null;
@@ -215,7 +215,7 @@ export function TaskPageLayout({
             </div>
           </div>
           {/* Render the appropriate content based on URL pathname */}
-          {pathname && pathname.startsWith('/codebase') ? (
+          {pathname && pathname.startsWith("/codebase") ? (
             <CodebaseUnderstandingView taskId={taskId} />
           ) : (
             <TaskPageContent isAtTop={isAtTop} />

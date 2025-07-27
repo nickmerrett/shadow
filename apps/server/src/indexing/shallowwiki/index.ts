@@ -13,7 +13,6 @@ import JavaScript from "tree-sitter-javascript";
 import TS from "tree-sitter-typescript";
 import Python from "tree-sitter-python";
 
-
 // Configuration
 const ROOT = path.resolve(process.argv[2] || ".");
 const TEMP = 0.15;
@@ -102,56 +101,86 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
   js: {
     parser: parserJS,
     extensions: [".js", ".cjs", ".mjs", ".jsx"],
-    queryDefs: new Parser.Query(LangJS, `
+    queryDefs: new Parser.Query(
+      LangJS,
+      `
       (function_declaration name: (identifier) @def.name)
       (method_definition name: (property_identifier) @def.name)
       (class_declaration name: (identifier) @def.name)
       (lexical_declaration (variable_declarator name: (identifier) @def.name value: (arrow_function)))
-    `),
-    queryCalls: new Parser.Query(LangJS, `
+    `
+    ),
+    queryCalls: new Parser.Query(
+      LangJS,
+      `
       (call_expression function: (identifier) @call.name)
       (call_expression function: (member_expression property: (property_identifier) @call.name))
-    `),
-    queryImports: new Parser.Query(LangJS, `
+    `
+    ),
+    queryImports: new Parser.Query(
+      LangJS,
+      `
       (import_statement source: (string) @import.source)
-    `),
+    `
+    ),
   },
   ts: {
     parser: parserTS,
     extensions: [".ts", ".mts", ".cts"],
-    queryDefs: new Parser.Query(LangTS, `
+    queryDefs: new Parser.Query(
+      LangTS,
+      `
       (function_declaration name: (identifier) @def.name)
-    `),
+    `
+    ),
     queryCalls: new Parser.Query(LangTS, ``),
-    queryImports: new Parser.Query(LangTS, `
+    queryImports: new Parser.Query(
+      LangTS,
+      `
       (import_statement source: (string) @import.source)
-    `),
+    `
+    ),
   },
   tsx: {
     parser: parserTSX,
     extensions: [".tsx"],
-    queryDefs: new Parser.Query(LangTSX, `
+    queryDefs: new Parser.Query(
+      LangTSX,
+      `
       (function_declaration name: (identifier) @def.name)
-    `),
+    `
+    ),
     queryCalls: new Parser.Query(LangTSX, ``),
-    queryImports: new Parser.Query(LangTSX, `
+    queryImports: new Parser.Query(
+      LangTSX,
+      `
       (import_statement source: (string) @import.source)
-    `),
+    `
+    ),
   },
   py: {
     parser: parserPy,
     extensions: [".py"],
-    queryDefs: new Parser.Query(LangPy, `
+    queryDefs: new Parser.Query(
+      LangPy,
+      `
       (function_definition name: (identifier) @def.name)
       (class_definition name: (identifier) @def.name)
-    `),
-    queryCalls: new Parser.Query(LangPy, `
+    `
+    ),
+    queryCalls: new Parser.Query(
+      LangPy,
+      `
       (call function: (identifier) @call.name)
-    `),
-    queryImports: new Parser.Query(LangPy, `
+    `
+    ),
+    queryImports: new Parser.Query(
+      LangPy,
+      `
       (import_from_statement module_name: (dotted_name) @import.module)
       (import_statement name: (dotted_name) @import.module)
-    `),
+    `
+    ),
   },
 };
 
@@ -159,14 +188,16 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
 let cache: Record<string, CacheEntry> = {};
 function loadCache() {
   try {
-    cache = JSON.parse(statSync(CACHE_FILE).size ? readFileSync(CACHE_FILE, "utf8") : "{}");
+    cache = JSON.parse(
+      statSync(CACHE_FILE).size ? readFileSync(CACHE_FILE, "utf8") : "{}"
+    );
   } catch {
     cache = {};
   }
 }
 function saveCache() {
   // Ensure the output directory exists
-  const fs = require('fs');
+  const fs = require("fs");
   if (!fs.existsSync(OUT_DIR)) {
     fs.mkdirSync(OUT_DIR, { recursive: true });
   }
@@ -192,7 +223,11 @@ function extractSymbols(src: string, spec: LangSpec): Symbols {
     return `${name} (L${lineStart}-${lineEnd})`;
   };
   const tree = spec.parser.parse(src);
-  const out: Symbols = { defs: new Set(), calls: new Set(), imports: new Set() };
+  const out: Symbols = {
+    defs: new Set(),
+    calls: new Set(),
+    imports: new Set(),
+  };
 
   for (const m of spec.queryDefs.matches(tree.rootNode)) {
     m.captures.forEach((cap) => out.defs.add(format(cap.node)));
@@ -201,7 +236,11 @@ function extractSymbols(src: string, spec: LangSpec): Symbols {
     m.captures.forEach((cap) => out.calls.add(format(cap.node)));
   }
   for (const m of spec.queryImports.matches(tree.rootNode)) {
-    m.captures.forEach((cap) => out.imports.add(src.slice(cap.node.startIndex, cap.node.endIndex).replace(/['"`]/g, "")));
+    m.captures.forEach((cap) =>
+      out.imports.add(
+        src.slice(cap.node.startIndex, cap.node.endIndex).replace(/['"`]/g, "")
+      )
+    );
   }
   return out;
 }
@@ -216,7 +255,12 @@ function symbolsToMarkdown(sym: Symbols): string {
 
 // Build directory tree
 async function buildTree(ignore: string[]): Promise<IndexFile> {
-  const entries = await fg("**/*", { cwd: ROOT, absolute: true, dot: true, ignore });
+  const entries = await fg("**/*", {
+    cwd: ROOT,
+    absolute: true,
+    dot: true,
+    ignore,
+  });
   const files = entries.filter((p) => statSync(p).isFile());
 
   const nodes: Record<NodeId, TreeNode> = {};
@@ -270,7 +314,7 @@ async function buildTree(ignore: string[]): Promise<IndexFile> {
 function postProcessTree(nodes: Record<NodeId, TreeNode>): void {
   // Find directories with only one child and no files (intermediates)
   const nodesToCollapse = Object.values(nodes).filter(
-    node => node.files.length === 0 && node.children.length === 1
+    (node) => node.files.length === 0 && node.children.length === 1
   );
 
   // Process each node that could be collapsed
@@ -278,8 +322,8 @@ function postProcessTree(nodes: Record<NodeId, TreeNode>): void {
     if (node.id === "root") continue; // Don't collapse root
 
     // Find the parent of this node
-    const parentNode = Object.values(nodes).find(
-      n => n.children.includes(node.id)
+    const parentNode = Object.values(nodes).find((n) =>
+      n.children.includes(node.id)
     );
 
     if (!parentNode) continue;
@@ -292,7 +336,9 @@ function postProcessTree(nodes: Record<NodeId, TreeNode>): void {
     if (!childNode) continue;
 
     // Remove current node from parent's children list
-    const parentChildIdx = parentNode.children.findIndex(id => id === node.id);
+    const parentChildIdx = parentNode.children.findIndex(
+      (id) => id === node.id
+    );
     if (parentChildIdx !== -1) {
       parentNode.children.splice(parentChildIdx, 1);
 
@@ -308,18 +354,21 @@ function postProcessTree(nodes: Record<NodeId, TreeNode>): void {
 
   // Remove directories with no files and no children (empty leaves)
   const emptyNodes = Object.values(nodes).filter(
-    node => node.files.length === 0 && node.children.length === 0 && node.id !== "root"
+    (node) =>
+      node.files.length === 0 &&
+      node.children.length === 0 &&
+      node.id !== "root"
   );
 
   for (const node of emptyNodes) {
     // Find the parent
-    const parentNode = Object.values(nodes).find(
-      n => n.children.includes(node.id)
+    const parentNode = Object.values(nodes).find((n) =>
+      n.children.includes(node.id)
     );
 
     if (parentNode) {
       // Remove this empty node from parent's children
-      const idx = parentNode.children.findIndex(id => id === node.id);
+      const idx = parentNode.children.findIndex((id) => id === node.id);
       if (idx !== -1) {
         parentNode.children.splice(idx, 1);
         console.log(` Removing empty directory: ${node.relPath}`);
@@ -344,25 +393,28 @@ function toNodeId(rel: string) {
 function isDataFolder(relPath: string): boolean {
   // List of common data folder indicators
   const dataFolderPatterns = [
-    /data\b/i,                  // 'data' as a word
-    /dataset/i,                  // dataset
-    /\braw\b/i,                 // raw
-    /\bimages?\b/i,             // image or images
-    /\bcsv\b/i,                 // csv
-    /\bjson\b/i,                // json
-    /\btxt\b/i,                 // txt
-    /\bsamples?\b/i,            // sample or samples
-    /\bcorpus\b/i,              // corpus
-    /\bmnist\b/i,               // mnist (specific dataset)
-    /\bcifar\b/i,               // cifar (specific dataset)
+    /data\b/i, // 'data' as a word
+    /dataset/i, // dataset
+    /\braw\b/i, // raw
+    /\bimages?\b/i, // image or images
+    /\bcsv\b/i, // csv
+    /\bjson\b/i, // json
+    /\btxt\b/i, // txt
+    /\bsamples?\b/i, // sample or samples
+    /\bcorpus\b/i, // corpus
+    /\bmnist\b/i, // mnist (specific dataset)
+    /\bcifar\b/i, // cifar (specific dataset)
   ];
 
   // Check if path matches any data folder patterns
-  return dataFolderPatterns.some(pattern => pattern.test(relPath));
+  return dataFolderPatterns.some((pattern) => pattern.test(relPath));
 }
 
 // Analyze file complexity based on Tree-sitter results
-function analyzeFileComplexity(symbols: Symbols, fileSize: number): { needsDeepAnalysis: boolean; reason: string } {
+function analyzeFileComplexity(
+  symbols: Symbols,
+  fileSize: number
+): { needsDeepAnalysis: boolean; reason: string } {
   // Determine if a file needs deeper analysis based on symbol count and file size
   const defCount = symbols.defs.size;
   const importCount = symbols.imports.size;
@@ -370,26 +422,45 @@ function analyzeFileComplexity(symbols: Symbols, fileSize: number): { needsDeepA
 
   // Files with many symbols or large size might benefit from deeper analysis
   if (defCount > 15) {
-    return { needsDeepAnalysis: true, reason: `High symbol count (${defCount} definitions)` };
+    return {
+      needsDeepAnalysis: true,
+      reason: `High symbol count (${defCount} definitions)`,
+    };
   }
 
   if (importCount > 10 && defCount > 5) {
-    return { needsDeepAnalysis: true, reason: `Complex dependencies (${importCount} imports, ${defCount} definitions)` };
+    return {
+      needsDeepAnalysis: true,
+      reason: `Complex dependencies (${importCount} imports, ${defCount} definitions)`,
+    };
   }
 
-  if (fileSize > 10000 && defCount > 3) { // 10KB with multiple definitions
-    return { needsDeepAnalysis: true, reason: `Large file (${Math.round(fileSize / 1024)}KB) with multiple definitions` };
+  if (fileSize > 10000 && defCount > 3) {
+    // 10KB with multiple definitions
+    return {
+      needsDeepAnalysis: true,
+      reason: `Large file (${Math.round(fileSize / 1024)}KB) with multiple definitions`,
+    };
   }
 
   if (callCount > 30 && defCount > 0) {
-    return { needsDeepAnalysis: true, reason: `High call complexity (${callCount} calls)` };
+    return {
+      needsDeepAnalysis: true,
+      reason: `High call complexity (${callCount} calls)`,
+    };
   }
 
-  return { needsDeepAnalysis: false, reason: "Basic symbol extraction sufficient" };
+  return {
+    needsDeepAnalysis: false,
+    reason: "Basic symbol extraction sufficient",
+  };
 }
 
 // Summarise a file (tree-sitter → markdown list)
-async function summariseFile(rel: string, dbStorage: DbWikiStorage): Promise<string> {
+async function summariseFile(
+  rel: string,
+  dbStorage: DbWikiStorage
+): Promise<string> {
   const abs = path.join(ROOT, rel);
   const src = readFileSync(abs, "utf8");
   const fp = fingerprint(abs);
@@ -423,7 +494,7 @@ async function summariseFile(rel: string, dbStorage: DbWikiStorage): Promise<str
   const tokenUsage = {
     promptTokens: 0,
     completionTokens: 0,
-    totalTokens: 0
+    totalTokens: 0,
   };
 
   // Analyze file complexity to decide if we need deep analysis
@@ -435,10 +506,15 @@ async function summariseFile(rel: string, dbStorage: DbWikiStorage): Promise<str
   if (complexity.needsDeepAnalysis) {
     console.log(`[DEEPWIKI] Analyzing: ${rel}`);
     // Use GPT for detailed analysis
-    const langKey = Object.keys(LANGUAGES).find(k => {
-      const langSpec = LANGUAGES[k as keyof typeof LANGUAGES];
-      return langSpec && langSpec.extensions && langSpec.extensions.some((ext: string) => rel.endsWith(ext));
-    }) || "unknown";
+    const langKey =
+      Object.keys(LANGUAGES).find((k) => {
+        const langSpec = LANGUAGES[k as keyof typeof LANGUAGES];
+        return (
+          langSpec &&
+          langSpec.extensions &&
+          langSpec.extensions.some((ext: string) => rel.endsWith(ext))
+        );
+      }) || "unknown";
     detailedAnalysis = await analyzeFileWithGPT(rel, src, symbols, langKey);
     summary = detailedAnalysis;
 
@@ -451,9 +527,13 @@ async function summariseFile(rel: string, dbStorage: DbWikiStorage): Promise<str
   // Store in DB
   const symbolNames = Array.from(symbols.defs);
   const dependencies = Array.from(symbols.imports);
-  const language = Object.keys(LANGUAGES).find(k => {
+  const language = Object.keys(LANGUAGES).find((k) => {
     const langSpec = LANGUAGES[k as keyof typeof LANGUAGES];
-    return langSpec && langSpec.extensions && langSpec.extensions.some((ext: string) => rel.endsWith(ext));
+    return (
+      langSpec &&
+      langSpec.extensions &&
+      langSpec.extensions.some((ext: string) => rel.endsWith(ext))
+    );
   });
 
   await dbStorage.storeFileSummary(
@@ -472,14 +552,19 @@ async function summariseFile(rel: string, dbStorage: DbWikiStorage): Promise<str
     fingerprint: fp,
     summary,
     detailedAnalysis,
-    complexity
+    complexity,
   };
 
   return summary;
 }
 
 // Analyze file with GPT for deeper understanding
-async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, langKey: string): Promise<string> {
+async function analyzeFileWithGPT(
+  rel: string,
+  src: string,
+  symbols: Symbols,
+  langKey: string
+): Promise<string> {
   // Use a smaller context model for file analysis
 
   // Get basic symbol information
@@ -487,10 +572,13 @@ async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, la
 
   // Check file extension for data files
   const ext = path.extname(rel).toLowerCase();
-  const isDataFile = /\.(csv|json|txt|md|png|jpg|jpeg|gif|svg|ico|xlsx|xls|tsv|yaml|yml)$/i.test(ext);
+  const isDataFile =
+    /\.(csv|json|txt|md|png|jpg|jpeg|gif|svg|ico|xlsx|xls|tsv|yaml|yml)$/i.test(
+      ext
+    );
 
   // Adjust the prompt based on file type
-  let systemPrompt = '';
+  let systemPrompt = "";
   if (isDataFile) {
     systemPrompt = `Give a 1-3 line description of this data file. Be extremely concise. Correct grammar isn't necessary, focus on key info only.\nFile: ${path.basename(rel)}`;
   } else {
@@ -499,16 +587,15 @@ async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols, la
 
   const messages = [
     { role: "system" as const, content: systemPrompt },
-    { role: "user" as const, content: src }
+    { role: "user" as const, content: src },
   ];
 
   try {
-
     const res = await openai.chat.completions.create({
       model: config.modelMini,
       temperature: 0.6,
       messages,
-      max_tokens: 2048 // Reduced token limit for more concise analysis
+      max_tokens: 2048, // Reduced token limit for more concise analysis
     });
 
     // Process response
@@ -530,7 +617,7 @@ async function chat(messages: any[], budget: number): Promise<string> {
     model: config.model,
     temperature: TEMP,
     messages,
-    max_tokens: budget
+    max_tokens: budget,
   });
 
   return res.choices[0]?.message?.content?.trim() || "_(no response)_";
@@ -556,7 +643,9 @@ async function summariseDir(node: TreeNode, blocks: string[]): Promise<string> {
         fileAnalyses.push(`- ${path.basename(filePath)}`);
       } else {
         // For code folders, include more detailed summaries but keep them concise
-        fileAnalyses.push(`### ${path.basename(filePath)}\n${cache[filePath]?.summary.slice(0, 250)}...`);
+        fileAnalyses.push(
+          `### ${path.basename(filePath)}\n${cache[filePath]?.summary.slice(0, 250)}...`
+        );
       }
     }
   }
@@ -598,11 +687,15 @@ Directory: ${node.relPath}`;
   // Use the main model (GPT-4o) for directory summaries
   return chat(messages, budget);
 }
-async function summariseRoot(node: TreeNode, blocks: string[]): Promise<string> {
+async function summariseRoot(
+  node: TreeNode,
+  blocks: string[]
+): Promise<string> {
   const budget = rootBudget(blocks.length);
   const messages = [
     {
-      role: "system" as const, content: `Create a concise architecture overview for ${node.name}. 
+      role: "system" as const,
+      content: `Create a concise architecture overview for ${node.name}. 
 
 Include only the most essential:
 1. Core components and their roles (very brief)
@@ -610,7 +703,8 @@ Include only the most essential:
 3. Key architectural patterns
 4. Tech stack basics
 
-Use bullet points and fragments. Grammar not important. Ultra-concise technical descriptions only.` },
+Use bullet points and fragments. Grammar not important. Ultra-concise technical descriptions only.`,
+    },
     { role: "user" as const, content: blocks.join("\n---\n") },
   ];
 
@@ -621,7 +715,7 @@ Use bullet points and fragments. Grammar not important. Ultra-concise technical 
 // Main orchestrator
 export async function run() {
   // Get taskId from directory path if available
-  const pathParts = ROOT.split('/');
+  const pathParts = ROOT.split("/");
   const taskId = pathParts[pathParts.length - 1]; // Extract the last part which could be a taskId
 
   // Initialize storage
@@ -631,7 +725,9 @@ export async function run() {
     console.log(bold(`Using Database storage for task: ${taskId}`));
     await dbStorage.clearRepository();
   } else {
-    throw new Error('Unable to extract taskId from path. Ensure the directory path ends with a valid taskId, such as "/path/to/directory/taskId".');
+    throw new Error(
+      'Unable to extract taskId from path. Ensure the directory path ends with a valid taskId, such as "/path/to/directory/taskId".'
+    );
   }
 
   // Always use file storage as fallback
@@ -667,9 +763,9 @@ export async function run() {
   //----------------------------------------------
   // File symbol extraction (parallel, throttled)
   //----------------------------------------------  // Define file processing function
-  const processFile = async (rel: string) => { 
+  const processFile = async (rel: string) => {
     // Send summaries to all enabled storage backends
-    return summariseFile(rel, dbStorage); 
+    return summariseFile(rel, dbStorage);
   };
   const fileTasks: Promise<void>[] = [];
   let totalFiles = 0;
@@ -698,7 +794,9 @@ export async function run() {
   //----------------------------------------------
   // Directory summaries (bottom-up)
   //----------------------------------------------
-  const nodesByDepth = Object.keys(tree.nodes).sort((a, b) => tree.nodes[b]!.level - tree.nodes[a]!.level);
+  const nodesByDepth = Object.keys(tree.nodes).sort(
+    (a, b) => tree.nodes[b]!.level - tree.nodes[a]!.level
+  );
   for (const nid of nodesByDepth) {
     if (nid === "root") continue;
     const node = tree.nodes[nid]!;
@@ -723,12 +821,14 @@ export async function run() {
       const fileName = path.basename(filePath);
       if (isDataDir) {
         // For data directories, just list files with minimal info
-        fileBlocks.push(`- **${fileName}**: ${fileEntry.summary?.split('\n')[0] || 'data file'}`);
+        fileBlocks.push(
+          `- **${fileName}**: ${fileEntry.summary?.split("\n")[0] || "data file"}`
+        );
       } else {
         // For code directories, include concise summaries
         const fileContent = fileEntry.summary || "_missing_";
         // Just show file name and first paragraph of summary
-        const briefSummary = fileContent.split('\n\n')[0];
+        const briefSummary = fileContent.split("\n\n")[0];
         fileBlocks.push(`### ${fileName}\n${briefSummary}`);
       }
     }
@@ -743,19 +843,20 @@ export async function run() {
         node.relPath,
         node.summary_md,
         node.files,
-        node.children.map(cid => tree.nodes[cid]?.name || cid)
+        node.children.map((cid) => tree.nodes[cid]?.name || cid)
       );
     }
 
     // Legacy file output (optional)
-    if (true) { // Always write file output for compatibility
+    if (true) {
+      // Always write file output for compatibility
       const front = `---\nid: ${node.id}\ntitle: ${node.name}\nlevel: ${node.level}\n---\n\n`;
       const fullContent = isDataDir
-        ? `${node.summary_md}\n\n## Files\n${fileBlocks.join('\n')}`
-        : `${node.summary_md}\n\n## Files\n${fileBlocks.join('\n\n')}`;
+        ? `${node.summary_md}\n\n## Files\n${fileBlocks.join("\n")}`
+        : `${node.summary_md}\n\n## Files\n${fileBlocks.join("\n\n")}`;
 
       // Ensure node.id is valid for a file name - replace any problematic characters
-      const safeNodeId = node.id.replace(/[\/\\:*?"<>|]/g, '_');
+      const safeNodeId = node.id.replace(/[\/\\:*?"<>|]/g, "_");
       const outputFilePath = path.join(OUT_DIR, `${safeNodeId}.md`);
 
       const dirPath = path.dirname(outputFilePath);
@@ -789,24 +890,25 @@ export async function run() {
       processingStats.filesProcessed,
       processingStats.directoriesProcessed
     );
-    console.log(bold(`DeepWiki stored in Database for task: ${dbStorage.getNamespace()}`));
+    console.log(
+      bold(`DeepWiki stored in Database for task: ${dbStorage.getNamespace()}`)
+    );
   }
 
   // Legacy file output (optional)
-  if (true) { // Always write file output for compatibility
-    const toc = ['## Project Structure'];
-    root.children.forEach(cid => {
+  if (true) {
+    // Always write file output for compatibility
+    const toc = ["## Project Structure"];
+    root.children.forEach((cid) => {
       const child = tree.nodes[cid];
       if (child) {
         toc.push(`- [${child.name}](${child.id}.md)`);
       }
     });
 
-    const fullContent = [
-      root.summary_md,
-      '\n\n---\n',
-      toc.join('\n')
-    ].join('\n');
+    const fullContent = [root.summary_md, "\n\n---\n", toc.join("\n")].join(
+      "\n"
+    );
 
     ensureDir(OUT_DIR);
 
@@ -833,8 +935,13 @@ export async function run() {
       }
     }
 
-    writeFileSync(path.join(OUT_DIR, "index.json"), JSON.stringify(tree, null, 2));
-    console.log(bold(`ShallowWiki generated at ${OUT_DIR} (${fileCount + 1} files)`));
+    writeFileSync(
+      path.join(OUT_DIR, "index.json"),
+      JSON.stringify(tree, null, 2)
+    );
+    console.log(
+      bold(`ShallowWiki generated at ${OUT_DIR} (${fileCount + 1} files)`)
+    );
   }
 
   saveCache();
@@ -843,11 +950,14 @@ export async function run() {
 }
 
 // Wrapper function for API usage that accepts parameters
-export async function runDeepWiki(repoPath: string, options: {
-  concurrency?: number;
-  model?: string;
-  modelMini?: string;
-}) {
+export async function runDeepWiki(
+  repoPath: string,
+  options: {
+    concurrency?: number;
+    model?: string;
+    modelMini?: string;
+  }
+) {
   // Store original values
   const originalPath = process.argv[2];
   const originalConcurrency = config.concurrency;
@@ -874,7 +984,7 @@ export async function runDeepWiki(repoPath: string, options: {
 
     // Return the processing stats
     return {
-      processingStats: getProcessingStats()
+      processingStats: getProcessingStats(),
     };
   } finally {
     // Restore original values

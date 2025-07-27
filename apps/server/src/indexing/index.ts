@@ -6,7 +6,6 @@ import { getNamespaceFromRepo, isValidRepo } from "./utils/repository";
 import config from "@/config";
 import { shallowwikiRouter } from "./shallowwiki/routes";
 
-
 const router = express.Router();
 const pinecone = new PineconeHandler();
 
@@ -16,15 +15,23 @@ router.use("/shallowwiki", shallowwikiRouter);
 router.post(
   "/index",
   async (
-    req: express.Request<object, object, { repo: string; taskId: string; options: IndexRepoOptions }>,
+    req: express.Request<
+      object,
+      object,
+      { repo: string; taskId: string; options: IndexRepoOptions }
+    >,
     res,
     next
   ) => {
     console.log("Indexing repo", req.body.repo);
-    console.log("Semantic search enabled: ", config.enableSemanticSearch);
+    console.log("Semantic search enabled:", config.enableSemanticSearch);
     if (!config.enableSemanticSearch) {
       console.log("Semantic search is not enabled - skipping indexing");
-      return res.status(200).json({ message: "Semantic search is not enabled - skipping indexing" });
+      return res
+        .status(200)
+        .json({
+          message: "Semantic search is not enabled - skipping indexing",
+        });
     }
     const { repo, taskId, options } = req.body;
     const clearNamespace = options.clearNamespace;
@@ -35,12 +42,15 @@ router.post(
     }
 
     try {
-      const result = await indexRepo(repo, taskId, { ...options, clearNamespace: clearNamespace });
+      const result = await indexRepo(repo, taskId, {
+        ...options,
+        clearNamespace: clearNamespace,
+      });
       res.json({ message: "Indexing complete", ...result });
     } catch (error: unknown) {
       if (error instanceof Error && error.message.includes("Not Found")) {
         return res.status(500).json({
-          error: `Failed to fetch repository: ${error.message}`
+          error: `Failed to fetch repository: ${error.message}`,
         });
       }
       next(error);
@@ -51,7 +61,11 @@ router.post(
 router.post(
   "/search",
   async (
-    req: express.Request<object, object, { query: string; namespace: string; topK?: number; fields?: string[] }>,
+    req: express.Request<
+      object,
+      object,
+      { query: string; namespace: string; topK?: number; fields?: string[] }
+    >,
     res,
     next
   ) => {
@@ -77,7 +91,11 @@ router.post(
 
 router.delete(
   "/clear-namespace",
-  async (req: express.Request<object, object, { namespace: string }>, res, next) => {
+  async (
+    req: express.Request<object, object, { namespace: string }>,
+    res,
+    next
+  ) => {
     try {
       const { namespace } = req.body;
       if (!namespace) {
@@ -97,7 +115,16 @@ router.delete(
 router.post(
   "/deepwiki",
   async (
-    req: express.Request<{}, {}, { repoPath: string; concurrency?: number; model?: string; modelMini?: string }>,
+    req: express.Request<
+      {},
+      {},
+      {
+        repoPath: string;
+        concurrency?: number;
+        model?: string;
+        modelMini?: string;
+      }
+    >,
     res,
     next
   ) => {
@@ -116,12 +143,12 @@ router.post(
       const result = await runDeepWiki(repoPath, {
         concurrency: concurrency || 12,
         model: model || "gpt-4o",
-        modelMini: modelMini || "gpt-4o-mini"
+        modelMini: modelMini || "gpt-4o-mini",
       });
 
       res.json({
         message: "DeepWiki indexing complete",
-        ...result
+        ...result,
       });
     } catch (error: unknown) {
       console.error("DeepWiki indexing error:", error);
@@ -134,7 +161,11 @@ router.post(
 router.post(
   "/deepwiki/search",
   async (
-    req: express.Request<{}, {}, { repoPath: string; query: string; topK?: number; type?: string }>,
+    req: express.Request<
+      {},
+      {},
+      { repoPath: string; query: string; topK?: number; type?: string }
+    >,
     res,
     next
   ) => {
@@ -163,16 +194,20 @@ router.post(
       res.json({
         message: "Search complete",
         namespace: storage.getNamespace(),
-        results: results.map(result => ({
+        results: results.map((result) => ({
           id: result.id,
           score: result.score,
           type: result.metadata?.type,
           filePath: result.metadata?.filePath,
           summary: result.metadata?.text || result.metadata?.summary,
-          symbols: result.metadata?.symbols ? JSON.parse(result.metadata.symbols) : [],
-          dependencies: result.metadata?.dependencies ? JSON.parse(result.metadata.dependencies) : [],
-          lastUpdated: result.metadata?.lastUpdated
-        }))
+          symbols: result.metadata?.symbols
+            ? JSON.parse(result.metadata.symbols)
+            : [],
+          dependencies: result.metadata?.dependencies
+            ? JSON.parse(result.metadata.dependencies)
+            : [],
+          lastUpdated: result.metadata?.lastUpdated,
+        })),
       });
     } catch (error: unknown) {
       console.error("DeepWiki search error:", error);
@@ -185,7 +220,11 @@ router.post(
 router.post(
   "/deepwiki/get",
   async (
-    req: express.Request<{}, {}, { repoHash: string; type: string; path: string }>,
+    req: express.Request<
+      {},
+      {},
+      { repoHash: string; type: string; path: string }
+    >,
     res,
     next
   ) => {
@@ -211,17 +250,21 @@ router.post(
 
       let result;
       switch (type) {
-        case 'file':
-          result = await storage.getFileSummary(path || '');
+        case "file":
+          result = await storage.getFileSummary(path || "");
           break;
-        case 'directory':
-          result = await storage.getDirectorySummary(path || '');
+        case "directory":
+          result = await storage.getDirectorySummary(path || "");
           break;
-        case 'root':
+        case "root":
           result = await storage.getRootOverview();
           break;
         default:
-          return res.status(400).json({ error: "Invalid type. Must be 'file', 'directory', or 'root'" });
+          return res
+            .status(400)
+            .json({
+              error: "Invalid type. Must be 'file', 'directory', or 'root'",
+            });
       }
 
       if (!result) {
@@ -231,7 +274,7 @@ router.post(
       res.json({
         message: "Summary retrieved",
         namespace: storage.getNamespace(),
-        result
+        result,
       });
     } catch (error: unknown) {
       console.error("DeepWiki get summary error:", error);

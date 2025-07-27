@@ -26,10 +26,9 @@ export const sharedConfigSchema = z.object({
   EXA_API_KEY: z.string().optional(),
 
   // Enable semantic search
-  ENABLE_SEMANTIC_SEARCH: z.union([
-    z.boolean(),
-    z.string().transform(val => val === 'true')
-  ]).default(false),
+  ENABLE_SEMANTIC_SEARCH: z
+    .union([z.boolean(), z.string().transform((val) => val === "true")])
+    .default(false),
 
   // GitHub integration (required for all environments)
   GITHUB_CLIENT_ID: z.string(),
@@ -46,10 +45,9 @@ export const sharedConfigSchema = z.object({
   CONCURRENCY: z.coerce.number().default(4),
   MODEL: z.string().default("gpt-4o"),
   MODEL_MINI: z.string().default("gpt-4o-mini"),
-  USE_PINECONE: z.union([
-    z.boolean(),
-    z.string().transform(val => val === 'true')
-  ]).default(false),
+  USE_PINECONE: z
+    .union([z.boolean(), z.string().transform((val) => val === "true")])
+    .default(false),
 });
 
 /**
@@ -60,7 +58,8 @@ export const sharedValidationRules = (data: any) => {
     return {
       success: false,
       error: {
-        message: "At least one API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) must be provided",
+        message:
+          "At least one API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) must be provided",
         path: ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
       },
     };
@@ -71,7 +70,9 @@ export const sharedValidationRules = (data: any) => {
 /**
  * Create config object from parsed shared data
  */
-export const createSharedConfig = (data: z.infer<typeof sharedConfigSchema>) => ({
+export const createSharedConfig = (
+  data: z.infer<typeof sharedConfigSchema>
+) => ({
   // Server
   apiPort: data.API_PORT,
   socketPort: data.SOCKET_PORT,
