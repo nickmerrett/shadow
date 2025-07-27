@@ -10,16 +10,6 @@ export interface TaskWithInitFields {
 }
 
 /**
- * Task initialization status helper functions using declarative boolean logic
- * 
- * Status mapping:
- * - Not started: !lastCompletedStep && !initializationError
- * - In progress: !!lastCompletedStep && !initializationError
- * - Completed: !!lastCompletedStep && !initializationError && status !== 'INITIALIZING'
- * - Failed: !!initializationError
- */
-
-/**
  * Check if task initialization has not started yet
  */
 export function isInitializationNotStarted(task: TaskWithInitFields): boolean {
@@ -30,7 +20,7 @@ export function isInitializationNotStarted(task: TaskWithInitFields): boolean {
  * Check if task initialization is currently in progress
  */
 export function isInitializationInProgress(task: TaskWithInitFields): boolean {
-  return !!task.lastCompletedStep && !task.initializationError;
+  return !!task.lastCompletedStep && !task.initializationError && task.status === 'INITIALIZING';
 }
 
 /**
