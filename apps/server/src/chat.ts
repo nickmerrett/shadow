@@ -349,7 +349,7 @@ export class ChatService {
         }
 
         // Emit the chunk directly to clients
-        emitStreamChunk(chunk);
+        emitStreamChunk(chunk, taskId);
 
         // Handle text content chunks
         if (chunk.type === "content" && chunk.content) {
@@ -597,7 +597,7 @@ export class ChatService {
       // Clean up stream tracking
       this.activeStreams.delete(taskId);
       this.stopRequested.delete(taskId);
-      endStream();
+      endStream(taskId);
     } catch (error) {
       console.error("Error processing user message:", error);
 
@@ -610,12 +610,12 @@ export class ChatService {
         error:
           error instanceof Error ? error.message : "Unknown error occurred",
         finishReason: "error",
-      });
+      }, taskId);
 
       // Clean up stream tracking on error
       this.activeStreams.delete(taskId);
       this.stopRequested.delete(taskId);
-      handleStreamError(error);
+      handleStreamError(error, taskId);
       throw error;
     }
   }

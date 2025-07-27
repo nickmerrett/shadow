@@ -175,6 +175,7 @@ async function verifyTaskAccess(_socketId: string, taskId: string): Promise<bool
 // Emit to specific task room
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function emitToTask(taskId: string, event: keyof ServerToClientEvents, data: any) {
+  console.log(`[SOCKET] !!!! Emitting to task ${taskId}:`, event, data);
   io.to(`task-${taskId}`).emit(event, data);
 }
 
@@ -482,36 +483,21 @@ export function startStream() {
   isStreaming = true;
 }
 
-export function endStream(taskId?: string) {
+export function endStream(taskId: string) {
   isStreaming = false;
-  // Only emit if socket server is initialized (not in terminal mode)
   if (io) {
-    if (taskId) {
-      // Emit to specific task room
-      emitToTask(taskId, "stream-complete", undefined);
-    } else {
-      // Fallback to broadcast for backward compatibility
-      io.emit("stream-complete");
-    }
+    emitToTask(taskId, "stream-complete", undefined);
   }
 }
 
-export function handleStreamError(error: unknown, taskId?: string) {
+export function handleStreamError(error: unknown, taskId: string) {
   isStreaming = false;
-  // Only emit if socket server is initialized (not in terminal mode)
   if (io) {
-    if (taskId) {
-      // Emit to specific task room
-      emitToTask(taskId, "stream-error", error);
-    } else {
-      // Fallback to broadcast for backward compatibility
-      io.emit("stream-error", error);
-    }
+    emitToTask(taskId, "stream-error", error);
   }
 }
 
 export function emitTaskStatusUpdate(taskId: string, status: string) {
-  // Only emit if socket server is initialized (not in terminal mode)
   if (io) {
     const statusUpdateEvent = {
       taskId,
@@ -525,81 +511,25 @@ export function emitTaskStatusUpdate(taskId: string, status: string) {
   }
 }
 
-export function emitStreamChunk(chunk: StreamChunk, taskId?: string) {
+export function emitStreamChunk(chunk: StreamChunk, taskId: string) {
   // Accumulate content for state tracking
   if (chunk.type === "content" && chunk.content) {
     currentStreamContent += chunk.content;
   }
 
-  // Broadcast the chunk to the appropriate audience
-  // Only emit if socket server is initialized (not in terminal mode)
   if (io) {
-    if (taskId) {
-      // Emit to specific task room
-      emitToTask(taskId, "stream-chunk", chunk);
-    } else {
-      // Fallback to broadcast for backward compatibility
-      io.emit("stream-chunk", chunk);
-    }
-  } else {
-    // In terminal mode, just log the content
-    if (chunk.type === "content" && chunk.content) {
-      process.stdout.write(chunk.content);
-    } else if (chunk.type === "tool-call" && chunk.toolCall) {
-      console.log(`\n🔧 [TOOL_CALL] ${chunk.toolCall.name}`);
-      if (Object.keys(chunk.toolCall.args).length > 0) {
-        console.log(`   Args:`, JSON.stringify(chunk.toolCall.args, null, 2));
-      }
-    } else if (chunk.type === "tool-result" && chunk.toolResult) {
-      console.log(`\n✅ [TOOL_RESULT] ${chunk.toolResult.id}:`);
-      console.log(`   ${chunk.toolResult.result}`);
-    } else if (chunk.type === "fs-change" && chunk.fsChange) {
-      console.log(
-        `\n📁 [FS_CHANGE] ${chunk.fsChange.operation} ${chunk.fsChange.filePath}`
-      );
-      console.log(
-        `   Source: ${chunk.fsChange.source}, Directory: ${chunk.fsChange.isDirectory}`
-      );
-    } else if (chunk.type === "usage" && chunk.usage) {
-      console.log(
-        `\n📊 [USAGE] Tokens: ${chunk.usage.totalTokens} (${chunk.usage.promptTokens} prompt + ${chunk.usage.completionTokens} completion)`
-      );
-    } else if (chunk.type === "init-progress" && chunk.initProgress) {
-      console.log(`\n🔄 [INIT] ${chunk.initProgress.message}`);
-      if (chunk.initProgress.currentStep) {
-        console.log(
-          `   Step: ${chunk.initProgress.stepName || chunk.initProgress.currentStep}`
-        );
-        if (chunk.initProgress.stepNumber && chunk.initProgress.totalSteps) {
-          console.log(
-            `   Progress: ${chunk.initProgress.stepNumber}/${chunk.initProgress.totalSteps}`
-          );
-        }
-      }
-      if (chunk.initProgress.error) {
-        console.log(`   Error: ${chunk.initProgress.error}`);
-      }
-    } else if (chunk.type === "complete") {
-      console.log(
-        `\n\n✅ [COMPLETE] Finished with reason: ${chunk.finishReason}`
-      );
-    } else if (chunk.type === "error") {
-      console.log(`\n❌ [ERROR] ${chunk.error}`);
-    }
+    emitToTask(taskId, "stream-chunk", chunk);
   }
 
-  // Handle completion
   if (chunk.type === "complete") {
     endStream(taskId);
   }
 
-  // Handle errors
   if (chunk.type === "error") {
     handleStreamError(chunk.error, taskId);
   }
 }
 
-// Helper function to emit terminal output to task room
 export function emitTerminalOutput(taskId: string, entry: TerminalEntry) {
   if (io) {
     emitToTask(taskId, "terminal-output", { taskId, entry });
