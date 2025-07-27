@@ -123,36 +123,36 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   }, [fileChanges]);
 
   // Index workspace with ShallowWiki
-  const handleIndexWorkspace = async () => {
-    if (!taskId) return;
+  // const handleIndexWorkspace = async () => {
+  //   if (!taskId) return;
 
-    try {
-      setIsWorkspaceIndexing(true);
+  //   try {
+  //     setIsWorkspaceIndexing(true);
 
-      // Call the indexing API directly
-      const response = await fetch(
-        `/api/indexing/shallowwiki/generate-workspace-summaries`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ taskId, forceRefresh: true }),
-        }
-      );
+  //     // Call the indexing API directly
+  //     const response = await fetch(
+  //       `/api/indexing/shallowwiki/generate-workspace-summaries`,
+  //       {
+  //         method: "POST",
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //         },
+  //         body: JSON.stringify({ taskId, forceRefresh: true }),
+  //       }
+  //     );
 
-      if (!response.ok) {
-        throw new Error(`Failed to index workspace: ${response.status}`);
-      }
+  //     if (!response.ok) {
+  //       throw new Error(`Failed to index workspace: ${response.status}`);
+  //     }
 
-      // Reload the summaries after indexing
-      await loadWorkspaceSummaries();
-    } catch (error) {
-      console.error("Error indexing workspace", error);
-    } finally {
-      setIsWorkspaceIndexing(false);
-    }
-  };
+  //     // Reload the summaries after indexing
+  //     await loadWorkspaceSummaries();
+  //   } catch (error) {
+  //     console.error("Error indexing workspace", error);
+  //   } finally {
+  //     setIsWorkspaceIndexing(false);
+  //   }
+  // };
 
   // Load workspace summaries
   const loadWorkspaceSummaries = async () => {
@@ -283,7 +283,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             </div>
           </SidebarMenuItem>
 
-          <SidebarMenuItem>
+          {/* <SidebarMenuItem>
             <Button
               variant="link"
               className="transition-all ease-out duration-100"
@@ -295,7 +295,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               />
               <span>{isWorkspaceIndexing ? "Generating..." : "Generate Summaries"}</span>
             </Button>
-          </SidebarMenuItem>
+          </SidebarMenuItem> */}
 
           {/* Task total diff */}
           {diffStats.totalFiles > 0 && (
