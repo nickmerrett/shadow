@@ -155,6 +155,7 @@ export function GithubConnection({
   const handleBackToRepos = () => {
     setMode("repos");
     setSelectedRepo(null);
+    setSelectedBranch(null);
     setRepoSearch("");
   };
 
@@ -286,7 +287,7 @@ export function GithubConnection({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground !px-4.5 w-full gap-2 text-[13px] font-normal hover:bg-transparent"
+                  className="text-muted-foreground !px-4.5 h-6 w-full gap-2 text-[13px] font-normal hover:bg-transparent"
                 >
                   <Folder className="size-3.5" />
                   {group.name}
