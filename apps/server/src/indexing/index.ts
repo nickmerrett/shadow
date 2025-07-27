@@ -5,6 +5,8 @@ import { retrieve } from "./retrieval";
 import { getNamespaceFromRepo, isValidRepo } from "./utils/repository";
 import config from "@/config";
 import { shallowwikiRouter } from "./shallowwiki/routes";
+import { runDeepWiki } from "./shallowwiki/index";
+import { DeepWikiStorage } from "./shallowwiki/storage";
 
 const router = express.Router();
 const pinecone = new PineconeHandler();
@@ -27,11 +29,9 @@ router.post(
     console.log("Semantic search enabled:", config.enableSemanticSearch);
     if (!config.enableSemanticSearch) {
       console.log("Semantic search is not enabled - skipping indexing");
-      return res
-        .status(200)
-        .json({
-          message: "Semantic search is not enabled - skipping indexing",
-        });
+      return res.status(200).json({
+        message: "Semantic search is not enabled - skipping indexing",
+      });
     }
     const { repo, taskId, options } = req.body;
     const clearNamespace = options.clearNamespace;
@@ -137,9 +137,6 @@ router.post(
     }
 
     try {
-      // Dynamically import the DeepWiki indexer
-      const { runDeepWiki } = await import("./shallowwiki/index.js");
-
       const result = await runDeepWiki(repoPath, {
         concurrency: concurrency || 12,
         model: model || "gpt-4o",
@@ -178,9 +175,6 @@ router.post(
     }
 
     try {
-      // Dynamically import the DeepWiki storage
-      const { DeepWikiStorage } = await import("./shallowwiki/storage.js");
-
       const storage = new DeepWikiStorage(repoPath);
 
       // Build search query with type filter if specified
@@ -238,8 +232,6 @@ router.post(
 
     try {
       // Dynamically import the DeepWiki storage
-      const { DeepWikiStorage } = await import("./shallowwiki/storage.js");
-
       // Create storage with dummy repo path (we'll use the hash directly)
       const storage = new (class extends DeepWikiStorage {
         constructor() {
@@ -260,11 +252,9 @@ router.post(
           result = await storage.getRootOverview();
           break;
         default:
-          return res
-            .status(400)
-            .json({
-              error: "Invalid type. Must be 'file', 'directory', or 'root'",
-            });
+          return res.status(400).json({
+            error: "Invalid type. Must be 'file', 'directory', or 'root'",
+          });
       }
 
       if (!result) {

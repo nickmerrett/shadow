@@ -3,10 +3,10 @@ import { DbWikiStorage } from "./db-storage";
 import { db } from "@repo/db";
 import { resolveRepoPath } from "./resolveRepoPath";
 import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
+import { runDeepWiki } from "./index";
 import path from "path";
 import fs from "fs";
 import os from "os";
-import config from "@/config";
 
 const shallowwikiRouter = express.Router();
 
@@ -76,7 +76,6 @@ shallowwikiRouter.post(
       process.argv[2] = tempDir;
 
       // Import and run the ShallowWiki summarizer
-      const { runDeepWiki } = await import("./index.js");
       await runDeepWiki(tempDir, {
         concurrency: 12,
         model: "gpt-4o",
@@ -129,7 +128,6 @@ shallowwikiRouter.post(
       process.argv[2] = repoPath;
 
       // Import and run the ShallowWiki summarizer with the new runDeepWiki function
-      const { runDeepWiki } = await import("./index.js");
       await runDeepWiki(repoPath, {
         concurrency: 12,
         model: "gpt-4o",
@@ -141,8 +139,6 @@ shallowwikiRouter.post(
       process.chdir(originalCwd);
 
       // Read the generated summaries from .shadow/tree directory
-      const fs = await import("fs");
-      const path = await import("path");
       const summaryDir = path.join(repoPath, ".shadow", "tree");
 
       let summaries: string[] = [];
@@ -184,8 +180,6 @@ shallowwikiRouter.post(
 
     try {
       const repoPath = await resolveRepoPath(repo);
-      const fs = await import("fs");
-      const path = await import("path");
 
       const summaryPath = path.join(repoPath, ".shadow", "tree", fileName);
 
@@ -597,9 +591,6 @@ shallowwikiRouter.post(
           }
         } else if (type === "file" && filePath) {
           // For individual files, return file content preview
-          const { LocalWorkspaceManager } = await import(
-            "../../execution/local/local-workspace-manager.js"
-          );
           const workspaceManager = new LocalWorkspaceManager();
           const files = await workspaceManager
             .getAllFilesFromWorkspace(taskId)
