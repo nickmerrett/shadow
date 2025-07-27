@@ -5,11 +5,11 @@ import {
 import { emitStreamChunk } from "../socket";
 import { createWorkspaceManager, createToolExecutor, getAgentMode } from "../execution";
 import type { WorkspaceManager as AbstractWorkspaceManager } from "../execution";
-import { 
-  setTaskInProgress, 
-  setTaskCompleted, 
-  setTaskFailed, 
-  clearTaskProgress 
+import {
+  setTaskInProgress,
+  setTaskCompleted,
+  setTaskFailed,
+  clearTaskProgress
 } from "../utils/task-status";
 
 // Helper for async delays
@@ -26,13 +26,13 @@ const STEP_DEFINITIONS: Record<
     name: "Validating Access",
     description: "Verify GitHub token and repository permissions",
   },
-  
+
   // Local mode step
   PREPARE_WORKSPACE: {
     name: "Preparing Workspace",
     description: "Create local workspace directory and clone repository",
   },
-  
+
   // Firecracker-specific steps
   CREATE_VM: {
     name: "Creating VM",
@@ -46,7 +46,7 @@ const STEP_DEFINITIONS: Record<
     name: "Verifying Workspace",
     description: "Verify workspace is ready and contains repository",
   },
-  
+
   // Cleanup step (firecracker only)
   CLEANUP_WORKSPACE: {
     name: "Cleaning Up",
@@ -218,7 +218,7 @@ export class TaskInitializationEngine {
     userId: string
   ): Promise<void> {
     console.log(`[TASK_INIT] ${taskId}: Validating GitHub access for user ${userId}`);
-    
+
     // This is a placeholder - validation happens in the task initiation process
     // Could add additional checks here if needed
     await delay(500);
@@ -236,13 +236,13 @@ export class TaskInitializationEngine {
     if (agentMode !== "local") {
       throw new Error(`PREPARE_WORKSPACE step should only be used in local mode, but agent mode is: ${agentMode}`);
     }
-    
+
     console.log(`[TASK_INIT] ${taskId}: Preparing local workspace`);
-    
+
     // Get task info
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { repoUrl: true, baseBranch: true, shadowBranch: true },
+      select: { repoFullName: true, repoUrl: true, baseBranch: true, shadowBranch: true },
     });
 
     if (!task) {
@@ -252,6 +252,7 @@ export class TaskInitializationEngine {
     // Use workspace manager to prepare local workspace and clone repo
     const workspaceResult = await this.abstractWorkspaceManager.prepareWorkspace({
       id: taskId,
+      repoFullName: task.repoFullName,
       repoUrl: task.repoUrl,
       baseBranch: task.baseBranch || 'main',
       shadowBranch: task.shadowBranch || `shadow/task-${taskId}`,
@@ -281,14 +282,14 @@ export class TaskInitializationEngine {
     if (agentMode !== "firecracker") {
       throw new Error(`CREATE_VM step should only be used in firecracker mode, but agent mode is: ${agentMode}`);
     }
-    
+
     console.log(`[TASK_INIT] ${taskId}: Creating Firecracker VM for execution`);
 
     try {
       // Get task info
       const task = await prisma.task.findUnique({
         where: { id: taskId },
-        select: { repoUrl: true, baseBranch: true, shadowBranch: true },
+        select: { repoFullName: true, repoUrl: true, baseBranch: true, shadowBranch: true },
       });
 
       if (!task) {
@@ -298,6 +299,7 @@ export class TaskInitializationEngine {
       // Use abstract workspace manager to prepare workspace (creates VM in firecracker mode)
       const workspaceInfo = await this.abstractWorkspaceManager.prepareWorkspace({
         id: taskId,
+        repoFullName: task.repoFullName,
         repoUrl: task.repoUrl,
         baseBranch: task.baseBranch || 'main',
         shadowBranch: task.shadowBranch || `shadow/task-${taskId}`,
@@ -463,7 +465,7 @@ export class TaskInitializationEngine {
         case "simple":
           return [
             "VALIDATE_ACCESS",
-            "CREATE_VM", 
+            "CREATE_VM",
             "WAIT_VM_READY",
             "VERIFY_VM_WORKSPACE"
           ];
@@ -474,7 +476,7 @@ export class TaskInitializationEngine {
           return [
             "VALIDATE_ACCESS",
             "CREATE_VM",
-            "WAIT_VM_READY", 
+            "WAIT_VM_READY",
             "VERIFY_VM_WORKSPACE"
           ];
 
@@ -482,7 +484,7 @@ export class TaskInitializationEngine {
           return [
             "VALIDATE_ACCESS",
             "CREATE_VM",
-            "WAIT_VM_READY", 
+            "WAIT_VM_READY",
             "VERIFY_VM_WORKSPACE"
           ];
       }

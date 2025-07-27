@@ -103,7 +103,6 @@ export async function createTask(formData: FormData) {
         );
 
         await fetchIndexApi({ repoFullName: task.repoFullName, taskId: task.id, clearNamespace: true });
-        console.log("Repo indexed");
         if (!response.ok) {
           console.error("Failed to initiate task:", await response.text());
         } else {
