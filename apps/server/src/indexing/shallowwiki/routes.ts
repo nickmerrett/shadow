@@ -6,6 +6,7 @@ import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager
 import path from "path";
 import fs from "fs";
 import os from "os";
+import config from "@/config";
 
 const shallowwikiRouter = express.Router();
 
@@ -79,7 +80,6 @@ shallowwikiRouter.post(
       // Restore original state
       process.argv[2] = originalArgv;
       process.chdir(originalCwd);
-      process.env.USE_PINECONE = originalUsePinecone;
       
       res.json({ 
         message: "Workspace summaries generated successfully",
@@ -113,9 +113,6 @@ shallowwikiRouter.post(
       console.log(`Processing repo ${repo} with forceRefresh=${forceRefresh}`);
       const repoPath = await resolveRepoPath(repo, forceRefresh);
       
-      // Keep original Pinecone setting for repo indexing
-      const originalUsePinecone = process.env.USE_PINECONE;
-      // Don't override USE_PINECONE - let it use the configured value
       
       // Change to repo directory and run ShallowWiki
       const originalCwd = process.cwd();
@@ -135,7 +132,6 @@ shallowwikiRouter.post(
       // Restore original state
       process.argv[2] = originalArgv;
       process.chdir(originalCwd);
-      process.env.USE_PINECONE = originalUsePinecone;
       
       // Read the generated summaries from .shadow/tree directory
       const fs = await import("fs");
