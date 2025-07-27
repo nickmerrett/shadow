@@ -80,22 +80,23 @@ model Task {
   // Repo URL "https://github.com/owner/repo"
   repoUrl      String
 
-  workspacePath       String?
-  lastCompletedStep   InitStepType?
-  initializationError String?
-  mode                TaskMode          @default(FULL_AUTO)
-  workspaceCleanedUp  Boolean           @default(false)
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-  userId              String
-  baseBranch          String
-  baseCommitSha       String
-  shadowBranch        String
-  messages            ChatMessage[]
-  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions            TaskSession[]
-  commands            TerminalCommand[]
-  todos               Todo[]
+  workspacePath         String?
+  lastCompletedStep     InitStepType?
+  initializationError   String?
+  mode                  TaskMode                @default(FULL_AUTO)
+  workspaceCleanedUp    Boolean                 @default(false)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  userId                String
+  baseBranch            String
+  baseCommitSha         String
+  shadowBranch          String
+  messages              ChatMessage[]
+  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions              TaskSession[]
+  commands              TerminalCommand[]
+  todos                 Todo[]
+  CodebaseUnderstanding CodebaseUnderstanding[]
 }
 
 model Todo {
@@ -160,6 +161,22 @@ model TaskSession {
   task         Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId, isActive])
+}
+
+model CodebaseUnderstanding {
+  id        String   @id @default(cuid())
+  taskId    String
+  fileName  String
+  type      String?  @default("file_summary")
+  filePath  String?
+  language  String?
+  content   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([type])
 }
 
 enum TaskStatus {
