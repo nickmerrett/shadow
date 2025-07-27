@@ -4,19 +4,18 @@ import type { InitStepType } from "@repo/db";
  * Human-readable display names for initialization steps
  */
 export const STEP_DISPLAY_NAMES: Record<InitStepType, string> = {
-  // Shared steps (both local and firecracker)
+  // Shared step (used by both modes)
   VALIDATE_ACCESS: "Validating Access",
-  PREPARE_WORKSPACE: "Preparing Workspace", 
-  CLONE_REPOSITORY: "Cloning Repository",
-  SETUP_ENVIRONMENT: "Setting Up Environment",
-  VALIDATE_SETUP: "Validating Setup",
+  
+  // Local mode step
+  PREPARE_WORKSPACE: "Preparing Workspace",
   
   // Firecracker-specific steps
   CREATE_VM: "Creating VM",
   WAIT_VM_READY: "Starting VM",
   VERIFY_VM_WORKSPACE: "Verifying Workspace",
   
-  // Cleanup steps
+  // Cleanup step (firecracker only)
   CLEANUP_WORKSPACE: "Cleaning Up"
 };
 
@@ -36,17 +35,12 @@ export function getStepsForMode(mode: "local" | "firecracker"): InitStepType[] {
       "VALIDATE_ACCESS",
       "CREATE_VM", 
       "WAIT_VM_READY",
-      "VERIFY_VM_WORKSPACE",
-      "SETUP_ENVIRONMENT",
-      "VALIDATE_SETUP"
+      "VERIFY_VM_WORKSPACE"
     ];
   } else {
     return [
       "VALIDATE_ACCESS",
-      "PREPARE_WORKSPACE",
-      "CLONE_REPOSITORY", 
-      "SETUP_ENVIRONMENT",
-      "VALIDATE_SETUP"
+      "PREPARE_WORKSPACE"
     ];
   }
 }

@@ -21,26 +21,16 @@ const STEP_DEFINITIONS: Record<
   InitStepType,
   { name: string; description: string }
 > = {
-  // Shared steps (both local and firecracker)
+  // Shared step (used by both modes)
   VALIDATE_ACCESS: {
     name: "Validating Access",
     description: "Verify GitHub token and repository permissions",
   },
+  
+  // Local mode step
   PREPARE_WORKSPACE: {
     name: "Preparing Workspace",
-    description: "Create workspace directory and setup environment",
-  },
-  CLONE_REPOSITORY: {
-    name: "Cloning Repository",
-    description: "Clone the specified GitHub repository",
-  },
-  SETUP_ENVIRONMENT: {
-    name: "Setting Up Environment",
-    description: "Configure development environment and install dependencies",
-  },
-  VALIDATE_SETUP: {
-    name: "Validating Setup",
-    description: "Verify environment is ready for development",
+    description: "Create local workspace directory and clone repository",
   },
   
   // Firecracker-specific steps
@@ -57,7 +47,7 @@ const STEP_DEFINITIONS: Record<
     description: "Verify workspace is ready and contains repository",
   },
   
-  // Cleanup steps
+  // Cleanup step (firecracker only)
   CLEANUP_WORKSPACE: {
     name: "Cleaning Up",
     description: "Clean up workspace and resources",
@@ -76,7 +66,7 @@ export class TaskInitializationEngine {
    */
   async initializeTask(
     taskId: string,
-    steps: InitStepType[] = ["CLONE_REPOSITORY"],
+    steps: InitStepType[] = ["PREPARE_WORKSPACE"],
     userId: string
   ): Promise<void> {
     console.log(
@@ -186,26 +176,16 @@ export class TaskInitializationEngine {
     userId: string
   ): Promise<void> {
     switch (step) {
-      // Shared steps (both local and firecracker)
+      // Shared step (used by both modes)
       case "VALIDATE_ACCESS":
         await this.executeValidateAccess(taskId, userId);
         break;
 
+      // Local mode step
       case "PREPARE_WORKSPACE":
         await this.executePrepareWorkspace(taskId, userId);
         break;
 
-      case "CLONE_REPOSITORY":
-        await this.executeCloneRepository(taskId, userId);
-        break;
-
-      case "SETUP_ENVIRONMENT":
-        await this.executeSetupEnvironment(taskId);
-        break;
-
-      case "VALIDATE_SETUP":
-        await this.executeValidateSetup(taskId);
-        break;
 
       // Firecracker-specific steps
       case "CREATE_VM":
@@ -220,7 +200,7 @@ export class TaskInitializationEngine {
         await this.executeVerifyVMWorkspace(taskId, userId);
         break;
 
-      // Cleanup steps
+      // Cleanup step (firecracker only)
       case "CLEANUP_WORKSPACE":
         await this.executeCleanupWorkspace(taskId);
         break;
@@ -245,30 +225,20 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Prepare workspace step - unified for local/firecracker modes
+   * Prepare workspace step - local mode only
+   * Creates local workspace directory and clones repository
    */
   private async executePrepareWorkspace(
     taskId: string,
     userId: string
   ): Promise<void> {
     const agentMode = getAgentMode();
-    
-    if (agentMode === "firecracker") {
-      // In firecracker mode, this creates the VM and the VM handles repo cloning
-      await this.executeCreateVM(taskId, userId);
-    } else {
-      // In local mode, prepare the local workspace
-      await this.executeCloneRepository(taskId, userId);
+    if (agentMode !== "local") {
+      throw new Error(`PREPARE_WORKSPACE step should only be used in local mode, but agent mode is: ${agentMode}`);
     }
-  }
-
-  /**
-   * Clone repository step (local mode only)
-   */
-  private async executeCloneRepository(
-    taskId: string,
-    userId: string
-  ): Promise<void> {
+    
+    console.log(`[TASK_INIT] ${taskId}: Preparing local workspace`);
+    
     // Get task info
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -279,6 +249,7 @@ export class TaskInitializationEngine {
       throw new Error(`Task ${taskId} not found`);
     }
 
+    // Use workspace manager to prepare local workspace and clone repo
     const workspaceResult = await this.abstractWorkspaceManager.prepareWorkspace({
       id: taskId,
       repoUrl: task.repoUrl,
@@ -288,83 +259,29 @@ export class TaskInitializationEngine {
     });
 
     if (!workspaceResult.success) {
-      throw new Error(workspaceResult.error || "Failed to clone repository");
+      throw new Error(workspaceResult.error || "Failed to prepare local workspace");
     }
 
-    // Update task with workspace info
+    // Update task with workspace path
     await prisma.task.update({
       where: { id: taskId },
-      data: {
-        workspacePath: workspaceResult.workspacePath,
-      },
+      data: { workspacePath: workspaceResult.workspacePath },
     });
   }
 
-  /**
-   * Provision microVM step (placeholder for future implementation)
-   */
-  private async executeProvisionMicroVM(taskId: string): Promise<void> {
-    // Placeholder - would provision microVM in the future
-    console.log(
-      `[TASK_INIT] ${taskId}: MicroVM provisioning not yet implemented`
-    );
 
-    // Simulate some work
-    await delay(1000);
-  }
+
 
   /**
-   * Setup environment step (placeholder)
-   */
-  private async executeSetupEnvironment(taskId: string): Promise<void> {
-    // Placeholder - would set up development environment
-    console.log(`[TASK_INIT] ${taskId}: Environment setup not yet implemented`);
-
-    // Simulate some work
-    await delay(500);
-  }
-
-  /**
-   * Install dependencies step (placeholder)
-   */
-  private async executeInstallDependencies(taskId: string): Promise<void> {
-    // Placeholder - would install npm/pip/etc dependencies
-    console.log(
-      `[TASK_INIT] ${taskId}: Dependency installation not yet implemented`
-    );
-
-    // Simulate some work
-    await delay(1500);
-  }
-
-  /**
-   * Configure tools step (placeholder)
-   */
-  private async executeConfigureTools(taskId: string): Promise<void> {
-    // Placeholder - would configure linters, formatters, etc
-    console.log(
-      `[TASK_INIT] ${taskId}: Tool configuration not yet implemented`
-    );
-
-    // Simulate some work
-    await delay(500);
-  }
-
-  /**
-   * Validate setup step (placeholder)
-   */
-  private async executeValidateSetup(taskId: string): Promise<void> {
-    // Placeholder - would validate that everything is working
-    console.log(`[TASK_INIT] ${taskId}: Setup validation not yet implemented`);
-
-    // Simulate some work
-    await delay(300);
-  }
-
-  /**
-   * Create VM step - Create Firecracker VM for execution
+   * Create VM step - firecracker mode only
+   * Creates Firecracker VM pod (VM startup script handles repository cloning)
    */
   private async executeCreateVM(taskId: string, userId: string): Promise<void> {
+    const agentMode = getAgentMode();
+    if (agentMode !== "firecracker") {
+      throw new Error(`CREATE_VM step should only be used in firecracker mode, but agent mode is: ${agentMode}`);
+    }
+    
     console.log(`[TASK_INIT] ${taskId}: Creating Firecracker VM for execution`);
 
     try {
@@ -521,22 +438,6 @@ export class TaskInitializationEngine {
     }
   }
 
-  /**
-   * Update task initialization status in database
-   */
-  private async updateTaskInit(
-    taskId: string,
-    status: InitializationStatus,
-    step: InitStepType | null
-  ): Promise<void> {
-    await prisma.task.update({
-      where: { id: taskId },
-      data: {
-        initializationStatus: status,
-        currentInitStep: step,
-      },
-    });
-  }
 
   /**
    * Emit progress events via WebSocket
@@ -568,22 +469,13 @@ export class TaskInitializationEngine {
           ];
 
         case "microvm":
+        case "full":
+          // All firecracker task types now use the same simple flow
           return [
             "VALIDATE_ACCESS",
             "CREATE_VM",
             "WAIT_VM_READY", 
-            "VERIFY_VM_WORKSPACE",
-            "SETUP_ENVIRONMENT"
-          ];
-
-        case "full":
-          return [
-            "VALIDATE_ACCESS",
-            "CREATE_VM",
-            "WAIT_VM_READY",
-            "VERIFY_VM_WORKSPACE", 
-            "SETUP_ENVIRONMENT",
-            "VALIDATE_SETUP",
+            "VERIFY_VM_WORKSPACE"
           ];
 
         default:
@@ -604,18 +496,11 @@ export class TaskInitializationEngine {
           ];
 
         case "microvm":
-          return [
-            "VALIDATE_ACCESS", 
-            "PREPARE_WORKSPACE",
-            "SETUP_ENVIRONMENT"
-          ];
-
         case "full":
+          // All local task types now use the same simple flow
           return [
             "VALIDATE_ACCESS",
-            "PREPARE_WORKSPACE",
-            "SETUP_ENVIRONMENT",
-            "VALIDATE_SETUP",
+            "PREPARE_WORKSPACE"
           ];
 
         default:

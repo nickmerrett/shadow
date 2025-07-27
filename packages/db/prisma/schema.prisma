@@ -70,31 +70,31 @@ model Verification {
 }
 
 model Task {
-  id                   String               @id @default(cuid())
-  title                String
-  description          String?
-  status               TaskStatus           @default(INITIALIZING)
-  repoUrl              String
-  workspacePath        String?
-  lastCompletedStep    InitStepType?
-  initializationError  String?
-  mode                 TaskMode             @default(FULL_AUTO)
-  workspaceCleanedUp   Boolean              @default(false)
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  userId               String
-  baseBranch           String
-  baseCommitSha        String
-  shadowBranch         String
-  messages             ChatMessage[]
-  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions             TaskSession[]
-  commands             TerminalCommand[]
-  todos                Todo[]
+  id                  String            @id @default(cuid())
+  title               String
+  description         String?
+  status              TaskStatus        @default(INITIALIZING)
+  repoUrl             String
+  workspacePath       String?
+  lastCompletedStep   InitStepType?
+  initializationError String?
+  mode                TaskMode          @default(FULL_AUTO)
+  workspaceCleanedUp  Boolean           @default(false)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  userId              String
+  baseBranch          String
+  baseCommitSha       String
+  shadowBranch        String
+  messages            ChatMessage[]
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions            TaskSession[]
+  commands            TerminalCommand[]
+  todos               Todo[]
 }
 
 model Todo {
-  id        String     @id @default(cuid())
+  id        String     @default(cuid())
   content   String
   status    TodoStatus @default(PENDING)
   sequence  Int
@@ -103,6 +103,7 @@ model Todo {
   taskId    String
   task      Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
+  @@id([taskId, id])
   @@index([taskId, sequence])
   @@index([taskId, status])
 }
@@ -187,19 +188,18 @@ enum TodoStatus {
 }
 
 enum InitStepType {
-  // Shared steps (both local and firecracker)
+  // Shared step (used by both modes)
   VALIDATE_ACCESS
+
+  // Local mode step
   PREPARE_WORKSPACE
-  CLONE_REPOSITORY
-  SETUP_ENVIRONMENT
-  VALIDATE_SETUP
-  
+
   // Firecracker-specific steps
   CREATE_VM
   WAIT_VM_READY
   VERIFY_VM_WORKSPACE
-  
-  // Cleanup steps
+
+  // Cleanup step (firecracker only)
   CLEANUP_WORKSPACE
 }
 
@@ -210,4 +210,3 @@ enum FileOp {
   RENAME
   MOVE
 }
-
