@@ -6,9 +6,9 @@ import { PromptForm } from "./prompt-form";
 import type { FilteredRepository } from "@/lib/github/types";
 
 export function HomePageContent({
-  initialGitState,
+  initialGitCookieState,
 }: {
-  initialGitState?: {
+  initialGitCookieState?: {
     repo: FilteredRepository | null;
     branch: { name: string; commitSha: string } | null;
   } | null;
@@ -28,7 +28,7 @@ export function HomePageContent({
         isHome
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        initialGitState={initialGitState}
+        initialGitCookieState={initialGitCookieState}
       />
     </div>
   );

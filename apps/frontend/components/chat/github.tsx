@@ -14,7 +14,7 @@ import {
 import { useGitHubBranches } from "@/hooks/use-github-branches";
 import { useGitHubRepositories } from "@/hooks/use-github-repositories";
 import { useGitHubStatus } from "@/hooks/use-github-status";
-import { saveGitSelectorCookie } from "@/lib/actions/save-git-selector-cookie";
+import { saveGitSelectorCookie } from "@/lib/actions/git-selector-cookie";
 import { cn, formatTimeAgo } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -138,7 +138,7 @@ export function GithubConnection({
     const branchData = { name: branchName, commitSha };
     setSelectedBranch(branchData);
     setIsOpen(false);
-    
+
     // Save both repo and branch to cookie
     if (selectedRepo) {
       try {
@@ -231,29 +231,29 @@ export function GithubConnection({
         />
         <div className="font-medium">Connect Github</div>
       </div>
-      {statusError ?
+      {statusError ? (
         <div className="text-destructive mb-4 text-sm">
           Unable to check GitHub connection. Try again or contact us to report.
         </div>
-        :
+      ) : (
         <div className="text-muted-foreground mb-4 text-sm">
-          For full access, install Shadow into your organization. If you&apos;re seeing this and already installed, hit &apos;Save&apos; in Github.
-        </div>}
+          For full access, install Shadow into your organization. If you&apos;re
+          seeing this and already installed, hit &apos;Save&apos; in Github.
+        </div>
+      )}
 
-      {
-        githubStatus?.installationUrl && (
-          <Button
-            onClick={() => {
-              window.open(githubStatus.installationUrl, "_blank");
-              setIsOpen(false);
-            }}
-            className="w-full"
-          >
-            Install GitHub App
-          </Button>
-        )
-      }
-    </div >
+      {githubStatus?.installationUrl && (
+        <Button
+          onClick={() => {
+            window.open(githubStatus.installationUrl, "_blank");
+            setIsOpen(false);
+          }}
+          className="w-full"
+        >
+          Install GitHub App
+        </Button>
+      )}
+    </div>
   );
 
   const renderRepos = (
@@ -324,12 +324,7 @@ export function GithubConnection({
         target="_blank"
         className="hover:bg-sidebar-accent flex h-9 w-full cursor-pointer items-center gap-2 border-t px-2 text-sm transition-colors"
       >
-        <Image
-          src="/github.svg"
-          alt="GitHub"
-          width={16}
-          height={16}
-        />
+        <Image src="/github.svg" alt="GitHub" width={16} height={16} />
         <span>Manage Github</span>
       </Link>
     </div>
@@ -382,12 +377,7 @@ export function GithubConnection({
         target="_blank"
         className="hover:bg-sidebar-accent flex h-9 w-full cursor-pointer items-center gap-2 border-t px-2 text-sm transition-colors"
       >
-        <Image
-          src="/github.svg"
-          alt="GitHub"
-          width={16}
-          height={16}
-        />
+        <Image src="/github.svg" alt="GitHub" width={16} height={16} />
         <span>Manage Github</span>
       </Link>
     </div>

@@ -6,21 +6,19 @@ import {
   getGitHubStatus,
 } from "@/lib/github/github-api";
 import { getModels } from "@/lib/actions/get-models";
-import {
-  clearGitSelectorCookie,
-  getGitSelectorCookie,
-} from "@/lib/actions/save-git-selector-cookie";
-import type { FilteredRepository, GitHubStatus } from "@/lib/github/types";
+import { getGitSelectorCookie } from "@/lib/actions/git-selector-cookie";
+import type { GitHubStatus } from "@/lib/github/types";
 import {
   dehydrate,
   HydrationBoundary,
   QueryClient,
 } from "@tanstack/react-query";
+import { GitCookieDestroyer } from "@/components/task/git-cookie-destroyer";
 
 export default async function Home() {
   const user = await getUser();
   const queryClient = new QueryClient();
-  const initialGitState = await getGitSelectorCookie();
+  const initialGitCookieState = await getGitSelectorCookie();
 
   const prefetchPromises = [
     queryClient
@@ -60,17 +58,21 @@ export default async function Home() {
     "github",
     "status",
   ]);
-  let finalGitState = initialGitState;
 
-  if (initialGitState && githubStatus && !githubStatus.isAppInstalled) {
-    await clearGitSelectorCookie();
-    finalGitState = null;
-  }
+  // If the GitHub app installation disconnected or expired, don't use our saved cookie
+  const shouldDeleteGitCookie =
+    !!initialGitCookieState && !!githubStatus && !githubStatus.isAppInstalled;
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <HomeLayoutWrapper>
-        <HomePageContent initialGitState={finalGitState} />
+        <HomePageContent
+          initialGitCookieState={
+            shouldDeleteGitCookie ? null : initialGitCookieState
+          }
+        />
+        {/* There's no way to delete cookies from a server component so pass down to client component */}
+        <GitCookieDestroyer shouldDeleteGitCookie={shouldDeleteGitCookie} />
       </HomeLayoutWrapper>
     </HydrationBoundary>
   );
