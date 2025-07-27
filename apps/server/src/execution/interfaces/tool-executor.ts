@@ -18,7 +18,6 @@ import {
   GitPushResponse,
   GitCommitRequest,
   GitPushRequest,
-  CodebaseSearchResult,
 } from "@repo/types";
 import { CommandResult } from "./types";
 
@@ -68,7 +67,7 @@ export interface ToolExecutor {
     query: string,
     repo: string,
     options?: SearchOptions
-  ): Promise<CodebaseSearchResult>;
+  ): Promise<CodebaseSearchToolResult>;
   webSearch(
     query: string,
     domain?: string

@@ -65,6 +65,7 @@ export function PromptForm({
       formData.append("message", message);
       formData.append("model", selectedModel);
       formData.append("repoUrl", completeRepoUrl);
+      formData.append("repoFullName", repo.full_name);
       formData.append("baseBranch", branch.name);
       formData.append("baseCommitSha", branch.commitSha);
 
