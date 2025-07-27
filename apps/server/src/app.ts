@@ -92,7 +92,6 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
     );
 
     try {
-      // Get user's GitHub access token to validate authentication
       const githubAccessToken = await getGitHubAccessToken(userId);
 
       if (!githubAccessToken) {
@@ -100,7 +99,6 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
           `[TASK_INITIATE] No GitHub access token found for user ${userId}`
         );
 
-        // Update task status to failed
         await updateTaskStatus(taskId, "FAILED", "INIT");
 
         return res.status(400).json({
@@ -109,10 +107,8 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         });
       }
 
-      // Update task status to initializing
       await updateTaskStatus(taskId, "INITIALIZING", "INIT");
 
-      // Run initialization steps using userId (token management is handled internally)
       const initSteps = initializationEngine.getDefaultStepsForTask("simple");
       await initializationEngine.initializeTask(taskId, initSteps, userId);
 
@@ -148,10 +144,8 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         initError
       );
 
-      // Update task status to failed with specific error message
       await updateTaskStatus(taskId, "FAILED", "INIT");
 
-      // Update description if it's an auth error
       if (
         initError instanceof Error &&
         initError.message.includes("authentication")
@@ -164,7 +158,6 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         });
       }
 
-      // Return appropriate error response
       if (
         initError instanceof Error &&
         (initError.message.includes("authentication") ||

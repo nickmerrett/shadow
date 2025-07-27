@@ -160,7 +160,7 @@ export class ChatService {
           },
           {
             name: "Shadow",
-            email: "noreply@shadow.ai",
+            email: "noreply@shadowrealm.ai",
           }
         );
 
@@ -218,7 +218,7 @@ export class ChatService {
         },
         coAuthor: {
           name: "Shadow",
-          email: "noreply@shadow.ai",
+          email: "noreply@shadowrealm.ai",
         },
         message: commitMessage,
       });
