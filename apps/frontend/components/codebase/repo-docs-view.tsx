@@ -54,9 +54,9 @@ export function RepoDocsView({ taskId }: RepoDocsViewProps) {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="mx-auto flex min-h-svh w-full max-w-4xl items-center justify-center">
         <div className="text-muted-foreground text-center">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900"></div>
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-foreground"></div>
           <p>Loading repository documentation...</p>
         </div>
       </div>
@@ -65,9 +65,9 @@ export function RepoDocsView({ taskId }: RepoDocsViewProps) {
 
   if (summaries.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="mx-auto flex min-h-svh w-full max-w-4xl items-center justify-center">
         <div className="text-muted-foreground text-center">
-          <FileText className="mx-auto mb-4 h-12 w-12" />
+          <FileText className="mx-auto mb-4 h-8 w-8" />
           <h3 className="mb-2 text-lg font-medium">No documentation found</h3>
           <p className="text-sm">Generate summaries for this repository to see documentation</p>
         </div>
