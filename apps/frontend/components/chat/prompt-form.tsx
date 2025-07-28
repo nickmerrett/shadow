@@ -15,6 +15,7 @@ import { AvailableModels, ModelInfos, type ModelType } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUp,
+  Check,
   ChevronDown,
   GitBranchPlus,
   Layers,
@@ -25,7 +26,7 @@ import {
   Square,
 } from "lucide-react";
 import { redirect } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
@@ -71,7 +72,38 @@ export function PromptForm({
 
   const [isMessageOptionsOpen, setIsMessageOptionsOpen] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(
+    null
+  );
+  const [selectedMessageAction, setSelectedMessageAction] = useState<
+    string | null
+  >(null);
   const [isGithubConnectionOpen, setIsGithubConnectionOpen] = useState(false);
+
+  const messageOptions = [
+    {
+      id: "queue",
+      icon: ListEnd,
+      label: "Queue Message",
+      action: () => setSelectedMessageAction("queue"),
+    },
+    {
+      id: "send",
+      icon: MessageCircleX,
+      label: "Stop & Send",
+      action: () => setSelectedMessageAction("send"),
+    },
+    {
+      id: "stack-pr",
+      icon: GitBranchPlus,
+      label: "Queue Stacked PR",
+      action: () => setSelectedMessageAction("stack-pr"),
+    },
+  ];
+  const selectedMessageOption = useMemo(
+    () => messageOptions[selectedOptionIndex ?? 0],
+    [selectedOptionIndex]
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,24 +162,75 @@ export function PromptForm({
   // Keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      // Only handle shortcuts when not on home page
+      if (isHome) return;
+
       if (event.key === "/" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
-        if (isHome) {
-          setIsGithubConnectionOpen((prev) => !prev);
-        } else {
-          setIsMessageOptionsOpen((prev) => !prev);
-        }
+        setIsMessageOptionsOpen((prev) => !prev);
+        setSelectedOptionIndex(null); // Reset selection when toggling
       }
 
       if (event.key === "." && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         setIsModelSelectorOpen((prev) => !prev);
       }
+
+      // Arrow key navigation for message options
+      if (isMessageOptionsOpen) {
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          setSelectedOptionIndex((prev) => {
+            if (prev === null) return messageOptions.length - 1;
+            return (prev - 1 + messageOptions.length) % messageOptions.length;
+          });
+        }
+
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          setSelectedOptionIndex((prev) => {
+            if (prev === null) return 0;
+            return (prev + 1) % messageOptions.length;
+          });
+        }
+
+        // Enter key to execute selected option
+        if (event.key === "Enter" && selectedOptionIndex !== null) {
+          event.preventDefault();
+          const selectedOption = messageOptions[selectedOptionIndex];
+          if (selectedOption) {
+            selectedOption.action();
+            setIsMessageOptionsOpen(false);
+            setSelectedOptionIndex(null);
+          }
+        }
+      }
     };
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [isHome]);
+  }, [isHome, isMessageOptionsOpen, selectedOptionIndex, messageOptions]);
+
+  const submitButtonWhileStreaming = useMemo(
+    () =>
+      selectedMessageOption ? (
+        !message.trim() ? (
+          // 14px (size-3.5) square looks nicer, so wrap in 1px to bring up to 16px (size-4)
+          <>
+            <span>Stop</span>
+            <div className="p-px">
+              <Square className="fill-primary-foreground size-3.5" />
+            </div>
+          </>
+        ) : (
+          <>
+            <span>{selectedMessageOption?.label}</span>
+            <selectedMessageOption.icon className="size-4" />
+          </>
+        )
+      ) : null,
+    [isStreaming, message, selectedMessageOption]
+  );
 
   return (
     <form
@@ -180,36 +263,45 @@ export function PromptForm({
           >
             <div className="flex flex-col items-start gap-0.5 p-1.5">
               <button
+                type="button"
                 onClick={() => setIsMessageOptionsOpen(false)}
                 className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 px-1.5 py-0.5 text-xs font-medium"
               >
                 <ChevronDown className="size-3" />
                 <span>Message Options</span>
               </button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hover:bg-sidebar-border w-full justify-start font-normal"
-              >
-                <ListEnd className="size-4" />
-                <span>Queue Message</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hover:bg-sidebar-border w-full justify-start font-normal"
-              >
-                <MessageCircleX className="size-4" />
-                <span>Stop & Send</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hover:bg-sidebar-border w-full justify-start font-normal"
-              >
-                <GitBranchPlus className="size-4" />
-                <span>Queue Stacked PR</span>
-              </Button>
+              {messageOptions.map((option, index) => {
+                const IconComponent = option.icon;
+                const isSelected = selectedOptionIndex === index;
+                const isActionSelected = selectedMessageAction === option.id;
+
+                return (
+                  <Button
+                    key={option.id}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    tabIndex={-1}
+                    onClick={() => {
+                      option.action();
+                      setIsMessageOptionsOpen(false);
+                      setSelectedOptionIndex(null);
+                    }}
+                    className={cn(
+                      "hover:bg-sidebar-border w-full justify-between font-normal",
+                      isSelected && "bg-sidebar-border/70"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <IconComponent className="size-4" />
+                      <span>{option.label}</span>
+                    </div>
+                    {isActionSelected ? (
+                      <Check className="text-muted-foreground size-4" />
+                    ) : null}
+                  </Button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -331,20 +423,7 @@ export function PromptForm({
                   {isPending ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : isStreaming ? (
-                    !message.trim() ? (
-                      // 14px (size-3.5) square looks nicer, so wrap in 1px to bring up to 16px (size-4)
-                      <>
-                        <span>Stop</span>
-                        <div className="p-px">
-                          <Square className="fill-primary-foreground size-3.5" />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <span>Queue</span>
-                        <ListEnd className="size-4" />
-                      </>
-                    )
+                    submitButtonWhileStreaming
                   ) : (
                     <>
                       {!isHome && <span>Send</span>}
