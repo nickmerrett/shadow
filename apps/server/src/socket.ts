@@ -2,7 +2,8 @@ import { prisma } from "@repo/db";
 import { StreamChunk, ServerToClientEvents, ClientToServerEvents, TerminalEntry, AgentMode } from "@repo/types";
 import http from "http";
 import { Server, Socket } from "socket.io";
-import { ChatService, DEFAULT_MODEL } from "./chat";
+import { DEFAULT_MODEL } from "./chat";
+import { chatService } from "./app";
 import config from "./config";
 import { updateTaskStatus } from "./utils/task-status";
 import { createToolExecutor } from "./execution";
@@ -22,7 +23,6 @@ const connectionStates = new Map<string, ConnectionState>();
 let currentStreamContent = "";
 let isStreaming = false;
 let io: Server<ClientToServerEvents, ServerToClientEvents>;
-let chatService: ChatService;
 
 async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
   try {
@@ -176,9 +176,6 @@ export function createSocketServer(server: http.Server): Server<ClientToServerEv
       methods: ["GET", "POST"],
     },
   });
-
-  // Initialize chat service
-  chatService = new ChatService();
 
   // Set up sidecar namespace for filesystem watching (only in firecracker mode)
   const agentMode = config.agentMode;

@@ -287,7 +287,6 @@ export class ChatService {
     workspacePath?: string;
     queue?: boolean;
   }) {
-    // Handle queuing logic
     if (queue) {
       if (this.activeStreams.has(taskId)) {
         console.log(`[CHAT] Queuing message for task ${taskId} (stream in progress)`);
@@ -303,7 +302,7 @@ export class ChatService {
       }
     }
 
-    // Save user message to database (unless skipped)
+    // Save user message to database (unless skipped, e.g. on task initialization)
     if (!skipUserMessageSave) {
       await this.saveUserMessage(taskId, userMessage);
     }
