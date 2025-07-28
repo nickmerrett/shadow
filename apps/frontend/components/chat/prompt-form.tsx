@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
   PopoverContent,
@@ -27,7 +28,7 @@ export function PromptForm({
   onFocus,
   onBlur,
 }: {
-  onSubmit?: (message: string, model: ModelType) => void;
+  onSubmit?: (message: string, model: ModelType, queue?: boolean) => void;
   onStopStream?: () => void;
   isStreaming?: boolean;
   isHome?: boolean;
@@ -43,6 +44,7 @@ export function PromptForm({
     name: string;
     commitSha: string;
   } | null>(null);
+  const [queue, setQueue] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const queryClient = useQueryClient();
@@ -85,7 +87,7 @@ export function PromptForm({
         }
       });
     } else {
-      onSubmit?.(message, selectedModel);
+      onSubmit?.(message, selectedModel, queue);
       setMessage("");
     }
   };
@@ -172,6 +174,21 @@ export function PromptForm({
                 setSelectedRepo={setRepo}
                 setSelectedBranch={setBranch}
               />
+            )}
+            {!isHome && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="queue"
+                  checked={queue}
+                  onCheckedChange={(checked) => setQueue(checked === true)}
+                />
+                <label
+                  htmlFor="queue"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Queue
+                </label>
+              </div>
             )}
             <Button
               type={isStreaming ? "button" : "submit"}

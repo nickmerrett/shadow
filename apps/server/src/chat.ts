@@ -146,7 +146,6 @@ export class ChatService {
       if (config.agentMode === "local") {
         const gitManager = new GitManager(resolvedWorkspacePath, taskId);
 
-        // Check if there are changes to commit
         const hasChanges = await gitManager.hasChanges();
         if (!hasChanges) {
           console.log(`[CHAT] No changes to commit for task ${taskId}`);
@@ -169,7 +168,6 @@ export class ChatService {
           console.log(`[CHAT] Successfully committed changes for task ${taskId}`);
         }
       } else {
-        // Firecracker mode: Use tool executor git APIs instead of direct git operations
         await this.commitChangesFirecrackerMode(taskId, task);
       }
     } catch (error) {
@@ -291,19 +289,16 @@ export class ChatService {
   }) {
     // Handle queuing logic
     if (queue) {
-      // If there's already an active stream, queue this message
       if (this.activeStreams.has(taskId)) {
         console.log(`[CHAT] Queuing message for task ${taskId} (stream in progress)`);
         this.queuedMessages.set(taskId, { message: userMessage, model: llmModel, workspacePath });
         return;
       }
-      // If no active stream, process normally (queue=true just means "queue if needed")
     } else {
       // queue=false: interrupt any active stream and process immediately
       if (this.activeStreams.has(taskId)) {
         console.log(`[CHAT] Interrupting active stream for task ${taskId} due to new message`);
         await this.stopStream(taskId);
-        // Small delay to ensure stream cleanup completes
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
@@ -642,7 +637,6 @@ export class ChatService {
       this.stopRequested.delete(taskId);
       handleStreamError(error, taskId);
 
-      // Process any queued message even after error
       await this.processQueuedMessage(taskId);
       throw error;
     }
@@ -651,16 +645,14 @@ export class ChatService {
   private async processQueuedMessage(taskId: string): Promise<void> {
     const queuedMessage = this.queuedMessages.get(taskId);
     if (!queuedMessage) {
-      return; // No queued message for this task
+      return;
     }
 
-    // Remove the queued message from the queue
     this.queuedMessages.delete(taskId);
 
     console.log(`[CHAT] Processing queued message for task ${taskId}`);
 
     try {
-      // Process the queued message
       await this.processUserMessage({
         taskId,
         userMessage: queuedMessage.message,
@@ -668,39 +660,15 @@ export class ChatService {
         enableTools: true,
         skipUserMessageSave: false,
         workspacePath: queuedMessage.workspacePath,
-        queue: false, // Don't queue again, process directly
+        queue: false,
       });
     } catch (error) {
       console.error(`[CHAT] Error processing queued message for task ${taskId}:`, error);
-      // Don't throw - we don't want to break the original flow
     }
   }
 
-  // Get available models from LLM service
   getAvailableModels(): ModelType[] {
     return this.llmService.getAvailableModels();
-  }
-
-  // Method to process coding tasks with specific configuration
-  async processCodingTask(
-    taskId: string,
-    userMessage: string,
-    llmModel: ModelType = DEFAULT_MODEL,
-    workspacePath?: string
-  ) {
-    console.log(`[CODING_TASK] Starting coding task for ${taskId}`);
-    console.log(`[CODING_TASK] Task: ${userMessage.substring(0, 100)}...`);
-
-    // Update task status to running when processing a coding task
-    await updateTaskStatus(taskId, "RUNNING", "CODING");
-
-    return this.processUserMessage({
-      taskId,
-      userMessage,
-      llmModel,
-      enableTools: true,
-      workspacePath,
-    });
   }
 
   async stopStream(taskId: string): Promise<void> {

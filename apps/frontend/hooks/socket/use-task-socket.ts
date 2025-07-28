@@ -546,15 +546,15 @@ export function useTaskSocket(taskId: string | undefined) {
   }, [socket, taskId, queryClient]);
 
   // Socket actions (methods to call from components)
-  const sendMessage = useCallback((message: string, model: string) => {
+  const sendMessage = useCallback((message: string, model: string, queue: boolean = false) => {
     if (!socket || !taskId || !message.trim()) return;
 
-    console.log("Sending message:", { taskId, message, model });
+    console.log("Sending message:", { taskId, message, model, queue });
     socket.emit('user-message', {
       taskId,
       message: message.trim(),
       llmModel: model as ModelType,
-      queue: false, // Default to interrupting behavior for now
+      queue,
     });
   }, [socket, taskId]);
 
