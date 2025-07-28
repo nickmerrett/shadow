@@ -21,14 +21,16 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
   const { repoSummaries, fileSummaries, directorySummaries } = useMemo(() => {
     const repoSummaries = summaries.filter((s) => s.type === "repo_summary");
     const fileSummaries = summaries.filter((s) => s.type === "file_summary");
-    const directorySummaries = summaries.filter((s) => s.type === "directory_summary");
+    const directorySummaries = summaries.filter(
+      (s) => s.type === "directory_summary"
+    );
     return { repoSummaries, fileSummaries, directorySummaries };
   }, [summaries]);
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
@@ -107,7 +109,9 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
           <SidebarGroupContent>
             {directorySummaries.map((directory) => (
               <SidebarMenuItem key={directory.id}>
-                <SidebarMenuButton onClick={() => scrollToSection(directory.id)}>
+                <SidebarMenuButton
+                  onClick={() => scrollToSection(directory.id)}
+                >
                   <FolderOpen className="size-4 shrink-0" />
                   <span className="truncate">{directory.filePath}/</span>
                 </SidebarMenuButton>
