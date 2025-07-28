@@ -3,15 +3,19 @@ import { SidebarViews } from "@/components/sidebar";
 import { getUser } from "@/lib/auth/get-user";
 import { getTasks } from "@/lib/db-operations/get-tasks";
 import { LogoHover } from "@/components/logo/logo-hover";
+import { getCodebases } from "@/lib/db-operations/get-codebases";
 
 export default async function NotFound() {
   const user = await getUser();
   const initialTasks = user ? await getTasks(user.id) : [];
+  const initialCodebases = user ? await getCodebases(user.id) : [];
 
   return (
     <>
-      {/* Render the sidebar */}
-      <SidebarViews initialTasks={initialTasks} />
+      <SidebarViews
+        initialTasks={initialTasks}
+        initialCodebases={initialCodebases}
+      />
 
       {/* Fallback content */}
       <div className="flex grow flex-col items-center justify-center gap-6 p-6">

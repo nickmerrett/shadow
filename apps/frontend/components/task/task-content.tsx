@@ -17,7 +17,6 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
     useTaskMessages(taskId);
   const sendMessageMutation = useSendMessage();
 
-  // Replace all socket logic with one hook call
   const {
     isConnected,
     streamingAssistantParts,

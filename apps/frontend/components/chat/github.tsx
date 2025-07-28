@@ -49,8 +49,6 @@ export function GithubConnection({
     branch: { name: string; commitSha: string } | null
   ) => void;
 }) {
-  const [mode, setMode] = useState<"repos" | "branches">("repos");
-
   const [repoSearch, setRepoSearch] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
   const [collapsedOrgs, setCollapsedOrgs] = useState<Set<string>>(new Set());
@@ -73,7 +71,7 @@ export function GithubConnection({
     error: branchesError,
   } = useGitHubBranches(
     selectedRepo?.full_name || null,
-    !!selectedRepo && mode === "branches" && !!githubStatus?.isAppInstalled
+    !!selectedRepo && !!githubStatus?.isAppInstalled
   );
 
   if (statusError) {
@@ -133,7 +131,6 @@ export function GithubConnection({
 
   const handleRepoSelect = (repo: Repository) => {
     setSelectedRepo(repo);
-    setMode("branches");
     setBranchSearch("");
     // Don't save to cookie yet, wait for branch selection
   };
@@ -157,8 +154,8 @@ export function GithubConnection({
   };
 
   const handleBackToRepos = () => {
-    setMode("repos");
     setSelectedRepo(null);
+    setSelectedBranch(null);
     setRepoSearch("");
   };
 
@@ -290,7 +287,7 @@ export function GithubConnection({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground !px-4.5 w-full gap-2 text-[13px] font-normal hover:bg-transparent"
+                  className="text-muted-foreground !px-4.5 h-6 w-full gap-2 text-[13px] font-normal hover:bg-transparent"
                 >
                   <Folder className="size-3.5" />
                   {group.name}
@@ -416,10 +413,10 @@ export function GithubConnection({
           </div>
         ) : statusError || !githubStatus || !githubStatus.isAppInstalled ? (
           renderConnectGitHub
-        ) : mode === "repos" ? (
-          renderRepos
-        ) : (
+        ) : selectedRepo ? (
           renderBranches
+        ) : (
+          renderRepos
         )}
       </PopoverContent>
     </Popover>

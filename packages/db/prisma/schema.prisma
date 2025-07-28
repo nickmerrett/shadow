@@ -9,16 +9,17 @@ datasource db {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean
-  image         String?
-  createdAt     DateTime
-  updatedAt     DateTime
-  tasks         Task[]
-  accounts      Account[]
-  sessions      Session[]
+  id                    String                  @id
+  name                  String
+  email                 String                  @unique
+  emailVerified         Boolean
+  image                 String?
+  createdAt             DateTime
+  updatedAt             DateTime
+  tasks                 Task[]
+  accounts              Account[]
+  sessions              Session[]
+  CodebaseUnderstanding CodebaseUnderstanding[]
 
   @@map("user")
 }
@@ -70,7 +71,7 @@ model Verification {
 }
 
 model Task {
-  id          String     @id @default(cuid())
+  id          String     @id @default(nanoid(16))
   title       String
   description String?
   status      TaskStatus @default(INITIALIZING)
@@ -96,6 +97,9 @@ model Task {
   sessions            TaskSession[]
   commands            TerminalCommand[]
   todos               Todo[]
+
+  codebaseUnderstandingId String?
+  codebaseUnderstanding   CodebaseUnderstanding? @relation(fields: [codebaseUnderstandingId], references: [id])
 }
 
 model Todo {
@@ -160,6 +164,21 @@ model TaskSession {
   task         Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId, isActive])
+}
+
+model CodebaseUnderstanding {
+  id           String   @id @default(nanoid(16))
+  repoFullName String   @unique
+  repoUrl      String
+  content      Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks  Task[]
+
+  @@index([repoFullName])
 }
 
 enum TaskStatus {

@@ -6,7 +6,7 @@ interface DeepWikiRecord {
   metadata: {
     repoPath: string;
     filePath?: string;
-    type: 'file_summary' | 'directory_summary' | 'root_overview';
+    type: "file_summary" | "directory_summary" | "root_overview";
     language?: string;
     symbols: string[];
     dependencies: string[];
@@ -34,12 +34,18 @@ export class DeepWikiStorage {
   constructor(repoPath: string) {
     this.pinecone = new PineconeHandler();
     // Create namespace from repo path hash
-    const repoHash = createHash('sha256').update(repoPath).digest('hex').slice(0, 12);
+    const repoHash = createHash("sha256")
+      .update(repoPath)
+      .digest("hex")
+      .slice(0, 12);
     this.namespace = `deepwiki_${repoHash}`;
   }
 
   private generateId(type: string, path: string): string {
-    return createHash('sha256').update(`${type}_${path}`).digest('hex').slice(0, 16);
+    return createHash("sha256")
+      .update(`${type}_${path}`)
+      .digest("hex")
+      .slice(0, 16);
   }
 
   async clearRepository(): Promise<void> {
@@ -66,19 +72,19 @@ export class DeepWikiStorage {
     tokenUsage?: TokenUsage
   ): Promise<void> {
     const record: DeepWikiRecord = {
-      id: this.generateId('file', filePath),
+      id: this.generateId("file", filePath),
       metadata: {
         repoPath,
         filePath,
-        type: 'file_summary',
+        type: "file_summary",
         language,
         symbols,
         dependencies,
         complexity,
         lastUpdated: new Date().toISOString(),
         tokenUsage,
-        summary
-      }
+        summary,
+      },
     };
 
     await this.upsertRecord(record);
@@ -97,18 +103,18 @@ export class DeepWikiStorage {
     tokenUsage?: TokenUsage
   ): Promise<void> {
     const record: DeepWikiRecord = {
-      id: this.generateId('directory', dirPath),
+      id: this.generateId("directory", dirPath),
       metadata: {
         repoPath,
         filePath: dirPath,
-        type: 'directory_summary',
+        type: "directory_summary",
         symbols: childFiles,
         dependencies: childDirs,
         complexity: childFiles.length + childDirs.length,
         lastUpdated: new Date().toISOString(),
         tokenUsage,
-        summary
-      }
+        summary,
+      },
     };
 
     await this.upsertRecord(record);
@@ -126,17 +132,17 @@ export class DeepWikiStorage {
     tokenUsage?: TokenUsage
   ): Promise<void> {
     const record: DeepWikiRecord = {
-      id: this.generateId('root', repoPath),
+      id: this.generateId("root", repoPath),
       metadata: {
         repoPath,
-        type: 'root_overview',
+        type: "root_overview",
         symbols: [],
         dependencies: [],
         complexity: totalFiles + totalDirs,
         lastUpdated: new Date().toISOString(),
         tokenUsage,
-        summary: overview
-      }
+        summary: overview,
+      },
     };
 
     await this.upsertRecord(record);
@@ -152,13 +158,17 @@ export class DeepWikiStorage {
           // Ensure all metadata values are strings, numbers, or booleans for Pinecone
           symbols: JSON.stringify(record.metadata.symbols),
           dependencies: JSON.stringify(record.metadata.dependencies),
-          tokenUsage: record.metadata.tokenUsage ? JSON.stringify(record.metadata.tokenUsage) : undefined,
-          text: record.metadata.summary // This will be used for embedding
-        }
+          tokenUsage: record.metadata.tokenUsage
+            ? JSON.stringify(record.metadata.tokenUsage)
+            : undefined,
+          text: record.metadata.summary, // This will be used for embedding
+        },
       };
 
       await this.pinecone.upsertAutoEmbed([pineconeRecord], this.namespace);
-      console.log(`💾 Stored ${record.metadata.type}: ${record.metadata.filePath || 'root'}`);
+      console.log(
+        `💾 Stored ${record.metadata.type}: ${record.metadata.filePath || "root"}`
+      );
     } catch (error) {
       console.error(`Failed to store record ${record.id}:`, error);
       throw error;
@@ -180,7 +190,7 @@ export class DeepWikiStorage {
 
   async getFileSummary(filePath: string): Promise<DeepWikiRecord | null> {
     try {
-      const id = this.generateId('file', filePath);
+      const id = this.generateId("file", filePath);
       const results = await this.searchSummaries(`id:${id}`, 1);
       return results.length > 0 ? this.parseRecord(results[0]) : null;
     } catch (error) {
@@ -191,7 +201,7 @@ export class DeepWikiStorage {
 
   async getDirectorySummary(dirPath: string): Promise<DeepWikiRecord | null> {
     try {
-      const id = this.generateId('directory', dirPath);
+      const id = this.generateId("directory", dirPath);
       const results = await this.searchSummaries(`id:${id}`, 1);
       return results.length > 0 ? this.parseRecord(results[0]) : null;
     } catch (error) {
@@ -202,7 +212,7 @@ export class DeepWikiStorage {
 
   async getRootOverview(): Promise<DeepWikiRecord | null> {
     try {
-      const results = await this.searchSummaries('type:root_overview', 1);
+      const results = await this.searchSummaries("type:root_overview", 1);
       return results.length > 0 ? this.parseRecord(results[0]) : null;
     } catch (error) {
       console.error(`Failed to get root overview:`, error);
@@ -218,13 +228,17 @@ export class DeepWikiStorage {
       id: pineconeResult.id,
       metadata: {
         ...metadata,
-        type: metadata.type || 'unknown',
-        filePath: metadata.filePath || '',
+        type: metadata.type || "unknown",
+        filePath: metadata.filePath || "",
         symbols: metadata.symbols ? JSON.parse(metadata.symbols) : [],
-        dependencies: metadata.dependencies ? JSON.parse(metadata.dependencies) : [],
-        tokenUsage: metadata.tokenUsage ? JSON.parse(metadata.tokenUsage) : undefined,
-        summary: metadata.text || metadata.summary || ''
-      }
+        dependencies: metadata.dependencies
+          ? JSON.parse(metadata.dependencies)
+          : [],
+        tokenUsage: metadata.tokenUsage
+          ? JSON.parse(metadata.tokenUsage)
+          : undefined,
+        summary: metadata.text || metadata.summary || "",
+      },
     };
   }
 

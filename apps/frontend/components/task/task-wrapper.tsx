@@ -24,10 +24,8 @@ import { TaskPageContent } from "./task-content";
 import { useTask } from "@/hooks/use-task";
 import { useParams } from "next/navigation";
 import { useAgentEnvironment } from "../agent-environment/agent-environment-context";
-import { useSidebarView } from "../sidebar/sidebar-context";
-import { CodebaseUnderstandingView } from "../codebase-understanding/codebase-understanding-view";
 
-export function TaskPageLayout({
+export function TaskPageWrapper({
   initialLayout,
 }: {
   initialLayout: number[] | null;
@@ -39,8 +37,8 @@ export function TaskPageLayout({
 
   const { task } = useTask(taskId);
   const [editValue, setEditValue] = useState(task?.title || "");
-  // Use the sidebar context to get the current view
-  const { sidebarView } = useSidebarView();
+  // We don't need to access the sidebar view from context anymore
+  // Just check the pathname directly to determine what to render
 
   const stickToBottomContextRef = useRef<StickToBottomContext>(null);
   const { isAtTop } = useIsAtTop(0, stickToBottomContextRef.current?.scrollRef);
@@ -214,12 +212,7 @@ export function TaskPageLayout({
               </Tooltip>
             </div>
           </div>
-          {/* Render the appropriate content based on URL parameter */}
-          {sidebarView === "codebase" ? (
-            <CodebaseUnderstandingView taskId={taskId} />
-          ) : (
-            <TaskPageContent isAtTop={isAtTop} />
-          )}
+          <TaskPageContent isAtTop={isAtTop} />
         </StickToBottom>
       </ResizablePanel>
       <ResizableHandle />
