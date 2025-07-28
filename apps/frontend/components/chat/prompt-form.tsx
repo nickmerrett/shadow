@@ -15,6 +15,7 @@ import { AvailableModels, ModelInfos, type ModelType } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUp,
+  ChevronDown,
   GitBranchPlus,
   Layers,
   ListEnd,
@@ -71,9 +72,6 @@ export function PromptForm({
 
   const [isMessageOptionsOpen, setIsMessageOptionsOpen] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
-  const [selectedMessageAction, setSelectedMessageAction] = useState<
-    string | null
-  >(null);
   const [isGithubConnectionOpen, setIsGithubConnectionOpen] = useState(false);
 
   const messageOptions = isStreaming
@@ -82,7 +80,11 @@ export function PromptForm({
           id: "queue",
           icon: ListEnd,
           label: "Queue Message",
-          action: () => setSelectedMessageAction("queue"),
+          action: () => {
+            console.log("queue");
+            onSubmit?.(message, selectedModel, true);
+            setMessage("");
+          },
           shortcut: {
             key: "Enter",
             meta: false,
@@ -95,7 +97,11 @@ export function PromptForm({
           id: "send",
           icon: MessageCircleX,
           label: "Stop & Send",
-          action: () => setSelectedMessageAction("send"),
+          action: () => {
+            console.log("send");
+            onSubmit?.(message, selectedModel, false);
+            setMessage("");
+          },
           shortcut: {
             key: "Enter",
             meta: true,
@@ -108,7 +114,11 @@ export function PromptForm({
           id: "stack-pr",
           icon: GitBranchPlus,
           label: "Queue Stacked PR",
-          action: () => setSelectedMessageAction("stack-pr"),
+          action: () => {
+            console.log("stack-pr (NOT IMPLEMENTED)");
+            onSubmit?.(message, selectedModel, true);
+            setMessage("");
+          },
           shortcut: {
             key: "Enter",
             meta: false,
@@ -123,7 +133,11 @@ export function PromptForm({
           id: "send",
           icon: MessageCircle,
           label: "Send Message",
-          action: () => setSelectedMessageAction("send"),
+          action: () => {
+            console.log("send");
+            onSubmit?.(message, selectedModel, false);
+            setMessage("");
+          },
           shortcut: {
             key: "Enter",
             meta: false,
@@ -136,7 +150,11 @@ export function PromptForm({
           id: "stack-pr",
           icon: GitBranchPlus,
           label: "Queue Stacked PR",
-          action: () => setSelectedMessageAction("stack-pr"),
+          action: () => {
+            console.log("stack-pr (NOT IMPLEMENTED)");
+            onSubmit?.(message, selectedModel, false);
+            setMessage("");
+          },
           shortcut: {
             key: "Enter",
             meta: false,
@@ -213,35 +231,11 @@ export function PromptForm({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-
-      // For home page, keep regular submission behavior
-      if (isHome) {
-        handleSubmit(e);
-        return;
-      }
-
-      // For task pages (!isHome), implement double enter flow
-      if (!isMessageOptionsOpen) {
-        // First enter: open message options
-        setIsMessageOptionsOpen(true);
-      } else {
-        // Second enter: execute default action (first option)
-        const defaultOption = messageOptions[0];
-        if (defaultOption) {
-          defaultOption.action();
-          setIsMessageOptionsOpen(false);
-          handleSubmit(e);
-        }
-      }
-    }
-  };
-
   // Keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (isHome) return;
+
       // Only handle shortcuts when not on home page
       if (isHome) return;
 
@@ -250,12 +244,17 @@ export function PromptForm({
         setIsModelSelectorOpen((prev) => !prev);
       }
 
-      // ESC key to close message options
-      if (event.key === "Escape" && isMessageOptionsOpen) {
+      if (
+        (event.key === "Escape" ||
+          event.key === "Delete" ||
+          event.key === "Backspace") &&
+        isMessageOptionsOpen
+      ) {
         event.preventDefault();
         setIsMessageOptionsOpen(false);
       }
 
+      console.log("[globalKeyDown] isMessageOptionsOpen", isMessageOptionsOpen);
       // Keyboard shortcuts when message options are open
       if (isMessageOptionsOpen) {
         for (const option of messageOptions) {
@@ -270,11 +269,21 @@ export function PromptForm({
             (shortcut.shift ? event.shiftKey : !event.shiftKey)
           ) {
             event.preventDefault();
+
+            console.log(
+              "[globalKeyDown] option selected in message options",
+              option
+            );
             option.action();
             setIsMessageOptionsOpen(false);
             // TODO: Handle option-specific logic
             break; // Exit loop after finding matching shortcut
           }
+        }
+      } else {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          setIsMessageOptionsOpen(true);
         }
       }
     };
@@ -299,7 +308,7 @@ export function PromptForm({
       {/* Outer div acts as a border, with a border-radius 1px larger than the inner div and 1px padding */}
       <div
         className={cn(
-          "shadow-highlight/10 relative z-0 rounded-[calc(var(--radius)+5px)] p-px shadow-lg transition-all",
+          "shadow-highlight/10 relative z-0 rounded-[calc(var(--radius)+1px)] p-px shadow-lg transition-all",
           "focus-within:ring-ring/10 focus-within:border-sidebar-border focus-within:ring-4",
           "prompt-form-border hover:shadow-highlight/20 focus-within:shadow-highlight/20",
           isPending && "opacity-50"
@@ -308,7 +317,7 @@ export function PromptForm({
         {!isHome && (
           <div
             className={cn(
-              "ease-out-cubic overflow-clip transition-all duration-500",
+              "ease-out-expo overflow-clip transition-all duration-500",
               isMessageOptionsOpen
                 ? isStreaming
                   ? "h-[126px]"
@@ -318,22 +327,27 @@ export function PromptForm({
           >
             <div className="flex flex-col gap-0.5 p-1.5">
               <div className="text-muted-foreground flex w-full items-center justify-between gap-1 pl-1.5 text-xs font-medium">
-                <span>Message Options</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="iconXs"
-                  tabIndex={-1}
-                  className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border p-0"
-                  onClick={() => setIsMessageOptionsOpen(false)}
-                >
-                  <X className="size-3" />
-                </Button>
+                <span>Select Message Option</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="iconXs"
+                      tabIndex={-1}
+                      className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border p-0"
+                      onClick={() => setIsMessageOptionsOpen(false)}
+                    >
+                      <X className="size-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="end" shortcut="esc">
+                    Cancel
+                  </TooltipContent>
+                </Tooltip>
               </div>
               {messageOptions.map((option) => {
                 const IconComponent = option.icon;
-                const isActionSelected = selectedMessageAction === option.id;
-
                 return (
                   <Button
                     key={option.id}
@@ -345,12 +359,9 @@ export function PromptForm({
                       option.action();
                       setIsMessageOptionsOpen(false);
                     }}
-                    className={cn(
-                      "hover:bg-sidebar-border justify-between font-normal",
-                      isActionSelected && "bg-sidebar-border/70"
-                    )}
+                    className="hover:bg-sidebar-border justify-between font-normal"
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <IconComponent className="size-4" />
                       <span>{option.label}</span>
                     </div>
@@ -364,18 +375,21 @@ export function PromptForm({
           </div>
         )}
 
-        <div className="from-input/25 to-input relative flex min-h-24 flex-col rounded-xl bg-gradient-to-t">
-          <div className="bg-background absolute inset-0 -z-20 rounded-[calc(var(--radius)+5px)]" />
+        <div className="from-input/25 to-input relative flex min-h-24 flex-col rounded-lg bg-gradient-to-t">
+          <div className="bg-background absolute inset-0 -z-20 rounded-[calc(var(--radius)+1px)]" />
           <Textarea
             ref={textareaRef}
             autoFocus
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onChange={(e) => {
+              if (!isMessageOptionsOpen) {
+                setMessage(e.target.value);
+              }
+            }}
             onFocus={onFocus}
             onBlur={onBlur}
             placeholder="Build a cool new feature..."
-            className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none rounded-lg border-0 shadow-none focus-visible:ring-0"
+            className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none border-0 shadow-none focus-visible:ring-0"
           />
 
           {/* Buttons inside the container */}
@@ -443,36 +457,28 @@ export function PromptForm({
               <div className="flex items-center gap-2">
                 <Button
                   type="submit"
-                  size={isHome ? "iconSm" : "sm"}
+                  size="iconSm"
                   disabled={
+                    (!isStreaming && !message.trim()) ||
                     isMessageOptionsOpen ||
                     isPending ||
                     !selectedModel ||
-                    (isHome && (!repo || !branch || !message.trim()))
+                    (isHome && (!repo || !branch))
                   }
-                  className={!isHome ? "pr-1.5!" : ""}
+                  className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
                 >
                   {isPending ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : isStreaming ? (
                     !message.trim() ? (
-                      <>
-                        <span>Stop</span>
-                        <div className="p-px">
-                          <Square className="fill-primary-foreground size-3.5" />
-                        </div>
-                      </>
+                      <div className="p-px">
+                        <Square className="fill-primary-foreground size-3.5" />
+                      </div>
                     ) : (
-                      <>
-                        <span>Queue</span>
-                        <ListEnd className="size-4" />
-                      </>
+                      <ListEnd className="size-4" />
                     )
                   ) : (
-                    <>
-                      {!isHome && <span>Send</span>}
-                      <ArrowUp className="size-4" />
-                    </>
+                    <ArrowUp className="size-4" />
                   )}
                 </Button>
               </div>
