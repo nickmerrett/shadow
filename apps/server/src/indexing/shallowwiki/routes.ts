@@ -124,17 +124,17 @@ shallowwikiRouter.post(
       // Run DeepWiki algorithm on the workspace directory
       const result = await runDeepWiki(repoPath, {
         concurrency: 12,
-        model: 'gpt-4o',
-        modelMini: 'gpt-4o-mini',
+        model: "gpt-4o",
+        modelMini: "gpt-4o-mini",
       });
 
       return res.json({
-        message: 'ShallowWiki summaries generated successfully',
+        message: "ShallowWiki summaries generated successfully",
         repoPath,
         processingStats: result.processingStats,
       });
     } catch (error) {
-      console.error('Error generating ShallowWiki summaries:', error);
+      console.error("Error generating ShallowWiki summaries:", error);
       next(error);
     }
   }
@@ -503,7 +503,6 @@ shallowwikiRouter.post(
     }
 
     try {
-
       // Try to get summaries from the database first
       try {
         const dbSummaries = await db.codebaseUnderstanding.findMany({
