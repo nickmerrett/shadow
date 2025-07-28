@@ -1,5 +1,10 @@
 "use server";
 
+/* 
+THIS FILE IS DEPRECATED
+DELETE AFTER PR DONE
+*/
+
 import { db } from "@repo/db";
 
 export async function getWorkspaceSummaries(taskId: string) {
@@ -48,88 +53,6 @@ export async function getWorkspaceSummaries(taskId: string) {
     return mappedSummaries;
   } catch (error) {
     console.error("Error fetching workspace summaries", error);
-    return [];
-  }
-}
-
-export async function getWorkspaceSummaryById(summaryId: string) {
-  try {
-    const summary = await db.codebaseUnderstanding.findUnique({
-      where: {
-        id: summaryId,
-      },
-    });
-
-    if (!summary) {
-      return null;
-    }
-
-    let parsedContent;
-    try {
-      parsedContent =
-        typeof summary.content === "string"
-          ? JSON.parse(summary.content as string)
-          : summary.content;
-    } catch (e) {
-      console.error("Error parsing summary content", e);
-      parsedContent = { summary: "Error parsing content" };
-    }
-
-    // Structured format ready for the editor
-    const result = {
-      id: summary.id,
-      type: summary.type || "file_summary",
-      filePath: summary.filePath || summary.fileName,
-      language: summary.language,
-      summary: parsedContent?.summary || "",
-    };
-
-    console.log("Formatted summary for editor:", result);
-    return result;
-  } catch (error) {
-    console.error("Error fetching workspace summary", error);
-    return null;
-  }
-}
-
-export async function getAllIndexedRepositories() {
-  try {
-    const summaries = await db.codebaseUnderstanding.findMany({
-      include: {
-        task: {
-          select: {
-            id: true,
-            repoFullName: true,
-            repoUrl: true,
-            title: true,
-          },
-        },
-      },
-    });
-
-    // Group by repository and count summaries
-    const repoMap = new Map();
-
-    summaries.forEach((summary) => {
-      if (summary.task?.repoFullName) {
-        const fullName = summary.task.repoFullName;
-        const repoTitle = fullName.split("/").pop();
-
-        if (!repoMap.has(fullName)) {
-          repoMap.set(fullName, {
-            id: summary.task.id,
-            name: repoTitle,
-            fullName: fullName,
-            summaryCount: 0,
-          });
-        }
-        repoMap.get(fullName).summaryCount++;
-      }
-    });
-
-    return Array.from(repoMap.values());
-  } catch (error) {
-    console.error("Error fetching indexed repositories", error);
     return [];
   }
 }

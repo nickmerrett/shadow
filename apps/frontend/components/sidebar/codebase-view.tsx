@@ -1,97 +1,35 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import {
-  ChevronRight,
-  FileText,
-  Folder,
-  FolderGit2,
-  Loader2,
-  RefreshCw,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+import { ChevronRight, FileText, Folder, FolderGit2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useCodebaseUnderstanding } from "@/components/codebase-understanding/codebase-understanding-context";
-import { getWorkspaceSummaries } from "@/lib/actions/summaries";
+import { CodebaseSummary } from "@repo/types";
+import { useCodebase } from "@/hooks/use-codebase";
+import { selectInitialSummary } from "@/lib/codebase-understanding/select-initial-summary";
 
-interface CodebaseSummary {
-  id: string;
-  type: "file_summary" | "directory_summary" | "repo_summary";
-  filePath: string;
-  language?: string;
-  summary: string;
-}
-
-interface CodebaseViewProps {
-  taskId: string;
-}
-
-export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
+export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
   const { selectSummary } = useCodebaseUnderstanding();
-  const [summaries, setSummaries] = useState<CodebaseSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: codebase } = useCodebase(codebaseId);
 
-  // Load workspace summaries
-  const loadSummaries = async () => {
-    if (!taskId) return;
+  const summaries = useMemo(() => codebase?.summaries || [], [codebase]);
+  const initialSummary = useMemo(
+    () => selectInitialSummary(summaries),
+    [summaries]
+  );
 
-    try {
-      setIsLoading(true);
-      const summariesData = await getWorkspaceSummaries(taskId);
-
-      if (summariesData && summariesData.length > 0) {
-        // Type assertion to ensure compatibility
-        const typedSummaries = summariesData as CodebaseSummary[];
-        setSummaries(typedSummaries);
-
-        // Look for the most appropriate root overview summary to select by default
-        // First priority: Look for a summary with filePath exactly "root_overview"
-        let rootSummary = typedSummaries.find(
-          (s) => s.filePath === "root_overview"
-        );
-
-        // Second priority: Look for repo_summary type
-        if (!rootSummary) {
-          rootSummary = typedSummaries.find((s) => s.type === "repo_summary");
-        }
-
-        // Third priority: Look for summaries with "root" or "overview" in their path
-        if (!rootSummary) {
-          rootSummary = typedSummaries.find(
-            (s) =>
-              (s.filePath?.toLowerCase().includes("root") &&
-                s.filePath?.toLowerCase().includes("overview")) ||
-              s.filePath === ""
-          );
-        }
-
-        // Fourth priority: Just take the first summary if available
-        if (!rootSummary && typedSummaries.length > 0) {
-          rootSummary = typedSummaries[0];
-        }
-
-        // Select the root summary if one was found
-        if (rootSummary) {
-          console.log("Selecting default summary:", rootSummary);
-          selectSummary(rootSummary);
-        }
-      } else {
-        setSummaries([]);
-      }
-    } catch (error) {
-      console.error("Failed to load workspace summaries", error);
-      setSummaries([]);
-    } finally {
-      setIsLoading(false);
+  // Select an initial summary if it exists
+  useEffect(() => {
+    if (initialSummary) {
+      selectSummary(initialSummary);
     }
-  };
+  }, [initialSummary, selectSummary]);
 
-  // Group summaries by type
   const fileSummaries = summaries.filter((s) => s.type === "file_summary");
   const directorySummaries = summaries.filter(
     (s) => s.type === "directory_summary"
@@ -267,20 +205,8 @@ export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
             {summaries.length === 0 ? (
               <div className="flex flex-1 items-center justify-center">
                 <div className="text-muted-foreground text-center text-sm">
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mx-auto mb-2 size-8 animate-spin opacity-50" />
-                      <p>Loading summaries...</p>
-                    </>
-                  ) : (
-                    <>
-                      <FolderGit2 className="mx-auto mb-2 size-8 opacity-50" />
-                      <p>No codebase analysis available</p>
-                      <p className="mt-1 text-xs opacity-75">
-                        Click "Reindex Codebase" to analyze your code
-                      </p>
-                    </>
-                  )}
+                  <FolderGit2 className="mx-auto mb-2 size-8 opacity-50" />
+                  <p>No codebase analysis available</p>
                 </div>
               </div>
             ) : (

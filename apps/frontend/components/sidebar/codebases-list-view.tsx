@@ -33,7 +33,7 @@ export function SidebarCodebasesListView({
         </SidebarGroup>
       )}
 
-      {!loading && !error && (
+      {!loading && !error && codebases.length > 0 ? (
         <SidebarGroup>
           <SidebarGroupContent>
             {codebases.map((codebase) => {
@@ -62,12 +62,10 @@ export function SidebarCodebasesListView({
             })}
           </SidebarGroupContent>
         </SidebarGroup>
-      )}
-
-      {!loading && !error && codebases.length === 0 && (
+      ) : (
         <SidebarGroup>
-          <SidebarGroupLabel className="text-muted-foreground hover:text-muted-foreground px-0">
-            No codebases.
+          <SidebarGroupLabel className="text-muted-foreground hover:text-muted-foreground h-auto px-0 pt-2 leading-tight">
+            No codebases documented. Start a new task to document a codebase.
           </SidebarGroupLabel>
         </SidebarGroup>
       )}

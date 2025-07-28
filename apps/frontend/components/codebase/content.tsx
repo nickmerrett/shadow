@@ -1,11 +1,10 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { FileText, FolderOpen, Code } from "lucide-react";
-import { useEffect, useState } from "react";
+import { FileText, FolderOpen } from "lucide-react";
+import { useMemo } from "react";
 import { MarkdownRenderer } from "@/components/agent-environment/markdown-renderer";
-import { getRepositorySummaries } from "@/lib/actions/summaries";
 import { useParams } from "next/navigation";
+import { useCodebase } from "@/hooks/use-codebase";
 
 interface Summary {
   id: string;
@@ -25,83 +24,8 @@ interface DirectoryGroup {
 export function CodebasePageContent() {
   const { codebaseId } = useParams<{ codebaseId: string }>();
 
-  const [summaries, setSummaries] = useState<Summary[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [organizedData, setOrganizedData] = useState<{
-    overview?: Summary;
-    rootFiles: Summary[];
-    directories: DirectoryGroup[];
-  }>({
-    rootFiles: [],
-    directories: [],
-  });
-
-  const loadSummaries = async (id: string) => {
-    setIsLoading(true);
-    try {
-      const summaries = await getRepositorySummaries(id);
-      setSummaries(summaries);
-      organizeSummaries(summaries);
-    } catch (error) {
-      console.error("Failed to load repository summaries", error);
-      setSummaries([]);
-      setOrganizedData({ rootFiles: [], directories: [] });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const organizeSummaries = (summaries: Summary[]) => {
-    const overview = summaries.find((s) => s.name === "root_overview");
-
-    // Files: all files except overview
-    const files = summaries.filter(
-      (s) => s.name !== "root_overview" && s.type === "file"
-    );
-
-    // Directories: all directory entries
-    const directories = summaries
-      .filter((s) => s.name !== "root_overview" && s.type === "directory")
-      .map((dir) => ({
-        directoryName: dir.name,
-        directoryPath: dir.name,
-        directorySummary: dir,
-        files: [], // No files associated since we don't have that relationship data
-      }));
-
-    setOrganizedData({
-      overview,
-      rootFiles: files, // All files are essentially "root" files
-      directories,
-    });
-  };
-
-  useEffect(() => {
-    if (taskId) {
-      loadSummaries(taskId);
-    }
-  }, [taskId]);
-
-  const getLanguageBadge = (language?: string) => {
-    if (!language) return null;
-    return (
-      <Badge variant="secondary" className="text-xs">
-        <Code className="mr-1 h-3 w-3" />
-        {language}
-      </Badge>
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <div className="text-muted-foreground text-center">
-          <div className="border-muted border-t-foreground mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2"></div>
-          <p>Loading repository documentation...</p>
-        </div>
-      </div>
-    );
-  }
+  const { data: codebase } = useCodebase(codebaseId);
+  const summaries = useMemo(() => codebase?.summaries || [], [codebase]);
 
   if (summaries.length === 0) {
     return (
@@ -109,15 +33,10 @@ export function CodebasePageContent() {
         <div className="text-muted-foreground text-center">
           <FileText className="mx-auto mb-4 h-8 w-8" />
           <h3 className="mb-2 text-lg font-medium">No documentation found</h3>
-          <p className="text-sm">
-            Generate summaries for this repository to see documentation
-          </p>
         </div>
       </div>
     );
   }
-
-  const { overview, rootFiles, directories } = organizedData;
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">

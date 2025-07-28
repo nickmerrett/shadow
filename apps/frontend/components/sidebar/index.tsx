@@ -86,7 +86,13 @@ export function SidebarViews({
         <SidebarContent>
           <SidebarGroup className="flex h-7 flex-row items-center justify-between">
             <div className="font-medium">
-              {sidebarView === "tasks" ? "Tasks" : "Agent Environment"}
+              {sidebarView === "tasks"
+                ? "Tasks"
+                : sidebarView === "codebases"
+                  ? "Codebases"
+                  : sidebarView === "codebase-understanding"
+                    ? "Codebase Understanding"
+                    : "Agent Environment"}
             </div>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -101,7 +107,7 @@ export function SidebarViews({
             {currentTaskId && sidebarView === "agent" ? (
               <SidebarAgentView taskId={currentTaskId} />
             ) : sidebarView === "codebase-understanding" ? (
-              <SidebarCodebaseView taskId={currentTaskId ?? ""} />
+              <SidebarCodebaseView codebaseId={currentCodebaseId ?? ""} />
             ) : sidebarView === "codebases" ? (
               <SidebarCodebasesListView
                 codebases={codebases}

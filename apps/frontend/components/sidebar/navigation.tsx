@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { FileCode, LayoutGrid, Play, Plus } from "lucide-react";
+import { BookOpenText, FileCode, LayoutGrid, Play, Plus } from "lucide-react";
 import Link from "next/link";
 import { SidebarView } from ".";
 import { SettingsDialog } from "../auth/settings-dialog";
@@ -121,10 +121,10 @@ export function SidebarNavigation({
         >
           <LogoHover />
         </Link>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button size="iconSm" asChild>
+              <Button size="iconSm" asChild className="mb-1">
                 <Link href="/">
                   <Plus />
                 </Link>
@@ -154,6 +154,29 @@ export function SidebarNavigation({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">Tasks View</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="iconSm"
+                variant="ghost"
+                className={cn(
+                  "border",
+                  sidebarView === "codebases" && open
+                    ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
+                    : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
+                )}
+                onClick={() => {
+                  setSidebarView("codebases");
+                  if (!open) {
+                    toggleSidebar();
+                  }
+                }}
+              >
+                <BookOpenText />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Codebases View</TooltipContent>
           </Tooltip>
 
           {pageSpecificViewTrigger}
