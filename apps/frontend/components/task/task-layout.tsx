@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useIsAtTop } from "@/hooks/use-is-at-top";
-import { saveLayoutCookie } from "@/lib/actions/save-sidebar-cookie";
+import { saveResizableTaskLayoutCookie } from "@/lib/actions/resizable-task-cookie";
 import { cn } from "@/lib/utils";
 import { AppWindowMac } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -69,7 +69,7 @@ export function TaskPageLayout({
 
     // Set new timeout for debounced save
     debounceTimeoutRef.current = setTimeout(() => {
-      saveLayoutCookie("taskLayout", layout);
+      saveResizableTaskLayoutCookie("taskLayout", layout);
     }, 100);
   }, []);
 

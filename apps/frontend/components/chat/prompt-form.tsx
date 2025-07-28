@@ -27,6 +27,7 @@ export function PromptForm({
   isHome = false,
   onFocus,
   onBlur,
+  initialGitCookieState,
 }: {
   onSubmit?: (message: string, model: ModelType, queue?: boolean) => void;
   onStopStream?: () => void;
@@ -34,17 +35,25 @@ export function PromptForm({
   isHome?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
+  initialGitCookieState?: {
+    repo: Repository | null;
+    branch: { name: string; commitSha: string } | null;
+  } | null;
 }) {
   const [message, setMessage] = useState("");
   const [selectedModel, setSelectedModel] = useState<ModelType>(
     AvailableModels.GPT_4O
   );
-  const [repo, setRepo] = useState<Repository | null>(null);
+  const [repo, setRepo] = useState<Repository | null>(
+    initialGitCookieState?.repo || null
+  );
   const [branch, setBranch] = useState<{
     name: string;
     commitSha: string;
-  } | null>(null);
+  } | null>(initialGitCookieState?.branch || null);
+
   const [queue, setQueue] = useState(false);
+
   const [isPending, startTransition] = useTransition();
 
   const queryClient = useQueryClient();
