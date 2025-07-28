@@ -18,7 +18,6 @@ import {
 import { useEffect, useState } from "react";
 import { useCodebaseUnderstanding } from "@/components/codebase-understanding/codebase-understanding-context";
 import { getWorkspaceSummaries } from "@/lib/actions/summaries";
-import { useRunShallowWiki } from "@/hooks/use-shallow-wiki";
 
 interface CodebaseSummary {
   id: string;
@@ -32,13 +31,10 @@ interface CodebaseViewProps {
   taskId: string;
 }
 
-export function SidebarCodebaseUnderstandingView({
-  taskId,
-}: CodebaseViewProps) {
+export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
   const { selectSummary } = useCodebaseUnderstanding();
   const [summaries, setSummaries] = useState<CodebaseSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const runShallowWiki = useRunShallowWiki();
 
   // Load workspace summaries
   const loadSummaries = async () => {
@@ -94,24 +90,6 @@ export function SidebarCodebaseUnderstandingView({
       setIsLoading(false);
     }
   };
-
-  // Generate new summaries
-  const generateSummaries = async () => {
-    if (!taskId) return;
-
-    try {
-      await runShallowWiki.mutateAsync({ taskId, forceRefresh: true });
-      // Reload summaries after indexing
-      await loadSummaries();
-    } catch (error) {
-      console.error("Error generating summaries", error);
-    }
-  };
-
-  // Load summaries on mount
-  useEffect(() => {
-    loadSummaries();
-  }, [taskId]);
 
   // Group summaries by type
   const fileSummaries = summaries.filter((s) => s.type === "file_summary");
@@ -282,26 +260,6 @@ export function SidebarCodebaseUnderstandingView({
         <SidebarGroup className="flex h-7 flex-row items-center justify-between">
           <div className="font-medium">Codebase Understanding</div>
         </SidebarGroup>
-        <div className="border-sidebar-border flex-shrink-0 border-b p-4">
-          <Button
-            onClick={generateSummaries}
-            disabled={runShallowWiki.isPending}
-            className="w-full"
-            size="sm"
-          >
-            {runShallowWiki.isPending ? (
-              <>
-                <RefreshCw className="mr-2 size-4 animate-spin" />
-                Reindexing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 size-4" />
-                Reindex Codebase
-              </>
-            )}
-          </Button>
-        </div>
 
         <SidebarGroupContent className="flex-1 overflow-hidden">
           <div className="flex h-full flex-col">

@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { SidebarAgentView } from "./agent-view";
 import { SidebarNavigation } from "./navigation";
 import { SidebarTasksView } from "./tasks-view";
-import { SidebarCodebaseUnderstandingView } from "./codebase-view";
+import { SidebarCodebaseView } from "./codebase-view";
 import { useCodebases } from "@/hooks/use-codebases";
 import { SidebarCodebase } from "@/lib/db-operations/get-codebases";
 import { SidebarCodebasesListView } from "./codebases-list-view";
@@ -32,10 +32,13 @@ export function SidebarViews({
   initialTasks,
   initialCodebases,
   currentTaskId = null,
+  currentCodebaseId = null,
 }: {
   initialTasks: Task[];
   initialCodebases: SidebarCodebase[];
+  // Page-specific ID fields
   currentTaskId?: string | null;
+  currentCodebaseId?: string | null;
 }) {
   const {
     data: tasks,
@@ -62,6 +65,8 @@ export function SidebarViews({
     }
     if (currentTaskId) {
       setSidebarView("agent");
+    } else if (currentCodebaseId) {
+      setSidebarView("codebase-understanding");
     } else {
       if (sidebarView === "agent") {
         setSidebarView("tasks");
@@ -73,6 +78,7 @@ export function SidebarViews({
     <div className="flex">
       <SidebarNavigation
         currentTaskId={currentTaskId}
+        currentCodebaseId={currentCodebaseId}
         sidebarView={sidebarView}
         setSidebarView={setSidebarView}
       />
@@ -95,7 +101,7 @@ export function SidebarViews({
             {currentTaskId && sidebarView === "agent" ? (
               <SidebarAgentView taskId={currentTaskId} />
             ) : sidebarView === "codebase-understanding" ? (
-              <SidebarCodebaseUnderstandingView taskId={currentTaskId ?? ""} />
+              <SidebarCodebaseView taskId={currentTaskId ?? ""} />
             ) : sidebarView === "codebases" ? (
               <SidebarCodebasesListView
                 codebases={codebases}

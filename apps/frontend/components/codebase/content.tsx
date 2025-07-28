@@ -5,6 +5,7 @@ import { FileText, FolderOpen, Code } from "lucide-react";
 import { useEffect, useState } from "react";
 import { MarkdownRenderer } from "@/components/agent-environment/markdown-renderer";
 import { getRepositorySummaries } from "@/lib/actions/summaries";
+import { useParams } from "next/navigation";
 
 interface Summary {
   id: string;
@@ -14,10 +15,6 @@ interface Summary {
   language?: string;
 }
 
-interface DocsViewProps {
-  taskId: string;
-}
-
 interface DirectoryGroup {
   directoryName: string;
   directoryPath: string;
@@ -25,12 +22,18 @@ interface DirectoryGroup {
   files: Summary[];
 }
 
-export function DocsView({ taskId }: DocsViewProps) {
+export function CodebasePageContent() {
+  const { codebaseId } = useParams<{ codebaseId: string }>();
+
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [organizedData, setOrganizedData] = useState<{ overview?: Summary, rootFiles: Summary[], directories: DirectoryGroup[] }>({
+  const [organizedData, setOrganizedData] = useState<{
+    overview?: Summary;
+    rootFiles: Summary[];
+    directories: DirectoryGroup[];
+  }>({
     rootFiles: [],
-    directories: []
+    directories: [],
   });
 
   const loadSummaries = async (id: string) => {
@@ -48,31 +51,28 @@ export function DocsView({ taskId }: DocsViewProps) {
     }
   };
 
-
   const organizeSummaries = (summaries: Summary[]) => {
-    const overview = summaries.find(s => s.name === "root_overview");
+    const overview = summaries.find((s) => s.name === "root_overview");
 
     // Files: all files except overview
-    const files = summaries.filter(s =>
-      s.name !== "root_overview" &&
-      s.type === "file"
+    const files = summaries.filter(
+      (s) => s.name !== "root_overview" && s.type === "file"
     );
 
     // Directories: all directory entries
-    const directories = summaries.filter(s =>
-      s.name !== "root_overview" &&
-      s.type === "directory"
-    ).map(dir => ({
-      directoryName: dir.name,
-      directoryPath: dir.name,
-      directorySummary: dir,
-      files: [] // No files associated since we don't have that relationship data
-    }));
+    const directories = summaries
+      .filter((s) => s.name !== "root_overview" && s.type === "directory")
+      .map((dir) => ({
+        directoryName: dir.name,
+        directoryPath: dir.name,
+        directorySummary: dir,
+        files: [], // No files associated since we don't have that relationship data
+      }));
 
     setOrganizedData({
       overview,
       rootFiles: files, // All files are essentially "root" files
-      directories
+      directories,
     });
   };
 
@@ -86,7 +86,7 @@ export function DocsView({ taskId }: DocsViewProps) {
     if (!language) return null;
     return (
       <Badge variant="secondary" className="text-xs">
-        <Code className="h-3 w-3 mr-1" />
+        <Code className="mr-1 h-3 w-3" />
         {language}
       </Badge>
     );
@@ -96,7 +96,7 @@ export function DocsView({ taskId }: DocsViewProps) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <div className="text-muted-foreground text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-foreground"></div>
+          <div className="border-muted border-t-foreground mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2"></div>
           <p>Loading repository documentation...</p>
         </div>
       </div>
@@ -109,7 +109,9 @@ export function DocsView({ taskId }: DocsViewProps) {
         <div className="text-muted-foreground text-center">
           <FileText className="mx-auto mb-4 h-8 w-8" />
           <h3 className="mb-2 text-lg font-medium">No documentation found</h3>
-          <p className="text-sm">Generate summaries for this repository to see documentation</p>
+          <p className="text-sm">
+            Generate summaries for this repository to see documentation
+          </p>
         </div>
       </div>
     );
@@ -119,7 +121,6 @@ export function DocsView({ taskId }: DocsViewProps) {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-
       {/* Scrollable content area with proper padding */}
       <div className="h-[calc(100%-3.5rem)] w-full flex-1 overflow-auto pb-8">
         <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6 md:py-8">
@@ -130,7 +131,7 @@ export function DocsView({ taskId }: DocsViewProps) {
                 <FileText className="h-5 w-5 text-blue-600" />
                 <h2 className="text-xl font-semibold">Overview</h2>
               </div>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
+              <div className="prose prose-sm dark:prose-invert max-w-none">
                 <MarkdownRenderer content={overview.content} />
               </div>
             </div>
@@ -150,7 +151,7 @@ export function DocsView({ taskId }: DocsViewProps) {
                       <h3 className="text-lg font-medium">{file.name}</h3>
                       {file.language && getLanguageBadge(file.language)}
                     </div>
-                    <div className="prose prose-sm max-w-none dark:prose-invert rounded-md bg-muted/30 p-4">
+                    <div className="prose prose-sm dark:prose-invert bg-muted/30 max-w-none rounded-md p-4">
                       <MarkdownRenderer content={file.content} />
                     </div>
                   </div>
@@ -168,12 +169,23 @@ export function DocsView({ taskId }: DocsViewProps) {
               </div>
               <div className="space-y-10">
                 {directories.map((directory) => (
-                  <div key={directory.directoryPath} id={directory.directorySummary?.id} className="rounded-md">
+                  <div
+                    key={directory.directoryPath}
+                    id={directory.directorySummary?.id}
+                    className="rounded-md"
+                  >
                     <div className="mb-3">
-                      <h3 className="text-lg font-medium">{directory.directoryPath}/</h3>
+                      <h3 className="text-lg font-medium">
+                        {directory.directoryPath}/
+                      </h3>
                     </div>
-                    <div className="prose prose-sm max-w-none dark:prose-invert rounded-md bg-muted/30 p-4">
-                      <MarkdownRenderer content={directory.directorySummary?.content || `Directory: ${directory.directoryPath}`} />
+                    <div className="prose prose-sm dark:prose-invert bg-muted/30 max-w-none rounded-md p-4">
+                      <MarkdownRenderer
+                        content={
+                          directory.directorySummary?.content ||
+                          `Directory: ${directory.directoryPath}`
+                        }
+                      />
                     </div>
                   </div>
                 ))}

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { LayoutGrid, Play, Plus } from "lucide-react";
+import { FileCode, LayoutGrid, Play, Plus } from "lucide-react";
 import Link from "next/link";
 import { SidebarView } from ".";
 import { SettingsDialog } from "../auth/settings-dialog";
@@ -16,10 +16,13 @@ export function SidebarNavigation({
   sidebarView,
   setSidebarView,
   currentTaskId,
+  currentCodebaseId,
 }: {
   sidebarView: SidebarView;
   setSidebarView: (view: SidebarView) => void;
+  // Page-specific ID fields
   currentTaskId: string | null;
+  currentCodebaseId: string | null;
 }) {
   const { open, toggleSidebar } = useSidebar();
   const { task } = useTask(currentTaskId ?? "");
@@ -73,6 +76,41 @@ export function SidebarNavigation({
     </div>
   );
 
+  const codebaseViewTrigger = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          size="iconSm"
+          variant="ghost"
+          className={cn(
+            "border",
+            sidebarView === "codebase-understanding" && open
+              ? "text-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-border"
+              : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
+          )}
+          onClick={() => {
+            setSidebarView("codebase-understanding");
+            if (!open) {
+              toggleSidebar();
+            }
+          }}
+        >
+          <FileCode />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="right">Codebase View</TooltipContent>
+    </Tooltip>
+  );
+
+  const hasPageSpecificView = currentTaskId || currentCodebaseId;
+
+  const pageSpecificViewTrigger = hasPageSpecificView ? (
+    <>
+      <div className="bg-border h-px w-full" />
+      {currentTaskId ? agentViewTrigger : codebaseViewTrigger}
+    </>
+  ) : null;
+
   return (
     <div className="bg-card flex h-svh flex-col justify-between border-r p-3">
       <div className="flex flex-col gap-7">
@@ -118,12 +156,7 @@ export function SidebarNavigation({
             <TooltipContent side="right">Tasks View</TooltipContent>
           </Tooltip>
 
-          {currentTaskId ? (
-            <>
-              <div className="bg-border h-px w-full" />
-              {agentViewTrigger}
-            </>
-          ) : null}
+          {pageSpecificViewTrigger}
         </div>
       </div>
       <div className="flex flex-col gap-4">
