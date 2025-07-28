@@ -15,7 +15,7 @@ import { AvailableModels, ModelInfos, type ModelType } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUp,
-  ChevronLeft,
+  ChevronDown,
   GitBranchPlus,
   Layers,
   ListEnd,
@@ -147,41 +147,48 @@ export function PromptForm({
           isPending && "opacity-50"
         )}
       >
-        <div className="overflow-clip">
-          <div className="flex flex-col gap-0.5 p-1.5">
-            <button
-              onClick={() => setIsMessageOptionsOpen(false)}
-              className="text-muted-foreground flex items-center gap-1 px-2 py-0.5 text-xs font-medium"
-            >
-              <ChevronLeft className="size-3" />
-              <span>Message Options</span>
-            </button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hover:bg-sidebar-border justify-start font-normal"
-            >
-              <ListEnd className="size-4" />
-              <span>Queue Message</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hover:bg-sidebar-border justify-start font-normal"
-            >
-              <MessageCircleX className="size-4" />
-              <span>Stop & Send</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hover:bg-sidebar-border justify-start font-normal"
-            >
-              <GitBranchPlus className="size-4" />
-              <span>Queue Stacked PR</span>
-            </Button>
+        {!isHome && (
+          <div
+            className={cn(
+              "ease-out-cubic overflow-clip transition-all duration-500",
+              isMessageOptionsOpen ? "h-[122px]" : "h-0"
+            )}
+          >
+            <div className="flex flex-col items-start gap-0.5 p-1.5">
+              <button
+                onClick={() => setIsMessageOptionsOpen(false)}
+                className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 px-1.5 py-0.5 text-xs font-medium"
+              >
+                <ChevronDown className="size-3" />
+                <span>Message Options</span>
+              </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hover:bg-sidebar-border w-full justify-start font-normal"
+              >
+                <ListEnd className="size-4" />
+                <span>Queue Message</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hover:bg-sidebar-border w-full justify-start font-normal"
+              >
+                <MessageCircleX className="size-4" />
+                <span>Stop & Send</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hover:bg-sidebar-border w-full justify-start font-normal"
+              >
+                <GitBranchPlus className="size-4" />
+                <span>Queue Stacked PR</span>
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="from-input/25 to-input relative flex min-h-24 flex-col rounded-xl bg-gradient-to-t">
           <div className="bg-background absolute inset-0 -z-20 rounded-[calc(var(--radius)+5px)]" />
@@ -203,20 +210,27 @@ export function PromptForm({
             onClick={() => textareaRef.current?.focus()}
           >
             <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-muted-foreground hover:bg-accent px-2 font-normal"
-                >
-                  {isHome && <Layers className="size-4" />}
-                  <span>
-                    {selectedModel
-                      ? ModelInfos[selectedModel].name
-                      : "Select model"}
-                  </span>
-                </Button>
-              </PopoverTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-muted-foreground hover:bg-accent px-2 font-normal"
+                    >
+                      {isHome && <Layers className="size-4" />}
+                      <span>
+                        {selectedModel
+                          ? ModelInfos[selectedModel].name
+                          : "Select model"}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="start" shortcut="⌘.">
+                  Model Selector
+                </TooltipContent>
+              </Tooltip>
               <PopoverContent
                 align="start"
                 className="flex flex-col gap-0.5 rounded-lg p-1"
@@ -248,7 +262,7 @@ export function PromptForm({
               <div className="flex items-center gap-2">
                 {!isHome && (
                   <Tooltip>
-                    <TooltipTrigger asChild>
+                    <TooltipTrigger asChild className="peer/message-options">
                       <Button
                         type="button"
                         size="iconSm"
@@ -257,7 +271,7 @@ export function PromptForm({
                           "transition-all",
                           isMessageOptionsOpen
                             ? "border-sidebar-border! bg-sidebar-accent!"
-                            : "text-muted-foreground hover:bg-accent invisible translate-x-1 border-transparent opacity-0 focus-visible:visible focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/footer:visible group-hover/footer:translate-x-0 group-hover/footer:opacity-100"
+                            : "text-muted-foreground hover:bg-accent! border-transparent! invisible translate-x-1 opacity-0 focus-visible:visible focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/footer:visible group-hover/footer:translate-x-0 group-hover/footer:opacity-100"
                         )}
                         onClick={(e) => {
                           e.preventDefault();
@@ -268,10 +282,8 @@ export function PromptForm({
                         <Settings2 className="size-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="top" align="center">
-                      <p>
-                        {isMessageOptionsOpen ? "Hide" : "Show"} Message Options
-                      </p>
+                    <TooltipContent side="top" align="center" shortcut="⌘/">
+                      {isMessageOptionsOpen ? "Hide" : "Show"} Message Options
                     </TooltipContent>
                   </Tooltip>
                 )}
