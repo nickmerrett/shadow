@@ -7,7 +7,8 @@ export function useCodebase(codebaseId: string) {
     queryFn: async (): Promise<CodebaseWithSummaries> => {
       const res = await fetch(`/api/codebases/${codebaseId}`);
       if (!res.ok) throw new Error("Failed to fetch codebase");
-      return await res.json();
+      const data = await res.json();
+      return data.codebase;
     },
     enabled: !!codebaseId,
   });

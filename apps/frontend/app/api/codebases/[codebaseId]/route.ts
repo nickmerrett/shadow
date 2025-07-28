@@ -13,7 +13,7 @@ export async function GET(
       return NextResponse.json({ error: "Codebase not found" }, { status: 404 });
     }
 
-    return NextResponse.json(codebase);
+    return NextResponse.json({ codebase });
   } catch (error) {
     console.error("Error fetching codebase:", error);
     return NextResponse.json(
