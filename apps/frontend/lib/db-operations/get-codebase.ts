@@ -1,6 +1,6 @@
 import { db } from "@repo/db";
 import { CodebaseWithSummaries } from "@repo/types";
-import { getCodebaseSummaries } from "../codebase-understanding/get-summaries";
+import { parseCodebaseSummaries } from "../codebase-understanding/parse-summaries";
 
 export async function getCodebase(
   codebaseId: string
@@ -21,7 +21,7 @@ export async function getCodebase(
       return null;
     }
 
-    const summaries = getCodebaseSummaries(codebase);
+    const summaries = parseCodebaseSummaries(codebase);
 
     return { ...codebase, summaries };
   } catch (err) {

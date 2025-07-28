@@ -1,7 +1,7 @@
 import { CodebaseUnderstanding } from "@repo/db";
 import { CodebaseSummary, CodebaseSummariesSchema } from "@repo/types";
 
-export function getCodebaseSummaries(
+export function parseCodebaseSummaries(
   codebase: CodebaseUnderstanding
 ): CodebaseSummary[] {
   console.log("Fetching summaries for codebase:", codebase.id);
