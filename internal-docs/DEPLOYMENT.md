@@ -281,7 +281,7 @@ spec:
         node-type: "system"
       containers:
       - name: server
-        image: your-account.dkr.ecr.us-west-2.amazonaws.com/shadow-server:latest
+        image: your-account.dkr.ecr.us-east-1.amazonaws.com/shadow-server:latest
         ports:
         - containerPort: 3000
         envFrom:

@@ -276,12 +276,12 @@ export class FirecrackerVMRunner {
             },
             resources: {
               requests: {
-                memory: "128Mi",
-                cpu: "100m",
+                memory: config.vmMemoryLimit,
+                cpu: config.vmCpuLimit,
               },
               limits: {
-                memory: "256Mi",
-                cpu: "200m",
+                memory: config.vmMemoryLimit,
+                cpu: config.vmCpuLimit,
               },
             },
             env: [

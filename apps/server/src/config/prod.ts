@@ -137,7 +137,7 @@ const prodConfigSchema = sharedConfigSchema.extend({
 
   // === AWS CONFIGURATION ===
   // AWS region for EKS cluster and supporting services
-  AWS_REGION: z.string().default("us-west-2"),
+  AWS_REGION: z.string().default("us-east-1"),
   // EC2 instance types for Kubernetes nodes (metal instances support KVM)
   EC2_INSTANCE_TYPES: z.string().default("c5.metal,m6i.metal"),
 

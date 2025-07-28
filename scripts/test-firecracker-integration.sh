@@ -10,7 +10,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Configuration
 CLUSTER_NAME="${CLUSTER_NAME:-shadow-firecracker}"
-AWS_REGION="${AWS_REGION:-us-west-2}"
+AWS_REGION="${AWS_REGION:-us-east-1}"
 TEST_REPO_URL="${TEST_REPO_URL:-https://github.com/octocat/Hello-World.git}"
 TEST_BRANCH="${TEST_BRANCH:-main}"
 

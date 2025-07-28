@@ -10,11 +10,18 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Configuration
 CLUSTER_NAME="${CLUSTER_NAME:-shadow-firecracker}"
-AWS_REGION="${AWS_REGION:-us-west-2}"
+AWS_REGION="${AWS_REGION:-us-east-1}"
 NODE_INSTANCE_TYPE="${NODE_INSTANCE_TYPE:-c5.metal}"
 MIN_NODES="${MIN_NODES:-1}"
 MAX_NODES="${MAX_NODES:-3}"
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.28}"
+
+# VM Resource Configuration
+VM_CPU_COUNT="${VM_CPU_COUNT:-1}"
+VM_MEMORY_SIZE_MB="${VM_MEMORY_SIZE_MB:-1024}"
+VM_CPU_LIMIT="${VM_CPU_LIMIT:-1000m}"
+VM_MEMORY_LIMIT="${VM_MEMORY_LIMIT:-1Gi}"
+VM_STORAGE_LIMIT="${VM_STORAGE_LIMIT:-10Gi}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -65,7 +72,7 @@ check_prerequisites() {
     fi
     
     # Check AWS credentials
-    if ! aws sts get-caller-identity &> /dev/null; then
+    if ! aws sts get-caller-identity --profile ID &> /dev/null; then
         error "AWS credentials not configured. Run 'aws configure'"
     fi
     
@@ -140,11 +147,6 @@ nodeGroups:
     # Security group configuration
     securityGroups:
       attachIDs: []
-      
-    # Enable detailed monitoring
-    instanceMetadata:
-      httpTokens: required
-      httpPutResponseHopLimit: 2
 
   - name: system-nodes
     instanceType: m5.large
@@ -174,13 +176,13 @@ addons:
 
 cloudWatch:
   clusterLogging:
-    enable: true
+    enableTypes: ["api", "audit", "authenticator", "controllerManager", "scheduler"]
     logRetentionInDays: 7
 EOF
 
     # Create the cluster
     log "Creating EKS cluster (this may take 20-30 minutes)..."
-    eksctl create cluster -f cluster-config.yaml
+    eksctl create cluster -f cluster-config.yaml --profile ID
     
     # Clean up config file
     rm cluster-config.yaml
@@ -325,11 +327,11 @@ AGENT_MODE=firecracker
 NODE_ENV=production
 
 # Firecracker Configuration
-VM_CPU_COUNT=1
-VM_MEMORY_SIZE_MB=1024
-VM_CPU_LIMIT=1000m
-VM_MEMORY_LIMIT=2Gi
-VM_STORAGE_LIMIT=10Gi
+VM_CPU_COUNT=$VM_CPU_COUNT
+VM_MEMORY_SIZE_MB=$VM_MEMORY_SIZE_MB
+VM_CPU_LIMIT=$VM_CPU_LIMIT
+VM_MEMORY_LIMIT=$VM_MEMORY_LIMIT
+VM_STORAGE_LIMIT=$VM_STORAGE_LIMIT
 EOF
 
     log "Cluster access configuration saved to: firecracker-cluster-config.env"
@@ -374,11 +376,11 @@ spec:
     command: ["sleep", "60"]
     resources:
       requests:
-        memory: "128Mi"
-        cpu: "100m"
+        memory: "$VM_MEMORY_LIMIT"
+        cpu: "$VM_CPU_LIMIT"
       limits:
-        memory: "256Mi"
-        cpu: "200m"
+        memory: "$VM_MEMORY_LIMIT"
+        cpu: "$VM_CPU_LIMIT"
   restartPolicy: Never
 EOF
 
