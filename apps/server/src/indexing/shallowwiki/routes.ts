@@ -118,44 +118,23 @@ shallowwikiRouter.post(
 
     try {
       console.log(`Processing repo ${repo} with forceRefresh=${forceRefresh}`);
+      // Resolve local workspace directory or cache path
       const repoPath = await resolveRepoPath(repo, forceRefresh);
 
-      // Change to repo directory and run ShallowWiki
-      const originalCwd = process.cwd();
-      const originalArgv = process.argv[2] || "";
-
-      process.chdir(repoPath);
-      process.argv[2] = repoPath;
-
-      // Import and run the ShallowWiki summarizer with the new runDeepWiki function
-      await runDeepWiki(repoPath, {
+      // Run DeepWiki algorithm on the workspace directory
+      const result = await runDeepWiki(repoPath, {
         concurrency: 12,
-        model: "gpt-4o",
-        modelMini: "gpt-4o-mini",
+        model: 'gpt-4o',
+        modelMini: 'gpt-4o-mini',
       });
-
-      // Restore original state
-      process.argv[2] = originalArgv;
-      process.chdir(originalCwd);
-
-      // Read the generated summaries from .shadow/tree directory
-      const summaryDir = path.join(repoPath, ".shadow", "tree");
-
-      let summaries: string[] = [];
-      if (fs.existsSync(summaryDir)) {
-        // Get all .md files, excluding cache.json and index.json
-        summaries = fs.readdirSync(summaryDir).filter((f) => f.endsWith(".md"));
-      }
 
       return res.json({
-        message: "ShallowWiki summaries generated successfully",
+        message: 'ShallowWiki summaries generated successfully',
         repoPath,
-        summaryDir,
-        summariesGenerated: summaries.length,
-        summaries,
+        processingStats: result.processingStats,
       });
     } catch (error) {
-      console.error("Error generating ShallowWiki summaries:", error);
+      console.error('Error generating ShallowWiki summaries:', error);
       next(error);
     }
   }
