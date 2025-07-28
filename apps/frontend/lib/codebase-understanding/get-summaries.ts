@@ -1,46 +1,29 @@
-import { CodebaseWithTasks } from "../db-operations/get-codebase";
-import { CodebaseUnderstanding, CodebaseUnderstandingSchema } from "./types";
+import { CodebaseUnderstanding } from "@repo/db";
+import { CodebaseSummary, CodebaseSummariesSchema } from "@repo/types";
 
 export function getCodebaseSummaries(
-  codebase: CodebaseWithTasks
-): CodebaseUnderstanding {
+  codebase: CodebaseUnderstanding
+): CodebaseSummary[] {
   console.log("Fetching summaries for codebase:", codebase.id);
   const codebaseContent = codebase.content;
 
   try {
-    const summaries = CodebaseUnderstandingSchema.parse(codebaseContent);
+    const summaries = CodebaseSummariesSchema.parse(codebaseContent);
     if (summaries.length === 0) {
       return [];
     }
 
-    const mappedSummaries = summaries
-      .map((summary) => {
-        let parsedContent: string;
-        try {
-          parsedContent =
-            typeof summary.content === "string"
-              ? JSON.parse(summary.content as string)
-              : summary.content;
-        } catch (e) {
-          console.error("Error parsing summary content", e);
-          parsedContent = "Error parsing content";
-        }
+    const filteredSummaries = summaries.filter((summary) => {
+      // Filter out summaries that contain "no symbols found"
+      const summaryText = summary.content?.toLowerCase() || "";
+      return (
+        !summaryText.includes("no symbols found") &&
+        summaryText.trim().length > 0
+      );
+    });
 
-        const result = {
-          ...summary,
-          content: parsedContent,
-        };
-
-        return result;
-      })
-      .filter((summary) => {
-        // Filter out summaries that contain "no symbols found"
-        const summaryText = summary.content?.toLowerCase() || "";
-        return !summaryText.toLowerCase().includes("no symbols found");
-      });
-
-    console.log("Total mapped summaries:", mappedSummaries.length);
-    return mappedSummaries;
+    console.log("Total filtered summaries:", filteredSummaries.length);
+    return filteredSummaries;
   } catch (e) {
     console.error("Error parsing codebase content", e);
     return [];

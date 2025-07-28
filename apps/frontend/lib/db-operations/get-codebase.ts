@@ -1,12 +1,10 @@
-import { db, CodebaseUnderstanding } from "@repo/db";
-
-export type CodebaseWithTasks = CodebaseUnderstanding & {
-  tasks: { id: string }[];
-};
+import { db } from "@repo/db";
+import { CodebaseWithSummaries } from "@repo/types";
+import { getCodebaseSummaries } from "../codebase-understanding/get-summaries";
 
 export async function getCodebase(
   codebaseId: string
-): Promise<CodebaseWithTasks | null> {
+): Promise<CodebaseWithSummaries | null> {
   try {
     const codebase = await db.codebaseUnderstanding.findUnique({
       where: { id: codebaseId },
@@ -19,7 +17,13 @@ export async function getCodebase(
       },
     });
 
-    return codebase;
+    if (!codebase) {
+      return null;
+    }
+
+    const summaries = getCodebaseSummaries(codebase);
+
+    return { ...codebase, summaries };
   } catch (err) {
     console.error("Failed to fetch codebase", err);
     return null;
