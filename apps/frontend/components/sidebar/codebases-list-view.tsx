@@ -53,7 +53,7 @@ export function SidebarCodebasesListView({
                         <LayoutGrid className="size-3 shrink-0" />
                         <span>{codebase.tasks.length} Tasks</span>
                         <Clock className="size-3 shrink-0" />
-                        <span>{codebase.updatedAt.toLocaleDateString()}</span>
+                        <span>{new Date(codebase.updatedAt).toLocaleDateString()}</span>
                       </div>
                     </a>
                   </SidebarMenuButton>

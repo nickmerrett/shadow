@@ -1,17 +1,40 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { FileText, FolderOpen, Code, FolderGit2 } from "lucide-react";
-import { useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { FileText, FolderOpen, Code, FolderGit2, Loader2, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
 import { MarkdownRenderer } from "@/components/agent-environment/markdown-renderer";
 import { useParams } from "next/navigation";
 import { useCodebase } from "@/hooks/use-codebase";
 
 export function CodebasePageContent() {
   const { codebaseId } = useParams<{ codebaseId: string }>();
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const { data: codebase } = useCodebase(codebaseId);
+  const { data: codebase, isLoading, error, refetch } = useCodebase(codebaseId);
   const summaries = useMemo(() => codebase?.summaries || [], [codebase]);
+
+  const generateSummary = async () => {
+    if (!codebase?.tasks?.[0]?.id) return;
+    
+    setIsGenerating(true);
+    try {
+      const response = await fetch(`/api/indexing/shallowwiki/generate/${codebase.tasks[0].id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forceRefresh: true }),
+      });
+      
+      if (response.ok) {
+        await refetch();
+      }
+    } catch (error) {
+      console.error('Failed to generate summary:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   // Organize summaries by type
   const { repoSummaries, fileSummaries, directorySummaries } = useMemo(() => {
@@ -54,15 +77,59 @@ export function CodebasePageContent() {
     return fileName;
   };
 
-  if (summaries.length === 0) {
+  if (isLoading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <div className="text-muted-foreground text-center">
+          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin" />
+          <h3 className="mb-2 text-lg font-medium">Loading codebase...</h3>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <div className="text-muted-foreground text-center">
+          <FileText className="mx-auto mb-4 h-8 w-8" />
+          <h3 className="mb-2 text-lg font-medium">Error loading codebase</h3>
+          <p className="text-sm">
+            {error instanceof Error ? error.message : 'Failed to load codebase'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (summaries.length === 0 && codebase) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <div className="text-muted-foreground text-center">
           <FileText className="mx-auto mb-4 h-8 w-8" />
           <h3 className="mb-2 text-lg font-medium">No documentation found</h3>
-          <p className="text-sm">
+          <p className="text-sm mb-4">
             Generate summaries for this repository to see documentation
           </p>
+          {codebase.tasks?.[0]?.id && (
+            <Button 
+              onClick={generateSummary} 
+              disabled={isGenerating}
+              className="mx-auto"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Generate Summary
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -74,7 +141,7 @@ export function CodebasePageContent() {
       {overview && (
         <div id={overview.id} className="mb-12">
           <div className="mb-4 flex items-center gap-3">
-            <FolderGit2 className="h-5 w-5 text-blue-600" />
+            <FolderGit2 className="h-5 w-5" />
             <h2 className="text-xl font-semibold">Project Overview</h2>
           </div>
           <div className="prose prose-sm dark:prose-invert max-w-none">
