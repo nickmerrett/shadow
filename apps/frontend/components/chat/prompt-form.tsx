@@ -96,6 +96,7 @@ export function PromptForm({
         onStopStream?.();
       } else {
         onSubmit?.(message, selectedModel, true);
+        setMessage("");
       }
     } else {
       onSubmit?.(message, selectedModel, false);
@@ -121,7 +122,7 @@ export function PromptForm({
       {/* Wrapper div with textarea styling */}
       <div
         className={cn(
-          "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border shadow-xs relative flex min-h-24 w-full flex-col rounded-lg border bg-transparent bg-gradient-to-t transition-[color,box-shadow,border] focus-within:ring-4",
+          "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border shadow-xs relative flex min-h-24 w-full flex-col rounded-xl border bg-transparent bg-gradient-to-t transition-[color,box-shadow,border] focus-within:ring-4",
           isPending && "opacity-50"
         )}
       >
@@ -188,24 +189,36 @@ export function PromptForm({
             )}
             <Button
               type="submit"
-              size="iconSm"
+              size={isHome ? "iconSm" : "sm"}
               disabled={
                 isPending ||
                 !selectedModel ||
                 (isHome && (!repo || !branch || !message.trim()))
               }
-              className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
+              className={!isHome ? "pr-1.5!" : ""}
             >
               {isPending ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : isStreaming ? (
                 !message.trim() ? (
-                  <Square className="fill-primary-foreground size-3.5" />
+                  // 14px (size-3.5) square looks nicer, so wrap in 1px to bring up to 16px (size-4)
+                  <>
+                    <span>Stop</span>
+                    <div className="p-px">
+                      <Square className="fill-primary-foreground size-3.5" />
+                    </div>
+                  </>
                 ) : (
-                  <ListEnd className="size-4" />
+                  <>
+                    <span>Queue</span>
+                    <ListEnd className="size-4" />
+                  </>
                 )
               ) : (
-                <ArrowUp className="size-4" />
+                <>
+                  {!isHome && <span>Send</span>}
+                  <ArrowUp className="size-4" />
+                </>
               )}
             </Button>
           </div>
