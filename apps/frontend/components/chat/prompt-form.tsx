@@ -1,6 +1,6 @@
 "use client";
 
-import "@/app/user-message-gradient.css";
+import "./prompt-form.css";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -15,9 +15,12 @@ import { AvailableModels, ModelInfos, type ModelType } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUp,
+  ChevronLeft,
+  GitBranchPlus,
   Layers,
   ListEnd,
   Loader2,
+  MessageCircleX,
   Settings2,
   Square,
 } from "lucide-react";
@@ -65,6 +68,8 @@ export function PromptForm({
 
   const queryClient = useQueryClient();
   const { data: availableModels = [] } = useModels();
+
+  const [isMessageOptionsOpen, setIsMessageOptionsOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,13 +143,48 @@ export function PromptForm({
         className={cn(
           "shadow-highlight/10 relative z-0 rounded-[calc(var(--radius)+5px)] p-px shadow-lg transition-all",
           "focus-within:ring-ring/10 focus-within:border-sidebar-border focus-within:ring-4",
-          "user-message-border hover:shadow-highlight/20 focus-within:shadow-highlight/20",
+          "prompt-form-border hover:shadow-highlight/20 focus-within:shadow-highlight/20",
           isPending && "opacity-50"
         )}
       >
-        <div className="bg-background absolute inset-px -z-20 rounded-[calc(var(--radius)+5px)]" />
+        <div className="overflow-clip">
+          <div className="flex flex-col gap-0.5 p-1.5">
+            <button
+              onClick={() => setIsMessageOptionsOpen(false)}
+              className="text-muted-foreground flex items-center gap-1 px-2 py-0.5 text-xs font-medium"
+            >
+              <ChevronLeft className="size-3" />
+              <span>Message Options</span>
+            </button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-sidebar-border justify-start font-normal"
+            >
+              <ListEnd className="size-4" />
+              <span>Queue Message</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-sidebar-border justify-start font-normal"
+            >
+              <MessageCircleX className="size-4" />
+              <span>Stop & Send</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-sidebar-border justify-start font-normal"
+            >
+              <GitBranchPlus className="size-4" />
+              <span>Queue Stacked PR</span>
+            </Button>
+          </div>
+        </div>
 
-        <div className="from-input/25 to-input flex min-h-24 flex-col rounded-xl bg-gradient-to-t">
+        <div className="from-input/25 to-input relative flex min-h-24 flex-col rounded-xl bg-gradient-to-t">
+          <div className="bg-background absolute inset-0 -z-20 rounded-[calc(var(--radius)+5px)]" />
           <Textarea
             ref={textareaRef}
             autoFocus
@@ -212,19 +252,26 @@ export function PromptForm({
                       <Button
                         type="button"
                         size="iconSm"
-                        variant="ghost"
-                        className="text-muted-foreground hover:bg-accent translate-x-1 opacity-0 transition-all focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/footer:translate-x-0 group-hover/footer:opacity-100"
+                        variant="outline"
+                        className={cn(
+                          "transition-all",
+                          isMessageOptionsOpen
+                            ? "border-sidebar-border! bg-sidebar-accent!"
+                            : "text-muted-foreground hover:bg-accent invisible translate-x-1 border-transparent opacity-0 focus-visible:visible focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/footer:visible group-hover/footer:translate-x-0 group-hover/footer:opacity-100"
+                        )}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          console.log("clicked");
+                          setIsMessageOptionsOpen((prev) => !prev);
                         }}
                       >
                         <Settings2 className="size-4" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top" align="center">
-                      <p>Message Options</p>
+                      <p>
+                        {isMessageOptionsOpen ? "Hide" : "Show"} Message Options
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 )}

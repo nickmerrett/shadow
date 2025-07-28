@@ -1,4 +1,4 @@
-import "@/app/user-message-gradient.css";
+import "./user-message-gradient.css";
 import { cn } from "@/lib/utils";
 import type { Message } from "@repo/types";
 
