@@ -29,3 +29,36 @@ export async function getCodebase(
     return null;
   }
 }
+
+// New function to get codebase by task ID (for our new shallow wiki system)
+export async function getCodebaseByTaskId(
+  taskId: string
+): Promise<CodebaseWithSummaries | null> {
+  try {
+    const task = await db.task.findUnique({
+      where: { id: taskId },
+      include: {
+        codebaseUnderstanding: {
+          include: {
+            tasks: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!task?.codebaseUnderstanding) {
+      return null;
+    }
+
+    const summaries = parseCodebaseSummaries(task.codebaseUnderstanding);
+
+    return { ...task.codebaseUnderstanding, summaries };
+  } catch (err) {
+    console.error("Failed to fetch codebase by task ID", err);
+    return null;
+  }
+}

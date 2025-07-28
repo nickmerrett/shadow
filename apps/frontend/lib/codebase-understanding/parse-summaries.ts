@@ -1,5 +1,5 @@
 import { CodebaseUnderstanding } from "@repo/db";
-import { CodebaseSummary, CodebaseSummariesSchema } from "@repo/types";
+import { CodebaseSummary } from "@repo/types";
 
 export function parseCodebaseSummaries(
   codebase: CodebaseUnderstanding
@@ -8,22 +8,64 @@ export function parseCodebaseSummaries(
   const codebaseContent = codebase.content;
 
   try {
-    const summaries = CodebaseSummariesSchema.parse(codebaseContent);
-    if (summaries.length === 0) {
-      return [];
+    // Handle new shallow wiki format
+    if (codebaseContent && typeof codebaseContent === 'object') {
+      const summaries: CodebaseSummary[] = [];
+      
+      // Add root summary if it exists
+      if (codebaseContent.rootSummary) {
+        summaries.push({
+          id: 'root_overview',
+          type: 'repo_summary',
+          fileName: 'root_overview',
+          filePath: 'root_overview',
+          language: 'markdown',
+          content: codebaseContent.rootSummary,
+        });
+      }
+
+      // Add file summaries from fileCache
+      if (codebaseContent.fileCache) {
+        Object.entries(codebaseContent.fileCache).forEach(([filePath, content]) => {
+          if (typeof content === 'string' && content.trim().length > 0) {
+            const fileName = filePath.split('/').pop() || filePath;
+            const fileExtension = fileName.split('.').pop() || '';
+            
+            summaries.push({
+              id: filePath.replace(/[^a-zA-Z0-9]/g, '_'),
+              type: 'file_summary',
+              fileName,
+              filePath,
+              language: fileExtension,
+              content: content,
+            });
+          }
+        });
+      }
+
+      // Add directory summaries from structure
+      if (codebaseContent.structure?.nodes) {
+        Object.values(codebaseContent.structure.nodes).forEach((node: any) => {
+          if (node.summary && node.id !== 'root' && node.children?.length > 0) {
+            summaries.push({
+              id: node.id,
+              type: 'directory_summary',
+              fileName: node.name,
+              filePath: node.relPath || node.name,
+              language: 'markdown',
+              content: node.summary,
+            });
+          }
+        });
+      }
+
+      console.log("Total parsed summaries:", summaries.length);
+      return summaries;
     }
 
-    const filteredSummaries = summaries.filter((summary) => {
-      // Filter out summaries that contain "no symbols found"
-      const summaryText = summary.content?.toLowerCase() || "";
-      return (
-        !summaryText.includes("no symbols found") &&
-        summaryText.trim().length > 0
-      );
-    });
-
-    console.log("Total filtered summaries:", filteredSummaries.length);
-    return filteredSummaries;
+    // Fallback for old format
+    console.log("Using fallback parsing for old format");
+    return [];
   } catch (e) {
     console.error("Error parsing codebase content", e);
     return [];
