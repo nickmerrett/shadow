@@ -9,16 +9,17 @@ datasource db {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean
-  image         String?
-  createdAt     DateTime
-  updatedAt     DateTime
-  tasks         Task[]
-  accounts      Account[]
-  sessions      Session[]
+  id                    String                  @id
+  name                  String
+  email                 String                  @unique
+  emailVerified         Boolean
+  image                 String?
+  createdAt             DateTime
+  updatedAt             DateTime
+  tasks                 Task[]
+  accounts              Account[]
+  sessions              Session[]
+  CodebaseUnderstanding CodebaseUnderstanding[]
 
   @@map("user")
 }
@@ -70,7 +71,7 @@ model Verification {
 }
 
 model Task {
-  id          String     @id @default(cuid())
+  id          String     @id @default(nanoid(16))
   title       String
   description String?
   status      TaskStatus @default(INITIALIZING)
@@ -80,23 +81,25 @@ model Task {
   // Repo URL "https://github.com/owner/repo"
   repoUrl      String
 
-  workspacePath         String?
-  lastCompletedStep     InitStepType?
-  initializationError   String?
-  mode                  TaskMode                @default(FULL_AUTO)
-  workspaceCleanedUp    Boolean                 @default(false)
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  userId                String
-  baseBranch            String
-  baseCommitSha         String
-  shadowBranch          String
-  messages              ChatMessage[]
-  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions              TaskSession[]
-  commands              TerminalCommand[]
-  todos                 Todo[]
-  CodebaseUnderstanding CodebaseUnderstanding[]
+  workspacePath       String?
+  lastCompletedStep   InitStepType?
+  initializationError String?
+  mode                TaskMode          @default(FULL_AUTO)
+  workspaceCleanedUp  Boolean           @default(false)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  userId              String
+  baseBranch          String
+  baseCommitSha       String
+  shadowBranch        String
+  messages            ChatMessage[]
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions            TaskSession[]
+  commands            TerminalCommand[]
+  todos               Todo[]
+
+  codebaseUnderstandingId String?
+  codebaseUnderstanding   CodebaseUnderstanding? @relation(fields: [codebaseUnderstandingId], references: [id])
 }
 
 model Todo {
@@ -164,19 +167,18 @@ model TaskSession {
 }
 
 model CodebaseUnderstanding {
-  id        String   @id @default(cuid())
-  taskId    String
-  fileName  String
-  type      String?  @default("file_summary")
-  filePath  String?
-  language  String?
+  id        String   @id @default(nanoid(16))
+  repoName  String   @unique
+  repoUrl   String
   content   Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  @@index([taskId])
-  @@index([type])
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks  Task[]
+
+  @@index([repoName])
 }
 
 enum TaskStatus {
