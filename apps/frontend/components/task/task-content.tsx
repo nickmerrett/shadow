@@ -17,7 +17,6 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
     useTaskMessages(taskId);
   const sendMessageMutation = useSendMessage();
 
-  // Replace all socket logic with one hook call
   const {
     isConnected,
     streamingAssistantParts,
@@ -29,10 +28,8 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
   const handleSendMessage = (message: string, model: string) => {
     if (!taskId || !message.trim()) return;
 
-    // Use the mutation for optimistic updates
     sendMessageMutation.mutate({ taskId, message, model });
 
-    // Send via socket
     sendMessage(message, model);
   };
 

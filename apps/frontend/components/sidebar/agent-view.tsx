@@ -1,3 +1,4 @@
+"use client";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -18,18 +19,16 @@ import {
   SquareCheck,
   SquareX,
 } from "lucide-react";
-import { useCallback, useMemo, useState, useEffect } from "react";
-import { statusColorsConfig, getDisplayStatus } from "./status";
+import { useCallback, useMemo, useState } from "react";
+import { statusColorsConfig } from "./status";
 import { FileExplorer } from "@/components/agent-environment/file-explorer";
-import { FileNode, getStatusText } from "@repo/types";
+import { FileNode } from "@repo/types";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { Button } from "@/components/ui/button";
 import { fetchIndexApi } from "@/lib/actions/index-repo";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
-import { FileText } from "lucide-react";
 
-// Todo status config - aligned with main status colors
 const todoStatusConfig = {
   PENDING: { icon: Square, className: "text-muted-foreground" },
   IN_PROGRESS: { icon: CircleDashed, className: "" },
@@ -44,11 +43,8 @@ interface TreeNode {
   path: string;
   children?: Record<string, TreeNode>;
 }
-
-// Type for the intermediate tree structure during construction
 type FileTree = Record<string, TreeNode>;
 
-// Create file tree structure from file paths
 function createFileTree(filePaths: string[]): FileNode[] {
   const tree: FileTree = {};
 
@@ -95,8 +91,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
 
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
-  const { setSelectedFilePath, expandRightPanel, setSelectedSummary } =
-    useAgentEnvironment();
+  const { setSelectedFilePath, expandRightPanel } = useAgentEnvironment();
 
   const [isIndexing, setIsIndexing] = useState(false);
 
@@ -104,109 +99,12 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
     () => todos.filter((todo) => todo.status === "COMPLETED").length,
     [todos]
   );
-  const [isWorkspaceIndexing, setIsWorkspaceIndexing] = useState(false);
-  const [workspaceSummaries, setWorkspaceSummaries] = useState<any[]>([]);
-  const [isLoadingSummaries, setIsLoadingSummaries] = useState(false);
-  const [summariesCollapsed, setSummariesCollapsed] = useState(false);
 
   // Create file tree from file changes
   const modifiedFileTree = useMemo(() => {
     const filePaths = fileChanges.map((change) => change.filePath);
     return createFileTree(filePaths);
   }, [fileChanges]);
-
-  // Index workspace with ShallowWiki
-  const handleIndexWorkspace = async () => {
-    if (!taskId) return;
-
-    try {
-      setIsWorkspaceIndexing(true);
-
-      // Call the indexing API directly
-      const response = await fetch(
-        `/api/indexing/shallowwiki/generate-workspace-summaries`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ taskId, forceRefresh: true }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to index workspace: ${response.status}`);
-      }
-
-      // Reload the summaries after indexing
-      await loadWorkspaceSummaries();
-    } catch (error) {
-      console.error("Error indexing workspace", error);
-    } finally {
-      setIsWorkspaceIndexing(false);
-    }
-  };
-
-  // Load workspace summaries
-  const loadWorkspaceSummaries = async () => {
-    if (!taskId) return;
-
-    try {
-      console.log("Loading workspace summaries for task", taskId);
-      setIsLoadingSummaries(true);
-      const { getWorkspaceSummaries } = await import("@/lib/actions/summaries");
-      const summariesData = await getWorkspaceSummaries(taskId);
-
-      console.log("Summaries data received from server action:", summariesData);
-
-      if (summariesData && summariesData.length > 0) {
-        console.log(
-          "Setting workspace summaries:",
-          summariesData.length,
-          "items"
-        );
-        setWorkspaceSummaries(summariesData);
-      } else {
-        console.log("No summaries data available, setting empty array");
-        setWorkspaceSummaries([]);
-      }
-    } catch (error) {
-      console.error("Failed to load workspace summaries", error);
-      setWorkspaceSummaries([]);
-    } finally {
-      setIsLoadingSummaries(false);
-    }
-  };
-
-  // Handle opening summary in Shadow Realm environment
-  const openSummaryInEnvironment = async (summary: any) => {
-    try {
-      // Get full summary content directly from Prisma
-      const { getWorkspaceSummaryById } = await import(
-        "@/lib/actions/summaries"
-      );
-      const fullSummary = await getWorkspaceSummaryById(summary.id);
-
-      if (fullSummary) {
-        console.log("Received full summary:", fullSummary);
-
-        // The summary is now already formatted correctly from the server action
-        // Pass the summary directly to the environment context
-        setSelectedSummary(fullSummary);
-      } else {
-        console.error("Summary not found");
-      }
-    } catch (error) {
-      console.error("Failed to load full summary:", error);
-    }
-  };
-
-  // Load summaries on component mount
-  useEffect(() => {
-    if (taskId) {
-      loadWorkspaceSummaries();
-    }
-  }, [taskId]);
 
   if (!task) {
     return (
@@ -239,6 +137,26 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 <span className="truncate">{task.repoFullName}</span>
               </Link>
             </Button>
+            <div className="flex h-8 items-center gap-2 px-2 text-sm">
+              {(() => {
+                const StatusIcon =
+                  statusColorsConfig[
+                    task.status as keyof typeof statusColorsConfig
+                  ]?.icon || CircleDashed;
+                const statusClass =
+                  statusColorsConfig[
+                    task.status as keyof typeof statusColorsConfig
+                  ]?.className || "text-muted-foreground";
+                return (
+                  <>
+                    <StatusIcon className={cn("size-4", statusClass)} />
+                    <span className="capitalize">
+                      {task.status.toLowerCase().replace("_", " ")}
+                    </span>
+                  </>
+                );
+              })()}
+            </div>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
@@ -257,31 +175,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             </Button>
           </SidebarMenuItem>
 
-          {/* items-start custom alignment to allow max 2 lines of text for things like error messages, etc. */}
-          <div className="flex min-h-8 items-start gap-2 px-2 pb-0 pt-1 text-sm">
-            {(() => {
-              const displayStatus = getDisplayStatus(task);
-              const StatusIcon =
-                statusColorsConfig[
-                  displayStatus as keyof typeof statusColorsConfig
-                ]?.icon || CircleDashed;
-              const statusClass =
-                statusColorsConfig[
-                  displayStatus as keyof typeof statusColorsConfig
-                ]?.className || "text-muted-foreground";
-              return (
-                <>
-                  <StatusIcon
-                    className={cn("mt-0.5 size-4 shrink-0", statusClass)}
-                  />
-                  <span className="line-clamp-2 capitalize">
-                    {getStatusText(task)}
-                  </span>
-                </>
-              );
-            })()}
-          </div>
-
+          {/* Task total diff */}
           {diffStats.totalFiles > 0 && (
             <SidebarMenuItem>
               <div className="flex h-8 items-center gap-2 px-2 text-sm">
@@ -317,19 +211,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             >
               <RefreshCcw className="size-4 shrink-0" />
               <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
-            </Button>
-          </SidebarMenuItem>
-
-          <SidebarMenuItem>
-            <Button
-              variant="ghost"
-              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
-              onClick={handleIndexWorkspace}
-            >
-              <FileText className="size-4 shrink-0" />
-              <span>
-                {isWorkspaceIndexing ? "Generating..." : "Generate Summaries"}
-              </span>
             </Button>
           </SidebarMenuItem>
         </SidebarGroupContent>
