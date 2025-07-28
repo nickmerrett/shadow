@@ -1,7 +1,7 @@
 "use client";
 
+import "@/app/user-message-gradient.css";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
   PopoverContent,
@@ -128,135 +128,141 @@ export function PromptForm({
         !isHome && "sticky bottom-0 pb-6"
       )}
     >
+      {!isHome && (
+        <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-[calc(4rem-1px)] -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
+      )}
+
       {/* Wrapper div with textarea styling */}
+      {/* Outer div acts as a border, with a border-radius 1px larger than the inner div and 1px padding */}
       <div
         className={cn(
-          "border-border focus-within:ring-ring/10 from-input/25 to-input focus-within:border-sidebar-border shadow-xs relative flex min-h-24 w-full flex-col rounded-xl border bg-transparent bg-gradient-to-t transition-[color,box-shadow,border] focus-within:ring-4",
+          "shadow-highlight/10 relative z-0 rounded-[calc(var(--radius)+5px)] p-px shadow-lg transition-all",
+          "focus-within:ring-ring/10 focus-within:border-sidebar-border focus-within:ring-4",
+          "user-message-border hover:shadow-highlight/20 focus-within:shadow-highlight/20",
           isPending && "opacity-50"
         )}
       >
-        {!isHome && (
-          <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-[calc(4rem-1px)] -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
-        )}
+        <div className="bg-background absolute inset-px -z-20 rounded-[calc(var(--radius)+5px)]" />
 
-        {/* Textarea without border/background since wrapper handles it */}
-        <Textarea
-          ref={textareaRef}
-          autoFocus
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          placeholder="Build a cool new feature..."
-          className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none rounded-lg border-0 shadow-none focus-visible:ring-0"
-        />
+        <div className="from-input/25 to-input flex min-h-24 flex-col rounded-xl bg-gradient-to-t">
+          <Textarea
+            ref={textareaRef}
+            autoFocus
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={onFocus}
+            onBlur={onBlur}
+            placeholder="Build a cool new feature..."
+            className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none rounded-lg border-0 shadow-none focus-visible:ring-0"
+          />
 
-        {/* Buttons inside the container */}
-        <div
-          className="group/footer flex items-center justify-between p-2"
-          onClick={() => textareaRef.current?.focus()}
-        >
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground hover:bg-accent px-2 font-normal"
-              >
-                {isHome && <Layers className="size-4" />}
-                <span>
-                  {selectedModel
-                    ? ModelInfos[selectedModel].name
-                    : "Select model"}
-                </span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              className="flex flex-col gap-0.5 rounded-lg p-1"
-            >
-              {availableModels.map((model) => (
+          {/* Buttons inside the container */}
+          <div
+            className="group/footer flex items-center justify-between p-2"
+            onClick={() => textareaRef.current?.focus()}
+          >
+            <Popover>
+              <PopoverTrigger asChild>
                 <Button
-                  key={model.id}
                   size="sm"
                   variant="ghost"
-                  className="hover:bg-accent justify-start font-normal"
-                  onClick={() => setSelectedModel(model.id as ModelType)}
+                  className="text-muted-foreground hover:bg-accent px-2 font-normal"
                 >
-                  <Square className="size-4" />
-                  {model.name}
+                  {isHome && <Layers className="size-4" />}
+                  <span>
+                    {selectedModel
+                      ? ModelInfos[selectedModel].name
+                      : "Select model"}
+                  </span>
                 </Button>
-              ))}
-            </PopoverContent>
-          </Popover>
-
-          <div className="flex items-center gap-2">
-            {isHome && (
-              <GithubConnection
-                selectedRepo={repo}
-                selectedBranch={branch}
-                setSelectedRepo={setRepo}
-                setSelectedBranch={setBranch}
-              />
-            )}
-            <div className="flex items-center gap-2">
-              {!isHome && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      size="iconSm"
-                      variant="ghost"
-                      className="text-muted-foreground hover:bg-accent translate-x-1 opacity-0 transition-all focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/footer:translate-x-0 group-hover/footer:opacity-100"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log("clicked");
-                      }}
-                    >
-                      <Settings2 className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align="center">
-                    <p>Message Options</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              <Button
-                type="submit"
-                size={isHome ? "iconSm" : "sm"}
-                disabled={
-                  isPending ||
-                  !selectedModel ||
-                  (isHome && (!repo || !branch || !message.trim()))
-                }
-                className={!isHome ? "pr-1.5!" : ""}
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                className="flex flex-col gap-0.5 rounded-lg p-1"
               >
-                {isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : isStreaming ? (
-                  !message.trim() ? (
-                    // 14px (size-3.5) square looks nicer, so wrap in 1px to bring up to 16px (size-4)
-                    <>
-                      <span>Stop</span>
-                      <div className="p-px">
-                        <Square className="fill-primary-foreground size-3.5" />
-                      </div>
-                    </>
+                {availableModels.map((model) => (
+                  <Button
+                    key={model.id}
+                    size="sm"
+                    variant="ghost"
+                    className="hover:bg-accent justify-start font-normal"
+                    onClick={() => setSelectedModel(model.id as ModelType)}
+                  >
+                    <Square className="size-4" />
+                    {model.name}
+                  </Button>
+                ))}
+              </PopoverContent>
+            </Popover>
+
+            <div className="flex items-center gap-2">
+              {isHome && (
+                <GithubConnection
+                  selectedRepo={repo}
+                  selectedBranch={branch}
+                  setSelectedRepo={setRepo}
+                  setSelectedBranch={setBranch}
+                />
+              )}
+              <div className="flex items-center gap-2">
+                {!isHome && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        size="iconSm"
+                        variant="ghost"
+                        className="text-muted-foreground hover:bg-accent translate-x-1 opacity-0 transition-all focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/footer:translate-x-0 group-hover/footer:opacity-100"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log("clicked");
+                        }}
+                      >
+                        <Settings2 className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="center">
+                      <p>Message Options</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                <Button
+                  type="submit"
+                  size={isHome ? "iconSm" : "sm"}
+                  disabled={
+                    isPending ||
+                    !selectedModel ||
+                    (isHome && (!repo || !branch || !message.trim()))
+                  }
+                  className={!isHome ? "pr-1.5!" : ""}
+                >
+                  {isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : isStreaming ? (
+                    !message.trim() ? (
+                      // 14px (size-3.5) square looks nicer, so wrap in 1px to bring up to 16px (size-4)
+                      <>
+                        <span>Stop</span>
+                        <div className="p-px">
+                          <Square className="fill-primary-foreground size-3.5" />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span>Queue</span>
+                        <ListEnd className="size-4" />
+                      </>
+                    )
                   ) : (
                     <>
-                      <span>Queue</span>
-                      <ListEnd className="size-4" />
+                      {!isHome && <span>Send</span>}
+                      <ArrowUp className="size-4" />
                     </>
-                  )
-                ) : (
-                  <>
-                    {!isHome && <span>Send</span>}
-                    <ArrowUp className="size-4" />
-                  </>
-                )}
-              </Button>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
