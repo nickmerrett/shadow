@@ -89,6 +89,7 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
         onSubmit={handleSendMessage}
         onStopStream={handleStopStream}
         isStreaming={isStreaming || sendMessageMutation.isPending}
+        taskId={taskId}
       />
     </StickToBottom.Content>
   );

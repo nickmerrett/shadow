@@ -25,14 +25,17 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { redirect } from "next/navigation";
+import { redirect, useParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { useQueuedMessage } from "@/hooks/use-queued-message";
+import { UserMessage } from "./user-message";
 
 export function PromptForm({
+  taskId,
   onSubmit,
   onStopStream,
   isStreaming = false,
@@ -41,6 +44,7 @@ export function PromptForm({
   onBlur,
   initialGitCookieState,
 }: {
+  taskId: string;
   onSubmit?: (message: string, model: ModelType, queue: boolean) => void;
   onStopStream?: () => void;
   isStreaming?: boolean;
@@ -66,6 +70,7 @@ export function PromptForm({
   } | null>(initialGitCookieState?.branch || null);
 
   const [isPending, startTransition] = useTransition();
+  const { data: queuedMessage } = useQueuedMessage(taskId);
 
   const queryClient = useQueryClient();
   const { data: availableModels = [] } = useModels();
@@ -83,6 +88,7 @@ export function PromptForm({
           action: () => {
             console.log("queue");
             onSubmit?.(message, selectedModel, true);
+            queryClient.setQueryData(["queued-message", taskId], message);
             setMessage("");
           },
           shortcut: {
@@ -302,6 +308,13 @@ export function PromptForm({
       {!isHome && (
         <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-[calc(4rem-1px)] -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
       )}
+
+      {/* {queuedMessage && ( */}
+      <UserMessage
+        content={"queuedMessage"}
+        className="absolute -top-14 left-0"
+      />
+      {/* )} */}
 
       {/* Wrapper div with textarea styling */}
       {/* Outer div acts as a border, with a border-radius 1px larger than the inner div and 1px padding */}

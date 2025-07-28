@@ -26,7 +26,7 @@ export function Messages({
           return (
             <UserMessage
               key={message.id}
-              message={message}
+              content={message.content}
               className={cn("mb-4", index !== 0 && "mt-4")}
             />
           );

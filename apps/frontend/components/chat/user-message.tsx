@@ -1,12 +1,11 @@
 import "./user-message-gradient.css";
 import { cn } from "@/lib/utils";
-import type { Message } from "@repo/types";
 
 export function UserMessage({
-  message,
+  content,
   className,
 }: {
-  message: Message;
+  content: string;
   className?: string;
 }) {
   return (
@@ -20,7 +19,7 @@ export function UserMessage({
       )}
     >
       <div className="from-card/10 to-card w-full rounded-lg bg-gradient-to-t px-3 py-2 text-sm">
-        {message.content}
+        {content}
       </div>
       <div className="bg-background absolute inset-px -z-10 rounded-[calc(var(--radius)+1px)]" />
     </button>
