@@ -1,7 +1,7 @@
 import config from "@/config";
 import fg from "fast-glob";
 import { createHash } from "crypto";
-import { writeFileSync, readFileSync, statSync } from "fs";
+import { readFileSync, statSync } from "fs";
 import { OpenAI } from "openai";
 import path from "path";
 // (Line removed)
@@ -13,13 +13,11 @@ import JavaScript from "tree-sitter-javascript";
 import TS from "tree-sitter-typescript";
 // import Python from "tree-sitter-python";
 
-// Configuration
-const ROOT = path.resolve(process.argv[2] || ".");
+// Configuration - will be set by runDeepWiki function
+let ROOT = "";
 const TEMP = 0.15;
 
-// Output directory
-const OUT_DIR = path.join(ROOT, ".shadow", "tree");
-const CACHE_FILE = path.join(OUT_DIR, "cache.json");
+// No output directory needed for database-only storage
 
 // Processing statistics
 const processingStats = {
@@ -65,12 +63,7 @@ function bold(s: string) {
 
 const sha1 = (data: string) => createHash("sha1").update(data).digest("hex");
 
-function ensureDir(dirPath: string) {
-  const fs = require("fs");
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-}
+// ensureDir function removed - not needed for database-only storage
 
 // Tree-sitter language setup
 const parserJS = new Parser();
@@ -79,8 +72,7 @@ const parserTS = new Parser();
 parserTS.setLanguage((TS as any).typescript);
 const parserTSX = new Parser();
 parserTSX.setLanguage((TS as any).tsx);
-const parserPy = new Parser();
-// parserPy.setLanguage(Python as any);
+// Python parser disabled for now
 
 // Typed language aliases for tree-sitter
 const LangJS = JavaScript as any;
@@ -187,21 +179,11 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
 // Caching helpers
 let cache: Record<string, CacheEntry> = {};
 function loadCache() {
-  try {
-    cache = JSON.parse(
-      statSync(CACHE_FILE).size ? readFileSync(CACHE_FILE, "utf8") : "{}"
-    );
-  } catch {
-    cache = {};
-  }
+  // Cache disabled for database-only storage
+  cache = {};
 }
 function saveCache() {
-  // Ensure the output directory exists
-  const fs = require("fs");
-  if (!fs.existsSync(OUT_DIR)) {
-    fs.mkdirSync(OUT_DIR, { recursive: true });
-  }
-  writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2));
+  // Cache disabled for database-only storage
 }
 function fingerprint(abs: string) {
   const st = statSync(abs);
@@ -730,9 +712,8 @@ export async function run() {
     );
   }
 
-  // Always use file storage as fallback
-  console.log(bold("Also using file storage for compatibility"));
-  ensureDir(OUT_DIR);
+  // Database storage only - no file storage
+  console.log(bold("Using database storage only"));
 
   loadCache();
 
@@ -847,24 +828,7 @@ export async function run() {
       );
     }
 
-    // Legacy file output (optional)
-    if (true) {
-      // Always write file output for compatibility
-      const front = `---\nid: ${node.id}\ntitle: ${node.name}\nlevel: ${node.level}\n---\n\n`;
-      const fullContent = isDataDir
-        ? `${node.summary_md}\n\n## Files\n${fileBlocks.join("\n")}`
-        : `${node.summary_md}\n\n## Files\n${fileBlocks.join("\n\n")}`;
-
-      // Ensure node.id is valid for a file name - replace any problematic characters
-      const safeNodeId = node.id.replace(/[\/\\:*?"<>|]/g, "_");
-      const outputFilePath = path.join(OUT_DIR, `${safeNodeId}.md`);
-
-      const dirPath = path.dirname(outputFilePath);
-      ensureDir(dirPath);
-
-      console.log(`Writing file summary: ${outputFilePath}`);
-      writeFileSync(outputFilePath, front + fullContent + "\n");
-    }
+    // No file output - database only
 
     console.log(bold(`Dir: ${node.relPath}`));
     processingStats.directoriesProcessed++;
@@ -895,54 +859,7 @@ export async function run() {
     );
   }
 
-  // Legacy file output (optional)
-  if (true) {
-    // Always write file output for compatibility
-    const toc = ["## Project Structure"];
-    root.children.forEach((cid) => {
-      const child = tree.nodes[cid];
-      if (child) {
-        toc.push(`- [${child.name}](${child.id}.md)`);
-      }
-    });
-
-    const fullContent = [root.summary_md, "\n\n---\n", toc.join("\n")].join(
-      "\n"
-    );
-
-    ensureDir(OUT_DIR);
-
-    // Write root overview file
-    writeFileSync(
-      path.join(OUT_DIR, "00_OVERVIEW.md"),
-      `---\nid: ${root.id}\ntitle: ${root.name}\nlevel: 0\n---\n\n${fullContent}\n`
-    );
-
-    // Write individual summary files for each node
-    console.log(bold("Writing summary files..."));
-    let fileCount = 0;
-
-    for (const nodeId in tree.nodes) {
-      if (nodeId === "root") continue; // Skip root, already written as 00_OVERVIEW.md
-
-      const node = tree.nodes[nodeId];
-      if (node && node.summary_md) {
-        const fileName = `${node.id}.md`;
-        const fileContent = `---\nid: ${node.id}\ntitle: ${node.name}\nlevel: ${node.level}\n---\n\n${node.summary_md}\n`;
-
-        writeFileSync(path.join(OUT_DIR, fileName), fileContent);
-        fileCount++;
-      }
-    }
-
-    writeFileSync(
-      path.join(OUT_DIR, "index.json"),
-      JSON.stringify(tree, null, 2)
-    );
-    console.log(
-      bold(`ShallowWiki generated at ${OUT_DIR} (${fileCount + 1} files)`)
-    );
-  }
+  // No legacy file output - database only
 
   saveCache();
 
@@ -959,7 +876,6 @@ export async function runDeepWiki(
   }
 ) {
   // Store original values
-  const originalPath = process.argv[2];
   const originalConcurrency = config.concurrency;
   const originalModel = config.model;
   const originalModelMini = config.modelMini;
@@ -967,8 +883,9 @@ export async function runDeepWiki(
   console.log(bold(`Generating summaries for ${repoPath}`));
 
   try {
-    // Set parameters as config overrides and argv
-    process.argv[2] = repoPath;
+    // Set the ROOT path
+    ROOT = path.resolve(repoPath);
+
     if (options.concurrency !== undefined) {
       config.concurrency = options.concurrency;
     }
@@ -988,12 +905,6 @@ export async function runDeepWiki(
     };
   } finally {
     // Restore original values
-    if (originalPath !== undefined) {
-      process.argv[2] = originalPath;
-    } else {
-      // Remove the argument if it wasn't there originally
-      process.argv.splice(2, 1);
-    }
     config.concurrency = originalConcurrency;
     config.model = originalModel;
     config.modelMini = originalModelMini;
