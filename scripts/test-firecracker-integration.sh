@@ -329,19 +329,7 @@ test_monitoring() {
     if kubectl get namespace monitoring &> /dev/null; then
         log "✅ Monitoring namespace exists"
         
-        # Check Prometheus
-        if kubectl get deployment prometheus-kube-prometheus-prometheus-operator -n monitoring &> /dev/null; then
-            log "✅ Prometheus is deployed"
-        else
-            warn "❌ Prometheus not found"
-        fi
-        
-        # Check Grafana
-        if kubectl get deployment prometheus-grafana -n monitoring &> /dev/null; then
-            log "✅ Grafana is deployed"
-        else
-            warn "❌ Grafana not found"
-        fi
+        log "ℹ️  Monitoring stack skipped (simplified deployment)"
     else
         warn "❌ Monitoring namespace not found"
     fi

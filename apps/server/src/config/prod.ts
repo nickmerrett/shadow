@@ -110,10 +110,6 @@ const prodConfigSchema = sharedConfigSchema.extend({
   ENABLE_VM_LOGGING: z.boolean().default(true),
   // Enable console output to stdout (for development visibility)
   ENABLE_CONSOLE_LOGGING: z.boolean().default(true),
-  // Enable Prometheus metrics collection
-  ENABLE_METRICS: z.boolean().default(true),
-  // Enable VM-specific metrics (CPU, memory usage per VM)
-  ENABLE_VM_METRICS: z.boolean().default(true),
   // Interval between health checks in milliseconds
   HEALTH_CHECK_INTERVAL: z.coerce.number().default(30000),
   // Timeout for VM health check responses
@@ -311,8 +307,6 @@ const prodConfig = {
   logLevel: parsed.data.LOG_LEVEL,
   enableVmLogging: parsed.data.ENABLE_VM_LOGGING,
   enableConsoleLogging: parsed.data.ENABLE_CONSOLE_LOGGING,
-  enableMetrics: parsed.data.ENABLE_METRICS,
-  enableVmMetrics: parsed.data.ENABLE_VM_METRICS,
   healthCheckInterval: parsed.data.HEALTH_CHECK_INTERVAL,
   vmHealthCheckTimeout: parsed.data.VM_HEALTH_CHECK_TIMEOUT,
 

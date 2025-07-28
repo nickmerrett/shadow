@@ -218,29 +218,13 @@ setup_kubernetes_resources() {
     # Apply storage configuration
     kubectl apply -f "$PROJECT_ROOT/apps/server/src/execution/k8s/storage.yaml"
     
-    # Apply monitoring
-    kubectl apply -f "$PROJECT_ROOT/apps/server/src/execution/k8s/monitoring.yaml"
     
     log "Kubernetes resources configured"
 }
 
 # Install monitoring and observability
 install_monitoring() {
-    log "Installing monitoring stack..."
-    
-    # Add Prometheus Helm repository
-    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-    helm repo update
-    
-    # Install Prometheus and Grafana
-    helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
-        --namespace monitoring \
-        --create-namespace \
-        --set grafana.adminPassword=admin \
-        --set prometheus.prometheusSpec.retention=7d \
-        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=50Gi
-    
-    log "Monitoring stack installed"
+    log "Skipping monitoring stack installation (simplified deployment)"
 }
 
 # Deploy VM images to cluster
@@ -439,9 +423,7 @@ main() {
     log "- kubectl get pods -n shadow"
     log "- kubectl logs -f -l app=firecracker-runtime -n shadow"
     log ""
-    log "Monitoring:"
-    log "- kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80"
-    log "- Open http://localhost:3000 (admin/admin)"
+    log "Note: Monitoring stack skipped for simplified deployment"
 }
 
 # Handle cleanup on exit
