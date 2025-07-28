@@ -148,7 +148,7 @@ export function TaskPageWrapper({
     <ResizablePanelGroup
       ref={resizablePanelGroupRef}
       direction="horizontal"
-      className="ml-[53px] min-h-svh"
+      className="min-h-svh"
       onLayout={handleLayout}
     >
       <ResizablePanel minSize={30} defaultSize={leftSize}>

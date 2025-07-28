@@ -17,17 +17,37 @@ import { useEffect, useRef, useState } from "react";
 import { SidebarAgentView } from "./agent-view";
 import { SidebarNavigation } from "./navigation";
 import { SidebarTasksView } from "./tasks-view";
+import { SidebarCodebaseUnderstandingView } from "./codebase-view";
+import { useCodebases } from "@/hooks/use-codebases";
+import { SidebarCodebase } from "@/lib/db-operations/get-codebases";
+import { SidebarCodebasesListView } from "./codebases-list-view";
 
-export type SidebarView = "tasks" | "agent";
+export type SidebarView =
+  | "tasks"
+  | "agent"
+  | "codebases"
+  | "codebase-understanding";
 
 export function SidebarViews({
   initialTasks,
+  initialCodebases,
   currentTaskId = null,
 }: {
   initialTasks: Task[];
+  initialCodebases: SidebarCodebase[];
   currentTaskId?: string | null;
 }) {
-  const { data: tasks, isLoading: loading, error } = useTasks(initialTasks);
+  const {
+    data: tasks,
+    isLoading: isLoadingTasks,
+    error: tasksError,
+  } = useTasks(initialTasks);
+
+  const {
+    data: codebases,
+    isLoading: isLoadingCodebases,
+    error: codebasesError,
+  } = useCodebases(initialCodebases);
 
   const [sidebarView, setSidebarView] = useState<SidebarView>(
     currentTaskId ? "agent" : "tasks"
@@ -35,7 +55,6 @@ export function SidebarViews({
 
   // Initial render trick to avoid hydration issues on navigation
   const isInitialRender = useRef(true);
-
   useEffect(() => {
     if (isInitialRender.current) {
       isInitialRender.current = false;
@@ -44,7 +63,9 @@ export function SidebarViews({
     if (currentTaskId) {
       setSidebarView("agent");
     } else {
-      setSidebarView("tasks");
+      if (sidebarView === "agent") {
+        setSidebarView("tasks");
+      }
     }
   }, [currentTaskId]);
 
@@ -73,8 +94,20 @@ export function SidebarViews({
           <div className="mt-6 flex flex-col gap-4">
             {currentTaskId && sidebarView === "agent" ? (
               <SidebarAgentView taskId={currentTaskId} />
+            ) : sidebarView === "codebase-understanding" ? (
+              <SidebarCodebaseUnderstandingView taskId={currentTaskId ?? ""} />
+            ) : sidebarView === "codebases" ? (
+              <SidebarCodebasesListView
+                codebases={codebases}
+                loading={isLoadingCodebases}
+                error={codebasesError}
+              />
             ) : (
-              <SidebarTasksView tasks={tasks} loading={loading} error={error} />
+              <SidebarTasksView
+                tasks={tasks}
+                loading={isLoadingTasks}
+                error={tasksError}
+              />
             )}
           </div>
         </SidebarContent>

@@ -32,7 +32,9 @@ interface CodebaseViewProps {
   taskId: string;
 }
 
-export function SidebarCodebaseView({ taskId }: CodebaseViewProps) {
+export function SidebarCodebaseUnderstandingView({
+  taskId,
+}: CodebaseViewProps) {
   const { selectSummary } = useCodebaseUnderstanding();
   const [summaries, setSummaries] = useState<CodebaseSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
