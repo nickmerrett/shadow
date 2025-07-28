@@ -13,7 +13,7 @@ import { createTask } from "@/lib/actions/create-task";
 import { cn } from "@/lib/utils";
 import { AvailableModels, ModelInfos, type ModelType } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, Layers, Loader2, Square } from "lucide-react";
+import { ArrowUp, Layers, ListEnd, Loader2, Square } from "lucide-react";
 import { redirect } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -29,7 +29,7 @@ export function PromptForm({
   onBlur,
   initialGitCookieState,
 }: {
-  onSubmit?: (message: string, model: ModelType, queue?: boolean) => void;
+  onSubmit?: (message: string, model: ModelType, queue: boolean) => void;
   onStopStream?: () => void;
   isStreaming?: boolean;
   isHome?: boolean;
@@ -52,8 +52,6 @@ export function PromptForm({
     commitSha: string;
   } | null>(initialGitCookieState?.branch || null);
 
-  const [queue, setQueue] = useState(false);
-
   const [isPending, startTransition] = useTransition();
 
   const queryClient = useQueryClient();
@@ -61,12 +59,10 @@ export function PromptForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || isStreaming || !selectedModel) return;
+    if (!selectedModel) return;
 
     if (isHome) {
-      // Require repo and branch selection before creating a task
-      if (!repo || !branch) {
-        toast.error("Select a repository and branch first");
+      if (!repo || !branch || !message.trim()) {
         return;
       }
 
@@ -95,8 +91,14 @@ export function PromptForm({
           redirect(`/tasks/${taskId}`);
         }
       });
+    } else if (isStreaming) {
+      if (!message.trim()) {
+        onStopStream?.();
+      } else {
+        onSubmit?.(message, selectedModel, true);
+      }
     } else {
-      onSubmit?.(message, selectedModel, queue);
+      onSubmit?.(message, selectedModel, false);
       setMessage("");
     }
   };
@@ -184,38 +186,24 @@ export function PromptForm({
                 setSelectedBranch={setBranch}
               />
             )}
-            {!isHome && (
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="queue"
-                  checked={queue}
-                  onCheckedChange={(checked) => setQueue(checked === true)}
-                />
-                <label
-                  htmlFor="queue"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Queue
-                </label>
-              </div>
-            )}
             <Button
-              type={isStreaming ? "button" : "submit"}
+              type="submit"
               size="iconSm"
               disabled={
-                !isStreaming &&
-                (isPending ||
-                  !message.trim() ||
-                  !selectedModel ||
-                  (isHome && (!repo || !branch)))
+                isPending ||
+                !selectedModel ||
+                (isHome && (!repo || !branch || !message.trim()))
               }
-              onClick={isStreaming ? onStopStream : undefined}
               className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
             >
               {isPending ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : isStreaming ? (
-                <Square className="fill-primary-foreground size-3.5" />
+                !message.trim() ? (
+                  <Square className="fill-primary-foreground size-3.5" />
+                ) : (
+                  <ListEnd className="size-4" />
+                )
               ) : (
                 <ArrowUp className="size-4" />
               )}

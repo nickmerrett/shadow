@@ -26,14 +26,20 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
     stopStream,
   } = useTaskSocket(taskId);
 
-  const handleSendMessage = (message: string, model: string) => {
+  const handleSendMessage = (
+    message: string,
+    model: string,
+    queue: boolean
+  ) => {
     if (!taskId || !message.trim()) return;
 
     // Use the mutation for optimistic updates
-    sendMessageMutation.mutate({ taskId, message, model });
+    if (!queue) {
+      sendMessageMutation.mutate({ taskId, message, model });
+    }
 
     // Send via socket
-    sendMessage(message, model);
+    sendMessage(message, model, queue);
   };
 
   const handleStopStream = () => {
