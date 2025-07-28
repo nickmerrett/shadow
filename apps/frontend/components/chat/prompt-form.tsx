@@ -25,7 +25,7 @@ import {
   Square,
 } from "lucide-react";
 import { redirect } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
@@ -70,6 +70,8 @@ export function PromptForm({
   const { data: availableModels = [] } = useModels();
 
   const [isMessageOptionsOpen, setIsMessageOptionsOpen] = useState(false);
+  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+  const [isGithubConnectionOpen, setIsGithubConnectionOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,6 +126,28 @@ export function PromptForm({
       handleSubmit(e);
     }
   };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "/" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        if (isHome) {
+          setIsGithubConnectionOpen((prev) => !prev);
+        } else {
+          setIsMessageOptionsOpen((prev) => !prev);
+        }
+      }
+
+      if (event.key === "." && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        setIsModelSelectorOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [isHome]);
 
   return (
     <form
@@ -209,7 +233,10 @@ export function PromptForm({
             className="group/footer flex items-center justify-between p-2"
             onClick={() => textareaRef.current?.focus()}
           >
-            <Popover>
+            <Popover
+              open={isModelSelectorOpen}
+              onOpenChange={setIsModelSelectorOpen}
+            >
               <Tooltip>
                 <TooltipTrigger asChild>
                   <PopoverTrigger asChild>
@@ -227,9 +254,11 @@ export function PromptForm({
                     </Button>
                   </PopoverTrigger>
                 </TooltipTrigger>
-                <TooltipContent side="top" align="start" shortcut="⌘.">
-                  Model Selector
-                </TooltipContent>
+                {!isModelSelectorOpen && (
+                  <TooltipContent side="top" align="start" shortcut="⌘.">
+                    Model Selector
+                  </TooltipContent>
+                )}
               </Tooltip>
               <PopoverContent
                 align="start"
@@ -253,6 +282,8 @@ export function PromptForm({
             <div className="flex items-center gap-2">
               {isHome && (
                 <GithubConnection
+                  isOpen={isGithubConnectionOpen}
+                  setIsOpen={setIsGithubConnectionOpen}
                   selectedRepo={repo}
                   selectedBranch={branch}
                   setSelectedRepo={setRepo}

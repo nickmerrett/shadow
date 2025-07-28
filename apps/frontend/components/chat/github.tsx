@@ -30,13 +30,18 @@ import { toast } from "sonner";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
 import Image from "next/image";
 import Link from "next/link";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export function GithubConnection({
+  isOpen,
+  setIsOpen,
   selectedRepo,
   selectedBranch,
   setSelectedRepo,
   setSelectedBranch,
 }: {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
   selectedRepo: Repository | null;
   selectedBranch: { name: string; commitSha: string } | null;
   setSelectedRepo: (repo: Repository | null) => void;
@@ -44,7 +49,6 @@ export function GithubConnection({
     branch: { name: string; commitSha: string } | null
   ) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<"repos" | "branches">("repos");
 
   const [repoSearch, setRepoSearch] = useState("");
@@ -385,15 +389,25 @@ export function GithubConnection({
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground hover:bg-accent font-normal"
-        >
-          {getButtonText()}
-        </Button>
-      </PopoverTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground hover:bg-accent font-normal"
+            >
+              {getButtonText()}
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        {!isOpen && (
+          <TooltipContent side="top" align="end" shortcut="⌘/">
+            GitHub Selector
+          </TooltipContent>
+        )}
+      </Tooltip>
+
       <PopoverContent className="w-80 p-0" align="end">
         {isLoadingStatus ? (
           <div className="text-muted-foreground flex h-20 items-center justify-center gap-2">
