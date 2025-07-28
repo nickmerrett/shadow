@@ -1,5 +1,5 @@
 import { SidebarViews } from "@/components/sidebar";
-import { CodebaseUnderstandingProvider } from "@/components/codebase-understanding/codebase-understanding-context";
+import { CodebaseUnderstandingProvider } from "@/components/codebase/codebase-understanding-context";
 import { getUser } from "@/lib/auth/get-user";
 import { getTasks } from "@/lib/db-operations/get-tasks";
 import {
