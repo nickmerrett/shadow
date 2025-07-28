@@ -18,12 +18,9 @@ export interface CommitOptions {
 
 export class GitManager {
   private workspacePath: string;
-  // @ts-expect-error unused
-  private taskId: string;
 
-  constructor(workspacePath: string, taskId: string) {
+  constructor(workspacePath: string) {
     this.workspacePath = workspacePath;
-    this.taskId = taskId;
   }
 
   /**

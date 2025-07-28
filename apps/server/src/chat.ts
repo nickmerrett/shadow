@@ -143,7 +143,7 @@ export class ChatService {
       // For firecracker mode, we use the tool executor to make API calls to the sidecar
       // For local mode, we use GitManager directly
       if (config.agentMode === "local") {
-        const gitManager = new GitManager(resolvedWorkspacePath, taskId);
+        const gitManager = new GitManager(resolvedWorkspacePath);
 
         // Check if there are changes to commit
         const hasChanges = await gitManager.hasChanges();
@@ -206,7 +206,7 @@ export class ChatService {
       let commitMessage = "Update code via Shadow agent";
       if (diffResponse.success && diffResponse.diff) {
         // Generate commit message using server-side GitManager (which has AI integration)
-        const tempGitManager = new GitManager("", taskId);
+        const tempGitManager = new GitManager("");
         commitMessage = await tempGitManager.generateCommitMessage(diffResponse.diff);
       }
 
