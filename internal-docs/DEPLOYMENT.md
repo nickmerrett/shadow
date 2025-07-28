@@ -1,10 +1,10 @@
 # Shadow Firecracker Deployment Guide
 
-This guide walks you through deploying Shadow's true Firecracker microVM architecture to AWS bare metal infrastructure. Shadow now uses actual Firecracker VMs (not containers) for hardware-isolated execution of coding tasks.
+This comprehensive guide covers the complete deployment and testing of Shadow's Firecracker microVM infrastructure for hardware-isolated AI agent execution.
 
 ## Architecture Overview
 
-Shadow's Firecracker architecture provides **true hardware isolation** with actual microVMs:
+Shadow provides true hardware-level isolation using Firecracker microVMs instead of Docker containers:
 
 **🔥 True Firecracker microVMs**:
 - Each task runs in its own **actual Firecracker microVM** (not Docker containers)
@@ -12,12 +12,14 @@ Shadow's Firecracker architecture provides **true hardware isolation** with actu
 - Hardware-level isolation with dedicated kernel space per task
 - Serial console communication with protocol multiplexing
 - <125ms boot time with optimized VM images
+- True VM boundaries prevent container escape attacks
 
 **🚀 VM Lifecycle Management**:
 - `FirecrackerVMRunner` creates VM pods with init container pattern
 - `FirecrackerWorkspaceManager` handles VM workspace lifecycle
 - `VMConsoleProxy` manages serial console communication
 - Automatic VM cleanup and resource management
+- Kubernetes integration with custom RuntimeClass
 
 **🌐 Cloud-Native Server**:
 - Backend orchestrator deployed to Kubernetes, Cloud Run, or Lambda
@@ -503,7 +505,103 @@ kubectl get events -n shadow --sort-by='.lastTimestamp'
 kubectl describe resourcequota shadow-agents-quota -n shadow
 ```
 
+## Architecture Deep Dive
+
+### VM Lifecycle Management
+
+```typescript
+// FirecrackerWorkspaceManager creates VM pods
+const workspaceManager = new FirecrackerWorkspaceManager();
+const workspaceInfo = await workspaceManager.prepareWorkspace(taskConfig);
+
+// FirecrackerVMRunner handles VM pod specification
+const vmRunner = new FirecrackerVMRunner();
+const pod = await vmRunner.createVMPod(taskConfig, githubToken);
+```
+
+### VM Pod Architecture
+```yaml
+apiVersion: v1
+kind: Pod
+spec:
+  runtimeClassName: firecracker  # Uses Firecracker instead of Docker
+  initContainers:
+  - name: vm-starter
+    # Downloads Firecracker, creates VM config, starts microVM
+  containers:
+  - name: vm-proxy
+    # Proxies HTTP requests to VM sidecar via network
+```
+
+### Console Communication
+```typescript
+// VM Console Proxy handles serial console communication
+const vmConsole = new VMConsoleProxy(taskId);
+await vmConsole.startVM();
+
+// Protocol multiplexing over serial console
+vmConsole.sendJSONRequest({ type: 'file_operation', ... });
+vmConsole.sendTerminalInput('ls -la');
+vmConsole.sendCommand('git status');
+```
+
+## Configuration Reference
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `AGENT_MODE` | Execution mode (`local` \| `firecracker`) | `local` |
+| `VM_CPU_COUNT` | VM vCPU allocation | `1` |
+| `VM_MEMORY_SIZE_MB` | VM RAM in MB | `1024` |
+| `VM_CPU_LIMIT` | K8s CPU limit | `1000m` |
+| `VM_MEMORY_LIMIT` | K8s memory limit | `2Gi` |
+| `VM_STORAGE_LIMIT` | Ephemeral storage limit | `10Gi` |
+| `KUBERNETES_NAMESPACE` | K8s namespace | `shadow` |
+
+### VM Resource Sizing
+
+| Use Case | CPU | Memory | Storage | Cost/Hour* |
+|----------|-----|--------|---------|------------|
+| Light Tasks | 1 vCPU | 1GB | 10GB | ~$0.05 |
+| Standard Tasks | 2 vCPU | 2GB | 20GB | ~$0.10 |
+| Heavy Tasks | 4 vCPU | 4GB | 50GB | ~$0.20 |
+
+*Estimated costs for c5.metal nodes with conservative allocation
+
 ## Troubleshooting
+
+### Common Issues
+
+#### 1. VM Boot Timeout
+```bash
+# Check pod status
+kubectl describe pod shadow-vm-<task-id> -n shadow
+
+# Check Firecracker logs
+kubectl logs shadow-vm-<task-id> -n shadow -c vm-starter
+
+# Verify KVM access
+kubectl exec -it <firecracker-runtime-pod> -n shadow -- ls -l /dev/kvm
+```
+
+#### 2. Sidecar Not Reachable
+```bash
+# Check VM networking
+kubectl get pod shadow-vm-<task-id> -n shadow -o wide
+
+# Test sidecar connectivity
+kubectl exec -it shadow-vm-<task-id> -n shadow -- curl http://localhost:8080/health
+```
+
+#### 3. VM Images Missing
+```bash
+# Check image availability
+kubectl logs -l app=firecracker-runtime -n shadow
+
+# Verify build artifacts
+kubectl get configmap shadow-vm-images -n shadow -o yaml
+```
 
 ### VM Creation Issues
 
@@ -582,15 +680,34 @@ kubectl auth can-i create pods --as=system:serviceaccount:shadow:shadow-firecrac
 kubectl exec -it <vm-pod> -n shadow -- ping google.com
 ```
 
+### Debug Commands
+```bash
+# View all Firecracker resources
+kubectl get pods,jobs,configmaps -n shadow -l app=shadow-firecracker
+
+# Monitor VM resource usage
+kubectl top pods -n shadow -l app=shadow-firecracker
+
+# Check cluster events
+kubectl get events -n shadow --sort-by='.lastTimestamp'
+
+# Access VM console (if available)
+kubectl exec -it shadow-vm-<task-id> -n shadow -- socat - /var/lib/firecracker/firecracker.socket
+```
+
 ## Security Considerations
 
 ### Hardware Isolation Benefits
-
-- **True VM Boundaries**: Each task runs in isolated kernel space
+- **Kernel Separation**: Each VM runs isolated kernel space
 - **Memory Isolation**: Hardware-enforced memory boundaries  
-- **Attack Surface**: Minimal VM surface vs container runtime
+- **Resource Limits**: VM-level CPU, memory, and I/O controls
+- **Attack Surface**: Minimal VM attack surface vs container runtime
+- **True VM Boundaries**: Each task runs in isolated kernel space
 
 ### Network Security
+- **Pod Networking**: VMs communicate via Kubernetes pod networking
+- **TAP Interfaces**: Isolated network interfaces per VM
+- **Firewall Rules**: Kubernetes NetworkPolicies restrict VM communication
 
 ```bash
 # VM pods use Kubernetes networking with isolation
@@ -599,6 +716,31 @@ kubectl get networkpolicy -n shadow
 # Monitor VM network traffic
 kubectl logs -l app=shadow-firecracker -n shadow | grep "network"
 ```
+
+### Storage Security  
+- **Ephemeral Storage**: VM filesystems destroyed after task completion
+- **Git Persistence**: Only committed changes persist via git branches
+- **No Shared Storage**: Each VM has isolated workspace
+
+## Performance Optimization
+
+### Boot Time Optimization
+- **VM Image Size**: Minimize rootfs for faster loading
+- **Kernel Optimization**: Use minimal kernel configuration  
+- **Parallel Boot**: Start multiple VMs concurrently
+- **Image Caching**: Pre-load VM images on nodes
+
+### Resource Optimization
+- **CPU Allocation**: Match VM vCPU count to workload requirements
+- **Memory Sizing**: Monitor actual usage and adjust limits
+- **Storage**: Use ephemeral storage for better performance
+- **Network**: Optimize TAP interface configuration
+
+### Monitoring Metrics
+- **Boot Time**: Target <125ms VM startup
+- **Task Completion**: Monitor end-to-end task execution time
+- **Resource Utilization**: Track CPU, memory, and storage usage
+- **Error Rates**: Monitor VM creation and task failure rates
 
 ## Cost Optimization
 
@@ -621,8 +763,33 @@ kubectl get pods -n shadow -o wide | grep shadow-vm | wc -l
 - **Resource Right-Sizing**: Monitor actual usage and adjust limits
 - **Spot Instances**: Use for non-critical development workloads
 - **Scale-to-Zero**: Scale down Firecracker nodes during off-hours
+- **Reserved Capacity**: Use reserved instances for predictable workloads
+
+## Production Considerations
+
+### Scaling
+- **Node Pool**: Auto-scale Firecracker node pool based on demand
+- **VM Density**: Monitor VMs per node for optimal resource utilization
+- **Queue Management**: Implement task queuing for peak demand
+
+### Reliability
+- **Health Monitoring**: Continuous VM and node health checks
+- **Automatic Recovery**: Restart failed VMs and reschedule tasks
+- **Backup Strategy**: Git-based persistence eliminates backup complexity
+
+### Cost Management
+- **Spot Instances**: Consider spot instances for non-critical workloads
+- **Resource Right-Sizing**: Optimize VM resource allocation
+- **Idle Shutdown**: Implement aggressive VM cleanup policies
+- **Reserved Capacity**: Use reserved instances for predictable workloads
 
 ## Maintenance
+
+### Regular Maintenance Tasks
+- **VM Image Updates**: Rebuild VM images monthly for security patches
+- **Cluster Updates**: Update Kubernetes and Firecracker versions quarterly  
+- **Security Scanning**: Scan VM images for vulnerabilities
+- **Performance Review**: Analyze metrics and optimize resource allocation
 
 ### Automated VM Image Updates
 
@@ -656,25 +823,31 @@ EOF
 
 ### Monitoring and Alerting
 
-```bash
-# Set up alerts for VM creation failures
-# Alert when VM boot time > 180s
-# Alert when node resource utilization > 80%
-# Alert when VM creation error rate > 5%
+- **VM Creation Failures**: Alert on VM creation error rate >5%
+- **Boot Time Degradation**: Alert on boot times >180s
+- **Resource Exhaustion**: Alert on node resource utilization >80%
+- **Task Failure Rate**: Alert on task failure rate >10%
 
+```bash
 # Access monitoring dashboard
 kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
 ```
 
-## Migration from Container Mode
+## Migration Guide
 
-If migrating from the old container-based approach:
+### From Container Mode to Firecracker Mode
 
-1. **Parallel Testing**: Run both modes simultaneously
-2. **Gradual Migration**: Route subset of tasks to Firecracker mode  
-3. **Performance Comparison**: Monitor metrics between modes
-4. **Full Migration**: Switch `AGENT_MODE=firecracker` 
-5. **Cleanup**: Remove old container infrastructure
+1. **Infrastructure**: Deploy Firecracker cluster alongside existing infrastructure
+2. **Testing**: Run parallel testing with both modes
+3. **Gradual Migration**: Route subset of tasks to Firecracker mode
+4. **Monitoring**: Compare performance and reliability metrics
+5. **Full Migration**: Switch all tasks to Firecracker mode
+6. **Cleanup**: Decommission container-based infrastructure
+
+### Rollback Plan
+- **Configuration**: Switch `AGENT_MODE` back to `local` or `remote`
+- **Infrastructure**: Keep container infrastructure during transition
+- **Data**: Git-based persistence ensures no data loss during rollback
 
 ## Success Metrics
 
@@ -684,4 +857,19 @@ If migrating from the old container-based approach:
 - **Resource Efficiency**: Optimal VM density per node
 - **Security**: Zero container escape vulnerabilities
 
-This deployment guide provides a complete production-ready setup for Shadow's **true Firecracker microVM architecture** with hardware-level isolation, automated CI/CD, and comprehensive monitoring.
+## Support and Maintenance
+
+### Regular Health Checks
+```bash
+# Weekly infrastructure validation
+./scripts/test-firecracker-integration.sh
+
+# Monthly performance review
+kubectl top nodes -l firecracker=true
+kubectl get events -n shadow --sort-by='.lastTimestamp' | head -20
+
+# Quarterly security audit
+kubectl get pods -n shadow -o yaml | grep -i security
+```
+
+This comprehensive deployment guide provides a complete production-ready setup for Shadow's **true Firecracker microVM architecture** with hardware-level isolation, automated CI/CD, comprehensive monitoring, and enterprise-grade operational procedures.
