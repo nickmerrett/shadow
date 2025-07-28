@@ -15,18 +15,17 @@ import { AvailableModels, ModelInfos, type ModelType } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUp,
-  Check,
-  ChevronDown,
   GitBranchPlus,
   Layers,
   ListEnd,
   Loader2,
+  MessageCircle,
   MessageCircleX,
-  Settings2,
   Square,
+  X,
 } from "lucide-react";
 import { redirect } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
@@ -72,38 +71,100 @@ export function PromptForm({
 
   const [isMessageOptionsOpen, setIsMessageOptionsOpen] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
-  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(
-    null
-  );
   const [selectedMessageAction, setSelectedMessageAction] = useState<
     string | null
   >(null);
   const [isGithubConnectionOpen, setIsGithubConnectionOpen] = useState(false);
 
-  const messageOptions = [
-    {
-      id: "queue",
-      icon: ListEnd,
-      label: "Queue Message",
-      action: () => setSelectedMessageAction("queue"),
-    },
-    {
-      id: "send",
-      icon: MessageCircleX,
-      label: "Stop & Send",
-      action: () => setSelectedMessageAction("send"),
-    },
-    {
-      id: "stack-pr",
-      icon: GitBranchPlus,
-      label: "Queue Stacked PR",
-      action: () => setSelectedMessageAction("stack-pr"),
-    },
-  ];
-  const selectedMessageOption = useMemo(
-    () => messageOptions[selectedOptionIndex ?? 0],
-    [selectedOptionIndex]
-  );
+  const messageOptions = isStreaming
+    ? [
+        {
+          id: "queue",
+          icon: ListEnd,
+          label: "Queue Message",
+          action: () => setSelectedMessageAction("queue"),
+          shortcut: {
+            key: "Enter",
+            meta: false,
+            ctrl: false,
+            alt: false,
+            shift: false,
+          },
+        },
+        {
+          id: "send",
+          icon: MessageCircleX,
+          label: "Stop & Send",
+          action: () => setSelectedMessageAction("send"),
+          shortcut: {
+            key: "Enter",
+            meta: true,
+            ctrl: false,
+            alt: false,
+            shift: false,
+          },
+        },
+        {
+          id: "stack-pr",
+          icon: GitBranchPlus,
+          label: "Queue Stacked PR",
+          action: () => setSelectedMessageAction("stack-pr"),
+          shortcut: {
+            key: "Enter",
+            meta: false,
+            ctrl: false,
+            alt: true,
+            shift: false,
+          },
+        },
+      ]
+    : [
+        {
+          id: "send",
+          icon: MessageCircle,
+          label: "Send Message",
+          action: () => setSelectedMessageAction("send"),
+          shortcut: {
+            key: "Enter",
+            meta: false,
+            ctrl: false,
+            alt: false,
+            shift: false,
+          },
+        },
+        {
+          id: "stack-pr",
+          icon: GitBranchPlus,
+          label: "Queue Stacked PR",
+          action: () => setSelectedMessageAction("stack-pr"),
+          shortcut: {
+            key: "Enter",
+            meta: false,
+            ctrl: false,
+            alt: true,
+            shift: false,
+          },
+        },
+      ];
+
+  const formatShortcut = (shortcut: {
+    key: string;
+    meta: boolean;
+    ctrl: boolean;
+    alt: boolean;
+    shift: boolean;
+  }) => {
+    const modifiers = [];
+    if (shortcut.meta) modifiers.push("⌘");
+    if (shortcut.ctrl) modifiers.push("⌃");
+    if (shortcut.alt) modifiers.push("⌥");
+    if (shortcut.shift) modifiers.push("⇧");
+
+    const keyDisplay = shortcut.key === "Enter" ? "⏎" : shortcut.key;
+    return modifiers.length > 0
+      ? `${modifiers.join("")}${keyDisplay}`
+      : keyDisplay;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,7 +216,26 @@ export function PromptForm({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e);
+
+      // For home page, keep regular submission behavior
+      if (isHome) {
+        handleSubmit(e);
+        return;
+      }
+
+      // For task pages (!isHome), implement double enter flow
+      if (!isMessageOptionsOpen) {
+        // First enter: open message options
+        setIsMessageOptionsOpen(true);
+      } else {
+        // Second enter: execute default action (first option)
+        const defaultOption = messageOptions[0];
+        if (defaultOption) {
+          defaultOption.action();
+          setIsMessageOptionsOpen(false);
+          handleSubmit(e);
+        }
+      }
     }
   };
 
@@ -165,43 +245,35 @@ export function PromptForm({
       // Only handle shortcuts when not on home page
       if (isHome) return;
 
-      if (event.key === "/" && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        setIsMessageOptionsOpen((prev) => !prev);
-        setSelectedOptionIndex(null); // Reset selection when toggling
-      }
-
       if (event.key === "." && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         setIsModelSelectorOpen((prev) => !prev);
       }
 
-      // Arrow key navigation for message options
+      // ESC key to close message options
+      if (event.key === "Escape" && isMessageOptionsOpen) {
+        event.preventDefault();
+        setIsMessageOptionsOpen(false);
+      }
+
+      // Keyboard shortcuts when message options are open
       if (isMessageOptionsOpen) {
-        if (event.key === "ArrowUp") {
-          event.preventDefault();
-          setSelectedOptionIndex((prev) => {
-            if (prev === null) return messageOptions.length - 1;
-            return (prev - 1 + messageOptions.length) % messageOptions.length;
-          });
-        }
+        for (const option of messageOptions) {
+          const shortcut = option.shortcut;
 
-        if (event.key === "ArrowDown") {
-          event.preventDefault();
-          setSelectedOptionIndex((prev) => {
-            if (prev === null) return 0;
-            return (prev + 1) % messageOptions.length;
-          });
-        }
-
-        // Enter key to execute selected option
-        if (event.key === "Enter" && selectedOptionIndex !== null) {
-          event.preventDefault();
-          const selectedOption = messageOptions[selectedOptionIndex];
-          if (selectedOption) {
-            selectedOption.action();
+          // Check if the key and all modifiers match
+          if (
+            event.key === shortcut.key &&
+            (shortcut.meta ? event.metaKey : !event.metaKey) &&
+            (shortcut.ctrl ? event.ctrlKey : !event.ctrlKey) &&
+            (shortcut.alt ? event.altKey : !event.altKey) &&
+            (shortcut.shift ? event.shiftKey : !event.shiftKey)
+          ) {
+            event.preventDefault();
+            option.action();
             setIsMessageOptionsOpen(false);
-            setSelectedOptionIndex(null);
+            // TODO: Handle option-specific logic
+            break; // Exit loop after finding matching shortcut
           }
         }
       }
@@ -209,28 +281,7 @@ export function PromptForm({
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [isHome, isMessageOptionsOpen, selectedOptionIndex, messageOptions]);
-
-  const submitButtonWhileStreaming = useMemo(
-    () =>
-      selectedMessageOption ? (
-        !message.trim() ? (
-          // 14px (size-3.5) square looks nicer, so wrap in 1px to bring up to 16px (size-4)
-          <>
-            <span>Stop</span>
-            <div className="p-px">
-              <Square className="fill-primary-foreground size-3.5" />
-            </div>
-          </>
-        ) : (
-          <>
-            <span>{selectedMessageOption?.label}</span>
-            <selectedMessageOption.icon className="size-4" />
-          </>
-        )
-      ) : null,
-    [isStreaming, message, selectedMessageOption]
-  );
+  }, [isHome, isMessageOptionsOpen, messageOptions, isStreaming]);
 
   return (
     <form
@@ -258,21 +309,29 @@ export function PromptForm({
           <div
             className={cn(
               "ease-out-cubic overflow-clip transition-all duration-500",
-              isMessageOptionsOpen ? "h-[122px]" : "h-0"
+              isMessageOptionsOpen
+                ? isStreaming
+                  ? "h-[126px]"
+                  : "h-[96px]"
+                : "h-0"
             )}
           >
-            <div className="flex flex-col items-start gap-0.5 p-1.5">
-              <button
-                type="button"
-                onClick={() => setIsMessageOptionsOpen(false)}
-                className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 px-1.5 py-0.5 text-xs font-medium"
-              >
-                <ChevronDown className="size-3" />
+            <div className="flex flex-col gap-0.5 p-1.5">
+              <div className="text-muted-foreground flex w-full items-center justify-between gap-1 pl-1.5 text-xs font-medium">
                 <span>Message Options</span>
-              </button>
-              {messageOptions.map((option, index) => {
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="iconXs"
+                  tabIndex={-1}
+                  className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border p-0"
+                  onClick={() => setIsMessageOptionsOpen(false)}
+                >
+                  <X className="size-3" />
+                </Button>
+              </div>
+              {messageOptions.map((option) => {
                 const IconComponent = option.icon;
-                const isSelected = selectedOptionIndex === index;
                 const isActionSelected = selectedMessageAction === option.id;
 
                 return (
@@ -285,20 +344,19 @@ export function PromptForm({
                     onClick={() => {
                       option.action();
                       setIsMessageOptionsOpen(false);
-                      setSelectedOptionIndex(null);
                     }}
                     className={cn(
-                      "hover:bg-sidebar-border w-full justify-between font-normal",
-                      isSelected && "bg-sidebar-border/70"
+                      "hover:bg-sidebar-border justify-between font-normal",
+                      isActionSelected && "bg-sidebar-border/70"
                     )}
                   >
                     <div className="flex items-center gap-2">
                       <IconComponent className="size-4" />
                       <span>{option.label}</span>
                     </div>
-                    {isActionSelected ? (
-                      <Check className="text-muted-foreground size-4" />
-                    ) : null}
+                    <span className="text-muted-foreground">
+                      {formatShortcut(option.shortcut)}
+                    </span>
                   </Button>
                 );
               })}
@@ -383,37 +441,11 @@ export function PromptForm({
                 />
               )}
               <div className="flex items-center gap-2">
-                {!isHome && (
-                  <Tooltip>
-                    <TooltipTrigger asChild className="peer/message-options">
-                      <Button
-                        type="button"
-                        size="iconSm"
-                        variant="outline"
-                        className={cn(
-                          "transition-all",
-                          isMessageOptionsOpen
-                            ? "border-sidebar-border! bg-sidebar-accent!"
-                            : "text-muted-foreground hover:bg-accent! border-transparent! invisible translate-x-1 opacity-0 focus-visible:visible focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/footer:visible group-hover/footer:translate-x-0 group-hover/footer:opacity-100"
-                        )}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setIsMessageOptionsOpen((prev) => !prev);
-                        }}
-                      >
-                        <Settings2 className="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" align="center" shortcut="⌘/">
-                      {isMessageOptionsOpen ? "Hide" : "Show"} Message Options
-                    </TooltipContent>
-                  </Tooltip>
-                )}
                 <Button
                   type="submit"
                   size={isHome ? "iconSm" : "sm"}
                   disabled={
+                    isMessageOptionsOpen ||
                     isPending ||
                     !selectedModel ||
                     (isHome && (!repo || !branch || !message.trim()))
@@ -423,7 +455,19 @@ export function PromptForm({
                   {isPending ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : isStreaming ? (
-                    submitButtonWhileStreaming
+                    !message.trim() ? (
+                      <>
+                        <span>Stop</span>
+                        <div className="p-px">
+                          <Square className="fill-primary-foreground size-3.5" />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span>Queue</span>
+                        <ListEnd className="size-4" />
+                      </>
+                    )
                   ) : (
                     <>
                       {!isHome && <span>Send</span>}
