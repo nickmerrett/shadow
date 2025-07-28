@@ -13,12 +13,20 @@ import { createTask } from "@/lib/actions/create-task";
 import { cn } from "@/lib/utils";
 import { AvailableModels, ModelInfos, type ModelType } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, Layers, ListEnd, Loader2, Square } from "lucide-react";
+import {
+  ArrowUp,
+  Layers,
+  ListEnd,
+  Loader2,
+  Settings2,
+  Square,
+} from "lucide-react";
 import { redirect } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export function PromptForm({
   onSubmit,
@@ -41,6 +49,7 @@ export function PromptForm({
   } | null;
 }) {
   const [message, setMessage] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedModel, setSelectedModel] = useState<ModelType>(
     AvailableModels.GPT_4O
   );
@@ -127,11 +136,12 @@ export function PromptForm({
         )}
       >
         {!isHome && (
-          <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-16 -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
+          <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-[calc(4rem-1px)] -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
         )}
 
         {/* Textarea without border/background since wrapper handles it */}
         <Textarea
+          ref={textareaRef}
           autoFocus
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -143,7 +153,10 @@ export function PromptForm({
         />
 
         {/* Buttons inside the container */}
-        <div className="flex items-center justify-between p-2">
+        <div
+          className="group/footer flex items-center justify-between p-2"
+          onClick={() => textareaRef.current?.focus()}
+        >
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -187,40 +200,64 @@ export function PromptForm({
                 setSelectedBranch={setBranch}
               />
             )}
-            <Button
-              type="submit"
-              size={isHome ? "iconSm" : "sm"}
-              disabled={
-                isPending ||
-                !selectedModel ||
-                (isHome && (!repo || !branch || !message.trim()))
-              }
-              className={!isHome ? "pr-1.5!" : ""}
-            >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : isStreaming ? (
-                !message.trim() ? (
-                  // 14px (size-3.5) square looks nicer, so wrap in 1px to bring up to 16px (size-4)
-                  <>
-                    <span>Stop</span>
-                    <div className="p-px">
-                      <Square className="fill-primary-foreground size-3.5" />
-                    </div>
-                  </>
+            <div className="flex items-center gap-2">
+              {!isHome && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      size="iconSm"
+                      variant="ghost"
+                      className="text-muted-foreground hover:bg-accent translate-x-1 opacity-0 transition-all focus-visible:translate-x-0 focus-visible:opacity-100 group-hover/footer:translate-x-0 group-hover/footer:opacity-100"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log("clicked");
+                      }}
+                    >
+                      <Settings2 className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="center">
+                    <p>Message Options</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              <Button
+                type="submit"
+                size={isHome ? "iconSm" : "sm"}
+                disabled={
+                  isPending ||
+                  !selectedModel ||
+                  (isHome && (!repo || !branch || !message.trim()))
+                }
+                className={!isHome ? "pr-1.5!" : ""}
+              >
+                {isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : isStreaming ? (
+                  !message.trim() ? (
+                    // 14px (size-3.5) square looks nicer, so wrap in 1px to bring up to 16px (size-4)
+                    <>
+                      <span>Stop</span>
+                      <div className="p-px">
+                        <Square className="fill-primary-foreground size-3.5" />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span>Queue</span>
+                      <ListEnd className="size-4" />
+                    </>
+                  )
                 ) : (
                   <>
-                    <span>Queue</span>
-                    <ListEnd className="size-4" />
+                    {!isHome && <span>Send</span>}
+                    <ArrowUp className="size-4" />
                   </>
-                )
-              ) : (
-                <>
-                  {!isHome && <span>Send</span>}
-                  <ArrowUp className="size-4" />
-                </>
-              )}
-            </Button>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
