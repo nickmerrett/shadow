@@ -1,5 +1,4 @@
 import { SidebarViews } from "@/components/sidebar";
-import { CodebaseUnderstandingProvider } from "@/components/codebase/codebase-understanding-context";
 import { getUser } from "@/lib/auth/get-user";
 import { getTasks } from "@/lib/db-operations/get-tasks";
 import {
@@ -39,14 +38,12 @@ export default async function CodebaseLayout({
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <CodebaseUnderstandingProvider>
-        <SidebarViews
-          initialTasks={initialTasks}
-          initialCodebases={initialCodebases}
-          currentCodebaseId={codebaseId}
-        />
-        {children}
-      </CodebaseUnderstandingProvider>
+      <SidebarViews
+        initialTasks={initialTasks}
+        initialCodebases={initialCodebases}
+        currentCodebaseId={codebaseId}
+      />
+      {children}
     </HydrationBoundary>
   );
 }
