@@ -149,7 +149,7 @@ export function PromptForm({
         {
           id: "stack-pr",
           icon: GitBranchPlus,
-          label: "Queue Stacked PR",
+          label: "Create Stacked PR",
           action: () => {
             console.log("stack-pr (NOT IMPLEMENTED)");
             onSubmit?.(message, selectedModel, false);
@@ -254,7 +254,6 @@ export function PromptForm({
         setIsMessageOptionsOpen(false);
       }
 
-      console.log("[globalKeyDown] isMessageOptionsOpen", isMessageOptionsOpen);
       // Keyboard shortcuts when message options are open
       if (isMessageOptionsOpen) {
         for (const option of messageOptions) {
@@ -269,21 +268,21 @@ export function PromptForm({
             (shortcut.shift ? event.shiftKey : !event.shiftKey)
           ) {
             event.preventDefault();
-
-            console.log(
-              "[globalKeyDown] option selected in message options",
-              option
-            );
             option.action();
             setIsMessageOptionsOpen(false);
             // TODO: Handle option-specific logic
-            break; // Exit loop after finding matching shortcut
+            break;
           }
         }
       } else {
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
           setIsMessageOptionsOpen(true);
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          if (isStreaming) {
+            onStopStream?.();
+          }
         }
       }
     };
