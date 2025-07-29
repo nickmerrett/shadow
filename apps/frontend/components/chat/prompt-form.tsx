@@ -15,7 +15,6 @@ import { AvailableModels, ModelInfos, type ModelType } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUp,
-  ChevronDown,
   GitBranchPlus,
   Layers,
   ListEnd,
@@ -309,12 +308,12 @@ export function PromptForm({
         <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-[calc(4rem-1px)] -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
       )}
 
-      {/* {queuedMessage && ( */}
-      <UserMessage
-        content={"queuedMessage"}
-        className="absolute -top-14 left-0"
-      />
-      {/* )} */}
+      {queuedMessage && (
+        <UserMessage
+          content={queuedMessage}
+          className="absolute -top-14 left-0"
+        />
+      )}
 
       {/* Wrapper div with textarea styling */}
       {/* Outer div acts as a border, with a border-radius 1px larger than the inner div and 1px padding */}

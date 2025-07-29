@@ -27,7 +27,10 @@ export class ChatService {
   private llmService: LLMService;
   private activeStreams: Map<string, AbortController> = new Map();
   private stopRequested: Set<string> = new Set();
-  private queuedMessages: Map<string, { message: string; model: ModelType; workspacePath?: string }> = new Map();
+  private queuedMessages: Map<
+    string,
+    { message: string; model: ModelType; workspacePath?: string }
+  > = new Map();
 
   constructor() {
     this.llmService = new LLMService();
@@ -116,7 +119,10 @@ export class ChatService {
   /**
    * Commit changes to git if there are any changes after an LLM response
    */
-  private async commitChangesIfAny(taskId: string, workspacePath?: string): Promise<void> {
+  private async commitChangesIfAny(
+    taskId: string,
+    workspacePath?: string
+  ): Promise<void> {
     try {
       // Get task info including user and workspace details
       const task = await prisma.task.findUnique({
@@ -130,14 +136,18 @@ export class ChatService {
       }
 
       if (!task.shadowBranch) {
-        console.warn(`[CHAT] No shadow branch configured for task ${taskId}, skipping git commit`);
+        console.warn(
+          `[CHAT] No shadow branch configured for task ${taskId}, skipping git commit`
+        );
         return;
       }
 
       // Determine workspace path - use provided path or fall back to task workspace path
       const resolvedWorkspacePath = workspacePath || task.workspacePath;
       if (!resolvedWorkspacePath) {
-        console.warn(`[CHAT] No workspace path available for task ${taskId}, skipping git commit`);
+        console.warn(
+          `[CHAT] No workspace path available for task ${taskId}, skipping git commit`
+        );
         return;
       }
 
@@ -165,13 +175,18 @@ export class ChatService {
         );
 
         if (committed) {
-          console.log(`[CHAT] Successfully committed changes for task ${taskId}`);
+          console.log(
+            `[CHAT] Successfully committed changes for task ${taskId}`
+          );
         }
       } else {
         await this.commitChangesFirecrackerMode(taskId, task);
       }
     } catch (error) {
-      console.error(`[CHAT] Failed to commit changes for task ${taskId}:`, error);
+      console.error(
+        `[CHAT] Failed to commit changes for task ${taskId}:`,
+        error
+      );
       throw error;
     }
   }
@@ -179,9 +194,14 @@ export class ChatService {
   /**
    * Commit changes in firecracker mode using tool executor git APIs
    */
-  private async commitChangesFirecrackerMode(taskId: string, task: { user: { name: string; email: string }; shadowBranch: string | null }): Promise<void> {
+  private async commitChangesFirecrackerMode(
+    taskId: string,
+    task: { user: { name: string; email: string }; shadowBranch: string | null }
+  ): Promise<void> {
     try {
-      console.log(`[CHAT] Checking for changes to commit in firecracker mode for task ${taskId}`);
+      console.log(
+        `[CHAT] Checking for changes to commit in firecracker mode for task ${taskId}`
+      );
 
       // Create tool executor for this task
       const toolExecutor = createToolExecutor(taskId);
@@ -190,12 +210,16 @@ export class ChatService {
       const statusResponse = await toolExecutor.getGitStatus();
 
       if (!statusResponse.success) {
-        console.error(`[CHAT] Failed to check git status for task ${taskId}: ${statusResponse.message}`);
+        console.error(
+          `[CHAT] Failed to check git status for task ${taskId}: ${statusResponse.message}`
+        );
         return;
       }
 
       if (!statusResponse.hasChanges) {
-        console.log(`[CHAT] No changes to commit for task ${taskId} in firecracker mode`);
+        console.log(
+          `[CHAT] No changes to commit for task ${taskId} in firecracker mode`
+        );
         return;
       }
 
@@ -206,7 +230,9 @@ export class ChatService {
       if (diffResponse.success && diffResponse.diff) {
         // Generate commit message using server-side GitManager (which has AI integration)
         const tempGitManager = new GitManager("", taskId);
-        commitMessage = await tempGitManager.generateCommitMessage(diffResponse.diff);
+        commitMessage = await tempGitManager.generateCommitMessage(
+          diffResponse.diff
+        );
       }
 
       // Commit changes with user and Shadow co-author
@@ -223,13 +249,17 @@ export class ChatService {
       });
 
       if (!commitResponse.success) {
-        console.error(`[CHAT] Failed to commit changes for task ${taskId}: ${commitResponse.message}`);
+        console.error(
+          `[CHAT] Failed to commit changes for task ${taskId}: ${commitResponse.message}`
+        );
         return;
       }
 
       // Push the commit
       if (!task.shadowBranch) {
-        console.warn(`[CHAT] No shadow branch configured for task ${taskId}, skipping push`);
+        console.warn(
+          `[CHAT] No shadow branch configured for task ${taskId}, skipping push`
+        );
         return;
       }
 
@@ -239,17 +269,23 @@ export class ChatService {
       });
 
       if (!pushResponse.success) {
-        console.warn(`[CHAT] Failed to push changes for task ${taskId}: ${pushResponse.message}`);
+        console.warn(
+          `[CHAT] Failed to push changes for task ${taskId}: ${pushResponse.message}`
+        );
         // Don't throw here - commit succeeded even if push failed
       }
 
-      console.log(`[CHAT] Successfully committed changes for task ${taskId} in firecracker mode`);
+      console.log(
+        `[CHAT] Successfully committed changes for task ${taskId} in firecracker mode`
+      );
     } catch (error) {
-      console.error(`[CHAT] Error in firecracker mode git commit for task ${taskId}:`, error);
+      console.error(
+        `[CHAT] Error in firecracker mode git commit for task ${taskId}:`,
+        error
+      );
       // Don't throw here - we don't want git failures to break the chat flow
     }
   }
-
 
   async getChatHistory(taskId: string): Promise<Message[]> {
     const dbMessages = await prisma.chatMessage.findMany({
@@ -289,16 +325,24 @@ export class ChatService {
   }) {
     if (queue) {
       if (this.activeStreams.has(taskId)) {
-        console.log(`[CHAT] Queuing message for task ${taskId} (stream in progress)`);
-        this.queuedMessages.set(taskId, { message: userMessage, model: llmModel, workspacePath });
+        console.log(
+          `[CHAT] Queuing message for task ${taskId} (stream in progress)`
+        );
+        this.queuedMessages.set(taskId, {
+          message: userMessage,
+          model: llmModel,
+          workspacePath,
+        });
         return;
       }
     } else {
       // queue=false: interrupt any active stream and process immediately
       if (this.activeStreams.has(taskId)) {
-        console.log(`[CHAT] Interrupting active stream for task ${taskId} due to new message`);
+        console.log(
+          `[CHAT] Interrupting active stream for task ${taskId} due to new message`
+        );
         await this.stopStream(taskId);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
 
@@ -523,9 +567,10 @@ export class ChatService {
 
             if (toolMessage) {
               // Convert result to string for content field, keep object in metadata
-              const resultString = typeof chunk.toolResult.result === 'string'
-                ? chunk.toolResult.result
-                : JSON.stringify(chunk.toolResult.result);
+              const resultString =
+                typeof chunk.toolResult.result === "string"
+                  ? chunk.toolResult.result
+                  : JSON.stringify(chunk.toolResult.result);
 
               await prisma.chatMessage.update({
                 where: { id: toolMessage.id },
@@ -605,7 +650,10 @@ export class ChatService {
         try {
           await this.commitChangesIfAny(taskId, workspacePath);
         } catch (error) {
-          console.error(`[CHAT] Failed to commit changes for task ${taskId}:`, error);
+          console.error(
+            `[CHAT] Failed to commit changes for task ${taskId}:`,
+            error
+          );
           // Don't fail the entire response for git commit failures
         }
       }
@@ -624,12 +672,15 @@ export class ChatService {
       await updateTaskStatus(taskId, "FAILED", "CHAT");
 
       // Emit error chunk
-      emitStreamChunk({
-        type: "error",
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
-        finishReason: "error",
-      }, taskId);
+      emitStreamChunk(
+        {
+          type: "error",
+          error:
+            error instanceof Error ? error.message : "Unknown error occurred",
+          finishReason: "error",
+        },
+        taskId
+      );
 
       // Clean up stream tracking on error
       this.activeStreams.delete(taskId);
@@ -662,12 +713,19 @@ export class ChatService {
         queue: false,
       });
     } catch (error) {
-      console.error(`[CHAT] Error processing queued message for task ${taskId}:`, error);
+      console.error(
+        `[CHAT] Error processing queued message for task ${taskId}:`,
+        error
+      );
     }
   }
 
   getAvailableModels(): ModelType[] {
     return this.llmService.getAvailableModels();
+  }
+
+  getQueuedMessage(taskId: string): string | undefined {
+    return this.queuedMessages.get(taskId)?.message;
   }
 
   async stopStream(taskId: string): Promise<void> {

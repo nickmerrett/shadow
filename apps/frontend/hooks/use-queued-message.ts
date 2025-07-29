@@ -1,7 +1,15 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export function useQueuedMessage(taskId: string) {
-  return useQuery<string>({
+  const queryClient = useQueryClient();
+  return useQuery<string | null>({
     queryKey: ["queued-message", taskId],
+    queryFn: () => {
+      const { queuedMessage } = queryClient.getQueryData([
+        "queued-message",
+        taskId,
+      ]) as { queuedMessage: string };
+      return queuedMessage;
+    },
   });
 }
