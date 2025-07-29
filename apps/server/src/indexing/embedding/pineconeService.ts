@@ -2,8 +2,11 @@ import { Index, Pinecone } from "@pinecone-database/pinecone";
 import config from "../../config";
 import { GraphNode } from "../graph";
 import logger from "../logger";
-import { PineconeBatchRecord, PineconeAutoEmbedRecord, EmbeddingSearchRequest } from "../types";
-import { EmbeddingSearchResponse } from "@/indexing/types";
+import { PineconeBatchRecord, PineconeAutoEmbedRecord } from "../types";
+import {
+  CodebaseSearchRequest,
+  CodebaseSearchResponse,
+} from "../codebase-types";
 
 // Handles Pinecone operators
 class PineconeHandler {
@@ -61,7 +64,10 @@ class PineconeHandler {
   }
 
   // Upserts the records into the namespace
-  async upsertAutoEmbed(records: PineconeBatchRecord[], namespace: string): Promise<number> {
+  async upsertAutoEmbed(
+    records: PineconeBatchRecord[],
+    namespace: string
+  ): Promise<number> {
     if (this.isDisabled) {
       logger.warn("Pinecone is disabled, skipping upsert");
       return 0;
@@ -140,18 +146,20 @@ class PineconeHandler {
 
   // Query the Pinecone index
   async searchRecords(
-    request: EmbeddingSearchRequest,
-  ): Promise<EmbeddingSearchResponse[]> {
+    request: CodebaseSearchRequest
+  ): Promise<CodebaseSearchResponse[]> {
     if (this.isDisabled) {
       logger.warn("Pinecone is disabled, skipping search");
       return [];
     }
-    const response = await this.client.namespace(request.namespace).searchRecords({
-      query: {
-        topK: request.topK || 3,
-        inputs: { text: request.query },
-      },
-    }); // Search based on topK and query
+    const response = await this.client
+      .namespace(request.namespace)
+      .searchRecords({
+        query: {
+          topK: request.topK || 3,
+          inputs: { text: request.query },
+        },
+      }); // Search based on topK and query
     /*
     {
       "result": {
@@ -169,9 +177,8 @@ class PineconeHandler {
       }
     }
     */
-    // Transform Pinecone hits to EmbeddingSearchResponse format
     const hits = response.result?.hits || [];
-    return hits as EmbeddingSearchResponse[];
+    return hits as CodebaseSearchResponse[];
   }
 }
 

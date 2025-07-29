@@ -13,10 +13,19 @@ export interface PineconeRecordMetadata {
   line_start: number;
   line_end: number;
   kind: GraphNodeKind;
-  [key: string]: any; // Allow additional metadata fields
+
+  // Custom fields for different services (stored as JSON strings)
+  symbols?: string;
+  dependencies?: string;
+  tokenUsage?: string;
+  summaryType?: string;
+  complexity?: string;
+  repoPath?: string;
+  lastUpdated?: string;
+
+  [key: string]: any;
 }
 
-// In the process, Chunk ==> PineconeBatchRecord ==> PineconeAutoEmbedRecord ==> Upsert
 /**
  * Standard Pinecone batch record for upserting data
  * Used in: pineconeService.ts upsertAutoEmbed() method
@@ -34,36 +43,6 @@ export interface PineconeBatchRecord {
  */
 export interface PineconeAutoEmbedRecord extends PineconeRecordMetadata {
   _id: string;
-  text: string; // Standard Pinecone text field for embedding
-  [key: string]: any; // Index signature for Pinecone SDK compatibility
-}
-
-/**
- * Request structure for embedding search
- * Used in: pineconeService.ts searchRecords() method
- * Contains query text, namespace to search, and number of results to return
- */
-export interface EmbeddingSearchRequest {
-  query: string;
-  namespace: string;
-  topK?: number;
-}
-
-/**
- * Response structure for embedding search
- * Used in: pineconeService.ts searchRecords() method return value
- * Contains search results with similarity scores and metadata
- */
-export interface EmbeddingSearchResponse {
-  _id: string;
-  _score: number;
-  fields: {
-    code: string;
-    path: string;
-    name: string;
-    lang: string;
-    line_start: number;
-    line_end: number;
-    kind: GraphNodeKind;
-  };
+  text: string;
+  [key: string]: any;
 }

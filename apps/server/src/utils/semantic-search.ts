@@ -1,6 +1,6 @@
-import { retrieve } from "@/indexing/retrievalWrapper";
+import { retrieveCodeChunks } from "@/indexing/codebase-retrieval";
 import { getNamespaceFromRepo, isValidRepo } from "@/indexing/utils/repository";
-import { EmbeddingSearchResponse } from "@/indexing/types";
+import { CodebaseSearchResponse } from "@/indexing/codebase-types";
 import { CodebaseSearchToolResult } from "@repo/types";
 
 export interface SemanticSearchParams {
@@ -11,7 +11,7 @@ export interface SemanticSearchParams {
 }
 
 export interface SemanticSearchResponse {
-  hits: EmbeddingSearchResponse[];
+  hits: CodebaseSearchResponse[];
 }
 
 export async function performSemanticSearch(
@@ -25,7 +25,7 @@ export async function performSemanticSearch(
   }
 
   try {
-    const hits = await retrieve({
+    const hits = await retrieveCodeChunks({
       query,
       namespace: namespaceToUse,
       topK,
@@ -33,7 +33,7 @@ export async function performSemanticSearch(
 
     const parsedData: CodebaseSearchToolResult = {
       success: !!hits,
-      results: hits.map((hit: EmbeddingSearchResponse, i: number) => ({
+      results: hits.map((hit: CodebaseSearchResponse, i: number) => ({
         id: i + 1,
         content: hit?.fields?.code || "",
         relevance: typeof hit?._score === "number" ? hit._score : 0.8,
