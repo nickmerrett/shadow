@@ -1,11 +1,19 @@
 import PineconeHandler from "@/indexing/embedding/pineconeService";
-import { EmbeddingSearchRequest, EmbeddingSearchResponse } from "@/indexing/types";
-
+import {
+  EmbeddingSearchRequest,
+  EmbeddingSearchResponse,
+} from "@/indexing/types";
 
 // Wrapper used to retrieve code snippets from Pinecone
 // Overloaded function signature for backward compatibility
-export async function retrieve(query: string, namespace: string, topK: number): Promise<EmbeddingSearchResponse[]>;
-export async function retrieve(request: EmbeddingSearchRequest): Promise<EmbeddingSearchResponse[]>;
+export async function retrieve(
+  query: string,
+  namespace: string,
+  topK: number
+): Promise<EmbeddingSearchResponse[]>;
+export async function retrieve(
+  request: EmbeddingSearchRequest
+): Promise<EmbeddingSearchResponse[]>;
 
 // Implementation of the overloaded function
 export async function retrieve(
