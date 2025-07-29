@@ -17,12 +17,26 @@ interface ExtendedLanguageSpec extends LanguageSpec {
 function safeRequire(name: string): any {
   try {
     const mod = require(name);
+    let language;
+    
     if (name === "tree-sitter-typescript") {
-      return mod.typescript || mod;
+      language = mod.typescript || mod;
+    } else {
+      language = mod.default || mod;
     }
-    return mod.default || mod;
-  } catch (_err) {
-    logger.warn(`Language grammar not installed: ${name}`);
+    
+    // Validate that this is a proper Tree-sitter language object
+    if (language && typeof language === 'object' && 
+        (typeof language.nodeTypeCount === 'number' || 
+         typeof language.id === 'number' ||
+         language.constructor?.name === 'Language')) {
+      return language;
+    } else {
+      logger.warn(`Invalid language object for ${name}: ${typeof language}`);
+      return null;
+    }
+  } catch (err) {
+    logger.warn(`Language grammar not installed: ${name} - ${err}`);
     return null;
   }
 }

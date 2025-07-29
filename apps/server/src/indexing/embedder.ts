@@ -18,6 +18,7 @@ import PineconeHandler from "./embedding/pineconeService";
 import { GraphNode } from "./graph";
 import { logger } from "./logger";
 import { getNamespaceFromRepo } from "./utils/repository";
+import { PineconeBatchRecord } from "./types";
 
 type EmbeddingProvider = "jina-api" | "local-transformers" | "cheap-hash";
 const EMBEDDING_MODEL = "jinaai/jina-embeddings-v2-base-code";
@@ -281,7 +282,7 @@ async function embedAndUpsertToPinecone(
   let totalUploaded = 0;
   for (const recordChunk of recordChunks) {
     // Convert each chunk to Pinecone format
-    const batchRecords = recordChunk.map((chunk) => ({
+    const batchRecords: PineconeBatchRecord[] = recordChunk.map((chunk) => ({
       id: chunk.id,
       metadata: {
         code: chunk.code || "",

@@ -78,6 +78,7 @@ async function indexRepo(
 
     repoId = getHash(`${owner}/${repo}`, 12);
     logger.info(`Number of files fetched: ${files.length}`);
+    logger.info(`Files found: ${files.map(f => f.path).join(', ')}`);
     const graph = new Graph(repoId);
     // Track symbols across all files for cross-file call resolution
     const globalSym = new Map<string, string[]>(); // name -> [nodeId]
@@ -101,10 +102,23 @@ async function indexRepo(
       } else {
         console.log("Parsing", file.path);
       }
+      
       const parser = new TreeSitter();
-      parser.setLanguage(spec.language);
-      const tree = parser.parse(file.content);
-      const rootNode = tree.rootNode;
+      try {
+        parser.setLanguage(spec.language);
+      } catch (error) {
+        logger.warn(`Failed to set language for ${file.path}: ${error instanceof Error ? error.message : String(error)}`);
+        continue;
+      }
+      
+      let tree, rootNode;
+      try {
+        tree = parser.parse(file.content);
+        rootNode = tree.rootNode;
+      } catch (error) {
+        logger.warn(`Failed to parse ${file.path}: ${error instanceof Error ? error.message : String(error)}`);
+        continue;
+      }
 
       // FILE node (record content hash + mtime for future incremental checks)
       // TODO: Should get time of commit instead!
@@ -137,6 +151,7 @@ async function indexRepo(
         file.content
       );
       const symNodes: GraphNode[] = [];
+      logger.info(`File ${file.path}: Found ${defs.length} definitions, ${imports.length} imports, ${calls.length} calls, ${docs.length} docs`);
 
       // SYMBOL defs
       for (const d of defs) {
@@ -236,6 +251,7 @@ async function indexRepo(
       }
 
       // CHUNK nodes per symbol
+      let hasChunks = false;
       for (const symNode of symNodes) {
         const d = defs.find(
           (x) =>
@@ -271,6 +287,59 @@ async function indexRepo(
               })
             );
           prev = ch;
+          hasChunks = true;
+        }
+      }
+
+      // If no symbols found, create file-level chunks for the entire file content
+      if (!hasChunks && file.content.trim()) {
+        const lines = file.content.split('\n');
+        const chunkSize = maxLines;
+        let chunkIndex = 0;
+        
+        for (let startLine = 0; startLine < lines.length; startLine += chunkSize) {
+          const endLine = Math.min(startLine + chunkSize - 1, lines.length - 1);
+          const chunkContent = lines.slice(startLine, endLine + 1).join('\n');
+          
+          if (chunkContent.trim()) {
+            const chunkId = getNodeHash(
+              repoId,
+              file.path,
+              "CHUNK",
+              `file-chunk-${chunkIndex}`,
+              { startLine, endLine, startCol: 0, endCol: 0, byteStart: 0, byteEnd: chunkContent.length }
+            );
+            
+            const chunkNode = new GraphNode({
+              id: chunkId,
+              kind: GraphNodeKind.CHUNK,
+              name: `${file.path}#${chunkIndex}`,
+              path: file.path,
+              lang: spec.id,
+              loc: {
+                startLine,
+                endLine,
+                startCol: 0,
+                endCol: 0,
+                byteStart: 0,
+                byteEnd: chunkContent.length,
+              },
+              code: chunkContent,
+              meta: { strategy: "file-level" },
+            });
+            
+            graph.addNode(chunkNode);
+            graph.addEdge(
+              new GraphEdge({
+                from: nodeHash,
+                to: chunkNode.id,
+                kind: GraphEdgeKind.CONTAINS,
+                meta: {},
+              })
+            );
+            
+            chunkIndex++;
+          }
         }
       }
 

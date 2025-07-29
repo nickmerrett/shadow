@@ -21,7 +21,6 @@ import {
   GitPushRequest,
 } from "@repo/types";
 import { CommandResult } from "../interfaces/types";
-import config from "../../config";
 import { performSemanticSearch } from "../../utils/semantic-search";
 
 /**
