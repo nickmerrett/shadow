@@ -198,28 +198,6 @@ export function createTools(taskId: string, workspacePath?: string) {
       },
     }),
 
-    codebase_search: tool({
-      description: readDescription('codebase_search'),
-      parameters: z.object({
-        query: z.string().describe("The search query to find relevant code"),
-        target_directories: z
-          .array(z.string())
-          .optional()
-          .describe("Glob patterns for directories to search over"),
-        explanation: z
-          .string()
-          .describe(
-            "One sentence explanation as to why this tool is being used"
-          ),
-      }),
-      execute: async ({ query, target_directories = [], explanation }) => {
-        console.log(`[CODEBASE_SEARCH] ${explanation}`);
-        const result = await executor.codebaseSearch(query, {
-          targetDirectories: target_directories,
-        });
-        return result;
-      },
-    }),
 
     read_file: tool({
       description: readDescription('read_file'),
@@ -467,8 +445,38 @@ export function createTools(taskId: string, workspacePath?: string) {
         const repoMatch = task.repoUrl.match(/github\.com\/([^\/]+\/[^\/]+)/);
         const repo = repoMatch ? repoMatch[1] : task.repoUrl;
         if (!repo) {
-          console.warn(`[SEMANTIC_SEARCH] No repo found for task ${taskId}, falling back to codebase_search`);
-          return await executor.codebaseSearch(query);
+          console.warn(`[SEMANTIC_SEARCH] No repo found for task ${taskId}, falling back to grep_search`);
+          const grepResult = await executor.grepSearch(query);
+          
+          // Convert GrepResult to SemanticSearchToolResult format
+          const results = grepResult.detailedMatches?.map((match, i) => ({
+            id: i + 1,
+            content: match.content,
+            relevance: 0.8,
+            filePath: match.file,
+            lineStart: match.lineNumber,
+            lineEnd: match.lineNumber,
+            language: "",
+            kind: "",
+          })) || grepResult.matches.map((match, i) => ({
+            id: i + 1,
+            content: match,
+            relevance: 0.8,
+            filePath: "",
+            lineStart: 0,
+            lineEnd: 0,
+            language: "",
+            kind: "",
+          }));
+
+          return {
+            success: grepResult.success,
+            results,
+            query: grepResult.query,
+            searchTerms: grepResult.query.split(/\s+/),
+            message: grepResult.message + " (fallback to grep)",
+            error: grepResult.error,
+          };
         } else {
           console.log(`[SEMANTIC_SEARCH] Using repo: ${repo}`);
           const result = await executor.semanticSearch(query, repo);

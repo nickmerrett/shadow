@@ -1,5 +1,6 @@
 import { CommandSecurityLevel } from "@repo/command-security";
 import { z } from "zod";
+import { GrepMatch } from "./tools/results";
 
 // === Base Response Interface ===
 export interface SidecarResponse {
@@ -87,11 +88,6 @@ export const GrepSearchRequestSchema = z.object({
   caseSensitive: z.boolean().default(false),
 });
 
-export const CodebaseSearchRequestSchema = z.object({
-  query: z.string(),
-  targetDirectories: z.array(z.string()).optional(),
-});
-
 export interface FileSearchResponse extends SidecarResponse {
   files?: string[];
   query: string;
@@ -100,20 +96,9 @@ export interface FileSearchResponse extends SidecarResponse {
 
 export interface GrepSearchResponse extends SidecarResponse {
   matches?: string[];
+  detailedMatches?: GrepMatch[];
   query: string;
   matchCount: number;
-}
-
-export interface CodebaseSearchResult {
-  id: number;
-  content: string;
-  relevance: number;
-}
-
-export interface CodebaseSearchResponse extends SidecarResponse {
-  results?: CodebaseSearchResult[];
-  query: string;
-  searchTerms?: string[];
 }
 
 // === Terminal Operations ===
@@ -207,7 +192,6 @@ export type FileWriteRequest = z.infer<typeof FileWriteRequestSchema>;
 export type SearchReplaceRequest = z.infer<typeof SearchReplaceRequestSchema>;
 export type FileSearchRequest = z.infer<typeof FileSearchRequestSchema>;
 export type GrepSearchRequest = z.infer<typeof GrepSearchRequestSchema>;
-export type CodebaseSearchRequest = z.infer<typeof CodebaseSearchRequestSchema>;
 export type CommandRequest = z.infer<typeof CommandRequestSchema>;
 export type GitCloneRequest = z.infer<typeof GitCloneRequestSchema>;
 export type GitConfigRequest = z.infer<typeof GitConfigRequestSchema>;

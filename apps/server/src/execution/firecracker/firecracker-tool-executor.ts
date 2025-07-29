@@ -11,7 +11,7 @@ import {
   ReadFileOptions,
   SearchOptions,
   WriteResult,
-  CodebaseSearchToolResult,
+  SemanticSearchToolResult,
   WebSearchResult,
   GitStatusResponse,
   GitDiffResponse,
@@ -21,8 +21,7 @@ import {
   GitPushRequest,
 } from "@repo/types";
 import { CommandResult } from "../interfaces/types";
-import { EmbeddingSearchResult } from "@/indexing/embedding/types";
-import config from "../../config";
+import { performSemanticSearch } from "@/utils/semantic-search";
 
 /**
  * FirecrackerToolExecutor executes tools in Firecracker microVMs via sidecar API
@@ -69,7 +68,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
         );
       }
 
-      return await response.json() as T;
+      return (await response.json()) as T;
     } catch (error) {
       clearTimeout(timeoutId);
       throw error;
@@ -220,7 +219,9 @@ export class FirecrackerToolExecutor implements ToolExecutor {
   /**
    * List directory contents in VM filesystem
    */
-  async listDirectory(relativeWorkspacePath: string): Promise<DirectoryListing> {
+  async listDirectory(
+    relativeWorkspacePath: string
+  ): Promise<DirectoryListing> {
     try {
       const response = await this.makeSidecarRequest<DirectoryListing>(
         `/api/files/list`,
@@ -246,7 +247,10 @@ export class FirecrackerToolExecutor implements ToolExecutor {
   /**
    * Search for files by name in VM filesystem
    */
-  async searchFiles(query: string, options?: SearchOptions): Promise<FileSearchResult> {
+  async searchFiles(
+    query: string,
+    options?: SearchOptions
+  ): Promise<FileSearchResult> {
     try {
       const response = await this.makeSidecarRequest<FileSearchResult>(
         `/api/search/files`,
@@ -275,10 +279,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
   /**
    * Search file contents using grep in VM
    */
-  async grepSearch(
-    query: string,
-    options?: GrepOptions
-  ): Promise<GrepResult> {
+  async grepSearch(query: string, options?: GrepOptions): Promise<GrepResult> {
     try {
       const response = await this.makeSidecarRequest<GrepResult>(
         `/api/search/grep`,
@@ -298,103 +299,55 @@ export class FirecrackerToolExecutor implements ToolExecutor {
         error: error instanceof Error ? error.message : "Unknown error",
         query,
         matches: [],
+        detailedMatches: [],
         matchCount: 0,
         message: `Failed to search with grep: ${query}`,
       };
     }
   }
 
-  /**
-   * Search codebase using specialized search tools
-   */
-  async codebaseSearch(
+
+  async semanticSearch(
     query: string,
-    options?: SearchOptions
-  ): Promise<CodebaseSearchToolResult> {
+    repo: string,
+    _options?: SearchOptions
+  ): Promise<SemanticSearchToolResult> {
     try {
-      const response = await this.makeSidecarRequest<CodebaseSearchToolResult>(
-        `/api/search/codebase`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            query,
-            ...options,
-          }),
-        }
+      return await performSemanticSearch({ query, repo });
+    } catch (error) {
+      console.error(
+        `[SEMANTIC_SEARCH_ERROR] Failed to query indexing service:`,
+        error
       );
 
-      return response;
-    } catch (error) {
+      // Fallback to grep search if indexing service is unavailable
+      const fallbackResult = await this.grepSearch(query);
+      
+      // Convert GrepResult to SemanticSearchToolResult format
       return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        query,
-        results: [],
-        searchTerms: [],
-        message: `Failed to search codebase: ${query}`,
-      };
-    }
-  }
-
-  async semanticSearch(query: string, repo: string, options?: SearchOptions): Promise<CodebaseSearchToolResult> {
-    if (!config.enableSemanticSearch) {
-      console.log("semanticSearch disabled, falling back to codebaseSearch");
-      return this.codebaseSearch(query, options);
-    }
-    try {
-      console.log("semanticSearch enabled");
-      console.log("semanticSearchParams", query, repo);
-      const response = await fetch(`${config.apiUrl}/api/indexing/search`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          query,
-          namespace: repo,
-          topK: 5,
-          fields: ["content", "filePath", "language"]
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Indexing service error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json() as { matches: EmbeddingSearchResult[] };
-      const matches = data.matches;
-
-      const parsedData = {
-        success: !!matches,
-        results: matches.map((match: EmbeddingSearchResult, i: number) => ({
+        success: fallbackResult.success,
+        results: fallbackResult.matches.map((match, i) => ({
           id: i + 1,
-          content: match?.fields?.code || match?.fields?.text || "",
-          relevance: typeof match?._score === "number" ? match._score : 0.8,
+          content: match,
+          relevance: 0.8,
+          filePath: "",
+          lineStart: 0,
+          lineEnd: 0,
+          language: "",
+          kind: "",
         })),
-        query,
-        searchTerms: query.split(/\s+/),
-        message: matches?.length
-          ? `Found ${matches.length} relevant code snippets for "${query}"`
-          : `No relevant code found for "${query}"`,
-      }
-      console.log("semanticSearch", parsedData);
-
-      return parsedData;
-    } catch (error) {
-      console.error(`[SEMANTIC_SEARCH_ERROR] Failed to query indexing service:`, error);
-
-      // Fallback to ripgrep if indexing service is unavailable
-      return this.codebaseSearch(query, options);
+        query: fallbackResult.query,
+        searchTerms: fallbackResult.query.split(/\s+/),
+        message: fallbackResult.message + " (fallback to grep)",
+        error: fallbackResult.error,
+      };
     }
   }
 
   /**
    * Perform web search (delegated to VM sidecar)
    */
-  async webSearch(
-    query: string,
-    domain?: string
-  ): Promise<WebSearchResult> {
+  async webSearch(query: string, domain?: string): Promise<WebSearchResult> {
     try {
       const response = await this.makeSidecarRequest<WebSearchResult>(
         `/api/search/web`,
