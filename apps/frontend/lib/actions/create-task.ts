@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth/auth";
 import { MessageRole, prisma, Task } from "@repo/db";
 import { headers } from "next/headers";
 import { after } from "next/server";
-import { z } from "zod";
+import { z, ZodIssue } from "zod";
 import { generateTaskTitleAndBranch } from "./generate-title-branch";
 import { saveResizableTaskLayoutCookie } from "./resizable-task-cookie";
 import { fetchIndexApi } from "./index-repo";
@@ -46,8 +46,8 @@ export async function createTask(formData: FormData) {
   };
   const validation = createTaskSchema.safeParse(rawData);
   if (!validation.success) {
-    const errorMessage = validation.error.errors
-      .map((err) => err.message)
+    const errorMessage = validation.error.issues
+      .map((err: ZodIssue) => err.message)
       .join(", ");
     throw new Error(`Validation failed: ${errorMessage}`);
   }
