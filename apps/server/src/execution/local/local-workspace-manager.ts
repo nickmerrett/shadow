@@ -169,7 +169,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
     shadowBranch: string,
     userId: string
   ): Promise<void> {
-    const gitManager = new GitManager(workspacePath, taskId);
+    const gitManager = new GitManager(workspacePath);
 
     try {
       // Get user information from database

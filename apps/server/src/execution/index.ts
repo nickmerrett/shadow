@@ -22,20 +22,14 @@ export function createToolExecutor(
 ): ToolExecutor {
   const agentMode = mode || config.agentMode;
 
-  switch (agentMode) {
-    case "local":
-      return new LocalToolExecutor(taskId, workspacePath);
-
-    case "firecracker": {
-      // For Firecracker mode, workspacePath should be the sidecar URL
-      // This will be provided by the FirecrackerWorkspaceManager
-      const sidecarUrl = workspacePath || `http://shadow-vm-${taskId}.${config.kubernetesNamespace}.svc.cluster.local:8080`;
-      return new FirecrackerToolExecutor(taskId, sidecarUrl);
-    }
-
-    default:
-      throw new Error(`Unsupported agent mode: ${agentMode}`);
+  if (agentMode === "local") {
+    return new LocalToolExecutor(taskId, workspacePath);
   }
+
+  // For Firecracker mode, workspacePath should be the sidecar URL
+  // This will be provided by the FirecrackerWorkspaceManager
+  const sidecarUrl = workspacePath || `http://shadow-vm-${taskId}.${config.kubernetesNamespace}.svc.cluster.local:8080`;
+  return new FirecrackerToolExecutor(taskId, sidecarUrl);
 }
 
 /**

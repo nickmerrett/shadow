@@ -31,14 +31,16 @@ export default function InitializingAnimation({ taskId }: { taskId: string }) {
     ? steps.findIndex((step) => step === lastCompletedStep) + 1
     : 0;
 
-  // console.log("currentStepIndex", currentStepIndex, "/", steps.length);
-
   return (
     <div
-      className="font-departureMono bg-background absolute top-16 flex w-full select-none flex-col gap-1 px-3 tracking-tight transition-opacity duration-1000 ease-in-out"
+      className={cn(
+        "font-departureMono bg-background pointer-events-none absolute top-16 flex w-full select-none flex-col gap-1 px-3 tracking-tight transition-all duration-1000 ease-in-out",
+        currentStepIndex === steps.length
+          ? "invisible opacity-0"
+          : "visible opacity-100"
+      )}
       style={{
         paddingBottom: `${BOTTOM_PADDING}px`,
-        opacity: currentStepIndex === steps.length ? 0 : 1,
       }}
     >
       <AnimationHeader />

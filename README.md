@@ -144,16 +144,6 @@ For containerized development, use Docker Compose:
 # Start all services
 docker-compose up -d
 
-# Include database admin tool (Adminer)
-docker-compose --profile admin up -d
-```
-
-When using the `admin` profile, Adminer will be available at http://localhost:8081 for database administration:
-- Server: `db`
-- Username: `postgres` 
-- Password: `postgres`
-- Database: `shadow`
-
 Stop services:
 ```bash
 docker-compose down

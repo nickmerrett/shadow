@@ -39,7 +39,7 @@ interface EmbedViaLocalTransformersOptions {
 
 interface EmbedTextsOptions
   extends EmbedViaJinaAPIOptions,
-  EmbedViaLocalTransformersOptions {
+    EmbedViaLocalTransformersOptions {
   provider?: EmbeddingProvider;
 }
 
@@ -267,7 +267,7 @@ async function embedAndUpsertToPinecone(
   nodes: GraphNode[],
   repo: string,
   clearNamespace: boolean,
-  opts: EmbedTextsOptions = {}
+  _opts: EmbedTextsOptions = {}
 ): Promise<number> {
   const pinecone = new PineconeHandler();
   const namespace = getNamespaceFromRepo(repo);

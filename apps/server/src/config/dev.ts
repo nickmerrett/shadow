@@ -30,6 +30,12 @@ const devConfigSchema = sharedConfigSchema.extend({
   VM_CPU_LIMIT: z.string().default("1000m"),
   VM_MEMORY_LIMIT: z.string().default("2Gi"),
   VM_STORAGE_LIMIT: z.string().default("10Gi"),
+
+  // Health monitoring configuration for development
+  HEALTH_CHECK_INTERVAL: z.coerce.number().default(60000), // 1 minute (longer for dev)
+  VM_HEALTH_CHECK_TIMEOUT: z.coerce.number().default(10000), // 10 seconds
+  MAX_CONCURRENT_VMS: z.coerce.number().default(3), // Lower limit for dev
+  MAX_VM_UPTIME_HOURS: z.coerce.number().default(4), // Shorter uptime for dev
 });
 
 /**
@@ -77,6 +83,12 @@ const devConfig = {
   vmCpuLimit: parsed.data.VM_CPU_LIMIT,
   vmMemoryLimit: parsed.data.VM_MEMORY_LIMIT,
   vmStorageLimit: parsed.data.VM_STORAGE_LIMIT,
+
+  // Health monitoring configuration
+  healthCheckInterval: parsed.data.HEALTH_CHECK_INTERVAL,
+  vmHealthCheckTimeout: parsed.data.VM_HEALTH_CHECK_TIMEOUT,
+  maxConcurrentVms: parsed.data.MAX_CONCURRENT_VMS,
+  maxVmUptimeHours: parsed.data.MAX_VM_UPTIME_HOURS,
   
   // Development-specific defaults
   firecrackerKernelPath: undefined, // Not needed for dev

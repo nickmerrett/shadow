@@ -91,7 +91,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
 
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
-  const { setSelectedFilePath, expandRightPanel } = useAgentEnvironment();
+  const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
 
   const [isIndexing, setIsIndexing] = useState(false);
 
@@ -116,10 +116,10 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   const handleFileSelect = useCallback(
     (file: FileNode) => {
-      setSelectedFilePath(file.path);
+      updateSelectedFilePath(file.path);
       expandRightPanel();
     },
-    [expandRightPanel, setSelectedFilePath]
+    [expandRightPanel, updateSelectedFilePath]
   );
 
   return (

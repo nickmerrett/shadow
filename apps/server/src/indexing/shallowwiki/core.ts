@@ -7,6 +7,7 @@ import path from "path";
 import Parser from "tree-sitter";
 import JavaScript from "tree-sitter-javascript";
 import TS from "tree-sitter-typescript";
+import { CodebaseUnderstandingStorage } from "./db-storage";
 
 // Configuration
 const TEMP = 0.15;
@@ -104,11 +105,6 @@ const LANGUAGES = {
 };
 
 const sha1 = (data: string) => createHash("sha1").update(data).digest("hex");
-
-function fingerprint(abs: string) {
-  const st = statSync(abs);
-  return sha1(`${st.size}_${st.mtimeMs}`);
-}
 
 // Extract symbols using tree-sitter
 function extractSymbols(src: string, langSpec: any): Symbols {
@@ -251,7 +247,7 @@ async function summarizeFile(rootPath: string, rel: string): Promise<string> {
   const fileExt = path.extname(rel);
   let langSpec = LANGUAGES.js; // default
 
-  for (const [key, lang] of Object.entries(LANGUAGES)) {
+  for (const [_key, lang] of Object.entries(LANGUAGES)) {
     if (lang.extensions.includes(fileExt)) {
       langSpec = lang;
       break;
@@ -272,9 +268,16 @@ async function summarizeFile(rootPath: string, rel: string): Promise<string> {
 }
 
 // Analyze file with GPT
-async function analyzeFileWithGPT(rel: string, src: string, symbols: Symbols): Promise<string> {
+async function analyzeFileWithGPT(
+  rel: string,
+  src: string,
+  symbols: Symbols
+): Promise<string> {
   const ext = path.extname(rel).toLowerCase();
-  const isDataFile = /\.(csv|json|txt|md|png|jpg|jpeg|gif|svg|ico|xlsx|xls|tsv|yaml|yml)$/i.test(ext);
+  const isDataFile =
+    /\.(csv|json|txt|md|png|jpg|jpeg|gif|svg|ico|xlsx|xls|tsv|yaml|yml)$/i.test(
+      ext
+    );
 
   let systemPrompt = "";
   if (isDataFile) {
@@ -322,7 +325,10 @@ async function chat(messages: any[], budget: number): Promise<string> {
 }
 
 // Summarize directory
-async function summarizeDir(node: TreeNode, childSummaries: string[]): Promise<string> {
+async function summarizeDir(
+  node: TreeNode,
+  childSummaries: string[]
+): Promise<string> {
   const budget = Math.min(800, 200 + childSummaries.length * 40);
   const systemPrompt = `Summarize this code directory. Be ultra-concise.
 
@@ -342,7 +348,10 @@ Use bullet points, fragments, abbreviations. Directory: ${node.relPath}`;
 }
 
 // Summarize root
-async function summarizeRoot(node: TreeNode, childSummaries: string[]): Promise<string> {
+async function summarizeRoot(
+  node: TreeNode,
+  childSummaries: string[]
+): Promise<string> {
   const budget = Math.min(500, 150 + childSummaries.length * 30);
   const systemPrompt = `Create a concise architecture overview for ${node.name}.
 
@@ -417,10 +426,10 @@ export async function runShallowWiki(
   for (const nid of nodesByDepth) {
     if (nid === "root") continue;
     const node = tree.nodes[nid]!;
-    
+
     // Collect child summaries
     const blocks: string[] = [];
-    
+
     // Add child directory summaries
     node.children.forEach((cid) => {
       const c = tree.nodes[cid]!;
@@ -460,7 +469,6 @@ export async function runShallowWiki(
   };
 
   // Store in database
-  const { CodebaseUnderstandingStorage } = await import("./db-storage");
   const storage = new CodebaseUnderstandingStorage(taskId);
   const codebaseUnderstandingId = await storage.storeSummary(
     repoFullName,
