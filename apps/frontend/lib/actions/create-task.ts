@@ -40,7 +40,7 @@ export async function createTask(formData: FormData) {
   };
   const validation = createTaskSchema.safeParse(rawData);
   if (!validation.success) {
-    const errorMessage = validation.error.errors.map((err: any) => err.message).join(", ");
+    const errorMessage = validation.error.errors.map((err: ZodIssue) => err.message).join(", ");
     throw new Error(`Validation failed: ${errorMessage}`);
   }
 
