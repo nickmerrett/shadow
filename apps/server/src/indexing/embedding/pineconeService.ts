@@ -156,7 +156,7 @@ class PineconeHandler {
       .namespace(request.namespace)
       .searchRecords({
         query: {
-          topK: request.topK || 3,
+          topK: request.topK || 15,
           inputs: { text: request.query },
         },
       }); // Search based on topK and query

@@ -17,7 +17,7 @@ export interface SemanticSearchResponse {
 export async function performSemanticSearch(
   params: SemanticSearchParams
 ): Promise<SemanticSearchToolResult> {
-  const { query, repo, topK = 5 } = params;
+  const { query, repo, topK = 15 } = params;
 
   let namespaceToUse = repo;
   if (isValidRepo(repo)) {
