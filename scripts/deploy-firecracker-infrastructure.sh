@@ -84,7 +84,7 @@ create_eks_cluster() {
     log "Creating EKS cluster with Firecracker-compatible nodes..."
     
     # Check if cluster already exists
-    if aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" &> /dev/null; then
+    if aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --profile ID &> /dev/null; then
         warn "EKS cluster '$CLUSTER_NAME' already exists in region '$AWS_REGION'"
         return 0
     fi
@@ -202,7 +202,7 @@ install_firecracker_runtime() {
     
     # Wait for DaemonSet to be ready
     log "Waiting for Firecracker runtime to be ready..."
-    kubectl rollout status daemonset/firecracker-runtime -n shadow --timeout=300s
+    kubectl rollout status daemonset/firecracker-runtime -n shadow-agents --timeout=300s
     
     log "Firecracker runtime installed successfully"
 }
@@ -239,7 +239,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: setup-vm-storage
-  namespace: shadow
+  namespace: shadow-agents
 spec:
   template:
     spec:
@@ -277,7 +277,7 @@ spec:
 EOF
 
     # Wait for job completion
-    kubectl wait --for=condition=complete job/setup-vm-storage -n shadow --timeout=300s
+    kubectl wait --for=condition=complete job/setup-vm-storage -n shadow-agents --timeout=300s
     
     log "VM image storage configured"
 }
@@ -287,10 +287,10 @@ generate_access_config() {
     log "Generating cluster access configuration..."
     
     # Update kubeconfig
-    aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
+    aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME" --profile ID
     
     # Get cluster endpoint
-    CLUSTER_ENDPOINT=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --query 'cluster.endpoint' --output text)
+    CLUSTER_ENDPOINT=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --profile ID --query 'cluster.endpoint' --output text)
     
     # Create service account token for Shadow application
     kubectl apply -f - << EOF
@@ -298,14 +298,14 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: shadow-service-account-token
-  namespace: shadow
+  namespace: shadow-agents
   annotations:
-    kubernetes.io/service-account.name: shadow-firecracker-sa
+    kubernetes.io/service-account.name: shadow-firecracker-server-sa
 type: kubernetes.io/service-account-token
 EOF
 
     # Get service account token
-    SERVICE_ACCOUNT_TOKEN=$(kubectl get secret shadow-service-account-token -n shadow -o jsonpath='{.data.token}' | base64 -d)
+    SERVICE_ACCOUNT_TOKEN=$(kubectl get secret shadow-service-account-token -n shadow-agents -o jsonpath='{.data.token}' | base64 -d)
     
     # Generate environment configuration
     cat > firecracker-cluster-config.env << EOF
@@ -320,7 +320,7 @@ EKS_CLUSTER_NAME=$CLUSTER_NAME
 KUBERNETES_SERVICE_HOST=${CLUSTER_ENDPOINT#https://}
 KUBERNETES_SERVICE_PORT=443
 K8S_SERVICE_ACCOUNT_TOKEN=$SERVICE_ACCOUNT_TOKEN
-KUBERNETES_NAMESPACE=shadow
+KUBERNETES_NAMESPACE=shadow-agents
 
 # Agent Configuration
 AGENT_MODE=firecracker
@@ -347,7 +347,7 @@ verify_deployment() {
     
     # Check Firecracker runtime
     log "Checking Firecracker runtime..."
-    kubectl get pods -n shadow -l app=firecracker-runtime
+    kubectl get pods -n shadow-agents -l app=firecracker-runtime
     
     # Check RuntimeClass
     log "Checking RuntimeClass..."
@@ -360,7 +360,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: firecracker-test
-  namespace: shadow
+  namespace: shadow-agents
 spec:
   runtimeClassName: firecracker
   nodeSelector:
@@ -385,13 +385,13 @@ spec:
 EOF
 
     # Wait for test pod
-    if kubectl wait --for=condition=Ready pod/firecracker-test -n shadow --timeout=120s; then
+    if kubectl wait --for=condition=Ready pod/firecracker-test -n shadow-agents --timeout=120s; then
         log "✅ Firecracker VM test successful"
-        kubectl delete pod firecracker-test -n shadow
+        kubectl delete pod firecracker-test -n shadow-agents
     else
         warn "❌ Firecracker VM test failed"
-        kubectl describe pod firecracker-test -n shadow
-        kubectl delete pod firecracker-test -n shadow || true
+        kubectl describe pod firecracker-test -n shadow-agents
+        kubectl delete pod firecracker-test -n shadow-agents || true
     fi
     
     log "Deployment verification completed"
@@ -422,8 +422,8 @@ main() {
     log ""
     log "Cluster access:"
     log "- kubectl get nodes"
-    log "- kubectl get pods -n shadow"
-    log "- kubectl logs -f -l app=firecracker-runtime -n shadow"
+    log "- kubectl get pods -n shadow-agents"
+    log "- kubectl logs -f -l app=firecracker-runtime -n shadow-agents"
     log ""
     log "Note: Monitoring stack skipped for simplified deployment"
 }
