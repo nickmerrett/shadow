@@ -1,13 +1,17 @@
 import dotenv from "dotenv";
 import { z } from "zod";
-import { sharedConfigSchema, sharedValidationRules, createSharedConfig } from "./shared";
+import {
+  sharedConfigSchema,
+  sharedValidationRules,
+  createSharedConfig,
+} from "./shared";
 
 dotenv.config();
 
 /**
  * Production environment configuration schema
  * Focused on Firecracker VM deployment with comprehensive validation
- * 
+ *
  * This configuration enables secure, isolated execution of user code through:
  * - Firecracker microVMs for hardware-level isolation
  * - Kubernetes orchestration on bare metal nodes
@@ -22,7 +26,9 @@ const prodConfigSchema = sharedConfigSchema.extend({
   // Enable Firecracker microVM execution (hardware-isolated containers)
   FIRECRACKER_ENABLED: z.boolean().default(true),
   // Docker registry containing VM images with pre-installed tools (Node.js, Python, etc.)
-  VM_IMAGE_REGISTRY: z.string().min(1, "VM_IMAGE_REGISTRY is required in production"),
+  VM_IMAGE_REGISTRY: z
+    .string()
+    .min(1, "VM_IMAGE_REGISTRY is required in production"),
   // Image tag/version to pull (e.g., 'v1.2.3', 'latest')
   VM_IMAGE_TAG: z.string().default("latest"),
   // Path to custom Firecracker kernel (optional, uses image default if not specified)
@@ -57,7 +63,9 @@ const prodConfigSchema = sharedConfigSchema.extend({
   // Kubernetes API server port (auto-detected if not specified)
   KUBERNETES_SERVICE_PORT: z.string().optional(),
   // Service account token for pod creation and management
-  K8S_SERVICE_ACCOUNT_TOKEN: z.string().min(1, "K8S_SERVICE_ACCOUNT_TOKEN is required in production"),
+  K8S_SERVICE_ACCOUNT_TOKEN: z
+    .string()
+    .min(1, "K8S_SERVICE_ACCOUNT_TOKEN is required in production"),
 
   // === KUBERNETES POD CONFIGURATION ===
   // Node selector to target bare metal instances with KVM support
@@ -139,7 +147,7 @@ const prodConfigSchema = sharedConfigSchema.extend({
   // AWS region for EKS cluster and supporting services
   AWS_REGION: z.string().default("us-east-1"),
   // EC2 instance types for Kubernetes nodes (metal instances support KVM)
-  EC2_INSTANCE_TYPES: z.string().default("c5n.metal,c5.metal,m5.metal"),
+  EC2_INSTANCE_TYPES: z.string().default("c5.metal,m5.metal"),
 
   // === CONTAINER REGISTRY CONFIGURATION ===
   // When to pull VM images (Always = latest security updates)
@@ -167,11 +175,26 @@ const prodConfigSchema = sharedConfigSchema.extend({
 
   // === VM RESOURCE LIMITS ===
   // Kubernetes CPU limit per VM (1000m = 1 CPU core)
-  VM_CPU_LIMIT: z.string().regex(/^\d+(m|)$/, "VM_CPU_LIMIT must be valid CPU format (e.g., 1000m)").default("500m"),
+  VM_CPU_LIMIT: z
+    .string()
+    .regex(/^\d+(m|)$/, "VM_CPU_LIMIT must be valid CPU format (e.g., 1000m)")
+    .default("500m"),
   // Kubernetes memory limit per VM (2Gi = 2 gigabytes)
-  VM_MEMORY_LIMIT: z.string().regex(/^\d+(Mi|Gi)$/, "VM_MEMORY_LIMIT must be valid memory format (e.g., 2Gi)").default("1Gi"),
+  VM_MEMORY_LIMIT: z
+    .string()
+    .regex(
+      /^\d+(Mi|Gi)$/,
+      "VM_MEMORY_LIMIT must be valid memory format (e.g., 2Gi)"
+    )
+    .default("1Gi"),
   // Kubernetes storage limit per VM (10Gi = 10 gigabytes)
-  VM_STORAGE_LIMIT: z.string().regex(/^\d+(Mi|Gi)$/, "VM_STORAGE_LIMIT must be valid storage format (e.g., 10Gi)").default("10Gi"),
+  VM_STORAGE_LIMIT: z
+    .string()
+    .regex(
+      /^\d+(Mi|Gi)$/,
+      "VM_STORAGE_LIMIT must be valid storage format (e.g., 10Gi)"
+    )
+    .default("10Gi"),
 
   // === FALLBACK CONFIGURATION ===
   // Local workspace directory (used if AGENT_MODE falls back to 'local')
@@ -190,7 +213,9 @@ const prodValidationRules = (data: z.infer<typeof prodConfigSchema>) => {
       errors.push("VM_IMAGE_REGISTRY is required when using firecracker mode");
     }
     if (!data.K8S_SERVICE_ACCOUNT_TOKEN) {
-      errors.push("K8S_SERVICE_ACCOUNT_TOKEN is required when using firecracker mode");
+      errors.push(
+        "K8S_SERVICE_ACCOUNT_TOKEN is required when using firecracker mode"
+      );
     }
   }
 
@@ -200,7 +225,9 @@ const prodValidationRules = (data: z.infer<typeof prodConfigSchema>) => {
   if (memoryLimit.includes("Gi")) {
     const limitGB = parseInt(memoryLimit.replace("Gi", ""));
     if (memoryMB > limitGB * 1024) {
-      errors.push(`VM_MEMORY_SIZE_MB (${memoryMB}) cannot exceed VM_MEMORY_LIMIT (${memoryLimit})`);
+      errors.push(
+        `VM_MEMORY_SIZE_MB (${memoryMB}) cannot exceed VM_MEMORY_LIMIT (${memoryLimit})`
+      );
     }
   }
 
@@ -223,14 +250,20 @@ const prodValidationRules = (data: z.infer<typeof prodConfigSchema>) => {
 const parsed = prodConfigSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error("Invalid production environment variables:", parsed.error.format());
+  console.error(
+    "Invalid production environment variables:",
+    parsed.error.format()
+  );
   process.exit(1);
 }
 
 // Apply shared validation rules
 const sharedValidation = sharedValidationRules(parsed.data);
 if (!sharedValidation.success) {
-  console.error("Production config shared validation failed:", sharedValidation.error);
+  console.error(
+    "Production config shared validation failed:",
+    sharedValidation.error
+  );
   process.exit(1);
 }
 
