@@ -98,7 +98,7 @@ export function SidebarNavigation({
           <FileCode />
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="right">Codebase View</TooltipContent>
+      <TooltipContent side="right">Codebase Understanding</TooltipContent>
     </Tooltip>
   );
 
@@ -153,7 +153,7 @@ export function SidebarNavigation({
                 <LayoutGrid />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">Tasks View</TooltipContent>
+            <TooltipContent side="right">Active Tasks</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -176,7 +176,7 @@ export function SidebarNavigation({
                 <BookOpenText />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">Codebases View</TooltipContent>
+            <TooltipContent side="right">Codebases</TooltipContent>
           </Tooltip>
 
           {pageSpecificViewTrigger}
