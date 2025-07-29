@@ -90,9 +90,6 @@ export const createSharedConfig = (
   githubClientId: data.GITHUB_CLIENT_ID,
   githubClientSecret: data.GITHUB_CLIENT_SECRET,
 
-  // Semantic search
-  enableSemanticSearch: data.ENABLE_SEMANTIC_SEARCH,
-
   // Repository
   maxRepoSizeMB: data.MAX_REPO_SIZE_MB,
 

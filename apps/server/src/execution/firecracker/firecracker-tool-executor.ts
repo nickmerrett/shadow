@@ -337,10 +337,6 @@ export class FirecrackerToolExecutor implements ToolExecutor {
   }
 
   async semanticSearch(query: string, repo: string, options?: SearchOptions): Promise<CodebaseSearchToolResult> {
-    if (!config.enableSemanticSearch) {
-      console.log("semanticSearch disabled, falling back to codebaseSearch");
-      return this.codebaseSearch(query, options);
-    }
     try {
       return await performSemanticSearch({ query, repo });
     } catch (error) {
