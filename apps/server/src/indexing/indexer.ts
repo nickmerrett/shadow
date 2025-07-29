@@ -455,7 +455,7 @@ function buildInvertedInMemory(graph: Graph): Record<string, string[]> {
     const tokens = tokenize(textParts.join("\n"));
 
     tokens.forEach((token) => {
-      if (token && token.length > 0) {
+      if (token.length > 0) {
         if (!idx[token]) idx[token] = new Set();
         idx[token].add(node.id);
       }
