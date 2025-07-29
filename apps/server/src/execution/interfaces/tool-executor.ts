@@ -11,6 +11,7 @@ import {
   SearchOptions,
   WriteResult,
   CodebaseSearchToolResult,
+  SemanticSearchToolResult,
   WebSearchResult,
   GitStatusResponse,
   GitDiffResponse,
@@ -67,7 +68,7 @@ export interface ToolExecutor {
     query: string,
     repo: string,
     options?: SearchOptions
-  ): Promise<CodebaseSearchToolResult>;
+  ): Promise<SemanticSearchToolResult>;
   webSearch(
     query: string,
     domain?: string

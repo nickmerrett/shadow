@@ -23,6 +23,7 @@ import {
   ReadFileOptions,
   WriteResult,
   CodebaseSearchToolResult,
+  SemanticSearchToolResult,
   SearchOptions,
   WebSearchResult,
   GitStatusResponse,
@@ -443,7 +444,7 @@ export class LocalToolExecutor implements ToolExecutor {
     query: string,
     repo: string,
     options?: SearchOptions
-  ): Promise<CodebaseSearchToolResult> {
+  ): Promise<SemanticSearchToolResult> {
     try {
       return await performSemanticSearch({ query, repo });
     } catch (error) {
@@ -453,7 +454,24 @@ export class LocalToolExecutor implements ToolExecutor {
       );
 
       // Fallback to ripgrep if indexing service is unavailable
-      return this.codebaseSearch(query, options);
+      const fallbackResult = await this.codebaseSearch(query, options);
+      
+      // Convert CodebaseSearchToolResult to SemanticSearchToolResult format
+      return {
+        success: fallbackResult.success,
+        results: fallbackResult.results.map((item) => ({
+          ...item,
+          filePath: "",
+          lineStart: 0,
+          lineEnd: 0,
+          language: "",
+          kind: "",
+        })),
+        query: fallbackResult.query,
+        searchTerms: fallbackResult.searchTerms,
+        message: fallbackResult.message + " (fallback to ripgrep)",
+        error: fallbackResult.error,
+      };
     }
   }
   async webSearch(query: string, domain?: string): Promise<WebSearchResult> {

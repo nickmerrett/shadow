@@ -1,5 +1,5 @@
-import type { Message, CodebaseSearchToolResult } from "@repo/types";
-import { Code, Folder, Search } from "lucide-react";
+import type { Message, SemanticSearchToolResult } from "@repo/types";
+import { Code, File, Folder, Search } from "lucide-react";
 import { CollapsibleTool, ToolType } from "./collapsible-tool";
 
 export function SemanticSearchTool({ message }: { message: Message }) {
@@ -10,7 +10,7 @@ export function SemanticSearchTool({ message }: { message: Message }) {
   const query = args.query as string;
   const targetDirectories = args.targetDirectories as string[] | undefined;
 
-  let parsedResult: CodebaseSearchToolResult | null = null;
+  let parsedResult: SemanticSearchToolResult | null = null;
   try {
     parsedResult = typeof result === "string" ? JSON.parse(result) : result;
   } catch {
@@ -49,14 +49,38 @@ export function SemanticSearchTool({ message }: { message: Message }) {
                   {parsedResult.message}
                 </div>
                 {parsedResult.results.map((item) => (
-                  <div key={item.id} className="flex flex-col gap-1 py-1">
+                  <div
+                    key={item.id}
+                    className="flex flex-col gap-2 border-b border-gray-200 py-2 last:border-b-0 dark:border-gray-700"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <File className="size-4 text-blue-500" />
+                      <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs dark:bg-gray-800">
+                        {item.filePath}
+                      </code>
+                      {item.lineStart > 0 && (
+                        <span className="text-muted-foreground text-xs">
+                          lines {item.lineStart}-{item.lineEnd}
+                        </span>
+                      )}
+                      {item.language && (
+                        <span className="text-muted-foreground rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-800">
+                          {item.language}
+                        </span>
+                      )}
+                      {item.kind && (
+                        <span className="text-muted-foreground rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                          {item.kind}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       <Code className="size-4" />
                       <span className="text-muted-foreground text-xs">
                         Relevance: {(item.relevance * 100).toFixed(0)}%
                       </span>
                     </div>
-                    <pre className="overflow-x-auto whitespace-pre-wrap text-xs">
+                    <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-gray-50 p-2 text-xs dark:bg-gray-900/50">
                       {item.content.length > 400
                         ? `${item.content.substring(0, 400)}...`
                         : item.content}

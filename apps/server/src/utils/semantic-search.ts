@@ -1,7 +1,7 @@
 import { retrieveCodeChunks } from "@/indexing/codebase-retrieval";
 import { getNamespaceFromRepo, isValidRepo } from "@/indexing/utils/repository";
 import { CodebaseSearchResponse } from "@/indexing/codebase-types";
-import { CodebaseSearchToolResult } from "@repo/types";
+import { SemanticSearchToolResult } from "@repo/types";
 
 export interface SemanticSearchParams {
   query: string;
@@ -16,7 +16,7 @@ export interface SemanticSearchResponse {
 
 export async function performSemanticSearch(
   params: SemanticSearchParams
-): Promise<CodebaseSearchToolResult> {
+): Promise<SemanticSearchToolResult> {
   const { query, repo, topK = 5 } = params;
 
   let namespaceToUse = repo;
@@ -31,12 +31,17 @@ export async function performSemanticSearch(
       topK,
     });
 
-    const parsedData: CodebaseSearchToolResult = {
+    const parsedData: SemanticSearchToolResult = {
       success: !!hits,
       results: hits.map((hit: CodebaseSearchResponse, i: number) => ({
         id: i + 1,
         content: hit?.fields?.code || "",
         relevance: typeof hit?._score === "number" ? hit._score : 0.8,
+        filePath: hit?.fields?.path || "",
+        lineStart: hit?.fields?.line_start || 0,
+        lineEnd: hit?.fields?.line_end || 0,
+        language: hit?.fields?.lang || "",
+        kind: hit?.fields?.kind || "",
       })),
       query,
       searchTerms: query.split(/\s+/),
