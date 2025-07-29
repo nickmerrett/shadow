@@ -186,7 +186,7 @@ export class DeepWikiStorage {
     try {
       // Use the existing retrieval system to search DeepWiki summaries
       const { retrieve } = await import("../retrievalWrapper.js");
-      const results = await retrieve(query, this.namespace, topK);
+      const results = await retrieve({ query, namespace: this.namespace, topK });
       return results;
     } catch (error) {
       console.error(`Failed to search summaries:`, error);
