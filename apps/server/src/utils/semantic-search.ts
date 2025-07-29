@@ -19,9 +19,6 @@ export async function performSemanticSearch(
 ): Promise<CodebaseSearchToolResult> {
   const { query, repo, topK = 5 } = params;
 
-  console.log("semanticSearch enabled");
-  console.log("semanticSearchParams", query, repo);
-
   let namespaceToUse = repo;
   if (isValidRepo(repo)) {
     namespaceToUse = getNamespaceFromRepo(repo);

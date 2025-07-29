@@ -33,7 +33,7 @@ import {
   GitPushRequest,
 } from "@repo/types";
 import { CommandResult } from "../interfaces/types";
-import { performSemanticSearch } from "../../utils/semantic-search";
+import { performSemanticSearch } from "@/utils/semantic-search";
 
 /**
  * LocalToolExecutor implements tool operations for local filesystem execution

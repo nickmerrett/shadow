@@ -1,11 +1,9 @@
 import indexRepo, { IndexRepoOptions } from "@/indexing/indexer";
 import express from "express";
-import PineconeHandler from "./embedding/pineconeService";
 import { isValidRepo } from "./utils/repository";
 import { shallowwikiRouter } from "./shallowwiki/routes";
 
 const router = express.Router();
-const pinecone = new PineconeHandler();
 
 // Mount the ShallowWiki router
 router.use("/shallowwiki", shallowwikiRouter);

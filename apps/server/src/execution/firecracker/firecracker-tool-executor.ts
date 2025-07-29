@@ -21,7 +21,7 @@ import {
   GitPushRequest,
 } from "@repo/types";
 import { CommandResult } from "../interfaces/types";
-import { performSemanticSearch } from "../../utils/semantic-search";
+import { performSemanticSearch } from "@/utils/semantic-search";
 
 /**
  * FirecrackerToolExecutor executes tools in Firecracker microVMs via sidecar API
@@ -68,7 +68,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
         );
       }
 
-      return await response.json() as T;
+      return (await response.json()) as T;
     } catch (error) {
       clearTimeout(timeoutId);
       throw error;
@@ -219,7 +219,9 @@ export class FirecrackerToolExecutor implements ToolExecutor {
   /**
    * List directory contents in VM filesystem
    */
-  async listDirectory(relativeWorkspacePath: string): Promise<DirectoryListing> {
+  async listDirectory(
+    relativeWorkspacePath: string
+  ): Promise<DirectoryListing> {
     try {
       const response = await this.makeSidecarRequest<DirectoryListing>(
         `/api/files/list`,
@@ -245,7 +247,10 @@ export class FirecrackerToolExecutor implements ToolExecutor {
   /**
    * Search for files by name in VM filesystem
    */
-  async searchFiles(query: string, options?: SearchOptions): Promise<FileSearchResult> {
+  async searchFiles(
+    query: string,
+    options?: SearchOptions
+  ): Promise<FileSearchResult> {
     try {
       const response = await this.makeSidecarRequest<FileSearchResult>(
         `/api/search/files`,
@@ -274,10 +279,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
   /**
    * Search file contents using grep in VM
    */
-  async grepSearch(
-    query: string,
-    options?: GrepOptions
-  ): Promise<GrepResult> {
+  async grepSearch(query: string, options?: GrepOptions): Promise<GrepResult> {
     try {
       const response = await this.makeSidecarRequest<GrepResult>(
         `/api/search/grep`,
@@ -335,11 +337,18 @@ export class FirecrackerToolExecutor implements ToolExecutor {
     }
   }
 
-  async semanticSearch(query: string, repo: string, options?: SearchOptions): Promise<CodebaseSearchToolResult> {
+  async semanticSearch(
+    query: string,
+    repo: string,
+    options?: SearchOptions
+  ): Promise<CodebaseSearchToolResult> {
     try {
       return await performSemanticSearch({ query, repo });
     } catch (error) {
-      console.error(`[SEMANTIC_SEARCH_ERROR] Failed to query indexing service:`, error);
+      console.error(
+        `[SEMANTIC_SEARCH_ERROR] Failed to query indexing service:`,
+        error
+      );
 
       // Fallback to ripgrep if indexing service is unavailable
       return this.codebaseSearch(query, options);
@@ -349,10 +358,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
   /**
    * Perform web search (delegated to VM sidecar)
    */
-  async webSearch(
-    query: string,
-    domain?: string
-  ): Promise<WebSearchResult> {
+  async webSearch(query: string, domain?: string): Promise<WebSearchResult> {
     try {
       const response = await this.makeSidecarRequest<WebSearchResult>(
         `/api/search/web`,
