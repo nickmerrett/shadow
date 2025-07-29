@@ -19,22 +19,57 @@ function safeRequire(name: string): any {
     const mod = require(name);
     let language;
     
-    if (name === "tree-sitter-typescript") {
-      language = mod.typescript || mod;
-    } else {
-      language = mod.default || mod;
+    switch (name) {
+      case "tree-sitter-typescript":
+        language = mod.typescript || mod;
+        break;
+      case "tree-sitter-javascript":
+        language = mod.javascript || mod;
+        break;
+      case "tree-sitter-python":
+        language = mod.python || mod;
+        break;
+      case "tree-sitter-cpp":
+        language = mod.cpp || mod;
+        break;
+      case "tree-sitter-c":
+        language = mod.c || mod;
+        break;
+      case "tree-sitter-java":
+        language = mod.java || mod;
+        break;
+      case "tree-sitter-ruby":
+        language = mod.ruby || mod;
+        break;
+      case "tree-sitter-rust":
+        language = mod.rust || mod;
+        break;
+      case "tree-sitter-php":
+        language = mod.php || mod;
+        break;
+      default:
+        language = mod.default || mod;
+        break;
     }
     
     // Validate that this is a proper Tree-sitter language object
-    if (language && typeof language === 'object' && 
-        (typeof language.nodeTypeCount === 'number' || 
-         typeof language.id === 'number' ||
-         language.constructor?.name === 'Language')) {
-      return language;
-    } else {
-      logger.warn(`Invalid language object for ${name}: ${typeof language}`);
-      return null;
+    if (language && typeof language === 'object') {
+      // Check for Tree-sitter Language properties
+      const hasValidProps = (
+        typeof language.nodeTypeCount === 'number' ||
+        typeof language.id === 'number' ||
+        language.constructor?.name === 'Language' ||
+        language.name && Array.isArray(language.nodeTypeInfo) ||
+        typeof language.query === 'function'
+      );
+      
+      if (hasValidProps) {
+        return language;
+      }
     }
+    
+    logger.warn(`Invalid language object for ${name}: ${typeof language}`);
+    return null;
   } catch (err) {
     logger.warn(`Language grammar not installed: ${name} - ${err}`);
     return null;

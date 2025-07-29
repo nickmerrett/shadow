@@ -2,7 +2,8 @@ import { Index, Pinecone } from "@pinecone-database/pinecone";
 import config from "../../config";
 import { GraphNode } from "../graph";
 import logger from "../logger";
-import { PineconeBatchRecord, PineconeAutoEmbedRecord } from "../types";
+import { PineconeBatchRecord, PineconeAutoEmbedRecord, EmbeddingSearchRequest } from "../types";
+import { EmbeddingSearchResponse } from "@/indexing/types";
 
 // Handles Pinecone operators
 class PineconeHandler {
@@ -68,19 +69,20 @@ class PineconeHandler {
     try {
       // Convert to upsertRecords format and filter out empty text
       const autoEmbedRecords: PineconeAutoEmbedRecord[] = records
-        .filter((record) => {
-          const text = record.metadata.code || ""; // If theres no code, skip the record
+        .map((record) => {
+          const text = record.metadata.code || "";
           if (!text.trim()) {
-            logger.info(`Skipping record ${record.id} - no text to embed`);
-            return false;
+            logger.info(`${record.id} - no text to embed`);
+            return null;
           }
-          return true;
+          return {
+            _id: record.id,
+            text: text,
+            chunk_text: text,
+            ...record.metadata,
+          };
         })
-        .map((record) => ({
-          _id: record.id, // Create an id
-          chunk_text: record.metadata.code || "", // Use chunk_text as per fieldMap config
-          ...record.metadata, // Add the rest of the metadata
-        }));
+        .filter((record): record is PineconeAutoEmbedRecord => record !== null);
 
       if (autoEmbedRecords.length === 0) {
         logger.warn("No records to upsert in pineconeService.ts");
@@ -89,6 +91,7 @@ class PineconeHandler {
 
       // Use upsertRecords for auto-embedding
       await this.client.namespace(namespace).upsertRecords(autoEmbedRecords); // Pinecone fn
+      logger.info(`Upserted ${autoEmbedRecords.length} records to Pinecone`);
       return autoEmbedRecords.length;
     } catch (error) {
       logger.error(`Error upserting records: ${error}`);
@@ -138,21 +141,38 @@ class PineconeHandler {
 
   // Query the Pinecone index
   async searchRecords(
-    query: string,
-    namespace: string,
-    topK: number = 3,
-  ) {
+    request: EmbeddingSearchRequest,
+  ): Promise<EmbeddingSearchResponse[]> {
     if (this.isDisabled) {
       logger.warn("Pinecone is disabled, skipping search");
       return [];
     }
-    const response = await this.client.namespace(namespace).searchRecords({
+    const response = await this.client.namespace(request.namespace).searchRecords({
       query: {
-        topK: topK,
-        inputs: { text: query },
+        topK: request.topK || 3,
+        inputs: { text: request.query },
       },
     }); // Search based on topK and query
-    return response;
+    /*
+    {
+      "result": {
+        "hits": [
+          {
+            "id": "123",
+            "score": 0.98,
+            "metadata": {
+              "code": "...",
+              "path": "...",
+              "name": "..."
+            }
+          }
+        ]
+      }
+    }
+    */
+    // Transform Pinecone hits to EmbeddingSearchResponse format
+    const hits = response.result?.hits || [];
+    return hits as EmbeddingSearchResponse[];
   }
 }
 

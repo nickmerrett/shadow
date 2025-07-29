@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 import config from "../config";
-import { EmbeddingSearchResult } from "../indexing/embedding/types";
+import { EmbeddingSearchResponse } from "@/indexing/types";
 import { CodebaseSearchToolResult } from "@repo/types";
 
 export interface SemanticSearchParams {
@@ -11,7 +11,7 @@ export interface SemanticSearchParams {
 }
 
 export interface SemanticSearchResponse {
-  matches: EmbeddingSearchResult[];
+  hits: EmbeddingSearchResponse[];
 }
 
 export async function performSemanticSearch(
@@ -42,19 +42,19 @@ export async function performSemanticSearch(
   }
 
   const data = (await response.json()) as SemanticSearchResponse;
-  const matches = data.matches;
+  const hits = data.hits;
 
   const parsedData: CodebaseSearchToolResult = {
-    success: !!matches,
-    results: matches.map((match: EmbeddingSearchResult, i: number) => ({
+    success: !!hits,
+    results: hits.map((hit: EmbeddingSearchResponse, i: number) => ({
       id: i + 1,
-      content: match?.fields?.code || match?.fields?.text || "",
-      relevance: typeof match?._score === "number" ? match._score : 0.8,
+      content: hit?.fields?.code || "",
+      relevance: typeof hit?._score === "number" ? hit._score : 0.8,
     })),
     query,
     searchTerms: query.split(/\s+/),
-    message: matches?.length
-      ? `Found ${matches.length} relevant code snippets for "${query}"`
+    message: hits?.length
+      ? `Found ${hits.length} relevant code snippets for "${query}"`
       : `No relevant code found for "${query}"`,
   };
 

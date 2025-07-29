@@ -179,7 +179,7 @@ export class DeepWikiStorage {
   async searchSummaries(query: string, topK: number = 10): Promise<any[]> {
     try {
       // Use the existing retrieval system to search DeepWiki summaries
-      const { retrieve } = await import("../retrieval.js");
+      const { retrieve } = await import("../retrievalWrapper.js");
       const results = await retrieve(query, this.namespace, topK);
       return results.result?.hits || [];
     } catch (error) {

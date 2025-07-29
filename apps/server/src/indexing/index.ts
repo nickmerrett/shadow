@@ -1,9 +1,8 @@
 import indexRepo, { IndexRepoOptions } from "@/indexing/indexer";
 import express from "express";
 import PineconeHandler from "./embedding/pineconeService";
-import { retrieve } from "./retrieval";
+import { retrieve } from "./retrievalWrapper";
 import { getNamespaceFromRepo, isValidRepo } from "./utils/repository";
-import config from "@/config";
 import { shallowwikiRouter } from "./shallowwiki/routes";
 
 const router = express.Router();
@@ -55,25 +54,29 @@ router.post(
     req: express.Request<
       object,
       object,
-      { query: string; namespace: string; topK?: number; fields?: string[] }
+      { query: string; namespace: string; topK?: number }
     >,
     res,
     next
   ) => {
     try {
-      const { query, namespace, topK, fields } = req.body;
+      const { query, namespace, topK } = req.body;
       if (!query || !namespace) {
         return res
           .status(400)
           .json({ error: "Missing required parameters: query, namespace" });
-      }
+      } // If the namespace is a valid repo, get the namespace from the repo
       let namespaceToUse = namespace;
       if (isValidRepo(namespace)) {
         namespaceToUse = getNamespaceFromRepo(namespace);
       }
-      const response = await retrieve(query, namespaceToUse, topK, fields);
+      const response = await retrieve({
+        query,
+        namespace: namespaceToUse,
+        topK,
+      });
       // The response from pinecone is { result: { hits: [] } }, let's return a `matches` property as expected by the test
-      res.json({ matches: response.result?.hits || [] });
+      res.json({ hits: response });
     } catch (error) {
       next(error);
     }
@@ -101,6 +104,5 @@ router.delete(
     }
   }
 );
-
 
 export { router };

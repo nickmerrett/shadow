@@ -13,8 +13,8 @@ import { getHash, getNodeHash } from "@/indexing/utils/hash";
 import { sliceByLoc } from "@/indexing/utils/text";
 import { tokenize } from "@/indexing/utils/tokenize";
 import TreeSitter from "tree-sitter";
-import { embedAndUpsertToPinecone } from "./embedder";
-import { getOwnerRepo, isValidRepo } from "./utils/repository";
+import { embedAndUpsertToPinecone } from "./embedderWrapper";
+import { getOwnerFromRepo, isValidRepo } from "./utils/repository";
 import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
 
 export interface FileContentResponse {
@@ -67,7 +67,7 @@ async function indexRepo(
 
   // Check if it's a GitHub repo (format: "owner/repo")
   if (isValidRepo(repoName)) {
-    const { owner, repo } = getOwnerRepo(repoName);
+    const { owner, repo } = getOwnerFromRepo(repoName);
     logger.info(`Fetching GitHub repo: ${owner}/${repo}`);
 
     files = await fetchRepoFiles(taskId);
@@ -99,13 +99,12 @@ async function indexRepo(
       if (!spec || !spec.language) {
         logger.warn(`Skipping unsupported: ${file.path}`);
         continue;
-      } else {
-        console.log("Parsing", file.path);
       }
+      
       
       const parser = new TreeSitter();
       try {
-        parser.setLanguage(spec.language);
+        parser.setLanguage(spec.language as any);
       } catch (error) {
         logger.warn(`Failed to set language for ${file.path}: ${error instanceof Error ? error.message : String(error)}`);
         continue;
