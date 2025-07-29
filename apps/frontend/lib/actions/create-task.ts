@@ -4,19 +4,25 @@ import { auth } from "@/lib/auth/auth";
 import { MessageRole, prisma, Task } from "@repo/db";
 import { headers } from "next/headers";
 import { after } from "next/server";
-import { z } from "zod";
+import { z, ZodIssue } from "zod";
 import { generateTaskTitleAndBranch } from "./generate-title-branch";
 import { saveResizableTaskLayoutCookie } from "./resizable-task-cookie";
 import { fetchIndexApi } from "./index-repo";
 
 const createTaskSchema = z.object({
-  message: z.string().min(1, "Message is required").max(1000, "Message too long"),
+  message: z
+    .string()
+    .min(1, "Message is required")
+    .max(1000, "Message too long"),
   model: z.string().min(1, "Model is required"),
   repoFullName: z.string().min(1, "Repository name is required"),
-  repoUrl: z.string().url("Invalid repository URL").refine(
-    (url) => url.includes("github.com"),
-    "Only GitHub repositories are supported"
-  ),
+  repoUrl: z
+    .string()
+    .url("Invalid repository URL")
+    .refine(
+      (url) => url.includes("github.com"),
+      "Only GitHub repositories are supported"
+    ),
   baseBranch: z.string().min(1, "Base branch is required").default("main"),
 });
 
@@ -40,7 +46,9 @@ export async function createTask(formData: FormData) {
   };
   const validation = createTaskSchema.safeParse(rawData);
   if (!validation.success) {
-    const errorMessage = validation.error.errors.map(err => err.message).join(", ");
+    const errorMessage = validation.error.issues
+      .map((err: ZodIssue) => err.message)
+      .join(", ");
     throw new Error(`Validation failed: ${errorMessage}`);
   }
 
@@ -51,7 +59,10 @@ export async function createTask(formData: FormData) {
 
   try {
     // Generate a title for the task
-    const { title, shadowBranch } = await generateTaskTitleAndBranch(taskId, message);
+    const { title, shadowBranch } = await generateTaskTitleAndBranch(
+      taskId,
+      message
+    );
 
     // Create the task
     task = await prisma.task.create({
@@ -102,7 +113,11 @@ export async function createTask(formData: FormData) {
           }
         );
 
-        await fetchIndexApi({ repoFullName: task.repoFullName, taskId: task.id, clearNamespace: true });
+        await fetchIndexApi({
+          repoFullName: task.repoFullName,
+          taskId: task.id,
+          clearNamespace: true,
+        });
         if (!response.ok) {
           console.error("Failed to initiate task:", await response.text());
         } else {
@@ -112,7 +127,6 @@ export async function createTask(formData: FormData) {
         console.error("Error initiating task:", error);
       }
     });
-
   } catch (error) {
     console.error("Failed to create task:", error);
     throw new Error("Failed to create task");

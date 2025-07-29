@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { isValidRepo, getOwnerRepo } from "../utils/repository";
+import { isValidRepo, getOwnerFromRepo } from "../utils/repository";
 import logger from "../logger";
 import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
 
@@ -30,7 +30,7 @@ export async function resolveRepoPath(
     return await resolveFromWorkspace(repoOrPath, forceRefresh);
   }
 
-  const { owner, repo } = getOwnerRepo(repoOrPath);
+  const { owner, repo } = getOwnerFromRepo(repoOrPath);
   const cacheDir = path.join(
     os.tmpdir(),
     "shallowwiki-repos",

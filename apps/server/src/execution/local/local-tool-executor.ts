@@ -20,9 +20,10 @@ import {
   FileStatsResult,
   GrepOptions,
   GrepResult,
+  GrepMatch,
   ReadFileOptions,
   WriteResult,
-  CodebaseSearchToolResult,
+  SemanticSearchToolResult,
   SearchOptions,
   WebSearchResult,
   GitStatusResponse,
@@ -32,8 +33,8 @@ import {
   GitCommitRequest,
   GitPushRequest,
 } from "@repo/types";
-import { EmbeddingSearchResult } from "../../indexing/embedding/types";
 import { CommandResult } from "../interfaces/types";
+import { performSemanticSearch } from "@/utils/semantic-search";
 
 /**
  * LocalToolExecutor implements tool operations for local filesystem execution
@@ -324,8 +325,9 @@ export class LocalToolExecutor implements ToolExecutor {
 
   async grepSearch(query: string, options?: GrepOptions): Promise<GrepResult> {
     try {
-      let command = `rg "${query}" "${this.workspacePath}"`;
-
+      // Build ripgrep command with file names and line numbers
+      let command = `rg -n --with-filename "${query}" "${this.workspacePath}"`;
+      
       if (!options?.caseSensitive) {
         command += " -i";
       }
@@ -342,14 +344,41 @@ export class LocalToolExecutor implements ToolExecutor {
 
       const { stdout } = await execAsync(command);
 
-      const matches = stdout
+      const rawMatches = stdout
         .trim()
         .split("\n")
         .filter((line) => line.length > 0);
 
+      // Parse structured output: "file:line:content"
+      const detailedMatches: GrepMatch[] = [];
+      const matches: string[] = [];
+
+      for (const rawMatch of rawMatches) {
+        const colonIndex = rawMatch.indexOf(':');
+        const secondColonIndex = rawMatch.indexOf(':', colonIndex + 1);
+        
+        if (colonIndex > 0 && secondColonIndex > colonIndex) {
+          const file = rawMatch.substring(0, colonIndex); // Full absolute path
+          const lineNumber = parseInt(rawMatch.substring(colonIndex + 1, secondColonIndex), 10);
+          let content = rawMatch.substring(secondColonIndex + 1); // Complete line content
+          
+          // Truncate content to 250 characters max
+          if (content.length > 250) {
+            content = content.substring(0, 250) + "...";
+          }
+          
+          detailedMatches.push({ file, lineNumber, content });
+          matches.push(rawMatch); // Keep original format for backward compatibility
+        } else {
+          // Fallback for unexpected format
+          matches.push(rawMatch);
+        }
+      }
+
       return {
         success: true,
         matches,
+        detailedMatches,
         query,
         matchCount: matches.length,
         message: `Found ${matches.length} matches for pattern: ${query}`,
@@ -360,6 +389,7 @@ export class LocalToolExecutor implements ToolExecutor {
         return {
           success: true,
           matches: [],
+          detailedMatches: [],
           query,
           matchCount: 0,
           message: `No matches found for pattern: ${query}`,
@@ -371,137 +401,50 @@ export class LocalToolExecutor implements ToolExecutor {
         error: error instanceof Error ? error.message : "Unknown error",
         message: `Failed to search for pattern: ${query}`,
         matches: [],
+        detailedMatches: [],
         query,
         matchCount: 0,
       };
     }
   }
 
-  async codebaseSearch(
-    query: string,
-    options?: SearchOptions
-  ): Promise<CodebaseSearchToolResult> {
-    try {
-      // Use ripgrep for a basic semantic-like search with multiple patterns
-      const searchTerms = query.split(" ").filter((term) => term.length > 2);
-      const searchPattern = searchTerms.join("|");
-
-      let searchPath = this.workspacePath;
-      if (options?.targetDirectories && options.targetDirectories.length > 0) {
-        // For now, just use the first directory
-        searchPath = path.resolve(
-          this.workspacePath,
-          options.targetDirectories[0] || "."
-        );
-      }
-
-      // Use ripgrep with case-insensitive search and context
-      const command = `rg -i -C 3 --max-count 10 "${searchPattern}" "${searchPath}"`;
-
-      try {
-        const { stdout } = await execAsync(command);
-        const results = stdout
-          .trim()
-          .split("\n--\n")
-          .map((chunk, index) => ({
-            id: index + 1,
-            content: chunk.trim(),
-            relevance: 0.8, // Mock relevance score
-          }))
-          .filter((result) => result.content.length > 0);
-
-        return {
-          success: true,
-          message: `Found ${results.length} relevant code snippets for "${query}"`,
-          results: results.slice(0, 5), // Limit to top 5 results
-          query,
-          searchTerms,
-        };
-      } catch (_error) {
-        // If ripgrep fails (no matches), return empty results
-        return {
-          success: true,
-          message: `No relevant code found for "${query}"`,
-          results: [],
-          query,
-          searchTerms,
-        };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        message: `Failed to search codebase for: ${query}`,
-        results: [],
-        query,
-        searchTerms: [],
-      };
-    }
-  }
 
   async semanticSearch(
     query: string,
     repo: string,
-    options?: SearchOptions
-  ): Promise<CodebaseSearchToolResult> {
-    if (!config.enableSemanticSearch) {
-      console.log("semanticSearch disabled, falling back to codebaseSearch");
-      return this.codebaseSearch(query, options);
-    }
+    _options?: SearchOptions
+  ): Promise<SemanticSearchToolResult> {
     try {
-      console.log("semanticSearch enabled");
-      console.log("semanticSearchParams", query, repo);
-      const response = await fetch(`${config.apiUrl}/api/indexing/search`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          query,
-          namespace: repo,
-          topK: 5,
-          fields: ["content", "filePath", "language"],
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Indexing service error: ${response.status} ${response.statusText}`
-        );
-      }
-
-      const data = (await response.json()) as {
-        matches: EmbeddingSearchResult[];
-      };
-      const matches = data.matches;
-
-      const parsedData = {
-        success: !!matches,
-        results: matches.map((match: EmbeddingSearchResult, i: number) => ({
-          id: i + 1,
-          content: match?.fields?.code || match?.fields?.text || "",
-          relevance: typeof match?._score === "number" ? match._score : 0.8,
-        })),
-        query,
-        searchTerms: query.split(/\s+/),
-        message: matches?.length
-          ? `Found ${matches.length} relevant code snippets for "${query}"`
-          : `No relevant code found for "${query}"`,
-      };
-      console.log("semanticSearch", parsedData);
-
-      return parsedData;
+      return await performSemanticSearch({ query, repo });
     } catch (error) {
       console.error(
         `[SEMANTIC_SEARCH_ERROR] Failed to query indexing service:`,
         error
       );
 
-      // Fallback to ripgrep if indexing service is unavailable
-      return this.codebaseSearch(query, options);
+      // Fallback to grep search if indexing service is unavailable
+      const fallbackResult = await this.grepSearch(query);
+      
+      // Convert GrepResult to SemanticSearchToolResult format
+      return {
+        success: fallbackResult.success,
+        results: fallbackResult.matches.map((match, i) => ({
+          id: i + 1,
+          content: match,
+          relevance: 0.8,
+          filePath: "",
+          lineStart: 0,
+          lineEnd: 0,
+          language: "",
+          kind: "",
+        })),
+        query: fallbackResult.query,
+        searchTerms: fallbackResult.query.split(/\s+/),
+        message: fallbackResult.message + " (fallback to grep)",
+        error: fallbackResult.error,
+      };
     }
   }
-
   async webSearch(query: string, domain?: string): Promise<WebSearchResult> {
     try {
       if (!config.exaApiKey) {

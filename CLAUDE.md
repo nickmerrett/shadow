@@ -167,7 +167,6 @@ const workspaceManager = createWorkspaceManager();
 - `search_replace` - Precise string replacement in files
 - `list_dir` - Directory listing and exploration
 - `run_terminal_cmd` - Command execution with real-time output
-- `codebase_search` - Fast code search using ripgrep
 - `grep_search` - Pattern matching with regex support
 - `file_search` - Fuzzy filename search
 - `semantic_search` - AI-powered semantic code search

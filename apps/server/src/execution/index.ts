@@ -88,7 +88,7 @@ export type {
   DirectoryListing,
   FileSearchResult,
   GrepResult,
-  CodebaseSearchToolResult,
+  SemanticSearchToolResult,
 } from "@repo/types";
 export type {
   CommandResult,

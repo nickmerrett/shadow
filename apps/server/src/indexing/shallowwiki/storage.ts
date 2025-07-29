@@ -1,31 +1,13 @@
 import { createHash } from "crypto";
 import PineconeHandler from "../embedding/pineconeService";
-
-interface DeepWikiRecord {
-  id: string;
-  metadata: {
-    repoPath: string;
-    filePath?: string;
-    type: "file_summary" | "directory_summary" | "root_overview";
-    language?: string;
-    symbols: string[];
-    dependencies: string[];
-    complexity: number;
-    lastUpdated: string;
-    tokenUsage?: {
-      promptTokens: number;
-      completionTokens: number;
-      totalTokens: number;
-    };
-    summary: string; // The actual summary content
-  };
-}
-
-interface TokenUsage {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-}
+import { PineconeBatchRecord } from "../types";
+import { GraphNodeKind } from "../graph";
+import { retrieveDeepWikiSummaries } from "./deepwiki-retrieval";
+import {
+  DeepWikiRecord,
+  DeepWikiSearchResponse,
+  TokenUsage,
+} from "./deepwiki-types";
 
 export class DeepWikiStorage {
   private pinecone: PineconeHandler;
@@ -150,18 +132,25 @@ export class DeepWikiStorage {
 
   private async upsertRecord(record: DeepWikiRecord): Promise<void> {
     try {
-      // Prepare record for Pinecone with text embedding
-      const pineconeRecord = {
+      const pineconeRecord: PineconeBatchRecord = {
         id: record.id,
         metadata: {
-          ...record.metadata,
-          // Ensure all metadata values are strings, numbers, or booleans for Pinecone
+          code: record.metadata.summary,
+          path: record.metadata.filePath || "",
+          name: record.metadata.filePath || record.metadata.type || "",
+          lang: record.metadata.language || "",
+          line_start: 0,
+          line_end: 0,
+          kind: GraphNodeKind.FILE,
           symbols: JSON.stringify(record.metadata.symbols),
           dependencies: JSON.stringify(record.metadata.dependencies),
           tokenUsage: record.metadata.tokenUsage
             ? JSON.stringify(record.metadata.tokenUsage)
             : undefined,
-          text: record.metadata.summary, // This will be used for embedding
+          summaryType: record.metadata.type,
+          complexity: JSON.stringify(record.metadata.complexity),
+          repoPath: record.metadata.repoPath,
+          lastUpdated: record.metadata.lastUpdated,
         },
       };
 
@@ -175,13 +164,17 @@ export class DeepWikiStorage {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async searchSummaries(query: string, topK: number = 10): Promise<any[]> {
+  async searchSummaries(
+    query: string,
+    topK: number = 10
+  ): Promise<DeepWikiSearchResponse[]> {
     try {
-      // Use the existing retrieval system to search DeepWiki summaries
-      const { retrieve } = await import("../retrieval.js");
-      const results = await retrieve(query, this.namespace, topK);
-      return results.result?.hits || [];
+      const results = await retrieveDeepWikiSummaries({
+        query,
+        namespace: this.namespace,
+        topK,
+      });
+      return results;
     } catch (error) {
       console.error(`Failed to search summaries:`, error);
       return [];
@@ -192,7 +185,9 @@ export class DeepWikiStorage {
     try {
       const id = this.generateId("file", filePath);
       const results = await this.searchSummaries(`id:${id}`, 1);
-      return results.length > 0 ? this.parseRecord(results[0]) : null;
+      return results.length > 0 && results[0]
+        ? this.parseRecord(results[0])
+        : null;
     } catch (error) {
       console.error(`Failed to get file summary for ${filePath}:`, error);
       return null;
@@ -203,7 +198,9 @@ export class DeepWikiStorage {
     try {
       const id = this.generateId("directory", dirPath);
       const results = await this.searchSummaries(`id:${id}`, 1);
-      return results.length > 0 ? this.parseRecord(results[0]) : null;
+      return results.length > 0 && results[0]
+        ? this.parseRecord(results[0])
+        : null;
     } catch (error) {
       console.error(`Failed to get directory summary for ${dirPath}:`, error);
       return null;
@@ -213,31 +210,34 @@ export class DeepWikiStorage {
   async getRootOverview(): Promise<DeepWikiRecord | null> {
     try {
       const results = await this.searchSummaries("type:root_overview", 1);
-      return results.length > 0 ? this.parseRecord(results[0]) : null;
+      return results.length > 0 && results[0]
+        ? this.parseRecord(results[0])
+        : null;
     } catch (error) {
       console.error(`Failed to get root overview:`, error);
       return null;
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private parseRecord(pineconeResult: any): DeepWikiRecord {
-    // Handle case where metadata might be undefined
-    const metadata = pineconeResult.metadata || {};
+  private parseRecord(pineconeResult: DeepWikiSearchResponse): DeepWikiRecord {
+    const fields = pineconeResult.fields || {};
     return {
-      id: pineconeResult.id,
+      id: pineconeResult._id,
       metadata: {
-        ...metadata,
-        type: metadata.type || "unknown",
-        filePath: metadata.filePath || "",
-        symbols: metadata.symbols ? JSON.parse(metadata.symbols) : [],
-        dependencies: metadata.dependencies
-          ? JSON.parse(metadata.dependencies)
+        repoPath: fields.repoPath || fields.path || "",
+        filePath: fields.path || "",
+        type: (fields.summaryType as any) || "file_summary",
+        language: fields.lang || "",
+        symbols: fields.symbols ? JSON.parse(fields.symbols) : [],
+        dependencies: fields.dependencies
+          ? JSON.parse(fields.dependencies)
           : [],
-        tokenUsage: metadata.tokenUsage
-          ? JSON.parse(metadata.tokenUsage)
+        complexity: fields.complexity ? JSON.parse(fields.complexity) : 0,
+        lastUpdated: fields.lastUpdated || new Date().toISOString(),
+        tokenUsage: fields.tokenUsage
+          ? JSON.parse(fields.tokenUsage)
           : undefined,
-        summary: metadata.text || metadata.summary || "",
+        summary: fields.code || "",
       },
     };
   }
