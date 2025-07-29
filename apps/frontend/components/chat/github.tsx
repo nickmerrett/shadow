@@ -405,7 +405,14 @@ export function GithubConnection({
         )}
       </Tooltip>
 
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent
+        className="w-80 p-0"
+        align="end"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      >
         {isLoadingStatus ? (
           <div className="text-muted-foreground flex h-20 items-center justify-center gap-2">
             <Loader2 className="size-4 animate-spin" />
