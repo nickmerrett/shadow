@@ -209,7 +209,7 @@ export function TaskPageWrapper({
                     {taskTitleVariables?.title}
                   </span>
                 ) : (
-                  <span className="truncate">{task?.title}</span>
+                  <span className="truncate">{editValue}</span>
                 )}
               </div>
             </div>
