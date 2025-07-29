@@ -24,6 +24,7 @@ import { TaskPageContent } from "./task-content";
 import { useTask } from "@/hooks/use-task";
 import { useParams } from "next/navigation";
 import { useAgentEnvironment } from "../agent-environment/agent-environment-context";
+import { useUpdateTaskTitle } from "@/hooks/use-update-task-title";
 
 export function TaskPageWrapper({
   initialLayout,
@@ -37,6 +38,7 @@ export function TaskPageWrapper({
 
   const { task } = useTask(taskId);
   const [editValue, setEditValue] = useState(task?.title || "");
+  const updateTaskTitle = useUpdateTaskTitle();
   // We don't need to access the sidebar view from context anymore
   // Just check the pathname directly to determine what to render
 
@@ -124,7 +126,9 @@ export function TaskPageWrapper({
 
   const handleInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      console.log("New task name:", editValue);
+      if (editValue.trim() && editValue !== task?.title) {
+        updateTaskTitle.mutate({ taskId, title: editValue.trim() });
+      }
       setIsEditing(false);
     } else if (e.key === "Escape") {
       setIsEditing(false);
@@ -133,8 +137,12 @@ export function TaskPageWrapper({
   };
 
   const handleInputBlur = () => {
+    if (editValue.trim() && editValue !== task?.title) {
+      updateTaskTitle.mutate({ taskId, title: editValue.trim() });
+    } else {
+      setEditValue(task?.title || "");
+    }
     setIsEditing(false);
-    setEditValue(task?.title || "");
   };
 
   useEffect(() => {
