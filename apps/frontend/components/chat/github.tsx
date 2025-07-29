@@ -30,13 +30,18 @@ import { toast } from "sonner";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
 import Image from "next/image";
 import Link from "next/link";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export function GithubConnection({
+  isOpen,
+  setIsOpen,
   selectedRepo,
   selectedBranch,
   setSelectedRepo,
   setSelectedBranch,
 }: {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
   selectedRepo: Repository | null;
   selectedBranch: { name: string; commitSha: string } | null;
   setSelectedRepo: (repo: Repository | null) => void;
@@ -44,9 +49,6 @@ export function GithubConnection({
     branch: { name: string; commitSha: string } | null
   ) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [mode, setMode] = useState<"repos" | "branches">("repos");
-
   const [repoSearch, setRepoSearch] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
   const [collapsedOrgs, setCollapsedOrgs] = useState<Set<string>>(new Set());
@@ -69,7 +71,7 @@ export function GithubConnection({
     error: branchesError,
   } = useGitHubBranches(
     selectedRepo?.full_name || null,
-    !!selectedRepo && mode === "branches" && !!githubStatus?.isAppInstalled
+    !!selectedRepo && !!githubStatus?.isAppInstalled
   );
 
   if (statusError) {
@@ -129,7 +131,6 @@ export function GithubConnection({
 
   const handleRepoSelect = (repo: Repository) => {
     setSelectedRepo(repo);
-    setMode("branches");
     setBranchSearch("");
     // Don't save to cookie yet, wait for branch selection
   };
@@ -153,8 +154,8 @@ export function GithubConnection({
   };
 
   const handleBackToRepos = () => {
-    setMode("repos");
     setSelectedRepo(null);
+    setSelectedBranch(null);
     setRepoSearch("");
   };
 
@@ -286,7 +287,7 @@ export function GithubConnection({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground !px-4.5 w-full gap-2 text-[13px] font-normal hover:bg-transparent"
+                  className="text-muted-foreground !px-4.5 h-6 w-full gap-2 text-[13px] font-normal hover:bg-transparent"
                 >
                   <Folder className="size-3.5" />
                   {group.name}
@@ -385,16 +386,33 @@ export function GithubConnection({
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground hover:bg-accent font-normal"
-        >
-          {getButtonText()}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground hover:bg-accent font-normal"
+            >
+              {getButtonText()}
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        {!isOpen && (
+          <TooltipContent side="top" align="end" shortcut="⌘/">
+            GitHub Selector
+          </TooltipContent>
+        )}
+      </Tooltip>
+
+      <PopoverContent
+        className="w-80 p-0"
+        align="end"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      >
         {isLoadingStatus ? (
           <div className="text-muted-foreground flex h-20 items-center justify-center gap-2">
             <Loader2 className="size-4 animate-spin" />
@@ -402,10 +420,10 @@ export function GithubConnection({
           </div>
         ) : statusError || !githubStatus || !githubStatus.isAppInstalled ? (
           renderConnectGitHub
-        ) : mode === "repos" ? (
-          renderRepos
-        ) : (
+        ) : selectedRepo ? (
           renderBranches
+        ) : (
+          renderRepos
         )}
       </PopoverContent>
     </Popover>

@@ -2,7 +2,7 @@ import {
   validateCommand,
   parseCommand,
   CommandSecurityLevel,
-  SecurityLogger
+  SecurityLogger,
 } from "@repo/command-security";
 import { spawn } from "child_process";
 import * as fs from "fs/promises";
@@ -34,7 +34,6 @@ import {
 } from "@repo/types";
 import { EmbeddingSearchResult } from "../../indexing/embedding/types";
 import { CommandResult } from "../interfaces/types";
-
 
 /**
  * LocalToolExecutor implements tool operations for local filesystem execution
@@ -154,7 +153,6 @@ export class LocalToolExecutor implements ToolExecutor {
       // Write the new content
       await fs.writeFile(filePath, content);
 
-
       if (isNewFile) {
         return {
           success: true,
@@ -187,9 +185,7 @@ export class LocalToolExecutor implements ToolExecutor {
     try {
       const filePath = path.resolve(this.workspacePath, targetFile);
 
-
       await fs.unlink(filePath);
-
 
       return {
         success: true,
@@ -240,7 +236,6 @@ export class LocalToolExecutor implements ToolExecutor {
       const newContent = existingContent.replace(oldString, newString);
       await fs.writeFile(resolvedPath, newContent);
 
-
       return {
         success: true,
         message: `Successfully replaced text in ${filePath}`,
@@ -254,7 +249,9 @@ export class LocalToolExecutor implements ToolExecutor {
     }
   }
 
-  async listDirectory(relativeWorkspacePath: string): Promise<DirectoryListing> {
+  async listDirectory(
+    relativeWorkspacePath: string
+  ): Promise<DirectoryListing> {
     try {
       // Handle path resolution correctly - normalize relative paths
       let normalizedPath = relativeWorkspacePath;
@@ -272,7 +269,7 @@ export class LocalToolExecutor implements ToolExecutor {
 
       const contents = entries.map((entry) => ({
         name: entry.name,
-        type: entry.isDirectory() ? "directory" as const : "file" as const,
+        type: entry.isDirectory() ? ("directory" as const) : ("file" as const),
         isDirectory: entry.isDirectory(),
       }));
 
@@ -442,7 +439,11 @@ export class LocalToolExecutor implements ToolExecutor {
     }
   }
 
-  async semanticSearch(query: string, repo: string, options?: SearchOptions): Promise<CodebaseSearchToolResult> {
+  async semanticSearch(
+    query: string,
+    repo: string,
+    options?: SearchOptions
+  ): Promise<CodebaseSearchToolResult> {
     if (!config.enableSemanticSearch) {
       console.log("semanticSearch disabled, falling back to codebaseSearch");
       return this.codebaseSearch(query, options);
@@ -459,15 +460,19 @@ export class LocalToolExecutor implements ToolExecutor {
           query,
           namespace: repo,
           topK: 5,
-          fields: ["content", "filePath", "language"]
+          fields: ["content", "filePath", "language"],
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Indexing service error: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Indexing service error: ${response.status} ${response.statusText}`
+        );
       }
 
-      const data = await response.json() as { matches: EmbeddingSearchResult[] };
+      const data = (await response.json()) as {
+        matches: EmbeddingSearchResult[];
+      };
       const matches = data.matches;
 
       const parsedData = {
@@ -482,12 +487,15 @@ export class LocalToolExecutor implements ToolExecutor {
         message: matches?.length
           ? `Found ${matches.length} relevant code snippets for "${query}"`
           : `No relevant code found for "${query}"`,
-      }
+      };
       console.log("semanticSearch", parsedData);
 
       return parsedData;
     } catch (error) {
-      console.error(`[SEMANTIC_SEARCH_ERROR] Failed to query indexing service:`, error);
+      console.error(
+        `[SEMANTIC_SEARCH_ERROR] Failed to query indexing service:`,
+        error
+      );
 
       // Fallback to ripgrep if indexing service is unavailable
       return this.codebaseSearch(query, options);
@@ -514,9 +522,9 @@ export class LocalToolExecutor implements ToolExecutor {
         query,
         type: "fast",
         contents: {
-          text: true
+          text: true,
         },
-        num_results: 5
+        num_results: 5,
       };
 
       if (domain) {
@@ -528,9 +536,9 @@ export class LocalToolExecutor implements ToolExecutor {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-api-key": config.exaApiKey
+          "x-api-key": config.exaApiKey,
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -544,20 +552,21 @@ export class LocalToolExecutor implements ToolExecutor {
         title?: string;
       }
 
-      const data = await response.json() as { results?: ExaSearchResult[] };
+      const data = (await response.json()) as { results?: ExaSearchResult[] };
 
-      const results = data.results?.map((result: ExaSearchResult) => ({
-        text: result.text || "",
-        url: result.url || "",
-        title: result.title || undefined
-      })) || [];
+      const results =
+        data.results?.map((result: ExaSearchResult) => ({
+          text: result.text || "",
+          url: result.url || "",
+          title: result.title || undefined,
+        })) || [];
 
       return {
         success: true,
         results,
         query,
         domain,
-        message: `Found ${results.length} web search results for query: ${query}`
+        message: `Found ${results.length} web search results for query: ${query}`,
       };
     } catch (error) {
       console.error("Web search error:", error);
@@ -567,7 +576,7 @@ export class LocalToolExecutor implements ToolExecutor {
         query,
         domain,
         message: `Failed to perform web search: ${query}`,
-        error: error instanceof Error ? error.message : "Unknown error"
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -580,7 +589,12 @@ export class LocalToolExecutor implements ToolExecutor {
 
     // Parse and validate command
     const { command: baseCommand, args } = parseCommand(command);
-    const validation = validateCommand(baseCommand, args, this.workspacePath, this.securityLogger);
+    const validation = validateCommand(
+      baseCommand,
+      args,
+      this.workspacePath,
+      this.securityLogger
+    );
 
     if (!validation.isValid) {
       return {
@@ -593,7 +607,10 @@ export class LocalToolExecutor implements ToolExecutor {
 
     // Log potentially dangerous commands
     if (validation.securityLevel === CommandSecurityLevel.APPROVAL_REQUIRED) {
-      console.log(`[LOCAL] Executing potentially dangerous command: ${baseCommand}`, { args });
+      console.log(
+        `[LOCAL] Executing potentially dangerous command: ${baseCommand}`,
+        { args }
+      );
     }
 
     const sanitizedCommand = validation.sanitizedCommand!;
@@ -635,7 +652,8 @@ export class LocalToolExecutor implements ToolExecutor {
         };
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
 
       return {
         success: false,
@@ -689,7 +707,9 @@ export class LocalToolExecutor implements ToolExecutor {
         if (code === 0) {
           resolve({ stdout, stderr });
         } else {
-          const error = new Error(`Command failed with exit code ${code}: ${stderr || stdout}`) as Error & {
+          const error = new Error(
+            `Command failed with exit code ${code}: ${stderr || stdout}`
+          ) as Error & {
             stdout: string;
             stderr: string;
           };
@@ -770,5 +790,4 @@ export class LocalToolExecutor implements ToolExecutor {
       message: "Git operations in local mode are handled by GitManager",
     };
   }
-
 }

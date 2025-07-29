@@ -14,7 +14,7 @@ import { createWorkspaceManager } from "./execution";
 import { filesRouter } from "./routes/files";
 
 const app = express();
-const chatService = new ChatService();
+export const chatService = new ChatService();
 const initializationEngine = new TaskInitializationEngine();
 
 const socketIOServer = http.createServer(app);

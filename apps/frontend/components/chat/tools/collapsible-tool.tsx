@@ -67,7 +67,9 @@ export function ToolTrigger({
     >
       {icon}
       <div className="flex w-[calc(100%-1.5rem)] items-center gap-1">
-        <div className="whitespace-nowrap opacity-70">{prefix || TOOL_PREFIXES[type]}</div>
+        <div className="whitespace-nowrap opacity-70">
+          {prefix || TOOL_PREFIXES[type]}
+        </div>
         <div className="truncate">{title}</div>
         {changes && (
           <div className="flex items-center gap-1">
