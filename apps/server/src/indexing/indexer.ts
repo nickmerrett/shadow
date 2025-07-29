@@ -108,7 +108,12 @@ async function indexRepo(
       
       const parser = new TreeSitter();
       try {
-        parser.setLanguage(spec.language as any);
+        if (isTreeSitterLanguage(spec.language)) {
+          parser.setLanguage(spec.language);
+        } else {
+          logger.warn(`Invalid language object for ${file.path}`);
+          continue;
+        }
       } catch (error) {
         logger.warn(`Failed to set language for ${file.path}: ${error instanceof Error ? error.message : String(error)}`);
         continue;
