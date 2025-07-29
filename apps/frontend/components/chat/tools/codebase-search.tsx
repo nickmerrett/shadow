@@ -20,6 +20,14 @@ export function CodebaseSearchTool({ message }: { message: Message }) {
     result?.message ||
     "No results found";
 
+  console.log(
+    "SEARCHED CODEBASE:",
+    query,
+    "(length:",
+    displayContent.length,
+    ")"
+  );
+
   return (
     <CollapsibleTool
       icon={<Search />}
@@ -46,10 +54,11 @@ export function CodebaseSearchTool({ message }: { message: Message }) {
       {result && status === "COMPLETED" && (
         <div>
           <div className="text-muted-foreground mb-1 text-xs">Results:</div>
-          <div className="max-h-40 overflow-y-auto rounded-md border bg-gray-50 p-3 text-xs dark:bg-gray-900/50">
+          <div className="max-h-96 overflow-y-auto rounded-md border bg-gray-50 p-3 text-xs dark:bg-gray-900/50">
             <div className="text-muted-foreground whitespace-pre-wrap">
               {displayContent.substring(0, 800)}
-              {displayContent.length > 800 && "\n\n... (truncated)"}
+              {displayContent.length > 800 &&
+                `\n\n... (truncated, total length: ${displayContent.length})`}
             </div>
           </div>
         </div>
