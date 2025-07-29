@@ -17,7 +17,12 @@ export interface SemanticSearchResponse {
 export async function performSemanticSearch(
   params: SemanticSearchParams
 ): Promise<CodebaseSearchToolResult> {
-  const { query, repo, topK = 5, fields = ["content", "filePath", "language"] } = params;
+  const {
+    query,
+    repo,
+    topK = 5,
+    fields = ["content", "filePath", "language"],
+  } = params;
 
   console.log("semanticSearch enabled");
   console.log("semanticSearchParams", query, repo);

@@ -16,7 +16,6 @@ export interface PineconeRecordMetadata {
   [key: string]: any; // Allow additional metadata fields
 }
 
-
 // In the process, Chunk ==> PineconeBatchRecord ==> PineconeAutoEmbedRecord ==> Upsert
 /**
  * Standard Pinecone batch record for upserting data
@@ -38,7 +37,6 @@ export interface PineconeAutoEmbedRecord extends PineconeRecordMetadata {
   text: string; // Standard Pinecone text field for embedding
   [key: string]: any; // Index signature for Pinecone SDK compatibility
 }
-
 
 /**
  * Request structure for embedding search
