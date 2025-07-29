@@ -10,7 +10,6 @@ import {
   ReadFileOptions,
   SearchOptions,
   WriteResult,
-  CodebaseSearchToolResult,
   SemanticSearchToolResult,
   WebSearchResult,
   GitStatusResponse,
@@ -58,11 +57,6 @@ export interface ToolExecutor {
     query: string,
     options?: GrepOptions
   ): Promise<GrepResult>;
-
-  codebaseSearch(
-    query: string,
-    options?: SearchOptions
-  ): Promise<CodebaseSearchToolResult>;
 
   semanticSearch(
     query: string,

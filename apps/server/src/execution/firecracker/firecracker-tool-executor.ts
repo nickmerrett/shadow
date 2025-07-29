@@ -11,7 +11,6 @@ import {
   ReadFileOptions,
   SearchOptions,
   WriteResult,
-  CodebaseSearchToolResult,
   SemanticSearchToolResult,
   WebSearchResult,
   GitStatusResponse,
@@ -306,42 +305,11 @@ export class FirecrackerToolExecutor implements ToolExecutor {
     }
   }
 
-  /**
-   * Search codebase using specialized search tools
-   */
-  async codebaseSearch(
-    query: string,
-    options?: SearchOptions
-  ): Promise<CodebaseSearchToolResult> {
-    try {
-      const response = await this.makeSidecarRequest<CodebaseSearchToolResult>(
-        `/api/search/codebase`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            query,
-            ...options,
-          }),
-        }
-      );
-
-      return response;
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        query,
-        results: [],
-        searchTerms: [],
-        message: `Failed to search codebase: ${query}`,
-      };
-    }
-  }
 
   async semanticSearch(
     query: string,
     repo: string,
-    options?: SearchOptions
+    _options?: SearchOptions
   ): Promise<SemanticSearchToolResult> {
     try {
       return await performSemanticSearch({ query, repo });
@@ -351,14 +319,16 @@ export class FirecrackerToolExecutor implements ToolExecutor {
         error
       );
 
-      // Fallback to ripgrep if indexing service is unavailable
-      const fallbackResult = await this.codebaseSearch(query, options);
+      // Fallback to grep search if indexing service is unavailable
+      const fallbackResult = await this.grepSearch(query);
       
-      // Convert CodebaseSearchToolResult to SemanticSearchToolResult format
+      // Convert GrepResult to SemanticSearchToolResult format
       return {
         success: fallbackResult.success,
-        results: fallbackResult.results.map((item) => ({
-          ...item,
+        results: fallbackResult.matches.map((match, i) => ({
+          id: i + 1,
+          content: match,
+          relevance: 0.8,
           filePath: "",
           lineStart: 0,
           lineEnd: 0,
@@ -366,8 +336,8 @@ export class FirecrackerToolExecutor implements ToolExecutor {
           kind: "",
         })),
         query: fallbackResult.query,
-        searchTerms: fallbackResult.searchTerms,
-        message: fallbackResult.message + " (fallback to ripgrep)",
+        searchTerms: fallbackResult.query.split(/\s+/),
+        message: fallbackResult.message + " (fallback to grep)",
         error: fallbackResult.error,
       };
     }

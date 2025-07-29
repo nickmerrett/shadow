@@ -67,19 +67,6 @@ export interface GrepResult {
   error?: string;
 }
 
-export interface CodebaseSearchToolResult {
-  success: boolean;
-  results: Array<{
-    id: number;
-    content: string;
-    relevance: number;
-  }>;
-  query: string;
-  searchTerms: string[];
-  message: string;
-  error?: string;
-}
-
 export interface SemanticSearchToolResult {
   success: boolean;
   results: Array<{
@@ -139,7 +126,6 @@ export type ToolResultTypes =
   | { toolName: 'grep_search'; result: GrepResult }
   | { toolName: 'list_dir'; result: DirectoryListing }
   | { toolName: 'file_search'; result: FileSearchResult }
-  | { toolName: 'codebase_search'; result: CodebaseSearchToolResult }
   | { toolName: 'semantic_search'; result: SemanticSearchToolResult }
   | { toolName: 'web_search'; result: WebSearchResult }
   | { toolName: 'delete_file'; result: DeleteResult }

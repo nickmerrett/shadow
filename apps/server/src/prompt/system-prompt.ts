@@ -54,7 +54,7 @@ Implement your plan systematically:
 
 const TOOL_USAGE_STRATEGY = `<tool_usage>
 TOOL SELECTION HIERARCHY:
-DISCOVERY: list_dir → codebase_search → read_file → grep_search
+DISCOVERY: list_dir → semantic_search → read_file → grep_search
 UNDERSTANDING: semantic_search → targeted reading → pattern analysis
 PLANNING: comprehensive file analysis → dependency mapping → test identification  
 EXECUTION: edit_file → run_terminal_cmd (test) → verify changes

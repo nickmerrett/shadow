@@ -22,7 +22,6 @@ import {
   GrepResult,
   ReadFileOptions,
   WriteResult,
-  CodebaseSearchToolResult,
   SemanticSearchToolResult,
   SearchOptions,
   WebSearchResult,
@@ -378,72 +377,11 @@ export class LocalToolExecutor implements ToolExecutor {
     }
   }
 
-  async codebaseSearch(
-    query: string,
-    options?: SearchOptions
-  ): Promise<CodebaseSearchToolResult> {
-    try {
-      // Use ripgrep for a basic semantic-like search with multiple patterns
-      const searchTerms = query.split(" ").filter((term) => term.length > 2);
-      const searchPattern = searchTerms.join("|");
-
-      let searchPath = this.workspacePath;
-      if (options?.targetDirectories && options.targetDirectories.length > 0) {
-        // For now, just use the first directory
-        searchPath = path.resolve(
-          this.workspacePath,
-          options.targetDirectories[0] || "."
-        );
-      }
-
-      // Use ripgrep with case-insensitive search and context
-      const command = `rg -i -C 3 --max-count 10 "${searchPattern}" "${searchPath}"`;
-
-      try {
-        const { stdout } = await execAsync(command);
-        const results = stdout
-          .trim()
-          .split("\n--\n")
-          .map((chunk, index) => ({
-            id: index + 1,
-            content: chunk.trim(),
-            relevance: 0.8, // Mock relevance score
-          }))
-          .filter((result) => result.content.length > 0);
-
-        return {
-          success: true,
-          message: `Found ${results.length} relevant code snippets for "${query}"`,
-          results: results.slice(0, 5), // Limit to top 5 results
-          query,
-          searchTerms,
-        };
-      } catch (_error) {
-        // If ripgrep fails (no matches), return empty results
-        return {
-          success: true,
-          message: `No relevant code found for "${query}"`,
-          results: [],
-          query,
-          searchTerms,
-        };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        message: `Failed to search codebase for: ${query}`,
-        results: [],
-        query,
-        searchTerms: [],
-      };
-    }
-  }
 
   async semanticSearch(
     query: string,
     repo: string,
-    options?: SearchOptions
+    _options?: SearchOptions
   ): Promise<SemanticSearchToolResult> {
     try {
       return await performSemanticSearch({ query, repo });
@@ -453,14 +391,16 @@ export class LocalToolExecutor implements ToolExecutor {
         error
       );
 
-      // Fallback to ripgrep if indexing service is unavailable
-      const fallbackResult = await this.codebaseSearch(query, options);
+      // Fallback to grep search if indexing service is unavailable
+      const fallbackResult = await this.grepSearch(query);
       
-      // Convert CodebaseSearchToolResult to SemanticSearchToolResult format
+      // Convert GrepResult to SemanticSearchToolResult format
       return {
         success: fallbackResult.success,
-        results: fallbackResult.results.map((item) => ({
-          ...item,
+        results: fallbackResult.matches.map((match, i) => ({
+          id: i + 1,
+          content: match,
+          relevance: 0.8,
           filePath: "",
           lineStart: 0,
           lineEnd: 0,
@@ -468,8 +408,8 @@ export class LocalToolExecutor implements ToolExecutor {
           kind: "",
         })),
         query: fallbackResult.query,
-        searchTerms: fallbackResult.searchTerms,
-        message: fallbackResult.message + " (fallback to ripgrep)",
+        searchTerms: fallbackResult.query.split(/\s+/),
+        message: fallbackResult.message + " (fallback to grep)",
         error: fallbackResult.error,
       };
     }
