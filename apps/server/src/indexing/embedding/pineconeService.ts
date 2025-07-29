@@ -35,7 +35,7 @@ class PineconeHandler {
       region: "us-east-1",
       embed: {
         model: this.embeddingModel,
-        fieldMap: { text: "chunk_text" }, // chunk_text is the field that will be used for the embedding
+        fieldMap: { text: "text" }, // text is the field that will be used for the embedding
       },
       waitUntilReady: true,
     });
@@ -78,7 +78,6 @@ class PineconeHandler {
           return {
             _id: record.id,
             text: text,
-            chunk_text: text,
             ...record.metadata,
           };
         })
