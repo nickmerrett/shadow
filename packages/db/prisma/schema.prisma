@@ -83,7 +83,6 @@ model Task {
   workspacePath       String?
   lastCompletedStep   InitStepType?
   initializationError String?
-  mode                TaskMode          @default(FULL_AUTO)
   workspaceCleanedUp  Boolean           @default(false)
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -190,11 +189,6 @@ enum TaskStatus {
   CANCELLED
 }
 
-enum TaskMode {
-  FULL_AUTO
-  INTELLIGENT_AUTO
-  MANUAL
-}
 
 enum MessageRole {
   USER
