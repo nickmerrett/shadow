@@ -737,6 +737,10 @@ export class ChatService {
     return this.queuedMessages.get(taskId)?.message;
   }
 
+  clearQueuedMessage(taskId: string): void {
+    this.queuedMessages.delete(taskId);
+  }
+
   async stopStream(taskId: string): Promise<void> {
     // Mark stop requested so generator exits early
     this.stopRequested.add(taskId);

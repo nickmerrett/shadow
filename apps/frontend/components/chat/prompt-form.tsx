@@ -32,6 +32,7 @@ import type { FilteredRepository as Repository } from "@/lib/github/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { useQueuedMessage } from "@/hooks/use-queued-message";
 import { UserMessage } from "./user-message";
+import { useTaskSocket } from "@/hooks/socket/use-task-socket";
 
 export function PromptForm({
   taskId,
@@ -69,6 +70,7 @@ export function PromptForm({
   } | null>(initialGitCookieState?.branch || null);
 
   const [isPending, startTransition] = useTransition();
+  const { clearQueuedMessage } = useTaskSocket(taskId);
   const { data: queuedMessage } = useQueuedMessage(taskId);
 
   const queryClient = useQueryClient();
@@ -301,10 +303,26 @@ export function PromptForm({
       )}
 
       {queuedMessage && (
-        <UserMessage
-          content={queuedMessage}
-          className="absolute -top-14 left-0"
-        />
+        <div className="bg-card border-border absolute -top-12 left-0 flex w-full items-center justify-between gap-2 rounded-lg border py-1.5 pl-3 pr-1.5 text-sm">
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            <ListEnd className="size-4" />
+            <span className="select-none">Queued</span>
+            <span className="text-muted-foreground truncate">
+              {queuedMessage}
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="iconXs"
+            className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border p-0"
+            onClick={() => {
+              queryClient.setQueryData(["queued-message", taskId], null);
+              clearQueuedMessage();
+            }}
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
       )}
 
       {/* Wrapper div with textarea styling */}
@@ -474,8 +492,8 @@ export function PromptForm({
                   {isPending ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : isStreaming && !message.trim() ? (
-                    <div className="p-px">
-                      <Square className="fill-primary-foreground size-3.5" />
+                    <div className="p-0.5">
+                      <Square className="fill-primary-foreground size-3" />
                     </div>
                   ) : (
                     <ArrowUp className="size-4" />

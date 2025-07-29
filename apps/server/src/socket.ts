@@ -331,6 +331,14 @@ export function createSocketServer(
       }
     });
 
+    socket.on("clear-queued-message", async (data) => {
+      try {
+        chatService.clearQueuedMessage(data.taskId);
+      } catch (error) {
+        console.error("Error clearing queued message:", error);
+      }
+    });
+
     // Handle request for chat history
     socket.on("get-chat-history", async (data) => {
       try {

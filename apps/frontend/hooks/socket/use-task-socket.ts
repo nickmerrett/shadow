@@ -628,11 +628,17 @@ export function useTaskSocket(taskId: string | undefined) {
     setStreamingAssistantParts([]);
   }, [socket, taskId, isStreaming]);
 
+  const clearQueuedMessage = useCallback(() => {
+    if (!socket || !taskId) return;
+    socket.emit("clear-queued-message", { taskId });
+  }, [socket, taskId]);
+
   return {
     isConnected,
     streamingAssistantParts,
     isStreaming,
     sendMessage,
     stopStream,
+    clearQueuedMessage,
   };
 }
