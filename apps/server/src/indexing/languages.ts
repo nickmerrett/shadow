@@ -1,5 +1,6 @@
 import logger from "@/indexing/logger";
 import path from "path";
+
 interface LanguageSpec {
   id: string;
   pkg: string;
@@ -14,11 +15,12 @@ interface ExtendedLanguageSpec extends LanguageSpec {
   language: any;
 }
 
+// Loads Tree-sitter grammar by package name, returning the language object if valid or null if missing.
 function safeRequire(name: string): any {
   try {
     const mod = require(name);
 
-    // Extract language name from package name (e.g., "tree-sitter-python" -> "python")
+    // Extract language name from package name
     const langName = name.replace("tree-sitter-", "");
     const language = mod[langName] || mod.default || mod;
 
