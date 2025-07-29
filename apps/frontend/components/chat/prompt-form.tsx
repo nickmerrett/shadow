@@ -24,7 +24,7 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { redirect, useParams } from "next/navigation";
+import { redirect } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
@@ -189,58 +189,50 @@ export function PromptForm({
       : keyDisplay;
   };
 
+  // Submission handling for home page
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedModel) return;
+    if (!selectedModel || !isHome || !repo || !branch || !message.trim()) {
+      return;
+    }
 
-    if (isHome) {
-      if (!repo || !branch || !message.trim()) {
-        return;
+    const completeRepoUrl = `https://github.com/${repo.full_name}`;
+
+    const formData = new FormData();
+    formData.append("message", message);
+    formData.append("model", selectedModel);
+    formData.append("repoUrl", completeRepoUrl);
+    formData.append("repoFullName", repo.full_name);
+    formData.append("baseBranch", branch.name);
+    formData.append("baseCommitSha", branch.commitSha);
+
+    startTransition(async () => {
+      let taskId: string | null = null;
+      try {
+        taskId = await createTask(formData);
+      } catch (error) {
+        toast.error("Failed to create task", {
+          description: error instanceof Error ? error.message : "Unknown error",
+        });
       }
-
-      const completeRepoUrl = `https://github.com/${repo.full_name}`;
-
-      const formData = new FormData();
-      formData.append("message", message);
-      formData.append("model", selectedModel);
-      formData.append("repoUrl", completeRepoUrl);
-      formData.append("repoFullName", repo.full_name);
-      formData.append("baseBranch", branch.name);
-      formData.append("baseCommitSha", branch.commitSha);
-
-      startTransition(async () => {
-        let taskId: string | null = null;
-        try {
-          taskId = await createTask(formData);
-        } catch (error) {
-          toast.error("Failed to create task", {
-            description:
-              error instanceof Error ? error.message : "Unknown error",
-          });
-        }
-        if (taskId) {
-          queryClient.invalidateQueries({ queryKey: ["tasks"] });
-          redirect(`/tasks/${taskId}`);
-        }
-      });
-    } else if (isStreaming) {
-      if (!message.trim()) {
-        onStopStream?.();
-      } else {
-        onSubmit?.(message, selectedModel, true);
-        setMessage("");
+      if (taskId) {
+        queryClient.invalidateQueries({ queryKey: ["tasks"] });
+        redirect(`/tasks/${taskId}`);
       }
-    } else {
-      onSubmit?.(message, selectedModel, false);
-      setMessage("");
+    });
+  };
+
+  // onKeyDown handler for home page
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && isHome) {
+      e.preventDefault();
+      handleSubmit(e);
     }
   };
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts, including submission handling for task page
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
-      if (isHome) return;
-
       // Only handle shortcuts when not on home page
       if (isHome) return;
 
@@ -397,6 +389,7 @@ export function PromptForm({
                 setMessage(e.target.value);
               }
             }}
+            onKeyDown={onKeyDown}
             onFocus={onFocus}
             onBlur={onBlur}
             placeholder="Build a cool new feature..."
@@ -480,14 +473,10 @@ export function PromptForm({
                 >
                   {isPending ? (
                     <Loader2 className="size-4 animate-spin" />
-                  ) : isStreaming ? (
-                    !message.trim() ? (
-                      <div className="p-px">
-                        <Square className="fill-primary-foreground size-3.5" />
-                      </div>
-                    ) : (
-                      <ListEnd className="size-4" />
-                    )
+                  ) : isStreaming && !message.trim() ? (
+                    <div className="p-px">
+                      <Square className="fill-primary-foreground size-3.5" />
+                    </div>
                   ) : (
                     <ArrowUp className="size-4" />
                   )}
