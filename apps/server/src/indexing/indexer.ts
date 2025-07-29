@@ -82,7 +82,7 @@ async function indexRepo(
 
     repoId = getHash(`${owner}/${repo}`, 12);
     logger.info(`Number of files fetched: ${files.length}`);
-    logger.info(`Files found: ${files.map(f => f.path).join(', ')}`);
+    logger.info(`Files found: ${files.map((f) => f.path).join(", ")}`);
     const graph = new Graph(repoId);
     // Track symbols across all files for cross-file call resolution
     const globalSym = new Map<string, string[]>(); // name -> [nodeId]
@@ -104,27 +104,30 @@ async function indexRepo(
         logger.warn(`Skipping unsupported: ${file.path}`);
         continue;
       }
-      
-      
+
       const parser = new TreeSitter();
       try {
-        if (isTreeSitterLanguage(spec.language)) {
+        if (spec.language && typeof spec.language === "object") {
           parser.setLanguage(spec.language);
         } else {
           logger.warn(`Invalid language object for ${file.path}`);
           continue;
         }
       } catch (error) {
-        logger.warn(`Failed to set language for ${file.path}: ${error instanceof Error ? error.message : String(error)}`);
+        logger.warn(
+          `Failed to set language for ${file.path}: ${error instanceof Error ? error.message : String(error)}`
+        );
         continue;
       }
-      
+
       let tree, rootNode;
       try {
         tree = parser.parse(file.content);
         rootNode = tree.rootNode;
       } catch (error) {
-        logger.warn(`Failed to parse ${file.path}: ${error instanceof Error ? error.message : String(error)}`);
+        logger.warn(
+          `Failed to parse ${file.path}: ${error instanceof Error ? error.message : String(error)}`
+        );
         continue;
       }
 
@@ -159,7 +162,9 @@ async function indexRepo(
         file.content
       );
       const symNodes: GraphNode[] = [];
-      logger.info(`File ${file.path}: Found ${defs.length} definitions, ${imports.length} imports, ${calls.length} calls, ${docs.length} docs`);
+      logger.info(
+        `File ${file.path}: Found ${defs.length} definitions, ${imports.length} imports, ${calls.length} calls, ${docs.length} docs`
+      );
 
       // SYMBOL defs
       for (const d of defs) {
@@ -301,23 +306,34 @@ async function indexRepo(
 
       // If no symbols found, create file-level chunks for the entire file content
       if (!hasChunks && file.content.trim()) {
-        const lines = file.content.split('\n');
+        const lines = file.content.split("\n");
         const chunkSize = maxLines;
         let chunkIndex = 0;
-        
-        for (let startLine = 0; startLine < lines.length; startLine += chunkSize) {
+
+        for (
+          let startLine = 0;
+          startLine < lines.length;
+          startLine += chunkSize
+        ) {
           const endLine = Math.min(startLine + chunkSize - 1, lines.length - 1);
-          const chunkContent = lines.slice(startLine, endLine + 1).join('\n');
-          
+          const chunkContent = lines.slice(startLine, endLine + 1).join("\n");
+
           if (chunkContent.trim()) {
             const chunkId = getNodeHash(
               repoId,
               file.path,
               "CHUNK",
               `file-chunk-${chunkIndex}`,
-              { startLine, endLine, startCol: 0, endCol: 0, byteStart: 0, byteEnd: chunkContent.length }
+              {
+                startLine,
+                endLine,
+                startCol: 0,
+                endCol: 0,
+                byteStart: 0,
+                byteEnd: chunkContent.length,
+              }
             );
-            
+
             const chunkNode = new GraphNode({
               id: chunkId,
               kind: GraphNodeKind.CHUNK,
@@ -335,7 +351,7 @@ async function indexRepo(
               code: chunkContent,
               meta: { strategy: "file-level" },
             });
-            
+
             graph.addNode(chunkNode);
             graph.addEdge(
               new GraphEdge({
@@ -345,7 +361,7 @@ async function indexRepo(
                 meta: {},
               })
             );
-            
+
             chunkIndex++;
           }
         }

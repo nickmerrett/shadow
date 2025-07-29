@@ -9,6 +9,7 @@ export interface PineconeRecordMetadata {
   line_start: number;
   line_end: number;
   kind: GraphNodeKind;
+  [key: string]: any; // Allow additional metadata fields
 }
 
 // Pinecone batch record

@@ -1,5 +1,7 @@
 import { createHash } from "crypto";
 import PineconeHandler from "../embedding/pineconeService";
+import { PineconeBatchRecord } from "../types";
+import { GraphNodeKind } from "../graph";
 
 interface DeepWikiRecord {
   id: string;
@@ -150,18 +152,22 @@ export class DeepWikiStorage {
 
   private async upsertRecord(record: DeepWikiRecord): Promise<void> {
     try {
-      // Prepare record for Pinecone with text embedding
-      const pineconeRecord = {
+      // Prepare record for Pinecone auto-embed format
+      const pineconeRecord: PineconeBatchRecord = {
         id: record.id,
         metadata: {
-          ...record.metadata,
-          // Ensure all metadata values are strings, numbers, or booleans for Pinecone
+          // Required fields
+          code: record.metadata.summary,
+          path: record.metadata.filePath || "",
+          name: record.metadata.filePath || record.metadata.type || "",
+          lang: record.metadata.language || "",
+          line_start: 0,
+          line_end: 0,
+          kind: GraphNodeKind.FILE,
+          // Additional fields as strings for Pinecone compatibility
           symbols: JSON.stringify(record.metadata.symbols),
           dependencies: JSON.stringify(record.metadata.dependencies),
-          tokenUsage: record.metadata.tokenUsage
-            ? JSON.stringify(record.metadata.tokenUsage)
-            : undefined,
-          text: record.metadata.summary, // This will be used for embedding
+          tokenUsage: record.metadata.tokenUsage ? JSON.stringify(record.metadata.tokenUsage) : undefined,
         },
       };
 
@@ -181,7 +187,7 @@ export class DeepWikiStorage {
       // Use the existing retrieval system to search DeepWiki summaries
       const { retrieve } = await import("../retrievalWrapper.js");
       const results = await retrieve(query, this.namespace, topK);
-      return results.result?.hits || [];
+      return results;
     } catch (error) {
       console.error(`Failed to search summaries:`, error);
       return [];

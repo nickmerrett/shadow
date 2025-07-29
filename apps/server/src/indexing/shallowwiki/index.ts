@@ -5,7 +5,7 @@ import { readFileSync, statSync } from "fs";
 import { OpenAI } from "openai";
 import path from "path";
 // (Line removed)
-import { DbWikiStorage } from "./db-storage";
+import { DeepWikiStorage } from "./storage";
 
 // Tree-sitter imports
 import Parser from "tree-sitter";
@@ -441,7 +441,7 @@ function analyzeFileComplexity(
 // Summarise a file (tree-sitter → markdown list)
 async function summariseFile(
   rel: string,
-  dbStorage: DbWikiStorage
+  dbStorage: DeepWikiStorage
 ): Promise<string> {
   const abs = path.join(ROOT, rel);
   const src = readFileSync(abs, "utf8");
@@ -701,9 +701,9 @@ export async function run() {
   const taskId = pathParts[pathParts.length - 1]; // Extract the last part which could be a taskId
 
   // Initialize storage
-  let dbStorage: DbWikiStorage | null = null;
+  let dbStorage: DeepWikiStorage | null = null;
   if (taskId) {
-    dbStorage = new DbWikiStorage(taskId);
+    dbStorage = new DeepWikiStorage(taskId);
     console.log(bold(`Using Database storage for task: ${taskId}`));
     await dbStorage.clearRepository();
   } else {
