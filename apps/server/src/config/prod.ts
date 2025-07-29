@@ -147,7 +147,7 @@ const prodConfigSchema = sharedConfigSchema.extend({
   // AWS region for EKS cluster and supporting services
   AWS_REGION: z.string().default("us-east-1"),
   // EC2 instance types for Kubernetes nodes (metal instances support KVM)
-  EC2_INSTANCE_TYPES: z.string().default("c5.metal,m5.metal"),
+  EC2_INSTANCE_TYPES: z.string().default("c5n.metal,c5.metal,m5.metal"),
 
   // === CONTAINER REGISTRY CONFIGURATION ===
   // When to pull VM images (Always = latest security updates)
