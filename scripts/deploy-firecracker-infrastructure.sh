@@ -11,7 +11,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Configuration
 CLUSTER_NAME="${CLUSTER_NAME:-shadow-firecracker}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
-NODE_INSTANCE_TYPE="${NODE_INSTANCE_TYPE:-c5.metal}"
+NODE_INSTANCE_TYPE="${NODE_INSTANCE_TYPE:-c5n.metal}"
 MIN_NODES="${MIN_NODES:-1}"
 MAX_NODES="${MAX_NODES:-3}"
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.28}"
@@ -282,7 +282,7 @@ EOF
     log "VM image storage configured"
 }
 
-# Generate cluster access configuration
+# Generate cluster access configurationc5.m
 generate_access_config() {
     log "Generating cluster access configuration..."
     
