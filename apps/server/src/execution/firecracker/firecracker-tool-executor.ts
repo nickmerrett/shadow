@@ -299,6 +299,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
         error: error instanceof Error ? error.message : "Unknown error",
         query,
         matches: [],
+        detailedMatches: [],
         matchCount: 0,
         message: `Failed to search with grep: ${query}`,
       };

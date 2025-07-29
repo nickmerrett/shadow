@@ -17,8 +17,6 @@ LIVE EXECUTION ENVIRONMENT:
 - Users can interrupt, pause, or provide guidance at any time
 - Your progress persists across session interruptions
 - Design your work to be resumable and clearly communicated
-
-Working directory: /Users/ishaandey/Documents/Programming/shadow/test-workspace contains the code repository
 </environment>`;
 
 const OPERATION_MODES = `<operation_modes>

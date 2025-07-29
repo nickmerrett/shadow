@@ -449,18 +449,29 @@ export function createTools(taskId: string, workspacePath?: string) {
           const grepResult = await executor.grepSearch(query);
           
           // Convert GrepResult to SemanticSearchToolResult format
+          const results = grepResult.detailedMatches?.map((match, i) => ({
+            id: i + 1,
+            content: match.content,
+            relevance: 0.8,
+            filePath: match.file,
+            lineStart: match.lineNumber,
+            lineEnd: match.lineNumber,
+            language: "",
+            kind: "",
+          })) || grepResult.matches.map((match, i) => ({
+            id: i + 1,
+            content: match,
+            relevance: 0.8,
+            filePath: "",
+            lineStart: 0,
+            lineEnd: 0,
+            language: "",
+            kind: "",
+          }));
+
           return {
             success: grepResult.success,
-            results: grepResult.matches.map((match, i) => ({
-              id: i + 1,
-              content: match,
-              relevance: 0.8,
-              filePath: "",
-              lineStart: 0,
-              lineEnd: 0,
-              language: "",
-              kind: "",
-            })),
+            results,
             query: grepResult.query,
             searchTerms: grepResult.query.split(/\s+/),
             message: grepResult.message + " (fallback to grep)",

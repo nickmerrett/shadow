@@ -1,5 +1,6 @@
 import { CommandSecurityLevel } from "@repo/command-security";
 import { z } from "zod";
+import { GrepMatch } from "./tools/results";
 
 // === Base Response Interface ===
 export interface SidecarResponse {
@@ -95,6 +96,7 @@ export interface FileSearchResponse extends SidecarResponse {
 
 export interface GrepSearchResponse extends SidecarResponse {
   matches?: string[];
+  detailedMatches?: GrepMatch[];
   query: string;
   matchCount: number;
 }
