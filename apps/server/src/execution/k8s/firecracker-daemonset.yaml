@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: firecracker-runtime
-  namespace: shadow
+  namespace: shadow-agents
   labels:
     app: firecracker-runtime
     component: vm-hypervisor
@@ -130,7 +130,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: firecracker-config
-  namespace: shadow
+  namespace: shadow-agents
 data:
   firecracker.json: |
     {
@@ -165,7 +165,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: firecracker-runtime-service
-  namespace: shadow
+  namespace: shadow-agents
   labels:
     app: firecracker-runtime
 spec:

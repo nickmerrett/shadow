@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: shadow-firecracker-server-sa
-  namespace: shadow
+  namespace: shadow-agents
   labels:
     app: shadow-firecracker
     component: server
@@ -13,7 +13,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: shadow-firecracker-vm-sa
-  namespace: shadow
+  namespace: shadow-agents
   labels:
     app: shadow-firecracker
     component: vm
@@ -23,7 +23,7 @@ automountServiceAccountToken: false  # VMs don't need K8s API access
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  namespace: shadow
+  namespace: shadow-agents
   name: shadow-firecracker-server-role
 rules:
 # Pod management with privileged access for VMs
@@ -69,48 +69,15 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: shadow-firecracker-server-binding
-  namespace: shadow
+  namespace: shadow-agents
 subjects:
 - kind: ServiceAccount
   name: shadow-firecracker-server-sa
-  namespace: shadow
+  namespace: shadow-agents
 roleRef:
   kind: Role
   name: shadow-firecracker-server-role
   apiGroup: rbac.authorization.k8s.io
----
-# Pod Security Policy for Firecracker VMs (requires privileged access)
-apiVersion: policy/v1beta1
-kind: PodSecurityPolicy
-metadata:
-  name: shadow-firecracker-vm-psp
-  labels:
-    app: shadow-firecracker
-    component: vm
-spec:
-  privileged: true  # Required for KVM device access
-  allowPrivilegeEscalation: true
-  allowedCapabilities:
-    - 'SYS_ADMIN'  # Required for VM management
-    - 'NET_ADMIN'  # Required for network setup
-  allowedHostPaths:
-    - pathPrefix: '/dev/kvm'
-      readOnly: false
-    - pathPrefix: '/var/lib/firecracker'
-      readOnly: false
-  volumes:
-    - 'emptyDir'
-    - 'projected'
-    - 'secret'
-    - 'downwardAPI'
-    - 'hostPath'
-    - 'persistentVolumeClaim'
-  runAsUser:
-    rule: 'RunAsAny'  # VMs need root access
-  seLinux:
-    rule: 'RunAsAny'
-  fsGroup:
-    rule: 'RunAsAny'
 ---
 # Cluster role for Firecracker VM pod security policy
 apiVersion: rbac.authorization.k8s.io/v1
@@ -118,11 +85,6 @@ kind: ClusterRole
 metadata:
   name: shadow-firecracker-vm-psp-role
 rules:
-- apiGroups: ['policy']
-  resources: ['podsecuritypolicies']
-  verbs: ['use']
-  resourceNames:
-  - shadow-firecracker-vm-psp
 - apiGroups: ['node.k8s.io']
   resources: ['runtimeclasses']
   verbs: ['get', 'list', 'use']
@@ -132,7 +94,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: shadow-firecracker-vm-psp-binding
-  namespace: shadow
+  namespace: shadow-agents
 roleRef:
   kind: ClusterRole
   name: shadow-firecracker-vm-psp-role
@@ -140,4 +102,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: shadow-firecracker-vm-sa
-  namespace: shadow
+  namespace: shadow-agents
