@@ -17,57 +17,26 @@ interface ExtendedLanguageSpec extends LanguageSpec {
 function safeRequire(name: string): any {
   try {
     const mod = require(name);
-    let language;
-    
-    switch (name) {
-      case "tree-sitter-typescript":
-        language = mod.typescript || mod;
-        break;
-      case "tree-sitter-javascript":
-        language = mod.javascript || mod;
-        break;
-      case "tree-sitter-python":
-        language = mod.python || mod;
-        break;
-      case "tree-sitter-cpp":
-        language = mod.cpp || mod;
-        break;
-      case "tree-sitter-c":
-        language = mod.c || mod;
-        break;
-      case "tree-sitter-java":
-        language = mod.java || mod;
-        break;
-      case "tree-sitter-ruby":
-        language = mod.ruby || mod;
-        break;
-      case "tree-sitter-rust":
-        language = mod.rust || mod;
-        break;
-      case "tree-sitter-php":
-        language = mod.php || mod;
-        break;
-      default:
-        language = mod.default || mod;
-        break;
-    }
-    
+
+    // Extract language name from package name (e.g., "tree-sitter-python" -> "python")
+    const langName = name.replace("tree-sitter-", "");
+    const language = mod[langName] || mod.default || mod;
+
     // Validate that this is a proper Tree-sitter language object
-    if (language && typeof language === 'object') {
+    if (language && typeof language === "object") {
       // Check for Tree-sitter Language properties
-      const hasValidProps = (
-        typeof language.nodeTypeCount === 'number' ||
-        typeof language.id === 'number' ||
-        language.constructor?.name === 'Language' ||
-        language.name && Array.isArray(language.nodeTypeInfo) ||
-        typeof language.query === 'function'
-      );
-      
+      const hasValidProps =
+        typeof language.nodeTypeCount === "number" ||
+        typeof language.id === "number" ||
+        language.constructor?.name === "Language" ||
+        (language.name && Array.isArray(language.nodeTypeInfo)) ||
+        typeof language.query === "function";
+
       if (hasValidProps) {
         return language;
       }
     }
-    
+
     logger.warn(`Invalid language object for ${name}: ${typeof language}`);
     return null;
   } catch (err) {
