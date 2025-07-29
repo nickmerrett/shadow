@@ -64,12 +64,6 @@ async function startServer() {
   // Request logging
   app.use(requestLogger);
 
-  // Try to restore terminal buffer from previous session
-  try {
-    await terminalBuffer.restore('/tmp/terminal-buffer.json');
-  } catch (error) {
-    logger.info("No previous terminal buffer found, starting fresh");
-  }
 
   // API routes
   app.use(createHealthRouter(workspaceService));
@@ -153,13 +147,6 @@ async function startServer() {
     // Kill all running processes
     commandService.killAllProcesses();
 
-    // Persist terminal buffer
-    try {
-      await terminalBuffer.persist('/tmp/terminal-buffer.json');
-      logger.info("Terminal buffer persisted");
-    } catch (error) {
-      logger.error("Failed to persist terminal buffer", { error });
-    }
 
     // Destroy terminal buffer
     terminalBuffer.destroy();

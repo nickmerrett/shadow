@@ -6,7 +6,6 @@
     "lib": ["ES2022"],
     "target": "ES2022",
     "module": "NodeNext",
-    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,

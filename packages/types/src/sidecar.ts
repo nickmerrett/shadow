@@ -116,6 +116,36 @@ export interface CodebaseSearchResponse extends SidecarResponse {
   searchTerms?: string[];
 }
 
+// === Terminal Operations ===
+
+export interface TerminalBufferStats {
+  totalEntries: number;
+  memoryUsage: number;
+  droppedCount: number;
+  backpressureActive: boolean;
+  oldestEntry?: number;
+  newestEntry?: number;
+}
+
+export interface TerminalHistoryResponse extends SidecarResponse {
+  entries?: Array<{
+    id: number;
+    timestamp: number;
+    data: string;
+    type: 'stdout' | 'stderr' | 'command' | 'system';
+    processId?: number;
+  }>;
+  stats?: TerminalBufferStats;
+}
+
+export interface TerminalStatsResponse extends SidecarResponse {
+  stats?: TerminalBufferStats;
+}
+
+export interface TerminalClearResponse extends SidecarResponse {
+  message: string;
+}
+
 // === Command Operations ===
 
 export const CommandRequestSchema = z.object({
