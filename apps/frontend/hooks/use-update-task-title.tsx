@@ -26,35 +26,7 @@ export function useUpdateTaskTitle() {
 
       return response.json();
     },
-    onMutate: async ({ taskId, title }) => {
-      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: ["task", taskId] });
-
-      // Snapshot the previous value
-      const previousTaskData = queryClient.getQueryData<TaskWithDetails>(["task", taskId]);
-
-      // Optimistically update to the new value
-      if (previousTaskData) {
-        queryClient.setQueryData<TaskWithDetails>(["task", taskId], {
-          ...previousTaskData,
-          task: previousTaskData.task ? {
-            ...previousTaskData.task,
-            title,
-          } : null,
-        });
-      }
-
-      // Return a context object with the snapshotted value
-      return { previousTaskData };
-    },
-    onError: (err, { taskId }, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousTaskData) {
-        queryClient.setQueryData(["task", taskId], context.previousTaskData);
-      }
-    },
     onSettled: (data, error, { taskId }) => {
-      // Always refetch after error or success to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ["task", taskId] });
     },
   });

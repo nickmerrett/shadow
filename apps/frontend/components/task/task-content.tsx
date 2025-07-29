@@ -17,13 +17,8 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
     useTaskMessages(taskId);
   const sendMessageMutation = useSendMessage();
 
-  const {
-    isConnected,
-    streamingAssistantParts,
-    isStreaming,
-    sendMessage,
-    stopStream,
-  } = useTaskSocket(taskId);
+  const { streamingAssistantParts, isStreaming, sendMessage, stopStream } =
+    useTaskSocket(taskId);
 
   const handleSendMessage = (
     message: string,

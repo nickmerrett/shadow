@@ -38,7 +38,11 @@ export function TaskPageWrapper({
 
   const { task } = useTask(taskId);
   const [editValue, setEditValue] = useState(task?.title || "");
-  const updateTaskTitle = useUpdateTaskTitle();
+  const {
+    mutate: mutateTaskTitle,
+    variables: taskTitleVariables,
+    isPending: isUpdatingTaskTitle,
+  } = useUpdateTaskTitle();
   // We don't need to access the sidebar view from context anymore
   // Just check the pathname directly to determine what to render
 
@@ -126,11 +130,13 @@ export function TaskPageWrapper({
 
   const handleInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
+      e.stopPropagation();
       if (editValue.trim() && editValue !== task?.title) {
-        updateTaskTitle.mutate({ taskId, title: editValue.trim() });
+        mutateTaskTitle({ taskId, title: editValue.trim() });
       }
       setIsEditing(false);
     } else if (e.key === "Escape") {
+      e.stopPropagation();
       setIsEditing(false);
       setEditValue(task?.title || "");
     }
@@ -138,7 +144,7 @@ export function TaskPageWrapper({
 
   const handleInputBlur = () => {
     if (editValue.trim() && editValue !== task?.title) {
-      updateTaskTitle.mutate({ taskId, title: editValue.trim() });
+      mutateTaskTitle({ taskId, title: editValue.trim() });
     } else {
       setEditValue(task?.title || "");
     }
@@ -184,9 +190,9 @@ export function TaskPageWrapper({
                 onChange={(e) => setEditValue(e.target.value)}
                 onKeyDown={handleInputKeyDown}
                 onBlur={handleInputBlur}
-                style={{ width: titleRef.current?.clientWidth }}
+                style={{ width: (titleRef.current?.clientWidth || 0) + 8 }}
                 className={cn(
-                  "focus:ring-ring/10 focus:border-border h-7 w-full items-center rounded-md border border-transparent bg-transparent px-2 focus:outline-none focus:ring-2",
+                  "focus:ring-ring/10 focus:border-border h-7 w-full min-w-36 items-center rounded-md border border-transparent bg-transparent px-2 focus:outline-none focus:ring-2",
                   isEditing ? "flex" : "hidden"
                 )}
               />
@@ -198,7 +204,13 @@ export function TaskPageWrapper({
                 onClick={handleTitleClick}
                 ref={titleRef}
               >
-                <span className="truncate">{task?.title}</span>
+                {isUpdatingTaskTitle ? (
+                  <span className="animate-pulse truncate">
+                    {taskTitleVariables?.title}
+                  </span>
+                ) : (
+                  <span className="truncate">{task?.title}</span>
+                )}
               </div>
             </div>
 

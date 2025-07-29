@@ -1,9 +1,9 @@
-import { db } from "@repo/db";
+import { db, Task } from "@repo/db";
 
 export async function updateTaskTitle(
   taskId: string,
   title: string
-): Promise<{ success: boolean; task?: any; error?: string }> {
+): Promise<{ success: boolean; task?: Task; error?: string }> {
   try {
     const updatedTask = await db.task.update({
       where: { id: taskId },
@@ -13,9 +13,9 @@ export async function updateTaskTitle(
     return { success: true, task: updatedTask };
   } catch (error) {
     console.error(`Failed to update task title for ${taskId}:`, error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error" 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
