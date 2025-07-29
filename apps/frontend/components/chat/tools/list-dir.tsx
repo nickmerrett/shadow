@@ -1,19 +1,6 @@
-import type { Message } from "@repo/types";
+import type { Message, DirectoryListing } from "@repo/types";
 import { File, Folder, FolderOpen } from "lucide-react";
 import { CollapsibleTool, ToolType } from "./collapsible-tool";
-
-interface DirectoryItem {
-  name: string;
-  type: string;
-  isDirectory: boolean;
-}
-
-interface DirectoryResult {
-  success: boolean;
-  contents: DirectoryItem[];
-  path: string;
-  message: string;
-}
 
 export function ListDirTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
@@ -22,7 +9,7 @@ export function ListDirTool({ message }: { message: Message }) {
   const { args, status, result } = toolMeta;
   const path = args.relative_workspace_path as string;
 
-  let parsedResult: DirectoryResult | null = null;
+  let parsedResult: DirectoryListing | null = null;
   try {
     parsedResult = typeof result === "string" ? JSON.parse(result) : result;
   } catch {
@@ -37,7 +24,7 @@ export function ListDirTool({ message }: { message: Message }) {
     >
       {result && status === "COMPLETED" && (
         <div>
-          {parsedResult?.success ? (
+          {parsedResult?.success && parsedResult.contents ? (
             <div className="flex flex-col gap-0.5">
               {parsedResult.contents.map((item) => (
                 <div key={item.name} className="flex items-center gap-2 py-px">

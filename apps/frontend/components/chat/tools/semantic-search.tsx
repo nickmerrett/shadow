@@ -1,5 +1,5 @@
-import type { Message } from "@repo/types";
-import { Folder, Search } from "lucide-react";
+import type { Message, CodebaseSearchToolResult } from "@repo/types";
+import { Code, Folder, Search } from "lucide-react";
 import { CollapsibleTool, ToolType } from "./collapsible-tool";
 
 export function SemanticSearchTool({ message }: { message: Message }) {
@@ -8,6 +8,14 @@ export function SemanticSearchTool({ message }: { message: Message }) {
 
   const { args, status, result } = toolMeta;
   const query = args.query as string;
+  const targetDirectories = args.targetDirectories as string[] | undefined;
+
+  let parsedResult: CodebaseSearchToolResult | null = null;
+  try {
+    parsedResult = typeof result === "string" ? JSON.parse(result) : result;
+  } catch {
+    // If parsing fails, we'll show the raw result
+  }
 
   return (
     <CollapsibleTool
@@ -15,12 +23,12 @@ export function SemanticSearchTool({ message }: { message: Message }) {
       type={ToolType.SEMANTIC_SEARCH}
       title={`"${query}"`}
     >
-      {args.targetDirectories?.length > 0 && (
-        <div className="flex items-center gap-1">
+      {targetDirectories && targetDirectories.length > 0 && (
+        <div className="mb-2 flex items-center gap-1">
           <Folder className="text-muted-foreground size-3" />
           <div className="text-muted-foreground text-xs">
             in{" "}
-            {args.targetDirectories.map((dir: string) => (
+            {targetDirectories.map((dir: string) => (
               <code
                 key={dir}
                 className="mx-0.5 rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-800/50"
@@ -34,21 +42,43 @@ export function SemanticSearchTool({ message }: { message: Message }) {
 
       {result && status === "COMPLETED" && (
         <div>
-          <div className="text-muted-foreground mb-1 text-xs">Results:</div>
-          <div className="max-h-40 overflow-y-auto rounded-md border bg-gray-50 p-3 text-xs dark:bg-gray-900/50">
-            <div className="text-muted-foreground whitespace-pre-wrap">
-              {(() => {
-                const resultStr =
-                  typeof result === "string" ? result : JSON.stringify(result);
-                return (
-                  <>
-                    {resultStr.substring(0, 800)}
-                    {resultStr.length > 800 && "\n\n... (truncated)"}
-                  </>
-                );
-              })()}
+          {parsedResult ? (
+            parsedResult.success ? (
+              <div className="flex flex-col gap-2">
+                <div className="text-muted-foreground text-xs">
+                  {parsedResult.message}
+                </div>
+                {parsedResult.results.map((item) => (
+                  <div key={item.id} className="flex flex-col gap-1 py-1">
+                    <div className="flex items-center gap-2">
+                      <Code className="size-4" />
+                      <span className="text-muted-foreground text-xs">
+                        Relevance: {(item.relevance * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <pre className="overflow-x-auto whitespace-pre-wrap text-xs">
+                      {item.content.length > 400
+                        ? `${item.content.substring(0, 400)}...`
+                        : item.content}
+                    </pre>
+                  </div>
+                ))}
+                {parsedResult.results.length === 0 && (
+                  <div className="text-muted-foreground text-xs">
+                    No results found
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-destructive text-xs">
+                {parsedResult.message || "Error searching codebase"}
+              </div>
+            )
+          ) : (
+            <div className="text-muted-foreground text-xs">
+              Failed to parse search results
             </div>
-          </div>
+          )}
         </div>
       )}
     </CollapsibleTool>
