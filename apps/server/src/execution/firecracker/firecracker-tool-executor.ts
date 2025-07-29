@@ -69,7 +69,7 @@ export class FirecrackerToolExecutor implements ToolExecutor {
         );
       }
 
-      return await response.json();
+      return await response.json() as T;
     } catch (error) {
       clearTimeout(timeoutId);
       throw error;

@@ -11,7 +11,9 @@ export const TaskCodebaseUnderstandingSchema = z.object({
   updatedAt: z.date(),
 });
 
-export type TaskCodebaseUnderstanding = z.infer<typeof TaskCodebaseUnderstandingSchema>;
+export type TaskCodebaseUnderstanding = z.infer<
+  typeof TaskCodebaseUnderstandingSchema
+>;
 
 // Legacy schema for backwards compatibility
 export const CodebaseSummarySchema = z.object({

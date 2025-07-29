@@ -33,8 +33,7 @@ export interface IndexRepoOptions {
 
 // Add GitHub API helper
 async function fetchRepoFiles(
-  taskId: string,
-  path: string = ""
+  taskId: string
 ): Promise<Array<{ path: string; content: string; type: string }>> {
   // For local indexing, we'll use the workspace manager
   // The repo parameter should be the taskId or we need to map repo to taskId
@@ -56,7 +55,12 @@ async function indexRepo(
   invertedIndex: any;
   embeddings?: { index: any; binary: Buffer };
 }> {
-  const { maxLines = 200, embed = false, paths = null, clearNamespace = true } = options;
+  const {
+    maxLines = 200,
+    embed = false,
+    paths = null,
+    clearNamespace = true,
+  } = options;
 
   logger.info(
     `Indexing ${repoName}${paths ? " (filtered)" : ""}${embed ? " + embeddings" : ""}`

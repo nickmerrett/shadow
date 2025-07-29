@@ -33,7 +33,7 @@ export class CodebaseUnderstandingStorage {
       }
 
       let codebaseUnderstanding;
-      
+
       if (task.codebaseUnderstanding) {
         // Update existing
         codebaseUnderstanding = await db.codebaseUnderstanding.update({
@@ -109,7 +109,10 @@ export class CodebaseUnderstandingStorage {
 
       return !!task?.codebaseUnderstandingId;
     } catch (error) {
-      console.error(`Failed to check existing summary for task ${this.taskId}:`, error);
+      console.error(
+        `Failed to check existing summary for task ${this.taskId}:`,
+        error
+      );
       return false;
     }
   }

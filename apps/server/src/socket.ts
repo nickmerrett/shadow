@@ -4,6 +4,7 @@ import {
   ServerToClientEvents,
   ClientToServerEvents,
   TerminalEntry,
+  TerminalHistoryResponse,
 } from "@repo/types";
 import http from "http";
 import { Server, Socket } from "socket.io";
@@ -55,7 +56,7 @@ async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
       if (!response.ok) {
         throw new Error(`Sidecar terminal API error: ${response.status}`);
       }
-      const data = await response.json();
+      const data = (await response.json()) as TerminalHistoryResponse;
       return data.entries || [];
     } else {
       // For local mode, return empty for now (no local buffer yet)
@@ -141,7 +142,7 @@ function startTerminalPolling(taskId: string) {
           `http://localhost:8080/terminal/history?sinceId=${lastSeenId}`
         );
         if (response.ok) {
-          const data = await response.json();
+          const data = (await response.json()) as TerminalHistoryResponse;
           const newEntries = data.entries || [];
 
           // Emit new entries to connected clients in the task room
