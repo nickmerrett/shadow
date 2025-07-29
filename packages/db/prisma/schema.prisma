@@ -71,10 +71,9 @@ model Verification {
 }
 
 model Task {
-  id          String     @id @default(nanoid(16))
-  title       String
-  description String?
-  status      TaskStatus @default(INITIALIZING)
+  id     String     @id @default(nanoid(16))
+  title  String
+  status TaskStatus @default(INITIALIZING)
 
   // Repo full name "owner/repo"
   repoFullName String

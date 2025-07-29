@@ -11,6 +11,8 @@ import { type ChatMessage } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import { systemPrompt } from "./prompt/system-prompt";
 import { GitManager } from "./services/git-manager";
+import { PRManager } from "./services/pr-manager";
+import { GitHubService } from "./github";
 import {
   emitStreamChunk,
   endStream,
@@ -25,6 +27,7 @@ export const DEFAULT_MODEL: ModelType = "gpt-4o";
 
 export class ChatService {
   private llmService: LLMService;
+  private githubService: GitHubService;
   private activeStreams: Map<string, AbortController> = new Map();
   private stopRequested: Set<string> = new Set();
   private queuedMessages: Map<
@@ -34,6 +37,7 @@ export class ChatService {
 
   constructor() {
     this.llmService = new LLMService();
+    this.githubService = new GitHubService();
   }
 
   private async getNextSequence(taskId: string): Promise<number> {
@@ -122,7 +126,7 @@ export class ChatService {
   private async commitChangesIfAny(
     taskId: string,
     workspacePath?: string
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       // Get task info including user and workspace details
       const task = await prisma.task.findUnique({
@@ -132,14 +136,14 @@ export class ChatService {
 
       if (!task) {
         console.warn(`[CHAT] Task not found for git commit: ${taskId}`);
-        return;
+        return false;
       }
 
       if (!task.shadowBranch) {
         console.warn(
           `[CHAT] No shadow branch configured for task ${taskId}, skipping git commit`
         );
-        return;
+        return false;
       }
 
       // Determine workspace path - use provided path or fall back to task workspace path
@@ -148,7 +152,7 @@ export class ChatService {
         console.warn(
           `[CHAT] No workspace path available for task ${taskId}, skipping git commit`
         );
-        return;
+        return false;
       }
 
       // For firecracker mode, we use the tool executor to make API calls to the sidecar
@@ -159,7 +163,7 @@ export class ChatService {
         const hasChanges = await gitManager.hasChanges();
         if (!hasChanges) {
           console.log(`[CHAT] No changes to commit for task ${taskId}`);
-          return;
+          return false;
         }
 
         // Commit changes with user and Shadow co-author
@@ -179,8 +183,10 @@ export class ChatService {
             `[CHAT] Successfully committed changes for task ${taskId}`
           );
         }
+
+        return committed;
       } else {
-        await this.commitChangesFirecrackerMode(taskId, task);
+        return await this.commitChangesFirecrackerMode(taskId, task);
       }
     } catch (error) {
       console.error(
@@ -192,12 +198,69 @@ export class ChatService {
   }
 
   /**
+   * Create a PR if needed after changes are committed
+   */
+  private async createPRIfNeeded(
+    taskId: string,
+    workspacePath?: string
+  ): Promise<void> {
+    try {
+      console.log(`[CHAT] Attempting to create PR for task ${taskId}`);
+
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        include: { user: true },
+      });
+
+      if (!task) {
+        console.warn(`[CHAT] Task not found for PR creation: ${taskId}`);
+        return;
+      }
+
+      if (!task.shadowBranch) {
+        console.warn(
+          `[CHAT] No shadow branch configured for task ${taskId}, skipping PR creation`
+        );
+        return;
+      }
+
+      const resolvedWorkspacePath = workspacePath || task.workspacePath;
+      if (!resolvedWorkspacePath) {
+        console.warn(
+          `[CHAT] No workspace path available for task ${taskId}, skipping PR creation`
+        );
+        return;
+      }
+
+      const gitManager = new GitManager(resolvedWorkspacePath);
+      const prManager = new PRManager(
+        this.githubService,
+        gitManager,
+        this.llmService
+      );
+
+      await prManager.createPRIfNeeded({
+        taskId,
+        repoFullName: task.repoFullName,
+        shadowBranch: task.shadowBranch,
+        baseBranch: task.baseBranch,
+        userId: task.userId,
+        taskTitle: task.title,
+        wasTaskCompleted: task.status === "COMPLETED",
+      });
+    } catch (error) {
+      console.error(`[CHAT] Failed to create PR for task ${taskId}:`, error);
+      // Non-blocking - don't throw
+    }
+  }
+
+  /**
    * Commit changes in firecracker mode using tool executor git APIs
    */
   private async commitChangesFirecrackerMode(
     taskId: string,
     task: { user: { name: string; email: string }; shadowBranch: string | null }
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       console.log(
         `[CHAT] Checking for changes to commit in firecracker mode for task ${taskId}`
@@ -213,14 +276,14 @@ export class ChatService {
         console.error(
           `[CHAT] Failed to check git status for task ${taskId}: ${statusResponse.message}`
         );
-        return;
+        return false;
       }
 
       if (!statusResponse.hasChanges) {
         console.log(
           `[CHAT] No changes to commit for task ${taskId} in firecracker mode`
         );
-        return;
+        return false;
       }
 
       // Get diff from tool executor to generate commit message on server side
@@ -252,7 +315,7 @@ export class ChatService {
         console.error(
           `[CHAT] Failed to commit changes for task ${taskId}: ${commitResponse.message}`
         );
-        return;
+        return false;
       }
 
       // Push the commit
@@ -260,7 +323,7 @@ export class ChatService {
         console.warn(
           `[CHAT] No shadow branch configured for task ${taskId}, skipping push`
         );
-        return;
+        return false;
       }
 
       const pushResponse = await toolExecutor.pushBranch({
@@ -278,12 +341,14 @@ export class ChatService {
       console.log(
         `[CHAT] Successfully committed changes for task ${taskId} in firecracker mode`
       );
+      return true;
     } catch (error) {
       console.error(
         `[CHAT] Error in firecracker mode git commit for task ${taskId}:`,
         error
       );
       // Don't throw here - we don't want git failures to break the chat flow
+      return false;
     }
   }
 
@@ -657,7 +722,15 @@ export class ChatService {
 
         // Commit changes if there are any (only for successfully completed responses)
         try {
-          await this.commitChangesIfAny(taskId, workspacePath);
+          const changesCommitted = await this.commitChangesIfAny(
+            taskId,
+            workspacePath
+          );
+
+          // Create PR if changes were committed
+          if (changesCommitted) {
+            await this.createPRIfNeeded(taskId, workspacePath);
+          }
         } catch (error) {
           console.error(
             `[CHAT] Failed to commit changes for task ${taskId}:`,
