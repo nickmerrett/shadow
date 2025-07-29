@@ -1,5 +1,5 @@
 import type { Message, GrepResult } from "@repo/types";
-import { Filter, Hash, File } from "lucide-react";
+import { Filter, Hash, File, Search } from "lucide-react";
 import { CollapsibleTool, ToolType } from "./collapsible-tool";
 import { getToolResult } from "@repo/types";
 
@@ -17,7 +17,11 @@ export function GrepSearchTool({ message }: { message: Message }) {
   const title = `${query}${caseSensitive ? " (case sensitive)" : ""}`;
 
   return (
-    <CollapsibleTool icon={<Hash />} type={ToolType.GREP_SEARCH} title={title}>
+    <CollapsibleTool
+      icon={<Search />}
+      type={ToolType.GREP_SEARCH}
+      title={title}
+    >
       {(includePattern || excludePattern) && (
         <div className="flex items-center gap-1">
           <Filter className="text-muted-foreground size-3" />

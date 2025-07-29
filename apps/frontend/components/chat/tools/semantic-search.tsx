@@ -1,5 +1,5 @@
 import type { Message, SemanticSearchToolResult } from "@repo/types";
-import { Code, File, Folder, Search } from "lucide-react";
+import { Code, File, Folder, ScanSearch, Search } from "lucide-react";
 import { CollapsibleTool, ToolType } from "./collapsible-tool";
 
 export function SemanticSearchTool({ message }: { message: Message }) {
@@ -19,7 +19,7 @@ export function SemanticSearchTool({ message }: { message: Message }) {
 
   return (
     <CollapsibleTool
-      icon={<Search />}
+      icon={<ScanSearch />}
       type={ToolType.SEMANTIC_SEARCH}
       title={`"${query}"`}
     >
