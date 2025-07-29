@@ -360,7 +360,12 @@ export class LocalToolExecutor implements ToolExecutor {
         if (colonIndex > 0 && secondColonIndex > colonIndex) {
           const file = rawMatch.substring(0, colonIndex); // Full absolute path
           const lineNumber = parseInt(rawMatch.substring(colonIndex + 1, secondColonIndex), 10);
-          const content = rawMatch.substring(secondColonIndex + 1); // Complete line content
+          let content = rawMatch.substring(secondColonIndex + 1); // Complete line content
+          
+          // Truncate content to 250 characters max
+          if (content.length > 250) {
+            content = content.substring(0, 250) + "...";
+          }
           
           detailedMatches.push({ file, lineNumber, content });
           matches.push(rawMatch); // Keep original format for backward compatibility
