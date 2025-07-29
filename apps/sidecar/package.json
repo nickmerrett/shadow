@@ -7,11 +7,8 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "jest",
-    "test:integration": "tsx tests/integration.test.ts",
-    "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist",
+    "lint": "eslint 'src/**/*.ts'",
+    "check-types": "tsc --noEmit",
     "docker:build": "docker build -f Dockerfile -t shadow-sidecar ../../",
     "docker:run": "docker run -p 8080:8080 -v $(pwd)/workspace:/workspace shadow-sidecar"
   },
