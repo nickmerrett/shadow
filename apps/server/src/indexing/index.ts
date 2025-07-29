@@ -24,13 +24,6 @@ router.post(
     next
   ) => {
     console.log("Indexing repo", req.body.repo);
-    console.log("Semantic search enabled:", config.enableSemanticSearch);
-    if (!config.enableSemanticSearch) {
-      console.log("Semantic search is not enabled - skipping indexing");
-      return res.status(200).json({
-        message: "Semantic search is not enabled - skipping indexing",
-      });
-    }
     const { repo, taskId, options } = req.body;
     const clearNamespace = options.clearNamespace;
     if (!repo || !isValidRepo(repo)) {
