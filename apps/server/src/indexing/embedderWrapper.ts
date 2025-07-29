@@ -20,12 +20,11 @@ import { logger } from "./logger";
 import { getNamespaceFromRepo } from "./utils/repository";
 import { PineconeBatchRecord } from "./types";
 
-
 // Wrapper used to embed and upsert to Pinecone
 async function embedAndUpsertToPinecone(
   nodes: GraphNode[],
   repo: string,
-  clearNamespace: boolean,  
+  clearNamespace: boolean
 ): Promise<number> {
   // Input: GraphNode[], repo: string, clearNamespace: boolean
   // Upserts the records to Pinecone as PineconeBatchRecord[]
@@ -65,6 +64,4 @@ async function embedAndUpsertToPinecone(
   return totalUploaded;
 }
 
-export {
-  embedAndUpsertToPinecone,
-};
+export { embedAndUpsertToPinecone };
