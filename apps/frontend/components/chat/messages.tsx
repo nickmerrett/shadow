@@ -67,21 +67,19 @@ function MessagesComponent({
   );
 
   return (
-    <div className="relative z-0 mb-24 flex w-full grow flex-col gap-3">
+    <div className="relative z-0 mb-24 flex w-full grow flex-col gap-4">
       <InitializingAnimation taskId={taskId} />
 
-      {messageGroups.map((messageGroup, index) => (
-        <div
-          className={cn("flex flex-col gap-3", index !== 0 && "mt-16")}
-          key={index}
-        >
+      {messageGroups.map((messageGroup, groupIndex) => (
+        <div className="flex flex-col gap-4" key={groupIndex}>
           {messageGroup.map((message) => {
             if (isUserMessage(message)) {
               return (
                 <UserMessage
                   key={message.id}
-                  content={message.content}
-                  className="sticky top-16 z-10 mb-3"
+                  taskId={taskId}
+                  message={message}
+                  isFirstMessage={groupIndex === 0}
                 />
               );
             }

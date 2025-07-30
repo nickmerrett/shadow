@@ -8,9 +8,12 @@ import { useTaskSocket } from "@/hooks/socket";
 import { useParams } from "next/navigation";
 import { ScrollToBottom } from "./scroll-to-bottom";
 import { useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function TaskPageContent() {
   const { taskId } = useParams<{ taskId: string }>();
+
+  const queryClient = useQueryClient();
 
   const { data: messages = [], error: taskMessagesError } =
     useTaskMessages(taskId);
@@ -19,21 +22,20 @@ export function TaskPageContent() {
   const { streamingAssistantParts, isStreaming, sendMessage, stopStream } =
     useTaskSocket(taskId);
 
-  const handleSendMessage = useCallback((
-    message: string,
-    model: string,
-    queue: boolean
-  ) => {
-    if (!taskId || !message.trim()) return;
+  const handleSendMessage = useCallback(
+    (message: string, model: string, queue: boolean) => {
+      if (!taskId || !message.trim()) return;
 
-    // Use the mutation for optimistic updates
-    if (!queue) {
-      sendMessageMutation.mutate({ taskId, message, model });
-    }
+      // Use the mutation for optimistic updates
+      if (!queue) {
+        sendMessageMutation.mutate({ taskId, message, model });
+      }
 
-    // Send via socket
-    sendMessage(message, model, queue);
-  }, [taskId, sendMessageMutation, sendMessage]);
+      // Send via socket
+      sendMessage(message, model, queue);
+    },
+    [taskId, sendMessageMutation, sendMessage]
+  );
 
   const handleStopStream = useCallback(() => {
     stopStream();
@@ -80,6 +82,9 @@ export function TaskPageContent() {
         onSubmit={handleSendMessage}
         onStopStream={handleStopStream}
         isStreaming={isStreaming || sendMessageMutation.isPending}
+        onFocus={() => {
+          queryClient.setQueryData(["edit-message-id", taskId], null);
+        }}
       />
     </div>
   );

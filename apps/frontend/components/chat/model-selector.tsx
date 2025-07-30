@@ -19,7 +19,7 @@ export function ModelSelector({
   selectedModel,
   handleSelectModel,
 }: {
-  isHome: boolean;
+  isHome?: boolean;
   selectedModel: ModelType;
   handleSelectModel: (model: ModelType) => void;
 }) {

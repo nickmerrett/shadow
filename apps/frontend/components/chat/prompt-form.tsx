@@ -18,7 +18,14 @@ import {
   X,
 } from "lucide-react";
 import { redirect, useParams } from "next/navigation";
-import { useEffect, useRef, useState, useTransition, useMemo, useCallback } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  useMemo,
+  useCallback,
+} from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
@@ -159,65 +166,75 @@ export function PromptForm({
         ];
   }, [isStreaming, onSubmit, message, selectedModel, queryClient, taskId]);
 
-  const formatShortcut = useCallback((shortcut: {
-    key: string;
-    meta: boolean;
-    ctrl: boolean;
-    alt: boolean;
-    shift: boolean;
-  }) => {
-    const modifiers = [];
-    if (shortcut.meta) modifiers.push("⌘");
-    if (shortcut.ctrl) modifiers.push("⌃");
-    if (shortcut.alt) modifiers.push("⌥");
-    if (shortcut.shift) modifiers.push("⇧");
+  const formatShortcut = useCallback(
+    (shortcut: {
+      key: string;
+      meta: boolean;
+      ctrl: boolean;
+      alt: boolean;
+      shift: boolean;
+    }) => {
+      const modifiers = [];
+      if (shortcut.meta) modifiers.push("⌘");
+      if (shortcut.ctrl) modifiers.push("⌃");
+      if (shortcut.alt) modifiers.push("⌥");
+      if (shortcut.shift) modifiers.push("⇧");
 
-    const keyDisplay = shortcut.key === "Enter" ? "⏎" : shortcut.key;
-    return modifiers.length > 0
-      ? `${modifiers.join("")}${keyDisplay}`
-      : keyDisplay;
-  }, []);
+      const keyDisplay = shortcut.key === "Enter" ? "⏎" : shortcut.key;
+      return modifiers.length > 0
+        ? `${modifiers.join("")}${keyDisplay}`
+        : keyDisplay;
+    },
+    []
+  );
 
   // Submission handling for home page
-  const handleSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedModel || !isHome || !repo || !branch || !message.trim()) {
-      return;
-    }
-
-    const completeRepoUrl = `https://github.com/${repo.full_name}`;
-
-    const formData = new FormData();
-    formData.append("message", message);
-    formData.append("model", selectedModel);
-    formData.append("repoUrl", completeRepoUrl);
-    formData.append("repoFullName", repo.full_name);
-    formData.append("baseBranch", branch.name);
-    formData.append("baseCommitSha", branch.commitSha);
-
-    startTransition(async () => {
-      let taskId: string | null = null;
-      try {
-        taskId = await createTask(formData);
-      } catch (error) {
-        toast.error("Failed to create task", {
-          description: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
-      if (taskId) {
-        queryClient.invalidateQueries({ queryKey: ["tasks"] });
-        redirect(`/tasks/${taskId}`);
-      }
-    });
-  }, [selectedModel, isHome, repo, branch, message, startTransition, queryClient]);
-
-  // onKeyDown handler for home page
-  const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey && isHome) {
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
       e.preventDefault();
-      handleSubmit(e);
-    }
-  }, [isHome, handleSubmit]);
+      if (!selectedModel || !isHome || !repo || !branch || !message.trim()) {
+        return;
+      }
+
+      const completeRepoUrl = `https://github.com/${repo.full_name}`;
+
+      const formData = new FormData();
+      formData.append("message", message);
+      formData.append("model", selectedModel);
+      formData.append("repoUrl", completeRepoUrl);
+      formData.append("repoFullName", repo.full_name);
+      formData.append("baseBranch", branch.name);
+      formData.append("baseCommitSha", branch.commitSha);
+
+      startTransition(async () => {
+        let taskId: string | null = null;
+        try {
+          taskId = await createTask(formData);
+        } catch (error) {
+          toast.error("Failed to create task", {
+            description:
+              error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+        if (taskId) {
+          queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          redirect(`/tasks/${taskId}`);
+        }
+      });
+    },
+    [selectedModel, isHome, repo, branch, message, startTransition, queryClient]
+  );
+
+  // Textarea's onKeyDown handler for home page
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey && isHome) {
+        e.preventDefault();
+        handleSubmit(e);
+      }
+    },
+    [isHome, handleSubmit]
+  );
 
   // Keyboard shortcuts, including submission handling for task page
   useEffect(() => {
@@ -299,7 +316,7 @@ export function PromptForm({
         {!isHome && (
           <div
             className={cn(
-              "ease-out-expo overflow-clip transition-all duration-500",
+              "ease-out-expo select-none overflow-clip transition-all duration-500",
               isMessageOptionsOpen
                 ? isStreaming
                   ? "h-[126px]"
@@ -357,7 +374,7 @@ export function PromptForm({
           </div>
         )}
 
-        <div className="from-input/25 to-input relative flex min-h-24 flex-col rounded-lg bg-gradient-to-t">
+        <div className="from-card/10 to-card relative flex min-h-24 flex-col rounded-lg bg-gradient-to-t">
           <div className="bg-background absolute inset-0 -z-20 rounded-[calc(var(--radius)+1px)]" />
           <Textarea
             ref={textareaRef}
@@ -377,7 +394,7 @@ export function PromptForm({
 
           {/* Buttons inside the container */}
           <div
-            className="group/footer flex items-center justify-between p-2"
+            className="flex items-center justify-between p-2"
             onClick={() => textareaRef.current?.focus()}
           >
             <ModelSelector
