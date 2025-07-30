@@ -180,12 +180,48 @@ build_sidecar() {
     
     # Copy sidecar build output
     cp -r dist/* "$ROOTFS_DIR/opt/shadow/"
-    cp package.json "$ROOTFS_DIR/opt/shadow/"
     
-    # Install production dependencies in chroot
+    # Create production package.json WITHOUT workspace dependencies
+    log "Creating production package.json without workspace dependencies..."
+    node -e "
+    const fs = require('fs');
+    const path = require('path');
+    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+    
+    // Filter out workspace dependencies (@repo/*)
+    const prodDeps = {};
+    if (pkg.dependencies) {
+        for (const [name, version] of Object.entries(pkg.dependencies)) {
+            if (!name.startsWith('@repo/')) {
+                prodDeps[name] = version;
+            }
+        }
+    }
+    
+    // Create production package.json
+    const prodPkg = {
+        name: pkg.name,
+        version: pkg.version,
+        description: pkg.description,
+        main: pkg.main,
+        scripts: {
+            start: pkg.scripts.start
+        },
+        dependencies: prodDeps,
+        engines: pkg.engines
+    };
+    
+    const outputPath = '$ROOTFS_DIR/opt/shadow/package.json';
+    fs.writeFileSync(outputPath, JSON.stringify(prodPkg, null, 2));
+    console.log('Production package.json created with dependencies:', Object.keys(prodDeps));
+    "
+    
+    # Install only external production dependencies in chroot
     chroot "$ROOTFS_DIR" /bin/bash -c "
         cd /opt/shadow
-        npm install --production
+        echo 'Installing production dependencies...'
+        npm install --production --no-optional --no-audit
+        echo 'Production dependencies installed successfully'
     "
     
     log "Shadow sidecar built and installed"
