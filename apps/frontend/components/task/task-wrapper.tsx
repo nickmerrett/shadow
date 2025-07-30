@@ -21,10 +21,9 @@ import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { StickToBottom, type StickToBottomContext } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
 import { TaskPageContent } from "./task-content";
-import { useTask } from "@/hooks/use-task";
 import { useParams } from "next/navigation";
 import { useAgentEnvironment } from "../agent-environment/agent-environment-context";
-import { useUpdateTaskTitle } from "@/hooks/use-update-task-title";
+import { useTaskTitle, useUpdateTaskTitle } from "@/hooks/use-task-title";
 
 export function TaskPageWrapper({
   initialLayout,
@@ -36,8 +35,8 @@ export function TaskPageWrapper({
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { task } = useTask(taskId);
-  const [editValue, setEditValue] = useState(task?.title || "");
+  const { data: taskTitle } = useTaskTitle(taskId);
+  const [editValue, setEditValue] = useState(taskTitle || "");
   const {
     mutate: mutateTaskTitle,
     variables: taskTitleVariables,
@@ -50,10 +49,10 @@ export function TaskPageWrapper({
   const { isAtTop } = useIsAtTop(0, stickToBottomContextRef.current?.scrollRef);
 
   useEffect(() => {
-    if (task) {
-      setEditValue(task.title || "");
+    if (taskTitle) {
+      setEditValue(taskTitle);
     }
-  }, [task]);
+  }, [taskTitle]);
 
   /* 
   Resizable panel state
@@ -131,22 +130,22 @@ export function TaskPageWrapper({
   const handleInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.stopPropagation();
-      if (editValue.trim() && editValue !== task?.title) {
+      if (editValue.trim() && editValue !== taskTitle) {
         mutateTaskTitle({ taskId, title: editValue.trim() });
       }
       setIsEditing(false);
     } else if (e.key === "Escape") {
       e.stopPropagation();
       setIsEditing(false);
-      setEditValue(task?.title || "");
+      setEditValue(taskTitle || "");
     }
   };
 
   const handleInputBlur = () => {
-    if (editValue.trim() && editValue !== task?.title) {
+    if (editValue.trim() && editValue !== taskTitle) {
       mutateTaskTitle({ taskId, title: editValue.trim() });
     } else {
-      setEditValue(task?.title || "");
+      setEditValue(taskTitle || "");
     }
     setIsEditing(false);
   };
@@ -190,7 +189,7 @@ export function TaskPageWrapper({
                 onChange={(e) => setEditValue(e.target.value)}
                 onKeyDown={handleInputKeyDown}
                 onBlur={handleInputBlur}
-                style={{ width: (titleRef.current?.clientWidth || 0) + 8 }}
+                style={{ width: (titleRef.current?.clientWidth || 0) + 12 }}
                 className={cn(
                   "focus:ring-ring/10 focus:border-border h-7 w-full min-w-36 items-center rounded-md border border-transparent bg-transparent px-2 focus:outline-none focus:ring-2",
                   isEditing ? "flex" : "hidden"

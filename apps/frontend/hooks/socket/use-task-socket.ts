@@ -519,6 +519,7 @@ export function useTaskSocket(taskId: string | undefined) {
 
       queryClient.invalidateQueries({ queryKey: ["task", taskId] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["task-messages", taskId] });
       queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
     }
 
