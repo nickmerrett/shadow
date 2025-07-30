@@ -1,6 +1,12 @@
 import { cn } from "@/lib/utils";
 import type { Message, ErrorPart } from "@repo/types";
-import { ChevronDown, AlertCircle, Copy, Check } from "lucide-react";
+import {
+  ChevronDown,
+  AlertCircle,
+  Copy,
+  Check,
+  MoreHorizontal,
+} from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import { MemoizedMarkdown } from "./memoized-markdown";
 import { ToolMessage } from "./tools";
@@ -9,6 +15,12 @@ import { PRCard } from "./pr-card";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 function getMessageCopyContent(
   groupedParts: Array<
@@ -39,7 +51,12 @@ export function AssistantMessage({
   taskId: string;
 }) {
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
-  const { copyToClipboard, isCopied } = useCopyToClipboard();
+  const [isMoreDropdownOpen, setIsMoreDropdownOpen] = useState(false);
+  const {
+    copyToClipboard: copyMessageContent,
+    isCopied: isMessageContentCopied,
+  } = useCopyToClipboard();
+  const { copyToClipboard: copyMessageId } = useCopyToClipboard();
 
   // TODO(Ishaan) test with a reasoning model
   if (message.metadata?.thinking) {
@@ -71,11 +88,6 @@ export function AssistantMessage({
     );
   }
 
-  // Render structured parts in chronological order
-  if (!message.metadata?.parts || message.metadata.parts.length === 0) {
-    return null;
-  }
-
   const toolResultsMap = useMemo(() => {
     const map = new Map<string, { result: unknown; toolName: string }>();
     if (!message.metadata?.parts || message.metadata.parts.length === 0)
@@ -89,7 +101,7 @@ export function AssistantMessage({
       }
     });
     return map;
-  }, [message.metadata.parts]);
+  }, [message.metadata?.parts]);
 
   // Group consecutive text parts together for better rendering
   const groupedParts = useMemo(() => {
@@ -130,16 +142,24 @@ export function AssistantMessage({
     }
 
     return parts;
-  }, [message.metadata.parts]);
+  }, [message.metadata?.parts]);
 
   const copyContent = useMemo(
     () => getMessageCopyContent(groupedParts),
     [groupedParts]
   );
 
-  const handleCopy = useCallback(() => {
-    copyToClipboard(copyContent);
-  }, [copyToClipboard, copyContent]);
+  const handleCopyMessageContent = useCallback(() => {
+    copyMessageContent(copyContent);
+  }, [copyMessageContent, copyContent]);
+
+  const handleCopyMessageId = useCallback(() => {
+    copyMessageId(message.id);
+  }, [copyMessageId, message.id]);
+
+  if (!message.metadata?.parts || message.metadata.parts.length === 0) {
+    return null;
+  }
 
   return (
     <div className="group/assistant-message relative flex flex-col gap-1">
@@ -209,17 +229,23 @@ export function AssistantMessage({
         <PRCard taskId={taskId} snapshot={message.pullRequestSnapshot} />
       )}
 
-      <div className="absolute -bottom-6 left-0 flex w-full items-center justify-end px-3 opacity-0 transition-all focus-within:opacity-100 group-hover/assistant-message:opacity-100">
+      <div
+        className={cn(
+          "absolute -bottom-6 left-0 flex w-full items-center justify-end px-3 opacity-0 transition-all",
+          "focus-within:opacity-100 group-hover/assistant-message:opacity-100",
+          isMoreDropdownOpen && "opacity-100"
+        )}
+      >
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="iconSm"
               className="text-muted-foreground hover:text-foreground"
-              disabled={isCopied}
-              onClick={handleCopy}
+              disabled={isMessageContentCopied}
+              onClick={handleCopyMessageContent}
             >
-              {isCopied ? (
+              {isMessageContentCopied ? (
                 <Check className="size-3.5" />
               ) : (
                 <Copy className="size-3.5" />
@@ -227,8 +253,34 @@ export function AssistantMessage({
             </Button>
           </TooltipTrigger>
 
-          <TooltipContent side="left">Copy to clipboard</TooltipContent>
+          <TooltipContent side="bottom" align="end">
+            Copy to Clipboard
+          </TooltipContent>
         </Tooltip>
+
+        <DropdownMenu
+          open={isMoreDropdownOpen}
+          onOpenChange={setIsMoreDropdownOpen}
+        >
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="iconSm"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <MoreHorizontal className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent className="rounded-lg" align="end">
+            <DropdownMenuItem
+              className="text-muted-foreground hover:text-foreground h-7 rounded-md py-0"
+              onClick={handleCopyMessageId}
+            >
+              Copy Message ID
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
