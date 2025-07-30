@@ -2,7 +2,7 @@ import type { Message } from "@repo/types";
 import { FileSearch, File } from "lucide-react";
 import { ToolType } from "@repo/types";
 import { ToolComponent } from "./collapsible-tool";
-import { getToolResult } from "@repo/types";
+import { getToolResult, isFileSearchResult } from "@repo/types";
 
 export function FileSearchTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
@@ -12,7 +12,7 @@ export function FileSearchTool({ message }: { message: Message }) {
   const query = args.query as string;
 
   const result = getToolResult(toolMeta, "file_search");
-  const files = result?.files || [];
+  const files = (result && isFileSearchResult(result)) ? result.files : [];
 
   return (
     <ToolComponent
