@@ -202,7 +202,8 @@ export class ChatService {
    */
   private async createPRIfNeeded(
     taskId: string,
-    workspacePath?: string
+    workspacePath?: string,
+    messageId?: string
   ): Promise<void> {
     try {
       console.log(`[CHAT] Attempting to create PR for task ${taskId}`);
@@ -239,6 +240,13 @@ export class ChatService {
         this.llmService
       );
 
+      if (!messageId) {
+        console.warn(
+          `[CHAT] No messageId provided for PR creation for task ${taskId}`
+        );
+        return;
+      }
+
       await prManager.createPRIfNeeded({
         taskId,
         repoFullName: task.repoFullName,
@@ -247,6 +255,7 @@ export class ChatService {
         userId: task.userId,
         taskTitle: task.title,
         wasTaskCompleted: task.status === "COMPLETED",
+        messageId,
       });
     } catch (error) {
       console.error(`[CHAT] Failed to create PR for task ${taskId}:`, error);
@@ -259,7 +268,10 @@ export class ChatService {
    */
   private async commitChangesFirecrackerMode(
     taskId: string,
-    task: { user: { name: string; email: string }; shadowBranch: string | null }
+    task: {
+      user: { name: string; email: string };
+      shadowBranch: string | null;
+    }
   ): Promise<boolean> {
     try {
       console.log(
@@ -670,6 +682,29 @@ export class ChatService {
           );
         }
 
+        // Handle error chunks from LLM service
+        if (chunk.type === "error") {
+          console.error(
+            `[CHAT] Received error chunk for task ${taskId}:`,
+            chunk.error
+          );
+          finishReason = chunk.finishReason || "error";
+
+          // Update task status to failed
+          await updateTaskStatus(taskId, "FAILED", "CHAT");
+
+          // Clean up stream tracking
+          this.activeStreams.delete(taskId);
+          this.stopRequested.delete(taskId);
+          endStream(taskId);
+
+          // Clear any queued messages (don't process them after error)
+          this.clearQueuedMessage(taskId);
+
+          // Exit the streaming loop
+          break;
+        }
+
         // Track usage information
         if (chunk.type === "usage" && chunk.usage) {
           usageMetadata = {
@@ -728,8 +763,12 @@ export class ChatService {
           );
 
           // Create PR if changes were committed
-          if (changesCommitted) {
-            await this.createPRIfNeeded(taskId, workspacePath);
+          if (changesCommitted && assistantMessageId) {
+            await this.createPRIfNeeded(
+              taskId,
+              workspacePath,
+              assistantMessageId
+            );
           }
         } catch (error) {
           console.error(

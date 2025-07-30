@@ -531,6 +531,7 @@ export function useTaskSocket(taskId: string | undefined) {
 
     function onStreamError(error: unknown) {
       setIsStreaming(false);
+
       console.error("Stream error:", error);
 
       // Add error to structured parts

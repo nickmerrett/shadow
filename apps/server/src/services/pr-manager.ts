@@ -1,6 +1,7 @@
 import { GitHubService } from "../github";
 import { GitManager } from "./git-manager";
 import { LLMService } from "../llm";
+import { prisma } from "@repo/db";
 
 export interface PRMetadata {
   title: string;
@@ -16,6 +17,13 @@ export interface CreatePROptions {
   userId: string;
   taskTitle: string;
   wasTaskCompleted: boolean;
+  messageId: string;
+}
+
+interface DiffStats {
+  filesChanged: number;
+  linesAdded: number;
+  linesRemoved: number;
 }
 
 export class PRManager {
@@ -26,14 +34,13 @@ export class PRManager {
   ) {}
 
   /**
-   * Create a PR if changes exist and no PR already exists for the shadow branch
+   * Create or update PR and save snapshot
    */
   async createPRIfNeeded(options: CreatePROptions): Promise<void> {
     try {
-      console.log(
-        `[PR_MANAGER] Checking PR creation for task ${options.taskId}`
-      );
+      console.log(`[PR_MANAGER] Processing PR for task ${options.taskId}`);
 
+      // Check if there are any uncommitted changes
       const hasChanges = await this.gitManager.hasChanges();
       if (hasChanges) {
         console.log(
@@ -42,63 +49,161 @@ export class PRManager {
         return;
       }
 
-      const existingPR = await this.checkExistingPR(
-        options.repoFullName,
-        options.shadowBranch,
-        options.userId
-      );
+      // Get task to check if PR already exists
+      const task = await prisma.task.findUnique({
+        where: { id: options.taskId },
+      });
 
-      if (existingPR) {
-        console.log(
-          `[PR_MANAGER] PR already exists for branch ${options.shadowBranch}, skipping creation`
-        );
+      if (!task) {
+        console.warn(`[PR_MANAGER] Task not found: ${options.taskId}`);
         return;
       }
 
-      const metadata = await this.generatePRMetadata(options);
+      // Get git metadata
+      const commitSha = await this.gitManager.getCurrentCommitSha();
+      const diffStats = await this.gitManager.getDiffStats();
 
-      const prUrl = await this.createPullRequest(options, metadata);
+      const existingPRNumber = task.pullRequestNumber;
+
+      if (!existingPRNumber) {
+        // Create new PR path
+        await this.createNewPR(options, commitSha, diffStats);
+      } else {
+        // Update existing PR path
+        await this.updateExistingPR(
+          options,
+          existingPRNumber,
+          commitSha,
+          diffStats
+        );
+      }
 
       console.log(
-        `[PR_MANAGER] Successfully created PR for task ${options.taskId}: ${prUrl}`
+        `[PR_MANAGER] Successfully ${existingPRNumber ? "updated" : "created"} PR for task ${options.taskId}`
       );
     } catch (error) {
       console.error(
-        `[PR_MANAGER] Failed to create PR for task ${options.taskId}:`,
+        `[PR_MANAGER] Failed to create/update PR for task ${options.taskId}:`,
         error
       );
+      // Don't throw - PR creation is non-blocking
     }
   }
 
   /**
-   * Check if a PR already exists for the given shadow branch
+   * Create a new PR and save snapshot
    */
-  async checkExistingPR(
-    repoFullName: string,
-    shadowBranch: string,
-    userId: string
-  ): Promise<boolean> {
-    try {
-      const prs = await this.githubService.listPullRequests(
-        repoFullName,
-        shadowBranch,
-        userId
-      );
+  private async createNewPR(
+    options: CreatePROptions,
+    commitSha: string,
+    diffStats: DiffStats
+  ): Promise<void> {
+    // Generate PR metadata with AI
+    const metadata = await this.generatePRMetadata(options);
 
-      return prs.length > 0;
-    } catch (error) {
+    // Create GitHub PR
+    const result = await this.githubService.createPullRequest(
+      options.repoFullName,
+      {
+        title: metadata.title,
+        body: metadata.description,
+        head: options.shadowBranch,
+        base: options.baseBranch,
+        draft: metadata.isDraft,
+      },
+      options.userId
+    );
+
+    // Update task with PR number
+    await prisma.task.update({
+      where: { id: options.taskId },
+      data: { pullRequestNumber: result.number },
+    });
+
+    // Create snapshot record
+    await prisma.pullRequestSnapshot.create({
+      data: {
+        messageId: options.messageId,
+        status: "CREATED",
+        title: metadata.title,
+        description: metadata.description,
+        filesChanged: diffStats.filesChanged,
+        linesAdded: diffStats.linesAdded,
+        linesRemoved: diffStats.linesRemoved,
+        commitSha,
+      },
+    });
+
+    console.log(
+      `[PR_MANAGER] Created new PR #${result.number} for task ${options.taskId}`
+    );
+  }
+
+  /**
+   * Update existing PR and save snapshot
+   */
+  private async updateExistingPR(
+    options: CreatePROptions,
+    prNumber: number,
+    commitSha: string,
+    diffStats: DiffStats
+  ): Promise<void> {
+    // Get current PR description from most recent snapshot
+    const latestSnapshot = await prisma.pullRequestSnapshot.findFirst({
+      where: {
+        message: {
+          taskId: options.taskId,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!latestSnapshot) {
       console.warn(
-        `[PR_MANAGER] Failed to check existing PRs for ${shadowBranch}:`,
-        error
+        `[PR_MANAGER] No previous snapshot found for task ${options.taskId}, creating new description`
       );
-      return false;
     }
+
+    // Generate updated description using AI
+    const newDescription = await this.generateUpdatedDescription(
+      latestSnapshot?.description || "",
+      await this.gitManager.getDiff(),
+      options.taskTitle
+    );
+
+    // Update GitHub PR
+    await this.githubService.updatePullRequest(
+      options.repoFullName,
+      prNumber,
+      { body: newDescription },
+      options.userId
+    );
+
+    // Create new snapshot record
+    await prisma.pullRequestSnapshot.create({
+      data: {
+        messageId: options.messageId,
+        status: "UPDATED",
+        title: latestSnapshot?.title || options.taskTitle,
+        description: newDescription,
+        filesChanged: diffStats.filesChanged,
+        linesAdded: diffStats.linesAdded,
+        linesRemoved: diffStats.linesRemoved,
+        commitSha,
+      },
+    });
+
+    console.log(
+      `[PR_MANAGER] Updated PR #${prNumber} for task ${options.taskId}`
+    );
   }
 
   /**
    * Generate PR metadata using LLM based on git changes and task context
    */
-  async generatePRMetadata(options: CreatePROptions): Promise<PRMetadata> {
+  private async generatePRMetadata(
+    options: CreatePROptions
+  ): Promise<PRMetadata> {
     try {
       const diff = await this.gitManager.getDiff();
       const commitMessages = await this.getRecentCommitMessages();
@@ -109,11 +214,6 @@ export class PRManager {
         commitMessages,
         wasTaskCompleted: options.wasTaskCompleted,
       });
-
-      console.log(
-        `[PR_MANAGER] Generated PR metadata for task ${options.taskId}:`,
-        { title: metadata.title, isDraft: metadata.isDraft }
-      );
 
       return metadata;
     } catch (error) {
@@ -131,25 +231,38 @@ export class PRManager {
   }
 
   /**
-   * Create a pull request using GitHub API
+   * Generate updated PR description by merging old description with new changes
    */
-  async createPullRequest(
-    options: CreatePROptions,
-    metadata: PRMetadata
+  private async generateUpdatedDescription(
+    oldDescription: string,
+    newDiff: string,
+    taskTitle: string
   ): Promise<string> {
-    const result = await this.githubService.createPullRequest(
-      options.repoFullName,
-      {
-        title: metadata.title,
-        body: metadata.description,
-        head: options.shadowBranch,
-        base: options.baseBranch,
-        draft: metadata.isDraft,
-      },
-      options.userId
-    );
+    if (!oldDescription) {
+      // If no old description, generate fresh one
+      return newDiff
+        ? `## Changes\n\nUpdated implementation for: **${taskTitle}**\n\n## Recent Updates\n\nSee commit for details.`
+        : "Pull request description generation failed.";
+    }
 
-    return result.url;
+    try {
+      const result = await this.llmService.generatePRMetadata({
+        taskTitle,
+        gitDiff: newDiff,
+        commitMessages: [],
+        wasTaskCompleted: true,
+      });
+
+      return result.description;
+    } catch (error) {
+      console.warn(
+        `[PR_MANAGER] Failed to generate updated description:`,
+        error
+      );
+
+      // Fallback: append to existing description
+      return `${oldDescription}\n\n## Recent Updates\n\n- Additional changes made\n- See latest commit for details`;
+    }
   }
 
   /**
@@ -157,7 +270,6 @@ export class PRManager {
    */
   private async getRecentCommitMessages(): Promise<string[]> {
     try {
-      // Get last 5 commit messages for context
       const { stdout } = await this.gitManager["execGit"](
         'log --oneline -5 --pretty=format:"%s"'
       );
@@ -167,5 +279,4 @@ export class PRManager {
       return [];
     }
   }
-
 }
