@@ -20,11 +20,6 @@ export interface CreatePROptions {
   messageId: string;
 }
 
-interface DiffStats {
-  filesChanged: number;
-  linesAdded: number;
-  linesRemoved: number;
-}
 
 export class PRManager {
   constructor(
@@ -61,20 +56,18 @@ export class PRManager {
 
       // Get git metadata
       const commitSha = await this.gitManager.getCurrentCommitSha();
-      const diffStats = await this.gitManager.getDiffStats();
 
       const existingPRNumber = task.pullRequestNumber;
 
       if (!existingPRNumber) {
         // Create new PR path
-        await this.createNewPR(options, commitSha, diffStats);
+        await this.createNewPR(options, commitSha);
       } else {
         // Update existing PR path
         await this.updateExistingPR(
           options,
           existingPRNumber,
-          commitSha,
-          diffStats
+          commitSha
         );
       }
 
@@ -95,8 +88,7 @@ export class PRManager {
    */
   private async createNewPR(
     options: CreatePROptions,
-    commitSha: string,
-    diffStats: DiffStats
+    commitSha: string
   ): Promise<void> {
     // Generate PR metadata with AI
     const metadata = await this.generatePRMetadata(options);
@@ -127,9 +119,9 @@ export class PRManager {
         status: "CREATED",
         title: metadata.title,
         description: metadata.description,
-        filesChanged: diffStats.filesChanged,
-        linesAdded: diffStats.linesAdded,
-        linesRemoved: diffStats.linesRemoved,
+        filesChanged: result.changed_files,
+        linesAdded: result.additions,
+        linesRemoved: result.deletions,
         commitSha,
       },
     });
@@ -145,8 +137,7 @@ export class PRManager {
   private async updateExistingPR(
     options: CreatePROptions,
     prNumber: number,
-    commitSha: string,
-    diffStats: DiffStats
+    commitSha: string
   ): Promise<void> {
     // Get current PR description from most recent snapshot
     const latestSnapshot = await prisma.pullRequestSnapshot.findFirst({
@@ -179,6 +170,13 @@ export class PRManager {
       options.userId
     );
 
+    // Get updated PR stats from GitHub
+    const prStats = await this.githubService.getPullRequest(
+      options.repoFullName,
+      prNumber,
+      options.userId
+    );
+
     // Create new snapshot record
     await prisma.pullRequestSnapshot.create({
       data: {
@@ -186,9 +184,9 @@ export class PRManager {
         status: "UPDATED",
         title: latestSnapshot?.title || options.taskTitle,
         description: newDescription,
-        filesChanged: diffStats.filesChanged,
-        linesAdded: diffStats.linesAdded,
-        linesRemoved: diffStats.linesRemoved,
+        filesChanged: prStats.changed_files,
+        linesAdded: prStats.additions,
+        linesRemoved: prStats.deletions,
         commitSha,
       },
     });

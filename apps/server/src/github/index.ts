@@ -367,7 +367,13 @@ export class GitHubService {
       draft: boolean;
     },
     userId: string
-  ): Promise<{ url: string; number: number }> {
+  ): Promise<{
+    url: string;
+    number: number;
+    additions: number;
+    deletions: number;
+    changed_files: number;
+  }> {
     return this.executeWithRetry(userId, async (accessToken) => {
       const [owner, repo] = repoFullName.split("/");
       const octokit = this.createOctokit(accessToken);
@@ -390,6 +396,9 @@ export class GitHubService {
         return {
           url: data.html_url,
           number: data.number,
+          additions: data.additions || 0,
+          deletions: data.deletions || 0,
+          changed_files: data.changed_files || 0,
         };
       } catch (error) {
         if (
@@ -412,6 +421,55 @@ export class GitHubService {
         }
         throw new Error(
           `Failed to create pull request: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+      }
+    });
+  }
+
+  /**
+   * Get pull request data including diff statistics
+   */
+  async getPullRequest(
+    repoFullName: string,
+    prNumber: number,
+    userId: string
+  ): Promise<{
+    additions: number;
+    deletions: number;
+    changed_files: number;
+  }> {
+    return this.executeWithRetry(userId, async (accessToken) => {
+      const [owner, repo] = repoFullName.split("/");
+      const octokit = this.createOctokit(accessToken);
+
+      if (!owner || !repo) {
+        throw new Error(`Invalid repository full name: ${repoFullName}`);
+      }
+
+      try {
+        const { data } = await octokit.pulls.get({
+          owner,
+          repo,
+          pull_number: prNumber,
+        });
+
+        return {
+          additions: data.additions || 0,
+          deletions: data.deletions || 0,
+          changed_files: data.changed_files || 0,
+        };
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          "status" in error &&
+          error.status === 404
+        ) {
+          throw new Error(
+            `Pull request #${prNumber} not found in ${owner}/${repo}`
+          );
+        }
+        throw new Error(
+          `Failed to get pull request: ${error instanceof Error ? error.message : "Unknown error"}`
         );
       }
     });
