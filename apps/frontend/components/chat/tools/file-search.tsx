@@ -1,7 +1,7 @@
 import type { Message } from "@repo/types";
 import { FileSearch } from "lucide-react";
 import { ToolType } from "@repo/types";
-import { CollapsibleTool } from "./collapsible-tool";
+import { ToolComponent } from "./collapsible-tool";
 import { getToolResult } from "@repo/types";
 
 export function FileSearchTool({ message }: { message: Message }) {
@@ -16,10 +16,11 @@ export function FileSearchTool({ message }: { message: Message }) {
     result?.files?.join("\n") || result?.message || "No files found";
 
   return (
-    <CollapsibleTool
+    <ToolComponent
       icon={<FileSearch />}
       type={ToolType.FILE_SEARCH}
       title={`"${query}"`}
+      collapsible
     >
       {result && status === "COMPLETED" && (
         <div>
@@ -31,6 +32,6 @@ export function FileSearchTool({ message }: { message: Message }) {
           </div>
         </div>
       )}
-    </CollapsibleTool>
+    </ToolComponent>
   );
 }

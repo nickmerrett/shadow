@@ -10,7 +10,7 @@ import {
 import { useState, useMemo, useCallback } from "react";
 import { MemoizedMarkdown } from "./memoized-markdown";
 import { ToolMessage } from "./tools";
-import { CollapsibleTool } from "./tools/collapsible-tool";
+import { ToolComponent } from "./tools/collapsible-tool";
 import { PRCard } from "./pr-card";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
@@ -210,14 +210,15 @@ export function AssistantMessage({
         // Render error parts
         if (group.type === "error") {
           return (
-            <CollapsibleTool
+            <ToolComponent
               key={`error-${groupIndex}`}
               icon={<AlertCircle className="text-destructive" />}
               title="Error occurred"
               type={"error"}
+              collapsible
             >
               {group.part.error}
-            </CollapsibleTool>
+            </ToolComponent>
           );
         }
 
@@ -231,7 +232,7 @@ export function AssistantMessage({
 
       <div
         className={cn(
-          "absolute -bottom-6 left-0 flex w-full items-center justify-end px-3 opacity-0 transition-all",
+          "absolute -bottom-4 left-0 flex w-full items-center justify-end px-3 opacity-0 transition-all",
           "focus-within:opacity-100 group-hover/assistant-message:opacity-100",
           isMoreDropdownOpen && "opacity-100"
         )}

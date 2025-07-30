@@ -1,7 +1,7 @@
 import type { Message, WebSearchResult } from "@repo/types";
 import { ExternalLink, Globe } from "lucide-react";
 import { ToolType } from "@repo/types";
-import { CollapsibleTool,  } from "./collapsible-tool";
+import { ToolComponent } from "./collapsible-tool";
 import { getToolResult } from "@repo/types";
 
 export function WebSearchTool({ message }: { message: Message }) {
@@ -20,7 +20,12 @@ export function WebSearchTool({ message }: { message: Message }) {
   const title = domain ? `"${query}" in ${domain}` : `"${query}"`;
 
   return (
-    <CollapsibleTool icon={<Globe />} type={ToolType.WEB_SEARCH} title={title}>
+    <ToolComponent
+      icon={<Globe />}
+      type={ToolType.WEB_SEARCH}
+      title={title}
+      collapsible
+    >
       {result?.results && Array.isArray(result.results) ? (
         <div>
           <div className="text-muted-foreground mb-2 text-xs">
@@ -66,6 +71,6 @@ export function WebSearchTool({ message }: { message: Message }) {
           </div>
         </div>
       ) : null}
-    </CollapsibleTool>
+    </ToolComponent>
   );
 }

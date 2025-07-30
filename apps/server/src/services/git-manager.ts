@@ -90,6 +90,11 @@ export class GitManager {
         "diff --cached --name-only"
       );
 
+      console.log(`[GIT_MANAGER] hasChanges:`, {
+        stdout: stdout.trim(),
+        staged: staged.trim(),
+      });
+
       return stdout.trim().length > 0 || staged.trim().length > 0;
     } catch (error) {
       console.error(`[GIT_MANAGER] Failed to check for changes:`, error);
@@ -112,57 +117,6 @@ export class GitManager {
     } catch (error) {
       console.error(`[GIT_MANAGER] Failed to get diff:`, error);
       return "";
-    }
-  }
-
-  /**
-   * Get git diff statistics (files changed, lines added/removed)
-   */
-  async getDiffStats(): Promise<{
-    filesChanged: number;
-    linesAdded: number;
-    linesRemoved: number;
-  }> {
-    try {
-      // Use git diff --stat to get statistics
-      const { stdout } = await this.execGit("diff --stat");
-
-      if (!stdout.trim()) {
-        return { filesChanged: 0, linesAdded: 0, linesRemoved: 0 };
-      }
-
-      // Parse output like "3 files changed, 45 insertions(+), 12 deletions(-)"
-      const lines = stdout.trim().split("\n");
-      const summaryLine = lines[lines.length - 1];
-
-      let filesChanged = 0;
-      let linesAdded = 0;
-      let linesRemoved = 0;
-
-      if (summaryLine) {
-        // Extract files changed
-        const filesMatch = summaryLine.match(/(\d+) files? changed/);
-        if (filesMatch && filesMatch[1]) {
-          filesChanged = parseInt(filesMatch[1], 10);
-        }
-
-        // Extract insertions
-        const insertionsMatch = summaryLine.match(/(\d+) insertions?\(\+\)/);
-        if (insertionsMatch && insertionsMatch[1]) {
-          linesAdded = parseInt(insertionsMatch[1], 10);
-        }
-
-        // Extract deletions
-        const deletionsMatch = summaryLine.match(/(\d+) deletions?\(-\)/);
-        if (deletionsMatch && deletionsMatch[1]) {
-          linesRemoved = parseInt(deletionsMatch[1], 10);
-        }
-      }
-
-      return { filesChanged, linesAdded, linesRemoved };
-    } catch (error) {
-      console.error(`[GIT_MANAGER] Failed to get diff stats:`, error);
-      return { filesChanged: 0, linesAdded: 0, linesRemoved: 0 };
     }
   }
 
