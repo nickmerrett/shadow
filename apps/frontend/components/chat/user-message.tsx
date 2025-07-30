@@ -28,11 +28,16 @@ export function UserMessage({
     [editMessageId, message.id]
   );
 
+  const initialModel = useMemo(() => {
+    if (message.llmModel) {
+      return message.llmModel as ModelType;
+    }
+    return AvailableModels.GPT_4O;
+  }, [message.llmModel]);
+
   const [editValue, setEditValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [selectedModel, setSelectedModel] = useState<ModelType>(
-    AvailableModels.GPT_4O
-  );
+  const [selectedModel, setSelectedModel] = useState<ModelType>(initialModel);
 
   const handleStartEditing = () => {
     if (!isEditing) {
