@@ -32,7 +32,13 @@ export function Messages({
           );
         }
         if (isAssistantMessage(message)) {
-          return <AssistantMessage key={message.id} message={message} />;
+          return (
+            <AssistantMessage
+              key={message.id}
+              message={message}
+              taskId={taskId}
+            />
+          );
         }
         return null;
       })}

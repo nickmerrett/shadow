@@ -8,6 +8,7 @@ import type {
 import { randomUUID } from "crypto";
 import { ToolExecutionStatusType } from "../tools/execution";
 import { ToolResultTypes } from "../tools/results";
+import type { PullRequestSnapshot } from "@repo/db";
 
 // Error part type for AI SDK error chunks
 export interface ErrorPart {
@@ -35,6 +36,7 @@ export interface BaseMessage {
   llmModel?: string; // Model used for this message (primarily for assistant messages)
   createdAt: string;
   metadata?: MessageMetadata;
+  pullRequestSnapshot?: PullRequestSnapshot;
 }
 
 export interface MessageMetadata {

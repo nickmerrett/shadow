@@ -5,8 +5,15 @@ import { useState } from "react";
 import { MemoizedMarkdown } from "./memoized-markdown";
 import { ToolMessage } from "./tools";
 import { CollapsibleTool } from "./tools/collapsible-tool";
+import { PRCard } from "./pr-card";
 
-export function AssistantMessage({ message }: { message: Message }) {
+export function AssistantMessage({
+  message,
+  taskId,
+}: {
+  message: Message;
+  taskId: string;
+}) {
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
 
   // TODO(Ishaan) test with a reasoning model
@@ -153,6 +160,11 @@ export function AssistantMessage({ message }: { message: Message }) {
 
         return null;
       })}
+
+      {/* Show PR card if this assistant message has a PR snapshot */}
+      {message.pullRequestSnapshot && (
+        <PRCard taskId={taskId} snapshot={message.pullRequestSnapshot} />
+      )}
     </div>
   );
 }
