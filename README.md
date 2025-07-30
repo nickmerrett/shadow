@@ -148,3 +148,31 @@ Stop services:
 ```bash
 docker-compose down
 ```
+
+## Production Deployment
+
+### Firecracker Mode (AWS EKS + Kata Containers)
+
+Deploy VM-isolated execution environment on AWS:
+
+```bash
+# 1. Configure AWS SSO
+aws configure sso --profile=ID
+
+# 2. Deploy infrastructure (25-35 minutes)
+./scripts/deploy-firecracker-infrastructure.sh
+
+# 3. Deploy Shadow application
+npm run start:prod
+```
+
+**Requirements:**
+- AWS CLI configured with `ID` profile
+- `eksctl`, `kubectl`, `helm` installed
+- GitHub Container Registry access
+
+**What this deploys:**
+- EKS cluster with Amazon Linux 2023 nodes
+- Kata Containers with QEMU runtime for VM isolation
+- VM images deployed to cluster nodes
+- Network policies and RBAC for security
