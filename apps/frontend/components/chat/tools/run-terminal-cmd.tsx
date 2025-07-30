@@ -4,7 +4,8 @@ import { CheckIcon, Loader, Terminal, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { getToolResult } from "@repo/types";
-import { ToolTrigger, ToolType } from "./collapsible-tool";
+import { ToolType } from "@repo/types";
+import { ToolComponent } from "./collapsible-tool";
 
 interface TerminalOutputProps {
   output: string;
@@ -102,42 +103,12 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
   const suffix = isBackground ? " (Background)" : undefined;
 
   return (
-    <button
+    <ToolComponent
+      icon={<Terminal />}
+      type={ToolType.RUN_TERMINAL_CMD}
+      title={command}
+      suffix={suffix}
       onClick={() => expandRightPanel()}
-      className={cn(
-        "text-muted-foreground hover:text-foreground hover:bg-secondary flex w-full cursor-pointer flex-col gap-2 rounded-md px-3 py-1.5 text-left text-[13px] transition-colors"
-      )}
-    >
-      <ToolTrigger
-        icon={<Terminal />}
-        type={ToolType.RUN_TERMINAL_CMD}
-        title={command}
-        suffix={suffix}
-      />
-
-      {/* <div className="flex flex-col gap-2 pl-6">
-        <div className="flex items-center gap-2">
-          <StatusBadge status={status} />
-        </div>
-
-        <div className="rounded-md border bg-gray-100 p-3 dark:bg-gray-800/50">
-          <div className="text-muted-foreground mb-1 text-xs">Command:</div>
-          <code className="text-foreground break-all font-mono text-sm">
-            {command}
-          </code>
-        </div>
-
-        {(output || error || status === "RUNNING") && (
-          <div>
-            <div className="text-muted-foreground mb-2 text-xs">Output:</div>
-            <TerminalOutput
-              output={output}
-              isRunning={status === "RUNNING"}
-              error={error}
-            />
-          </div>
-        )}
-      </div> */}
-    </button>
+    />
   );
 }

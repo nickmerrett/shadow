@@ -7,7 +7,8 @@ import {
   SquareX,
   X,
 } from "lucide-react";
-import { CollapsibleTool, ToolType } from "./collapsible-tool";
+import { ToolType } from "@repo/types";
+import { ToolComponent } from "./collapsible-tool";
 import { cn } from "@/lib/utils";
 
 interface TodoItem {
@@ -113,11 +114,12 @@ export function TodoWriteTool({ message }: { message: Message }) {
       : `(${todos.length} item${todos.length === 1 ? "" : "s"})`;
 
   return (
-    <CollapsibleTool
+    <ToolComponent
       icon={<ListTodo />}
       type={ToolType.TODO_WRITE}
       title={title}
       prefix={merge ? "Updated todo list" : "Created todo list"}
+      collapsible
     >
       {/* {status === "FAILED" && (
           <div className="mb-2 text-xs text-red-600 dark:text-red-400">
@@ -126,6 +128,6 @@ export function TodoWriteTool({ message }: { message: Message }) {
         )} */}
 
       <TodoList todos={todos} />
-    </CollapsibleTool>
+    </ToolComponent>
   );
 }

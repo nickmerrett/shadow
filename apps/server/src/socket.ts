@@ -340,6 +340,41 @@ export function createSocketServer(
       }
     });
 
+    socket.on("edit-user-message", async (data) => {
+      try {
+        console.log("Received edit user message:", data);
+
+        const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
+        if (!hasAccess) {
+          socket.emit("message-error", { error: "Access denied to task" });
+          return;
+        }
+
+        // Update task status to running when user edits a message
+        await updateTaskStatus(data.taskId, "RUNNING", "SOCKET");
+
+        // Start terminal polling for this task when user edits a message
+        startTerminalPolling(data.taskId);
+
+        // Get task workspace path from database
+        const task = await prisma.task.findUnique({
+          where: { id: data.taskId },
+          select: { workspacePath: true },
+        });
+
+        await chatService.editUserMessage({
+          taskId: data.taskId,
+          messageId: data.messageId,
+          newContent: data.message,
+          newModel: data.llmModel,
+          workspacePath: task?.workspacePath || undefined,
+        });
+      } catch (error) {
+        console.error("Error editing user message:", error);
+        socket.emit("message-error", { error: "Failed to edit message" });
+      }
+    });
+
     // Handle request for chat history
     socket.on("get-chat-history", async (data) => {
       try {
@@ -561,10 +596,6 @@ export function emitStreamChunk(chunk: StreamChunk, taskId: string) {
 
   if (chunk.type === "complete") {
     endStream(taskId);
-  }
-
-  if (chunk.type === "error") {
-    handleStreamError(chunk.error, taskId);
   }
 }
 
