@@ -24,18 +24,15 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { redirect } from "next/navigation";
+import { redirect, useParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { useQueuedMessage } from "@/hooks/use-queued-message";
-import { UserMessage } from "./user-message";
-import { useTaskSocket } from "@/hooks/socket/use-task-socket";
+import { QueuedMessage } from "./queued-message";
 
 export function PromptForm({
-  taskId,
   onSubmit,
   onStopStream,
   isStreaming = false,
@@ -44,7 +41,6 @@ export function PromptForm({
   onBlur,
   initialGitCookieState,
 }: {
-  taskId: string;
   onSubmit?: (message: string, model: ModelType, queue: boolean) => void;
   onStopStream?: () => void;
   isStreaming?: boolean;
@@ -56,6 +52,7 @@ export function PromptForm({
     branch: { name: string; commitSha: string } | null;
   } | null;
 }) {
+  const { taskId } = useParams<{ taskId: string }>();
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedModel, setSelectedModel] = useState<ModelType>(
@@ -70,8 +67,6 @@ export function PromptForm({
   } | null>(initialGitCookieState?.branch || null);
 
   const [isPending, startTransition] = useTransition();
-  const { clearQueuedMessage } = useTaskSocket(taskId);
-  const { data: queuedMessage } = useQueuedMessage(taskId);
 
   const queryClient = useQueryClient();
   const { data: availableModels = [] } = useModels();
@@ -302,28 +297,7 @@ export function PromptForm({
         <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-[calc(4rem-1px)] -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
       )}
 
-      {queuedMessage && (
-        <div className="bg-card border-border absolute -top-12 left-0 flex w-full items-center justify-between gap-2 rounded-lg border py-1.5 pl-3 pr-1.5 text-sm">
-          <div className="flex items-center gap-1.5 overflow-hidden">
-            <ListEnd className="size-4" />
-            <span className="select-none">Queued</span>
-            <span className="text-muted-foreground truncate">
-              {queuedMessage}
-            </span>
-          </div>
-          <Button
-            variant="ghost"
-            size="iconXs"
-            className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border p-0"
-            onClick={() => {
-              queryClient.setQueryData(["queued-message", taskId], null);
-              clearQueuedMessage();
-            }}
-          >
-            <X className="size-3.5" />
-          </Button>
-        </div>
-      )}
+      <QueuedMessage />
 
       {/* Wrapper div with textarea styling */}
       {/* Outer div acts as a border, with a border-radius 1px larger than the inner div and 1px padding */}
