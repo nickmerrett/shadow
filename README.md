@@ -144,12 +144,19 @@ For containerized development, use Docker Compose:
 # Start all services
 docker-compose up -d
 
-Stop services:
-```bash
+# Stop services:
 docker-compose down
 ```
 
 ## Production Deployment
+
+Shadow supports multiple deployment options depending on your infrastructure needs:
+
+### Deployment Scripts Overview
+
+- **`deploy-firecracker-infrastructure.sh`** - Deploys only the EKS cluster with Firecracker/Kata Containers for VM isolation
+- **`deploy-backend-ecs.sh`** - Deploys only the Shadow backend service on ECS with ALB
+- **`deploy-full-infrastructure.sh`** - Deploys complete infrastructure (combines both scripts above)
 
 ### Firecracker Mode (AWS EKS + Kata Containers)
 
@@ -176,3 +183,20 @@ npm run start:prod
 - Kata Containers with QEMU runtime for VM isolation
 - VM images deployed to cluster nodes
 - Network policies and RBAC for security
+
+### Full Infrastructure (EKS + ECS)
+
+Deploy complete Shadow platform with both Firecracker cluster and backend service:
+
+```bash
+# 1. Configure AWS SSO
+aws configure sso --profile=ID
+
+# 2. Deploy full infrastructure (35-45 minutes)
+./scripts/deploy-full-infrastructure.sh
+```
+
+**What this deploys:**
+- Complete Firecracker infrastructure (from above)
+- ECS backend service with Application Load Balancer
+- Complete Shadow platform ready for production use
