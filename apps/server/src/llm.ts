@@ -145,51 +145,6 @@ export class LLMService {
     }
   }
 
-  // Non-streaming method for simple tool usage
-  async generateWithTools(
-    systemPrompt: string,
-    messages: Message[],
-    model: ModelType = DEFAULT_MODEL,
-    enableTools: boolean = true,
-    taskId?: string,
-    workspacePath?: string
-  ) {
-    try {
-      const modelInstance = this.getModel(model);
-      const coreMessages: CoreMessage[] = messages.map(toCoreMessage);
-
-      // Create tools with task context if taskId is provided
-      const tools = taskId ? createTools(taskId, workspacePath) : undefined;
-
-      const config = {
-        model: modelInstance,
-        system: systemPrompt,
-        messages: coreMessages,
-        maxTokens: 4096,
-        temperature: 0.7,
-        maxSteps: MAX_STEPS,
-        ...(enableTools && tools && { tools }),
-      };
-
-      const result = await generateText(config);
-
-      return {
-        text: result.text,
-        usage: {
-          promptTokens: result.usage.promptTokens,
-          completionTokens: result.usage.completionTokens,
-          totalTokens: result.usage.totalTokens,
-        },
-        finishReason: result.finishReason,
-        toolCalls: result.toolCalls || [],
-        toolResults: result.toolResults || [],
-      };
-    } catch (error) {
-      console.error("LLM Service Error:", error);
-      throw error;
-    }
-  }
-
   // Helper method to get available models based on configured API keys
   getAvailableModels(): ModelType[] {
     const models: ModelType[] = [];
