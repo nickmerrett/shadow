@@ -121,19 +121,22 @@ export function TaskPageWrapper({
     setIsEditing(true);
   }, []);
 
-  const handleInputKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.stopPropagation();
-      if (editValue.trim() && editValue !== taskTitle) {
-        mutateTaskTitle({ taskId, title: editValue.trim() });
+  const handleInputKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.stopPropagation();
+        if (editValue.trim() && editValue !== taskTitle) {
+          mutateTaskTitle({ taskId, title: editValue.trim() });
+        }
+        setIsEditing(false);
+      } else if (e.key === "Escape") {
+        e.stopPropagation();
+        setIsEditing(false);
+        setEditValue(taskTitle || "");
       }
-      setIsEditing(false);
-    } else if (e.key === "Escape") {
-      e.stopPropagation();
-      setIsEditing(false);
-      setEditValue(taskTitle || "");
-    }
-  }, [editValue, taskTitle, mutateTaskTitle, taskId]);
+    },
+    [editValue, taskTitle, mutateTaskTitle, taskId]
+  );
 
   const handleInputBlur = useCallback(() => {
     if (editValue.trim() && editValue !== taskTitle) {
@@ -164,7 +167,7 @@ export function TaskPageWrapper({
           resize="smooth"
           initial="smooth"
         >
-          <StickToBottom.Content className="relative flex w-full flex-col">
+          <StickToBottom.Content className="relative flex min-h-svh w-full flex-col">
             <div className="bg-background sticky top-0 z-10 flex w-full items-center justify-between pb-3">
               <div className="flex grow items-center gap-1 overflow-hidden p-3 pr-0">
                 {!open && (

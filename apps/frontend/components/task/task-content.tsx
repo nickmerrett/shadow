@@ -73,7 +73,7 @@ export function TaskPageContent() {
   }, [messages, streamingAssistantParts, isStreaming]);
 
   return (
-    <div className="relative z-0 mx-auto flex min-h-full w-full max-w-lg flex-col items-center px-4 sm:px-6">
+    <div className="relative z-0 mx-auto flex w-full max-w-lg grow flex-col items-center px-4 sm:px-6">
       <Messages taskId={taskId} messages={displayMessages} />
 
       <ScrollToBottom />
