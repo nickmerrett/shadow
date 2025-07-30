@@ -183,33 +183,35 @@ export function TaskPageWrapper({
                   </TooltipContent>
                 </Tooltip>
               )}
-              <input
-                ref={inputRef}
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onKeyDown={handleInputKeyDown}
-                onBlur={handleInputBlur}
-                style={{ width: (titleRef.current?.clientWidth || 0) + 12 }}
-                className={cn(
-                  "focus:ring-ring/10 focus:border-border h-7 w-full min-w-36 items-center rounded-md border border-transparent bg-transparent px-2 focus:outline-none focus:ring-2",
-                  isEditing ? "flex" : "hidden"
-                )}
-              />
-              <div
-                className={cn(
-                  "hover:border-border flex h-7 cursor-text items-center truncate rounded-md border border-transparent px-2",
-                  isEditing ? "pointer-events-none opacity-0" : "opacity-100"
-                )}
-                onClick={handleTitleClick}
-                ref={titleRef}
-              >
-                {isUpdatingTaskTitle ? (
-                  <span className="animate-pulse truncate">
-                    {taskTitleVariables?.title}
-                  </span>
-                ) : (
-                  <span className="truncate">{editValue}</span>
-                )}
+
+              <div className="relative">
+                <input
+                  ref={inputRef}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleInputKeyDown}
+                  onBlur={handleInputBlur}
+                  className={cn(
+                    "focus:ring-ring/10 focus:border-border absolute left-0 top-0 z-10 h-7 w-full min-w-36 items-center rounded-md border border-transparent bg-transparent px-2 focus:outline-none focus:ring-2",
+                    isEditing ? "flex" : "pointer-events-none hidden"
+                  )}
+                />
+                <div
+                  className={cn(
+                    "hover:border-border flex h-7 cursor-text items-center truncate rounded-md border border-transparent px-2",
+                    isEditing ? "pointer-events-none opacity-0" : "opacity-100"
+                  )}
+                  onClick={handleTitleClick}
+                  ref={titleRef}
+                >
+                  {isUpdatingTaskTitle ? (
+                    <span className="animate-pulse truncate">
+                      {taskTitleVariables?.title}
+                    </span>
+                  ) : (
+                    <span className="truncate">{editValue}</span>
+                  )}
+                </div>
               </div>
             </div>
 
