@@ -29,7 +29,7 @@ export type CompletionTokenUsage = {
   totalTokens: number;
 };
 
-export interface BaseMessage {
+export type Message = {
   id: string;
   role: "user" | "assistant" | "tool" | "system";
   content: string;
@@ -37,7 +37,7 @@ export interface BaseMessage {
   createdAt: string;
   metadata?: MessageMetadata;
   pullRequestSnapshot?: PullRequestSnapshot;
-}
+};
 
 export interface MessageMetadata {
   // For assistant messages with thinking
@@ -70,8 +70,6 @@ export interface MessageMetadata {
   // Finish reason
   finishReason?: FinishReason;
 }
-
-export type Message = BaseMessage;
 
 // Type guards for runtime type checking
 export const isUserMessage = (
