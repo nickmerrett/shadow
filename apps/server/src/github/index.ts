@@ -182,7 +182,11 @@ export class GitHubService {
       }
 
       // Check if branch exists (if we have API access)
-      const branchExists = await this.validateBranch(repoFullName, branch, userId);
+      const branchExists = await this.validateBranch(
+        repoFullName,
+        branch,
+        userId
+      );
       if (!branchExists) {
         return {
           success: false,
@@ -265,7 +269,10 @@ export class GitHubService {
         clonedAt,
       };
     } catch (error) {
-      console.error(`[GITHUB] Clone failed for ${repoFullName}:${branch}`, error);
+      console.error(
+        `[GITHUB] Clone failed for ${repoFullName}:${branch}`,
+        error
+      );
 
       let errorMessage = "Unknown clone error";
       if (error instanceof Error) {
@@ -405,6 +412,60 @@ export class GitHubService {
         }
         throw new Error(
           `Failed to create pull request: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+      }
+    });
+  }
+
+  /**
+   * Update an existing pull request
+   */
+  async updatePullRequest(
+    repoFullName: string,
+    prNumber: number,
+    options: { title?: string; body?: string },
+    userId: string
+  ): Promise<void> {
+    return this.executeWithRetry(userId, async (accessToken) => {
+      const [owner, repo] = repoFullName.split("/");
+      const octokit = this.createOctokit(accessToken);
+
+      if (!owner || !repo) {
+        throw new Error(`Invalid repository full name: ${repoFullName}`);
+      }
+
+      try {
+        await octokit.pulls.update({
+          owner,
+          repo,
+          pull_number: prNumber,
+          title: options.title,
+          body: options.body,
+        });
+
+        console.log(
+          `[GITHUB_SERVICE] Successfully updated PR #${prNumber} in ${owner}/${repo}`
+        );
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          "status" in error &&
+          error.status === 404
+        ) {
+          throw new Error(
+            `Pull request #${prNumber} not found in ${owner}/${repo}`
+          );
+        } else if (
+          error instanceof Error &&
+          "status" in error &&
+          error.status === 422
+        ) {
+          throw new Error(
+            `Cannot update pull request: ${error.message || "Invalid request"}`
+          );
+        }
+        throw new Error(
+          `Failed to update pull request: ${error instanceof Error ? error.message : "Unknown error"}`
         );
       }
     });
