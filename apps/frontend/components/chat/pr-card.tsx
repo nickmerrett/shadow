@@ -57,7 +57,7 @@ export function PRCard({
         <MarkdownRenderer
           content={`# Summary\n\n${snapshot.description}`}
           componentProps={{
-            p: "m-0",
+            p: "m-0 whitespace-pre-wrap",
           }}
         ></MarkdownRenderer>
       </div>
