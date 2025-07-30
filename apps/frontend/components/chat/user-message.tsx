@@ -195,7 +195,7 @@ function UserMessageWrapper({
     return (
       <div
         className={cn(
-          "sticky top-0 z-10 w-full rounded-[calc(var(--radius)+1px)] p-px transition-all",
+          "sticky top-16 z-10 w-full rounded-[calc(var(--radius)+1px)] p-px transition-all",
           "focus-visible:ring-ring/10 focus-visible:outline-none focus-visible:ring-4",
           "user-message-border user-message-shadow",
           !isFirstMessage && "mt-5",
