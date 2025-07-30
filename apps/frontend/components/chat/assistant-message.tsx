@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { Message, ErrorPart } from "@repo/types";
+import type { Message, ErrorPart, ToolResultTypes } from "@repo/types";
 import {
   ChevronDown,
   AlertCircle,
@@ -21,12 +21,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { ToolCallPart } from "ai";
 
 function getMessageCopyContent(
   groupedParts: Array<
     | { type: "text"; text: string }
-    | { type: "tool-call"; part: any; index: number }
-    | { type: "tool-result"; part: any; index: number }
+    | { type: "tool-call"; part: unknown; index: number }
+    | { type: "tool-result"; part: unknown; index: number }
     | { type: "error"; part: ErrorPart; index: number }
   >
 ): string {
@@ -34,7 +35,12 @@ function getMessageCopyContent(
     .map((part) => {
       if (part.type === "text") {
         return part.text;
-      } else if (part.type === "tool-call") {
+      } else if (
+        part.type === "tool-call" &&
+        typeof part.part === "object" &&
+        part.part !== null &&
+        "toolName" in part.part
+      ) {
         return `Tool Call: ${part.part.toolName}`;
       }
       return "";
@@ -110,8 +116,8 @@ export function AssistantMessage({
 
     const parts: Array<
       | { type: "text"; text: string }
-      | { type: "tool-call"; part: any; index: number }
-      | { type: "tool-result"; part: any; index: number }
+      | { type: "tool-call"; part: unknown; index: number }
+      | { type: "tool-result"; part: unknown; index: number }
       | { type: "error"; part: ErrorPart; index: number }
     > = [];
     let currentTextGroup = "";
@@ -176,7 +182,7 @@ export function AssistantMessage({
         }
 
         if (group.type === "tool-call") {
-          const part = group.part;
+          const part = group.part as ToolCallPart;
           const toolResult = toolResultsMap.get(part.toolCallId);
 
           // Create a proper tool message for rendering
@@ -188,9 +194,9 @@ export function AssistantMessage({
             metadata: {
               tool: {
                 name: part.toolName,
-                args: part.args,
+                args: part.args as Record<string, unknown>,
                 status: "COMPLETED",
-                result: toolResult?.result as any, // Tool result from stream - cast for compatibility
+                result: toolResult?.result as ToolResultTypes["result"], // Tool result from stream - cast for compatibility
               },
             },
           };

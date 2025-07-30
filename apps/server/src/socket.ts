@@ -192,7 +192,7 @@ async function verifyTaskAccess(
 function emitToTask(
   taskId: string,
   event: keyof ServerToClientEvents,
-  data: any
+  data: unknown
 ) {
   io.to(`task-${taskId}`).emit(event, data);
 }

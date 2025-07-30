@@ -19,6 +19,7 @@ export async function getTaskMessages(taskId: string): Promise<Message[]> {
       role: msg.role as "user" | "assistant" | "tool",
       content: msg.content,
       createdAt: msg.createdAt.toISOString(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       metadata: (msg.metadata as any) || { isStreaming: false },
       pullRequestSnapshot: msg.pullRequestSnapshot || undefined,
     }));

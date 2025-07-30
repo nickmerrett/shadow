@@ -2,14 +2,16 @@
 
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@repo/db";
-import { ModelType } from "@repo/types";
 import { headers } from "next/headers";
 import { z } from "zod";
 
 const editMessageSchema = z.object({
   taskId: z.string().min(1, "Task ID is required"),
   messageId: z.string().min(1, "Message ID is required"),
-  content: z.string().min(1, "Message content is required").max(10000, "Message too long"),
+  content: z
+    .string()
+    .min(1, "Message content is required")
+    .max(10000, "Message too long"),
   llmModel: z.string().min(1, "Model is required"),
 });
 
@@ -17,7 +19,7 @@ export async function editMessage(formData: FormData) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  
+
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -81,6 +83,8 @@ export async function editMessage(formData: FormData) {
     };
   } catch (error) {
     console.error("Failed to edit message:", error);
-    throw new Error(error instanceof Error ? error.message : "Failed to edit message");
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to edit message"
+    );
   }
 }

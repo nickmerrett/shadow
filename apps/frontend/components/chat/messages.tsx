@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import type { Message } from "@repo/types";
 import { isAssistantMessage, isToolMessage, isUserMessage } from "@repo/types";
 import { AssistantMessage } from "./assistant-message";

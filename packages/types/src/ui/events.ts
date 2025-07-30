@@ -37,7 +37,7 @@ export interface ServerToClientEvents {
   }) => void;
   "stream-chunk": (chunk: StreamChunk) => void;
   "stream-complete": () => void;
-  "stream-error": (error: any) => void;
+  "stream-error": (error: unknown) => void;
   "stream-update": (data: {
     content: string;
     isIncremental: boolean;

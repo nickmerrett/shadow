@@ -1,6 +1,5 @@
 import type { Message } from "@repo/types";
 import { Eye } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { ToolType } from "@repo/types";
 import { ToolComponent } from "./collapsible-tool";

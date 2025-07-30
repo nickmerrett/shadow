@@ -64,6 +64,7 @@ export class ChatService {
         role: "USER",
         sequence,
         llmModel,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         metadata: (metadata as any) || undefined,
       },
     });
@@ -86,6 +87,7 @@ export class ChatService {
         role: "ASSISTANT",
         llmModel,
         sequence,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         metadata: (metadata as any) || undefined,
         // Denormalized usage fields for easier querying
         promptTokens: usage?.promptTokens,
@@ -99,7 +101,7 @@ export class ChatService {
   async saveToolMessage(
     taskId: string,
     toolName: string,
-    toolArgs: Record<string, any>,
+    toolArgs: Record<string, unknown>,
     toolResult: string,
     sequence: number,
     metadata?: MessageMetadata
@@ -111,6 +113,7 @@ export class ChatService {
         role: "TOOL",
         sequence,
         metadata: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...(metadata as any),
           tool: {
             name: toolName,
@@ -118,6 +121,7 @@ export class ChatService {
             status: "COMPLETED",
             result: toolResult,
           },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
       },
     });
@@ -538,6 +542,7 @@ export class ChatService {
                   metadata: {
                     isStreaming: true,
                     parts: assistantParts,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   } as any,
                 },
               });
@@ -570,6 +575,7 @@ export class ChatService {
                 metadata: {
                   isStreaming: true,
                   parts: assistantParts,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } as any,
               },
             });
@@ -638,6 +644,7 @@ export class ChatService {
                 metadata: {
                   isStreaming: true,
                   parts: assistantParts,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } as any,
               },
             });
@@ -666,8 +673,10 @@ export class ChatService {
                 data: {
                   content: resultString,
                   metadata: {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     ...(toolMessage.metadata as any),
                     tool: {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       ...(toolMessage.metadata as any)?.tool,
                       status: "COMPLETED",
                       result: chunk.toolResult.result, // Keep as object for type safety
@@ -716,6 +725,7 @@ export class ChatService {
                   isStreaming: false,
                   parts: assistantParts,
                   finishReason,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } as any,
               },
             });
@@ -767,6 +777,7 @@ export class ChatService {
           where: { id: assistantMessageId },
           data: {
             content: fullContent,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             metadata: finalMetadata as any,
             promptTokens: usageMetadata.promptTokens,
             completionTokens: usageMetadata.completionTokens,

@@ -5,7 +5,6 @@ import {
   ListTodo,
   Square,
   SquareX,
-  X,
 } from "lucide-react";
 import { ToolType } from "@repo/types";
 import { ToolComponent } from "./collapsible-tool";

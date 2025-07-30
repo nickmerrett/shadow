@@ -5,6 +5,7 @@ import {
   Message,
   ModelType,
   StreamChunk,
+  ToolResultTypes,
   getModelProvider,
   toCoreMessage,
 } from "@repo/types";
@@ -99,7 +100,7 @@ export class LLMService {
               type: "tool-result",
               toolResult: {
                 id: chunk.toolCallId,
-                result: chunk.result as any, // Cast to avoid unknown type issues
+                result: chunk.result as ToolResultTypes["result"],
               },
             };
             break;
