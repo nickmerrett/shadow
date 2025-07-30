@@ -54,11 +54,13 @@ export function PromptForm({
   } | null;
 }) {
   const { taskId } = useParams<{ taskId: string }>();
+
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedModel, setSelectedModel] = useState<ModelType>(
     AvailableModels.GPT_4O
   );
+
   const [repo, setRepo] = useState<Repository | null>(
     initialGitCookieState?.repo || null
   );

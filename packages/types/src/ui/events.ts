@@ -70,6 +70,12 @@ export interface ClientToServerEvents {
     llmModel?: ModelType;
     queue?: boolean;
   }) => void;
+  "edit-user-message": (data: {
+    taskId: string;
+    messageId: string;
+    message: string;
+    llmModel: ModelType;
+  }) => void;
   "get-chat-history": (data: { taskId: string; complete: boolean }) => void;
   "stop-stream": (data: { taskId: string }) => void;
   "request-history": (data: { taskId: string; fromPosition?: number }) => void;

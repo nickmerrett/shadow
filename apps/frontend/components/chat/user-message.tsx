@@ -9,6 +9,7 @@ import { AvailableModels, Message, ModelType } from "@repo/types";
 import { useEditMessageId } from "@/hooks/use-edit-message-id";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { useEditMessage } from "@/hooks/use-edit-message";
 
 export function UserMessage({
   taskId,
@@ -23,6 +24,7 @@ export function UserMessage({
 }) {
   const queryClient = useQueryClient();
   const { data: editMessageId } = useEditMessageId(taskId);
+  const editMessageMutation = useEditMessage();
   const isEditing = useMemo(
     () => editMessageId === message.id,
     [editMessageId, message.id]
@@ -52,25 +54,34 @@ export function UserMessage({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleStopEditing();
-  };
-
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        handleSubmit(e);
+        e.stopPropagation();
+
+        if (!editValue.trim() || editValue.trim() === message.content.trim()) {
+          handleStopEditing();
+          return;
+        }
+
+        // Submit the edit
+        editMessageMutation.mutate({
+          taskId,
+          messageId: message.id,
+          newContent: editValue.trim(),
+          newModel: selectedModel,
+        });
       }
     },
-    [handleSubmit]
+    [editValue, message.content, message.id, selectedModel, taskId]
   );
 
   useEffect(() => {
     const globalKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
+        e.stopPropagation();
         handleStopEditing();
       }
     };
@@ -137,18 +148,19 @@ export function UserMessage({
                 <Button
                   type="submit"
                   size="iconSm"
-                  // disabled={
-                  //   !message.trim() ||
-                  //   isPending ||
-                  //   !selectedModel ||
-                  // }
+                  disabled={
+                    !editValue.trim() ||
+                    editMessageMutation.isPending ||
+                    !selectedModel ||
+                    editValue.trim() === message.content.trim()
+                  }
                   className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
                 >
-                  {/* {isPending ? (
+                  {editMessageMutation.isPending ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
                     <ArrowUp className="size-4" />
-                  )} */}
+                  )}
                 </Button>
               </div>
             </div>
@@ -181,7 +193,7 @@ function UserMessageWrapper({
 }) {
   if (isEditing) {
     return (
-      <form
+      <div
         className={cn(
           "sticky top-16 z-10 w-full rounded-[calc(var(--radius)+1px)] p-px transition-all",
           "focus-visible:ring-ring/10 focus-visible:outline-none focus-visible:ring-4",
@@ -191,7 +203,7 @@ function UserMessageWrapper({
         )}
       >
         {children}
-      </form>
+      </div>
     );
   }
 

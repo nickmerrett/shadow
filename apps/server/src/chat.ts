@@ -53,6 +53,7 @@ export class ChatService {
   async saveUserMessage(
     taskId: string,
     content: string,
+    llmModel?: string,
     metadata?: MessageMetadata
   ): Promise<ChatMessage> {
     const sequence = await this.getNextSequence(taskId);
@@ -62,6 +63,7 @@ export class ChatService {
         content,
         role: "USER",
         sequence,
+        llmModel,
         metadata: (metadata as any) || undefined,
       },
     });
@@ -436,7 +438,7 @@ export class ChatService {
 
     // Save user message to database (unless skipped, e.g. on task initialization)
     if (!skipUserMessageSave) {
-      await this.saveUserMessage(taskId, userMessage);
+      await this.saveUserMessage(taskId, userMessage, llmModel);
     }
 
     const history = await this.getChatHistory(taskId);
@@ -897,5 +899,94 @@ export class ChatService {
 
     // Update task status to stopped when manually stopped by user
     await updateTaskStatus(taskId, "STOPPED", "CHAT");
+  }
+
+  async editUserMessage({
+    taskId,
+    messageId,
+    newContent,
+    newModel,
+    workspacePath,
+  }: {
+    taskId: string;
+    messageId: string;
+    newContent: string;
+    newModel: ModelType;
+    workspacePath?: string;
+  }): Promise<void> {
+    console.log(`[CHAT] Editing user message ${messageId} in task ${taskId}`);
+
+    // First, stop any active stream and clear queued messages
+    if (this.activeStreams.has(taskId)) {
+      await this.stopStream(taskId);
+    }
+    this.clearQueuedMessage(taskId);
+
+    // Update the message in database
+    await prisma.chatMessage.update({
+      where: { id: messageId },
+      data: {
+        content: newContent,
+        llmModel: newModel,
+        editedAt: new Date(),
+      },
+    });
+
+    // Get the sequence of the edited message
+    const editedMessage = await prisma.chatMessage.findUnique({
+      where: { id: messageId },
+      select: { sequence: true },
+    });
+
+    if (!editedMessage) {
+      throw new Error("Edited message not found");
+    }
+
+    // Delete all messages that come after the edited message
+    await prisma.chatMessage.deleteMany({
+      where: {
+        taskId,
+        sequence: {
+          gt: editedMessage.sequence,
+        },
+      },
+    });
+
+    console.log(
+      `[CHAT] Deleted messages after sequence ${editedMessage.sequence} in task ${taskId}`
+    );
+
+    // Get chat history up to the edited message
+    const history = await this.getChatHistory(taskId);
+
+    // Process the edited message as if it were a new message
+    // Filter out tool messages and use the updated content
+    const messages: Message[] = history
+      .filter((msg) => msg.role === "user" || msg.role === "assistant")
+      .map((msg) => {
+        if (msg.id === messageId) {
+          return {
+            ...msg,
+            content: newContent,
+            llmModel: newModel,
+          };
+        }
+        return msg;
+      });
+
+    console.log(
+      `[CHAT] Re-processing from edited message with ${messages.length} context messages`
+    );
+
+    // Start streaming from the edited message
+    await this.processUserMessage({
+      taskId,
+      userMessage: newContent,
+      llmModel: newModel,
+      enableTools: true,
+      skipUserMessageSave: true, // Don't save again, already updated
+      workspacePath,
+      queue: false,
+    });
   }
 }

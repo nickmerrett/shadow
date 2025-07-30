@@ -128,6 +128,7 @@ model ChatMessage {
   totalTokens         Int?
   finishReason        String?
   createdAt           DateTime             @default(now())
+  editedAt            DateTime?
   taskId              String
   task                Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade)
   pullRequestSnapshot PullRequestSnapshot?
