@@ -2,15 +2,13 @@
 
 import { Messages } from "@/components/chat/messages";
 import { PromptForm } from "@/components/chat/prompt-form";
-import { ScrollToBottom } from "@/hooks/use-is-at-top";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
 import { useTaskSocket } from "@/hooks/socket";
-import { cn } from "@/lib/utils";
 import { useParams } from "next/navigation";
-import { StickToBottom } from "use-stick-to-bottom";
+import { ScrollToBottom } from "./scroll-to-bottom";
 
-export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
+export function TaskPageContent() {
   const { taskId } = useParams<{ taskId: string }>();
 
   const { data: messages = [], error: taskMessagesError } =
@@ -68,13 +66,13 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
   }
 
   return (
-    <StickToBottom.Content className="relative z-0 mx-auto flex min-h-full w-full max-w-lg flex-col items-center px-4 sm:px-6">
-      <div
+    <div className="relative z-0 mx-auto flex min-h-full w-full max-w-lg flex-col items-center px-4 sm:px-6">
+      {/* <div
         className={cn(
           "from-background via-background/60 pointer-events-none sticky -left-px top-0 z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-b to-transparent transition-opacity",
           isAtTop ? "opacity-0" : "opacity-100"
         )}
-      />
+      /> */}
 
       <Messages taskId={taskId} messages={displayMessages} />
 
@@ -85,6 +83,6 @@ export function TaskPageContent({ isAtTop }: { isAtTop: boolean }) {
         onStopStream={handleStopStream}
         isStreaming={isStreaming || sendMessageMutation.isPending}
       />
-    </StickToBottom.Content>
+    </div>
   );
 }
