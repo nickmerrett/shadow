@@ -119,7 +119,7 @@ nodeGroups:
     desiredCapacity: $MIN_NODES
     volumeSize: 100
     volumeType: gp3
-    amiFamily: AmazonLinux2
+    amiFamily: AmazonLinux2023
     
     # Enable KVM and nested virtualization
     preBootstrapCommands:
@@ -164,7 +164,7 @@ nodeGroups:
     desiredCapacity: 1
     volumeSize: 50
     volumeType: gp3
-    amiFamily: AmazonLinux2
+    amiFamily: AmazonLinux2023
     
     # System node labels
     labels:
@@ -199,21 +199,30 @@ EOF
     log "EKS cluster created successfully"
 }
 
-# Install Firecracker runtime
+# Install Kata Containers with Firecracker runtime
 install_firecracker_runtime() {
-    log "Installing Firecracker runtime on cluster nodes..."
+    log "Installing Kata Containers with Firecracker runtime..."
     
-    # Apply Firecracker DaemonSet
-    kubectl apply -f "$PROJECT_ROOT/apps/server/src/execution/k8s/firecracker-daemonset.yaml"
+    # Install Kata Containers RBAC
+    kubectl apply -f https://raw.githubusercontent.com/kata-containers/kata-containers/main/tools/packaging/kata-deploy/kata-rbac/base/kata-rbac.yaml
     
-    # Apply Firecracker RuntimeClass
-    kubectl apply -f "$PROJECT_ROOT/apps/server/src/execution/k8s/firecracker-runtime-class.yaml"
+    # Install kata-deploy with Firecracker support
+    kubectl apply -f https://raw.githubusercontent.com/kata-containers/kata-containers/main/tools/packaging/kata-deploy/kata-deploy/base/kata-deploy.yaml
     
-    # Wait for DaemonSet to be ready
-    log "Waiting for Firecracker runtime to be ready..."
-    kubectl rollout status daemonset/firecracker-runtime -n shadow-agents --timeout=300s
+    # Add toleration for firecracker nodes
+    kubectl patch daemonset kata-deploy -n kube-system -p='{"spec":{"template":{"spec":{"tolerations":[{"key":"firecracker.shadow.ai/dedicated","operator":"Equal","value":"true","effect":"NoSchedule"}]}}}}'
     
-    log "Firecracker runtime installed successfully"
+    # Enable RuntimeClass creation
+    kubectl patch daemonset kata-deploy -n kube-system -p='{"spec":{"template":{"spec":{"containers":[{"name":"kube-kata","env":[{"name":"NODE_NAME","valueFrom":{"fieldRef":{"fieldPath":"spec.nodeName"}}},{"name":"DEBUG","value":"false"},{"name":"SHIMS","value":"clh cloud-hypervisor dragonball fc qemu qemu-nvidia-gpu qemu-sev qemu-snp qemu-tdx stratovirt"},{"name":"DEFAULT_SHIM","value":"qemu"},{"name":"CREATE_RUNTIMECLASSES","value":"true"},{"name":"CREATE_DEFAULT_RUNTIMECLASS","value":"true"},{"name":"ALLOWED_HYPERVISOR_ANNOTATIONS","value":""},{"name":"SNAPSHOTTER_HANDLER_MAPPING","value":""},{"name":"AGENT_HTTPS_PROXY","value":""},{"name":"AGENT_NO_PROXY","value":""}]}]}}}}'
+    
+    # Wait for kata-deploy to complete
+    log "Waiting for Kata Containers installation to complete..."
+    kubectl rollout status daemonset/kata-deploy -n kube-system --timeout=600s
+    
+    # Wait for RuntimeClasses to be created
+    sleep 30
+    
+    log "Kata Containers with Firecracker runtime installed successfully"
 }
 
 # Set up Kubernetes namespace and RBAC
@@ -300,12 +309,15 @@ pull_and_deploy_vm_images() {
     
     log "Using VM image: $IMAGE_NAME"
     
+    # Generate unique job name
+    local JOB_NAME="deploy-vm-images-$(date +%s)"
+    
     # Create job to pull and extract VM images on each firecracker node
     kubectl apply -f - << EOF
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: deploy-vm-images-$(date +%s)
+  name: $JOB_NAME
   namespace: shadow-agents
   labels:
     app: shadow-firecracker
@@ -347,7 +359,7 @@ spec:
         args:
         - -c
         - |
-          set -euo pipefail
+          set -eu
           
           echo "Starting VM image deployment on node \$(hostname)"
           echo "Deploying from image: $IMAGE_NAME"
@@ -408,7 +420,20 @@ EOF
 
     # Wait for VM image deployment to complete
     log "Waiting for VM image deployment to complete..."
-    if kubectl wait --for=condition=complete job -l component=vm-deployer -n shadow-agents --timeout=600s; then
+    
+    # Show real-time status while waiting
+    log "Checking job status..."
+    kubectl get jobs -l component=vm-deployer -n shadow-agents
+    
+    log "Checking pod status..."
+    kubectl get pods -l component=vm-deployer -n shadow-agents
+    
+    # Wait a bit and then show logs
+    sleep 10
+    log "Pod logs (first 10 seconds):"
+    kubectl logs -l component=vm-deployer -n shadow-agents --tail=20 || echo "No logs yet"
+    
+    if kubectl wait --for=condition=complete job/$JOB_NAME -n shadow-agents --timeout=600s; then
         log "VM images deployed successfully to all firecracker nodes"
         
         # Show deployment summary
@@ -416,13 +441,25 @@ EOF
         kubectl logs -l component=vm-deployer -n shadow-agents --tail=10 | grep -E "(deployed successfully|size:|ERROR:)" || true
     else
         error "VM image deployment failed or timed out"
-        log "Checking deployment logs..."
-        kubectl logs -l component=vm-deployer -n shadow-agents --tail=20
+        
+        log "=== DEBUGGING INFO ==="
+        log "Job status:"
+        kubectl describe jobs -l component=vm-deployer -n shadow-agents
+        
+        log "Pod status:"
+        kubectl describe pods -l component=vm-deployer -n shadow-agents
+        
+        log "Recent events:"
+        kubectl get events -n shadow-agents --sort-by='.lastTimestamp' | tail -10
+        
+        log "Full pod logs:"
+        kubectl logs -l component=vm-deployer -n shadow-agents --tail=50 || echo "No logs available"
+        
         return 1
     fi
     
     # Cleanup deployment job
-    kubectl delete job -l component=vm-deployer -n shadow-agents || true
+    kubectl delete job/$JOB_NAME -n shadow-agents || true
     
     log "VM image deployment completed"
 }
@@ -490,24 +527,24 @@ verify_deployment() {
     log "Checking node status..."
     kubectl get nodes -l firecracker=true
     
-    # Check Firecracker runtime
-    log "Checking Firecracker runtime..."
-    kubectl get pods -n shadow-agents -l app=firecracker-runtime
+    # Check Kata Containers runtime
+    log "Checking Kata Containers runtime..."
+    kubectl get pods -n kube-system -l name=kata-deploy
     
     # Check RuntimeClass
-    log "Checking RuntimeClass..."
-    kubectl get runtimeclass firecracker
+    log "Checking RuntimeClasses..."
+    kubectl get runtimeclass kata-qemu kata-fc
     
-    # Test Firecracker VM creation
-    log "Testing Firecracker VM creation..."
+    # Test QEMU VM creation with Kata
+    log "Testing QEMU VM creation with Kata..."
     kubectl apply -f - << EOF
 apiVersion: v1
 kind: Pod
 metadata:
-  name: firecracker-test
+  name: kata-qemu-test
   namespace: shadow-agents
 spec:
-  runtimeClassName: firecracker
+  runtimeClassName: kata-qemu
   nodeSelector:
     firecracker: "true"
   tolerations:
@@ -530,13 +567,13 @@ spec:
 EOF
 
     # Wait for test pod
-    if kubectl wait --for=condition=Ready pod/firecracker-test -n shadow-agents --timeout=120s; then
-        log "✅ Firecracker VM test successful"
-        kubectl delete pod firecracker-test -n shadow-agents
+    if kubectl wait --for=condition=Ready pod/kata-qemu-test -n shadow-agents --timeout=300s; then
+        log "✅ Kata QEMU VM test successful"
+        kubectl delete pod kata-qemu-test -n shadow-agents
     else
-        warn "❌ Firecracker VM test failed"
-        kubectl describe pod firecracker-test -n shadow-agents
-        kubectl delete pod firecracker-test -n shadow-agents || true
+        warn "❌ Kata QEMU VM test failed"
+        kubectl describe pod kata-qemu-test -n shadow-agents
+        kubectl delete pod kata-qemu-test -n shadow-agents || true
     fi
     
     log "Deployment verification completed"
@@ -570,7 +607,7 @@ main() {
     log "Cluster access:"
     log "- kubectl get nodes"
     log "- kubectl get pods -n shadow-agents"
-    log "- kubectl logs -f -l app=firecracker-runtime -n shadow-agents"
+    log "- kubectl logs -f -l name=kata-deploy -n kube-system"
     log ""
     log "Note: Monitoring stack skipped for simplified deployment"
 }

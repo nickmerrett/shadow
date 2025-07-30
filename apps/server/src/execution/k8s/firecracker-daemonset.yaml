@@ -19,6 +19,10 @@ spec:
       hostNetwork: true
       hostPID: true
       tolerations:
+      - key: firecracker.shadow.ai/dedicated
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
       - key: node-role.kubernetes.io/control-plane
         operator: Exists
       - key: node.kubernetes.io/not-ready
@@ -36,7 +40,7 @@ spec:
           runAsUser: 0
         resources:
           requests:
-            memory: "100Mi"
+            memory: "128Mi"
             cpu: "100m"
           limits:
             memory: "500Mi"

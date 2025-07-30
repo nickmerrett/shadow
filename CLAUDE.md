@@ -155,9 +155,9 @@ const workspaceManager = createWorkspaceManager();
 - File watching for real-time updates
 
 **Firecracker Implementation:**
-- HTTP API calls to sidecar service in VM
-- Kubernetes pod management
-- VM lifecycle orchestration
+- HTTP API calls to sidecar service within Kata Container VMs
+- Kubernetes pod management with kata-fc RuntimeClass
+- VM lifecycle orchestration via Kata Containers runtime
 
 ### Tool System (`apps/server/src/tools/`)
 
@@ -243,22 +243,59 @@ const workspaceManager = createWorkspaceManager();
 
 ## Infrastructure & Deployment
 
+### Firecracker Infrastructure (Production)
+
+**EKS Cluster Configuration:**
+- AWS EKS with Amazon Linux 2023 nodes (required for glibc 2.34 compatibility)
+- Bare metal instances (c5n.metal) for nested virtualization support
+- Kata Containers + Firecracker for VM-level isolation
+- GitHub Container Registry integration for VM images
+
+**Deployment Scripts:**
+```bash
+# Deploy full EKS cluster with Firecracker support
+./scripts/deploy-firecracker-infrastructure.sh
+
+# Deploy ECS backend + Firecracker infrastructure  
+./scripts/deploy-full-infrastructure.sh
+
+# Build and deploy VM images via GitHub Actions
+# Triggered by: .github/workflows/build-vm-images.yml
+```
+
+**Infrastructure Components:**
+- **EKS Control Plane**: Kubernetes API and scheduling
+- **Firecracker Nodes**: c5n.metal instances with KVM/nested virtualization
+- **System Nodes**: m5.large instances for cluster services
+- **VM Image Registry**: GitHub Container Registry (ghcr.io)
+- **Kata Containers**: Runtime for Firecracker VM orchestration
+
 ### Kubernetes Integration (Firecracker Mode)
 
 **Pod Management:**
-- Dynamic VM pod creation for each task
-- Resource allocation and limits
+- Dynamic VM pod creation for each task using `kata-fc` RuntimeClass
+- Resource allocation and limits per Firecracker VM
 - Health monitoring and automatic cleanup
-- Service discovery for sidecar communication
+- Service discovery for sidecar communication within VMs
 
-**Configuration:**
+**VM Configuration:**
 ```yaml
-# VM Resource Limits
-resources:
-  limits:
-    cpu: "2"
-    memory: "4Gi"
-    storage: "10Gi"
+# Pod template with Firecracker runtime
+spec:
+  runtimeClassName: kata-fc
+  nodeSelector:
+    firecracker: "true"
+  tolerations:
+  - key: firecracker.shadow.ai/dedicated
+    value: "true"
+    effect: NoSchedule
+  containers:
+  - name: sidecar
+    resources:
+      limits:
+        cpu: "2"
+        memory: "4Gi"
+        storage: "10Gi"
 ```
 
 ### Docker Support
@@ -306,6 +343,8 @@ docker-compose up -d  # Full stack locally
 - Always test both local and Firecracker modes for production features
 - Keep initialization steps mode-aware and properly abstracted
 - Maintain WebSocket event compatibility across frontend/backend changes
+- **Firecracker mode requires Amazon Linux 2023 nodes** for Kata Containers compatibility
+- Use `kata-fc` RuntimeClass for Firecracker VM isolation, not direct firecracker runtime
 
 ### Maintenance Guidelines
 - Update CLAUDE.md when making architectural changes

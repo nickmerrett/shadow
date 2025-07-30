@@ -49,7 +49,7 @@ export class FirecrackerVMRunner {
       },
       spec: {
         serviceAccountName: "shadow-firecracker-vm-sa",
-        runtimeClassName: "firecracker",
+        runtimeClassName: "kata-qemu",
         nodeSelector: {
           "firecracker": "true",
           "kvm": "enabled",
