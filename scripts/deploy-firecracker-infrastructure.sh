@@ -2,6 +2,10 @@
 
 # Shadow Firecracker Infrastructure Deployment Script
 # Sets up AWS EC2 bare metal cluster with Kubernetes and Firecracker support
+#
+# VM Image Configuration:
+#   VM_IMAGE_TAG=v1.0.0 ./deploy-firecracker-infrastructure.sh
+#   VM_IMAGE_REGISTRY=your-registry.com/path ./deploy-firecracker-infrastructure.sh
 
 set -euo pipefail
 
@@ -22,6 +26,11 @@ VM_MEMORY_SIZE_MB="${VM_MEMORY_SIZE_MB:-1024}"
 VM_CPU_LIMIT="${VM_CPU_LIMIT:-1000m}"
 VM_MEMORY_LIMIT="${VM_MEMORY_LIMIT:-1Gi}"
 VM_STORAGE_LIMIT="${VM_STORAGE_LIMIT:-10Gi}"
+
+# VM Image Configuration
+VM_IMAGE_REGISTRY="${VM_IMAGE_REGISTRY:-ghcr.io/ishaan1013/shadow}"
+VM_IMAGE_NAME="${VM_IMAGE_NAME:-shadow-vm}"
+VM_IMAGE_TAG="${VM_IMAGE_TAG:-latest}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -282,6 +291,140 @@ EOF
     log "VM image storage configured"
 }
 
+# Pull and deploy VM images from container registry to cluster nodes
+pull_and_deploy_vm_images() {
+    log "Pulling and deploying VM images from container registry..."
+    
+    # Construct full image name from configuration
+    local IMAGE_NAME="${VM_IMAGE_REGISTRY}/${VM_IMAGE_NAME}:${VM_IMAGE_TAG}"
+    
+    log "Using VM image: $IMAGE_NAME"
+    
+    # Create job to pull and extract VM images on each firecracker node
+    kubectl apply -f - << EOF
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: deploy-vm-images-$(date +%s)
+  namespace: shadow-agents
+  labels:
+    app: shadow-firecracker
+    component: vm-deployer
+spec:
+  parallelism: 3
+  completions: 3
+  template:
+    metadata:
+      labels:
+        app: shadow-firecracker
+        component: vm-deployer
+    spec:
+      nodeSelector:
+        firecracker: "true"
+      tolerations:
+      - key: firecracker.shadow.ai/dedicated
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
+      restartPolicy: OnFailure
+      containers:
+      - name: vm-deployer
+        image: $IMAGE_NAME
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true
+          runAsUser: 0
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          set -euo pipefail
+          
+          echo "Starting VM image deployment on node \$(hostname)"
+          echo "Deploying from image: $IMAGE_NAME"
+          
+          # Verify source images exist in container
+          if [ ! -f /var/lib/firecracker/images/shadow-rootfs.ext4 ]; then
+            echo "ERROR: shadow-rootfs.ext4 not found in container image"
+            exit 1
+          fi
+          
+          if [ ! -f /var/lib/firecracker/kernels/vmlinux ]; then
+            echo "ERROR: vmlinux kernel not found in container image"
+            exit 1
+          fi
+          
+          # Create target directories on host
+          mkdir -p /host/var/lib/firecracker/images
+          mkdir -p /host/var/lib/firecracker/kernels
+          
+          # Copy VM images to host node
+          echo "Copying VM rootfs image..."
+          cp /var/lib/firecracker/images/shadow-rootfs.ext4 /host/var/lib/firecracker/images/
+          
+          echo "Copying VM kernel..."
+          cp /var/lib/firecracker/kernels/vmlinux /host/var/lib/firecracker/kernels/
+          
+          # Set proper permissions
+          chmod 644 /host/var/lib/firecracker/images/shadow-rootfs.ext4
+          chmod 644 /host/var/lib/firecracker/kernels/vmlinux
+          
+          # Verify deployment
+          echo "Verifying deployed images..."
+          ls -la /host/var/lib/firecracker/images/shadow-rootfs.ext4
+          ls -la /host/var/lib/firecracker/kernels/vmlinux
+          
+          # Generate checksums for verification
+          cd /host/var/lib/firecracker
+          sha256sum images/shadow-rootfs.ext4 > images/shadow-rootfs.ext4.sha256
+          sha256sum kernels/vmlinux > kernels/vmlinux.sha256
+          
+          echo "VM images deployed successfully on node \$(hostname)"
+          echo "Rootfs size: \$(du -h images/shadow-rootfs.ext4 | cut -f1)"
+          echo "Kernel size: \$(du -h kernels/vmlinux | cut -f1)"
+        volumeMounts:
+        - name: host-firecracker
+          mountPath: /host/var/lib/firecracker
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+      volumes:
+      - name: host-firecracker
+        hostPath:
+          path: /var/lib/firecracker
+          type: DirectoryOrCreate
+EOF
+
+    # Wait for VM image deployment to complete
+    log "Waiting for VM image deployment to complete..."
+    if kubectl wait --for=condition=complete job -l component=vm-deployer -n shadow-agents --timeout=600s; then
+        log "VM images deployed successfully to all firecracker nodes"
+        
+        # Show deployment summary
+        log "VM image deployment summary:"
+        kubectl logs -l component=vm-deployer -n shadow-agents --tail=10 | grep -E "(deployed successfully|size:|ERROR:)" || true
+    else
+        error "VM image deployment failed or timed out"
+        log "Checking deployment logs..."
+        kubectl logs -l component=vm-deployer -n shadow-agents --tail=20
+        return 1
+    fi
+    
+    # Cleanup deployment job
+    kubectl delete job -l component=vm-deployer -n shadow-agents || true
+    
+    log "VM image deployment completed"
+}
+
 # Generate cluster access configurationc5.m
 generate_access_config() {
     log "Generating cluster access configuration..."
@@ -403,6 +546,7 @@ main() {
     log "Cluster: $CLUSTER_NAME"
     log "Region: $AWS_REGION"
     log "Instance Type: $NODE_INSTANCE_TYPE"
+    log "VM Image: ${VM_IMAGE_REGISTRY}/${VM_IMAGE_NAME}:${VM_IMAGE_TAG}"
     
     check_prerequisites
     create_eks_cluster
@@ -410,6 +554,7 @@ main() {
     install_firecracker_runtime
     install_monitoring
     deploy_vm_images
+    pull_and_deploy_vm_images
     generate_access_config
     verify_deployment
     
