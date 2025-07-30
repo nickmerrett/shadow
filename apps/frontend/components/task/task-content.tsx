@@ -7,6 +7,7 @@ import { useTaskMessages } from "@/hooks/use-task-messages";
 import { useTaskSocket } from "@/hooks/socket";
 import { useParams } from "next/navigation";
 import { ScrollToBottom } from "./scroll-to-bottom";
+import { useCallback, useMemo } from "react";
 
 export function TaskPageContent() {
   const { taskId } = useParams<{ taskId: string }>();
@@ -18,7 +19,7 @@ export function TaskPageContent() {
   const { streamingAssistantParts, isStreaming, sendMessage, stopStream } =
     useTaskSocket(taskId);
 
-  const handleSendMessage = (
+  const handleSendMessage = useCallback((
     message: string,
     model: string,
     queue: boolean
@@ -32,11 +33,11 @@ export function TaskPageContent() {
 
     // Send via socket
     sendMessage(message, model, queue);
-  };
+  }, [taskId, sendMessageMutation, sendMessage]);
 
-  const handleStopStream = () => {
+  const handleStopStream = useCallback(() => {
     stopStream();
-  };
+  }, [stopStream]);
 
   if (taskMessagesError) {
     return (
@@ -49,21 +50,25 @@ export function TaskPageContent() {
   }
 
   // Combine real messages with current streaming content
-  const displayMessages = [...messages];
+  const displayMessages = useMemo(() => {
+    const msgs = [...messages];
 
-  // Add streaming assistant message with structured parts if present
-  if (streamingAssistantParts.length > 0 || isStreaming) {
-    displayMessages.push({
-      id: "streaming",
-      role: "assistant",
-      content: "", // Content will come from parts
-      createdAt: new Date().toISOString(),
-      metadata: {
-        isStreaming: true,
-        parts: streamingAssistantParts,
-      },
-    });
-  }
+    // Add streaming assistant message with structured parts if present
+    if (streamingAssistantParts.length > 0 || isStreaming) {
+      msgs.push({
+        id: "streaming",
+        role: "assistant",
+        content: "", // Content will come from parts
+        createdAt: new Date().toISOString(),
+        metadata: {
+          isStreaming: true,
+          parts: streamingAssistantParts,
+        },
+      });
+    }
+
+    return msgs;
+  }, [messages, streamingAssistantParts, isStreaming]);
 
   return (
     <div className="relative z-0 mx-auto flex min-h-full w-full max-w-lg flex-col items-center px-4 sm:px-6">

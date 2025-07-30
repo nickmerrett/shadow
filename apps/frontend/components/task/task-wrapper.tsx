@@ -15,7 +15,7 @@ import {
 import { saveResizableTaskLayoutCookie } from "@/lib/actions/resizable-task-cookie";
 import { cn } from "@/lib/utils";
 import { AppWindowMac } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { StickToBottom } from "use-stick-to-bottom";
 import { AgentEnvironment } from "../agent-environment";
@@ -72,7 +72,7 @@ export function TaskPageWrapper({
     }, 100);
   }, []);
 
-  const getInitialSizes = () => {
+  const { leftSize, rightSize } = useMemo(() => {
     if (initialLayout && initialLayout.length >= 2) {
       return {
         leftSize: initialLayout[0],
@@ -83,9 +83,7 @@ export function TaskPageWrapper({
       leftSize: 100,
       rightSize: 0,
     };
-  };
-
-  const { leftSize, rightSize } = getInitialSizes();
+  }, [initialLayout]);
 
   /* 
   Keyboard shortcuts
@@ -119,11 +117,11 @@ export function TaskPageWrapper({
 
   const titleRef = useRef<HTMLDivElement>(null);
 
-  const handleTitleClick = () => {
+  const handleTitleClick = useCallback(() => {
     setIsEditing(true);
-  };
+  }, []);
 
-  const handleInputKeyDown = (e: React.KeyboardEvent) => {
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.stopPropagation();
       if (editValue.trim() && editValue !== taskTitle) {
@@ -135,16 +133,16 @@ export function TaskPageWrapper({
       setIsEditing(false);
       setEditValue(taskTitle || "");
     }
-  };
+  }, [editValue, taskTitle, mutateTaskTitle, taskId]);
 
-  const handleInputBlur = () => {
+  const handleInputBlur = useCallback(() => {
     if (editValue.trim() && editValue !== taskTitle) {
       mutateTaskTitle({ taskId, title: editValue.trim() });
     } else {
       setEditValue(taskTitle || "");
     }
     setIsEditing(false);
-  };
+  }, [editValue, taskTitle, mutateTaskTitle, taskId]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {

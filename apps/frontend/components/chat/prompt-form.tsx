@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { redirect, useParams } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
@@ -67,99 +67,99 @@ export function PromptForm({
   const [isMessageOptionsOpen, setIsMessageOptionsOpen] = useState(false);
   const [isGithubConnectionOpen, setIsGithubConnectionOpen] = useState(false);
 
-  const messageOptions = isStreaming
-    ? [
-        {
-          id: "queue",
-          icon: ListEnd,
-          label: "Queue Message",
-          action: () => {
-            console.log("queue");
-            onSubmit?.(message, selectedModel, true);
-            queryClient.setQueryData(["queued-message", taskId], message);
-            setMessage("");
-          },
-          shortcut: {
-            key: "Enter",
-            meta: false,
-            ctrl: false,
-            alt: false,
-            shift: false,
-          },
-        },
-        {
-          id: "send",
-          icon: MessageCircleX,
-          label: "Stop & Send",
-          action: () => {
-            console.log("send");
-            onSubmit?.(message, selectedModel, false);
-            setMessage("");
-          },
-          shortcut: {
-            key: "Enter",
-            meta: true,
-            ctrl: false,
-            alt: false,
-            shift: false,
-          },
-        },
-        {
-          id: "stack-pr",
-          icon: GitBranchPlus,
-          label: "Queue Stacked PR",
-          action: () => {
-            console.log("stack-pr (NOT IMPLEMENTED)");
-            onSubmit?.(message, selectedModel, true);
-            setMessage("");
-          },
-          shortcut: {
-            key: "Enter",
-            meta: false,
-            ctrl: false,
-            alt: true,
-            shift: false,
-          },
-        },
-      ]
-    : [
-        {
-          id: "send",
-          icon: MessageCircle,
-          label: "Send Message",
-          action: () => {
-            console.log("send");
-            onSubmit?.(message, selectedModel, false);
-            setMessage("");
-          },
-          shortcut: {
-            key: "Enter",
-            meta: false,
-            ctrl: false,
-            alt: false,
-            shift: false,
-          },
-        },
-        {
-          id: "stack-pr",
-          icon: GitBranchPlus,
-          label: "Create Stacked PR",
-          action: () => {
-            console.log("stack-pr (NOT IMPLEMENTED)");
-            onSubmit?.(message, selectedModel, false);
-            setMessage("");
-          },
-          shortcut: {
-            key: "Enter",
-            meta: false,
-            ctrl: false,
-            alt: true,
-            shift: false,
-          },
-        },
-      ];
+  const messageOptions = useMemo(() => {
+    const queueAction = () => {
+      console.log("queue");
+      onSubmit?.(message, selectedModel, true);
+      queryClient.setQueryData(["queued-message", taskId], message);
+      setMessage("");
+    };
 
-  const formatShortcut = (shortcut: {
+    const sendAction = () => {
+      console.log("send");
+      onSubmit?.(message, selectedModel, false);
+      setMessage("");
+    };
+
+    const stackPRAction = (queue: boolean) => () => {
+      console.log("stack-pr (NOT IMPLEMENTED)");
+      onSubmit?.(message, selectedModel, queue);
+      setMessage("");
+    };
+
+    return isStreaming
+      ? [
+          {
+            id: "queue",
+            icon: ListEnd,
+            label: "Queue Message",
+            action: queueAction,
+            shortcut: {
+              key: "Enter",
+              meta: false,
+              ctrl: false,
+              alt: false,
+              shift: false,
+            },
+          },
+          {
+            id: "send",
+            icon: MessageCircleX,
+            label: "Stop & Send",
+            action: sendAction,
+            shortcut: {
+              key: "Enter",
+              meta: true,
+              ctrl: false,
+              alt: false,
+              shift: false,
+            },
+          },
+          {
+            id: "stack-pr",
+            icon: GitBranchPlus,
+            label: "Queue Stacked PR",
+            action: stackPRAction(true),
+            shortcut: {
+              key: "Enter",
+              meta: false,
+              ctrl: false,
+              alt: true,
+              shift: false,
+            },
+          },
+        ]
+      : [
+          {
+            id: "send",
+            icon: MessageCircle,
+            label: "Send Message",
+            action: sendAction,
+            shortcut: {
+              key: "Enter",
+              meta: false,
+              ctrl: false,
+              alt: false,
+              shift: false,
+            },
+          },
+          {
+            id: "stack-pr",
+            icon: GitBranchPlus,
+            label: "Create Stacked PR",
+            action: stackPRAction(false),
+            shortcut: {
+              key: "Enter",
+              meta: false,
+              ctrl: false,
+              alt: true,
+              shift: false,
+            },
+          },
+        ];
+  }, [isStreaming, onSubmit, message, selectedModel, queryClient, taskId]);
+
+  const formatShortcut = useCallback((shortcut: {
     key: string;
     meta: boolean;
     ctrl: boolean;
@@ -176,10 +176,10 @@ export function PromptForm({
     return modifiers.length > 0
       ? `${modifiers.join("")}${keyDisplay}`
       : keyDisplay;
-  };
+  }, []);
 
   // Submission handling for home page
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedModel || !isHome || !repo || !branch || !message.trim()) {
       return;
@@ -209,15 +209,15 @@ export function PromptForm({
         redirect(`/tasks/${taskId}`);
       }
     });
-  };
+  }, [selectedModel, isHome, repo, branch, message, startTransition, queryClient]);
 
   // onKeyDown handler for home page
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && isHome) {
       e.preventDefault();
       handleSubmit(e);
     }
-  };
+  }, [isHome, handleSubmit]);
 
   // Keyboard shortcuts, including submission handling for task page
   useEffect(() => {

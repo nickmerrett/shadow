@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { Message, ErrorPart } from "@repo/types";
 import { ChevronDown, AlertCircle, Copy, Check } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { MemoizedMarkdown } from "./memoized-markdown";
 import { ToolMessage } from "./tools";
 import { CollapsibleTool } from "./tools/collapsible-tool";
@@ -76,52 +76,70 @@ export function AssistantMessage({
     return null;
   }
 
-  const toolResultsMap = new Map<
-    string,
-    { result: unknown; toolName: string }
-  >();
-  message.metadata.parts.forEach((part) => {
-    if (part.type === "tool-result") {
-      toolResultsMap.set(part.toolCallId, {
-        result: part.result,
-        toolName: part.toolName,
-      });
-    }
-  });
+  const toolResultsMap = useMemo(() => {
+    const map = new Map<string, { result: unknown; toolName: string }>();
+    if (!message.metadata?.parts || message.metadata.parts.length === 0)
+      return map;
+    message.metadata.parts.forEach((part) => {
+      if (part.type === "tool-result") {
+        map.set(part.toolCallId, {
+          result: part.result,
+          toolName: part.toolName,
+        });
+      }
+    });
+    return map;
+  }, [message.metadata.parts]);
 
   // Group consecutive text parts together for better rendering
-  const groupedParts: Array<
-    | { type: "text"; text: string }
-    | { type: "tool-call"; part: any; index: number }
-    | { type: "tool-result"; part: any; index: number }
-    | { type: "error"; part: ErrorPart; index: number }
-  > = [];
-  let currentTextGroup = "";
+  const groupedParts = useMemo(() => {
+    if (!message.metadata?.parts || message.metadata.parts.length === 0)
+      return [];
 
-  message.metadata.parts.forEach((part, index) => {
-    if (part.type === "text") {
-      currentTextGroup += part.text;
-    } else {
-      // If we have accumulated text, add it as a group
-      if (currentTextGroup) {
-        groupedParts.push({ type: "text", text: currentTextGroup });
-        currentTextGroup = "";
+    const parts: Array<
+      | { type: "text"; text: string }
+      | { type: "tool-call"; part: any; index: number }
+      | { type: "tool-result"; part: any; index: number }
+      | { type: "error"; part: ErrorPart; index: number }
+    > = [];
+    let currentTextGroup = "";
+
+    message.metadata.parts.forEach((part, index) => {
+      if (part.type === "text") {
+        currentTextGroup += part.text;
+      } else {
+        // If we have accumulated text, add it as a group
+        if (currentTextGroup) {
+          parts.push({ type: "text", text: currentTextGroup });
+          currentTextGroup = "";
+        }
+        // Add the non-text part
+        if (part.type === "tool-call") {
+          parts.push({ type: "tool-call", part, index });
+        } else if (part.type === "tool-result") {
+          parts.push({ type: "tool-result", part, index });
+        } else if (part.type === "error") {
+          parts.push({ type: "error", part: part as ErrorPart, index });
+        }
       }
-      // Add the non-text part
-      if (part.type === "tool-call") {
-        groupedParts.push({ type: "tool-call", part, index });
-      } else if (part.type === "tool-result") {
-        groupedParts.push({ type: "tool-result", part, index });
-      } else if (part.type === "error") {
-        groupedParts.push({ type: "error", part: part as ErrorPart, index });
-      }
+    });
+
+    // Don't forget any remaining text at the end
+    if (currentTextGroup) {
+      parts.push({ type: "text", text: currentTextGroup });
     }
-  });
 
-  // Don't forget any remaining text at the end
-  if (currentTextGroup) {
-    groupedParts.push({ type: "text", text: currentTextGroup });
-  }
+    return parts;
+  }, [message.metadata.parts]);
+
+  const copyContent = useMemo(
+    () => getMessageCopyContent(groupedParts),
+    [groupedParts]
+  );
+
+  const handleCopy = useCallback(() => {
+    copyToClipboard(copyContent);
+  }, [copyToClipboard, copyContent]);
 
   return (
     <div className="group/assistant-message relative flex flex-col gap-1">
@@ -199,10 +217,7 @@ export function AssistantMessage({
               size="iconSm"
               className="text-muted-foreground hover:text-foreground"
               disabled={isCopied}
-              onClick={() => {
-                const content = getMessageCopyContent(groupedParts);
-                copyToClipboard(content);
-              }}
+              onClick={handleCopy}
             >
               {isCopied ? (
                 <Check className="size-3.5" />

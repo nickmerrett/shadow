@@ -4,6 +4,7 @@ import { isAssistantMessage, isToolMessage, isUserMessage } from "@repo/types";
 import { AssistantMessage } from "./assistant-message";
 import { UserMessage } from "./user-message";
 import InitializingAnimation from "../task/initializing-animation";
+import { useMemo, memo } from "react";
 
 function groupMessages(messages: Message[]) {
   const messageGroups: Message[][] = [];
@@ -45,7 +46,7 @@ function groupMessages(messages: Message[]) {
   return messageGroups;
 }
 
-export function Messages({
+function MessagesComponent({
   taskId,
   messages,
 }: {
@@ -53,13 +54,17 @@ export function Messages({
   messages: Message[];
 }) {
   // Filter out standalone tool messages - they're already rendered within assistant message parts
-  const filteredMessages = messages.filter(
-    (message) => !isToolMessage(message)
+  const filteredMessages = useMemo(
+    () => messages.filter((message) => !isToolMessage(message)),
+    [messages]
   );
 
   // Group messages into pairs of [user, assistant] or single messages
   // This is for sticky user message grouping, so that there's a bottom boundary
-  const messageGroups = groupMessages(filteredMessages);
+  const messageGroups = useMemo(
+    () => groupMessages(filteredMessages),
+    [filteredMessages]
+  );
 
   return (
     <div className="relative z-0 mb-24 flex w-full grow flex-col gap-3">
@@ -96,3 +101,5 @@ export function Messages({
     </div>
   );
 }
+
+export const Messages = memo(MessagesComponent);
