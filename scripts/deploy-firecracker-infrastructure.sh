@@ -327,6 +327,8 @@ spec:
         value: "true"
         effect: NoSchedule
       restartPolicy: OnFailure
+      imagePullSecrets:
+      - name: ghcr-secret
       containers:
       - name: vm-deployer
         image: $IMAGE_NAME
