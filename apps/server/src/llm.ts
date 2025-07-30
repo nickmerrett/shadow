@@ -58,16 +58,37 @@ export class LLMService {
       // Create tools with task context if taskId is provided
       const tools = taskId ? createTools(taskId, workspacePath) : undefined;
 
+      // For Anthropic models, add system prompt as first message with cache control
+      // For other providers, use the system parameter
+      const isAnthropicModel = getModelProvider(model) === "anthropic";
+      const finalMessages: CoreMessage[] = isAnthropicModel
+        ? [
+            {
+              role: 'system',
+              content: systemPrompt,
+              providerOptions: {
+                anthropic: { cacheControl: { type: 'ephemeral' } },
+              },
+            } as CoreMessage,
+            ...coreMessages,
+          ]
+        : coreMessages;
+
       const streamConfig = {
         model: modelInstance,
-        system: systemPrompt,
-        messages: coreMessages,
+        ...(isAnthropicModel ? {} : { system: systemPrompt }),
+        messages: finalMessages,
         maxTokens: 4096,
         temperature: 0.7,
         maxSteps: MAX_STEPS,
         ...(enableTools && tools && { tools }),
         ...(abortSignal && { abortSignal }),
       };
+
+      // Log cache control usage for debugging
+      if (isAnthropicModel) {
+        console.log(`[LLM] Using Anthropic model ${model} with prompt caching enabled`);
+      }
 
       const result = streamText(streamConfig);
 
@@ -114,6 +135,13 @@ export class LLMService {
                   promptTokens: chunk.usage.promptTokens,
                   completionTokens: chunk.usage.completionTokens,
                   totalTokens: chunk.usage.totalTokens,
+                  // Include cache metadata for Anthropic models if available
+                  // Note: Cache metadata will be available in future AI SDK versions
+                  // For now, we'll log when cache control is enabled for debugging
+                  ...(getModelProvider(model) === "anthropic" && {
+                    cacheCreationInputTokens: undefined, // Will be populated by future SDK versions
+                    cacheReadInputTokens: undefined, // Will be populated by future SDK versions
+                  }),
                 },
               };
             }
@@ -177,11 +205,25 @@ export class LLMService {
     try {
       const prompt = this.buildPRGenerationPrompt(options);
 
+      const prModel = "gpt-4o-mini";
+      const isPrModelAnthropic = getModelProvider(prModel) === "anthropic";
+      
       const { text } = await generateText({
-        model: this.getModel("gpt-4o-mini"),
+        model: this.getModel(prModel),
         temperature: 0.3,
         maxTokens: 1000,
-        prompt,
+        ...(isPrModelAnthropic 
+          ? { 
+              messages: [{
+                role: 'system',
+                content: prompt,
+                providerOptions: {
+                  anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+              } as CoreMessage]
+            }
+          : { prompt }
+        ),
       });
 
       const result = this.parsePRMetadata(text);
