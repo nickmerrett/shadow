@@ -198,7 +198,6 @@ function UserMessageWrapper({
           "sticky top-16 z-10 w-full rounded-[calc(var(--radius)+1px)] p-px transition-all",
           "focus-visible:ring-ring/10 focus-visible:outline-none focus-visible:ring-4",
           "user-message-border user-message-shadow",
-          !isFirstMessage && "mt-3",
           className
         )}
       >
@@ -214,7 +213,7 @@ function UserMessageWrapper({
         "sticky top-16 z-10 w-full cursor-pointer rounded-[calc(var(--radius)+1px)] p-px text-left transition-all",
         "focus-visible:ring-ring/10 focus-visible:outline-none focus-visible:ring-4",
         "user-message-border user-message-shadow",
-        !isFirstMessage && "mt-12",
+        !isFirstMessage && "mt-9",
         className
       )}
     >

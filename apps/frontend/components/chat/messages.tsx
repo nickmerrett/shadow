@@ -67,11 +67,11 @@ function MessagesComponent({
   );
 
   return (
-    <div className="relative z-0 mb-24 flex w-full grow flex-col gap-4">
+    <div className="relative z-0 mb-24 flex w-full grow flex-col gap-6">
       <InitializingAnimation taskId={taskId} />
 
       {messageGroups.map((messageGroup, groupIndex) => (
-        <div className="flex flex-col gap-4" key={groupIndex}>
+        <div className="flex flex-col gap-6" key={groupIndex}>
           {messageGroup.map((message) => {
             if (isUserMessage(message)) {
               return (

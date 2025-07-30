@@ -166,7 +166,7 @@ export function AssistantMessage({
       {groupedParts.map((group, groupIndex) => {
         if (group.type === "text") {
           return (
-            <div key={`text-${groupIndex}`} className="p-3 text-sm">
+            <div key={`text-${groupIndex}`} className="px-3 py-2 text-sm">
               <MemoizedMarkdown
                 content={group.text}
                 id={`${message.id}-text-${groupIndex}`}

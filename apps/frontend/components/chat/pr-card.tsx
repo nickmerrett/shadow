@@ -53,7 +53,7 @@ export function PRCard({
         </Card>
       </Link>
 
-      <div className="p-3">
+      <div className="mt-3 p-3">
         <MarkdownRenderer
           content={`# Summary\n\n${snapshot.description}`}
           componentProps={{
