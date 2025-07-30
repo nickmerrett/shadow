@@ -2,21 +2,14 @@
 
 import "./prompt-form.css";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import { useModels } from "@/hooks/use-models";
 import { createTask } from "@/lib/actions/create-task";
 import { cn } from "@/lib/utils";
-import { AvailableModels, ModelInfos, type ModelType } from "@repo/types";
+import { AvailableModels, ModelType } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUp,
   GitBranchPlus,
-  Layers,
   ListEnd,
   Loader2,
   MessageCircle,
@@ -31,6 +24,7 @@ import { GithubConnection } from "./github";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { QueuedMessage } from "./queued-message";
+import { ModelSelector } from "./model-selector";
 
 export function PromptForm({
   onSubmit,
@@ -69,10 +63,8 @@ export function PromptForm({
   const [isPending, startTransition] = useTransition();
 
   const queryClient = useQueryClient();
-  const { data: availableModels = [] } = useModels();
 
   const [isMessageOptionsOpen, setIsMessageOptionsOpen] = useState(false);
-  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [isGithubConnectionOpen, setIsGithubConnectionOpen] = useState(false);
 
   const messageOptions = isStreaming
@@ -230,13 +222,8 @@ export function PromptForm({
   // Keyboard shortcuts, including submission handling for task page
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
-      // Only handle shortcuts when not on home page
+      // For home page, enter handled by handleSubmit
       if (isHome) return;
-
-      if (event.key === "." && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        setIsModelSelectorOpen((prev) => !prev);
-      }
 
       if (
         (event.key === "Escape" ||
@@ -393,51 +380,11 @@ export function PromptForm({
             className="group/footer flex items-center justify-between p-2"
             onClick={() => textareaRef.current?.focus()}
           >
-            <Popover
-              open={isModelSelectorOpen}
-              onOpenChange={setIsModelSelectorOpen}
-            >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-muted-foreground hover:bg-accent px-2 font-normal"
-                    >
-                      {isHome && <Layers className="size-4" />}
-                      <span>
-                        {selectedModel
-                          ? ModelInfos[selectedModel].name
-                          : "Select model"}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                </TooltipTrigger>
-                {!isModelSelectorOpen && (
-                  <TooltipContent side="top" align="start" shortcut="⌘.">
-                    Model Selector
-                  </TooltipContent>
-                )}
-              </Tooltip>
-              <PopoverContent
-                align="start"
-                className="flex flex-col gap-0.5 rounded-lg p-1"
-              >
-                {availableModels.map((model) => (
-                  <Button
-                    key={model.id}
-                    size="sm"
-                    variant="ghost"
-                    className="hover:bg-accent justify-start font-normal"
-                    onClick={() => setSelectedModel(model.id as ModelType)}
-                  >
-                    <Square className="size-4" />
-                    {model.name}
-                  </Button>
-                ))}
-              </PopoverContent>
-            </Popover>
+            <ModelSelector
+              isHome={isHome}
+              selectedModel={selectedModel}
+              handleSelectModel={setSelectedModel}
+            />
 
             <div className="flex items-center gap-2">
               {isHome && (

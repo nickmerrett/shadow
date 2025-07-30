@@ -3,19 +3,30 @@ import type {
   TextPart,
   ToolCallPart,
   ToolResultPart,
-  FinishReason
+  FinishReason,
 } from "ai";
 import { randomUUID } from "crypto";
 import { ToolExecutionStatusType } from "../tools/execution";
 import { ToolResultTypes } from "../tools/results";
 
-export type AssistantMessagePart = TextPart | ToolCallPart | ToolResultPart;
+// Error part type for AI SDK error chunks
+export interface ErrorPart {
+  type: "error";
+  error: string;
+  finishReason?: FinishReason;
+}
+
+export type AssistantMessagePart =
+  | TextPart
+  | ToolCallPart
+  | ToolResultPart
+  | ErrorPart;
 
 export type CompletionTokenUsage = {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
-}
+};
 
 export interface BaseMessage {
   id: string;
@@ -38,7 +49,7 @@ export interface MessageMetadata {
     name: string;
     args: Record<string, unknown>;
     status: ToolExecutionStatusType;
-    result?: ToolResultTypes['result'] | string; // Support both new objects and legacy strings
+    result?: ToolResultTypes["result"] | string; // Support both new objects and legacy strings
   };
 
   // For structured assistant messages - required for chronological tool call ordering
@@ -101,16 +112,16 @@ export function fromCoreMessage(
         ? coreMessage.content
         : Array.isArray(coreMessage.content)
           ? coreMessage.content
-            .map((part) =>
-              typeof part === "string"
-                ? part
-                : "text" in part
-                  ? part.text
-                  : "image" in part
-                    ? "[image]"
-                    : JSON.stringify(part)
-            )
-            .join("")
+              .map((part) =>
+                typeof part === "string"
+                  ? part
+                  : "text" in part
+                    ? part.text
+                    : "image" in part
+                      ? "[image]"
+                      : JSON.stringify(part)
+              )
+              .join("")
           : JSON.stringify(coreMessage.content),
   };
 }

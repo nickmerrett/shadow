@@ -7,7 +7,8 @@ import {
   SquareX,
   X,
 } from "lucide-react";
-import { CollapsibleTool, ToolType } from "./collapsible-tool";
+import { ToolType } from "@repo/types";
+import { CollapsibleTool,  } from "./collapsible-tool";
 import { cn } from "@/lib/utils";
 
 interface TodoItem {

@@ -562,10 +562,6 @@ export function emitStreamChunk(chunk: StreamChunk, taskId: string) {
   if (chunk.type === "complete") {
     endStream(taskId);
   }
-
-  if (chunk.type === "error") {
-    handleStreamError(chunk.error, taskId);
-  }
 }
 
 export function emitTerminalOutput(taskId: string, entry: TerminalEntry) {

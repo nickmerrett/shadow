@@ -1,6 +1,7 @@
 import type { Message } from "@repo/types";
 import { FileSearch } from "lucide-react";
-import { CollapsibleTool, ToolType } from "./collapsible-tool";
+import { ToolType } from "@repo/types";
+import { CollapsibleTool } from "./collapsible-tool";
 import { getToolResult } from "@repo/types";
 
 export function FileSearchTool({ message }: { message: Message }) {

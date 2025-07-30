@@ -69,14 +69,12 @@ export async function createTask(formData: FormData) {
       data: {
         id: taskId,
         title,
-        description: message,
         repoFullName,
         repoUrl,
         baseBranch,
         shadowBranch,
-        baseCommitSha: "pending", // Will be updated when workspace is prepared
+        baseCommitSha: "pending",
         status: "INITIALIZING",
-        mode: "FULL_AUTO",
         user: {
           connect: {
             id: session.user.id,

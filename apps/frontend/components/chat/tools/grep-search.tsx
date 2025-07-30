@@ -1,6 +1,7 @@
 import type { Message, GrepResult } from "@repo/types";
 import { Filter, Hash, File, Search } from "lucide-react";
-import { CollapsibleTool, ToolType } from "./collapsible-tool";
+import { ToolType } from "@repo/types";
+import { CollapsibleTool,  } from "./collapsible-tool";
 import { getToolResult } from "@repo/types";
 
 export function GrepSearchTool({ message }: { message: Message }) {

@@ -4,7 +4,8 @@ import { CheckIcon, Loader, Terminal, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { getToolResult } from "@repo/types";
-import { ToolTrigger, ToolType } from "./collapsible-tool";
+import { ToolType } from "@repo/types";
+import { ToolTrigger,  } from "./collapsible-tool";
 
 interface TerminalOutputProps {
   output: string;

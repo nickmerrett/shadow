@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
-import type { Message } from "@repo/types";
-import { ChevronDown } from "lucide-react";
+import type { Message, ErrorPart } from "@repo/types";
+import { ChevronDown, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { MemoizedMarkdown } from "./memoized-markdown";
 import { ToolMessage } from "./tools";
+import { CollapsibleTool } from "./tools/collapsible-tool";
 
 export function AssistantMessage({ message }: { message: Message }) {
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
@@ -61,6 +62,7 @@ export function AssistantMessage({ message }: { message: Message }) {
     | { type: "text"; text: string }
     | { type: "tool-call"; part: any; index: number }
     | { type: "tool-result"; part: any; index: number }
+    | { type: "error"; part: ErrorPart; index: number }
   > = [];
   let currentTextGroup = "";
 
@@ -78,6 +80,8 @@ export function AssistantMessage({ message }: { message: Message }) {
         groupedParts.push({ type: "tool-call", part, index });
       } else if (part.type === "tool-result") {
         groupedParts.push({ type: "tool-result", part, index });
+      } else if (part.type === "error") {
+        groupedParts.push({ type: "error", part: part as ErrorPart, index });
       }
     }
   });
@@ -131,6 +135,20 @@ export function AssistantMessage({ message }: { message: Message }) {
         // Skip standalone tool-result parts since they're handled with tool-call parts
         if (group.type === "tool-result") {
           return null;
+        }
+
+        // Render error parts
+        if (group.type === "error") {
+          return (
+            <CollapsibleTool
+              key={`error-${groupIndex}`}
+              icon={<AlertCircle className="text-destructive" />}
+              title="Error occurred"
+              type={"error"}
+            >
+              {group.part.error}
+            </CollapsibleTool>
+          );
         }
 
         return null;

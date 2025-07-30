@@ -1,6 +1,7 @@
 import type { Message } from "@repo/types";
 import { Trash2 } from "lucide-react";
-import { ToolTrigger, ToolType } from "./collapsible-tool";
+import { ToolType } from "@repo/types";
+import { ToolTrigger } from "./collapsible-tool";
 
 export function DeleteFileTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;

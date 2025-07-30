@@ -1,6 +1,7 @@
 import { prisma } from "@repo/db";
 import {
   AssistantMessagePart,
+  ErrorPart,
   Message,
   MessageMetadata,
   ModelType,
@@ -689,6 +690,34 @@ export class ChatService {
             chunk.error
           );
           finishReason = chunk.finishReason || "error";
+
+          // Add error part to assistant message parts
+          const errorPart: ErrorPart = {
+            type: "error",
+            error: chunk.error || "Unknown error occurred",
+            finishReason: chunk.finishReason,
+          };
+          assistantParts.push(errorPart);
+
+          // Update assistant message with error part if we have one
+          if (assistantMessageId) {
+            const fullContent = assistantParts
+              .filter((part) => part.type === "text")
+              .map((part) => (part as TextPart).text)
+              .join("");
+
+            await prisma.chatMessage.update({
+              where: { id: assistantMessageId },
+              data: {
+                content: fullContent,
+                metadata: {
+                  isStreaming: false,
+                  parts: assistantParts,
+                  finishReason,
+                } as any,
+              },
+            });
+          }
 
           // Update task status to failed
           await updateTaskStatus(taskId, "FAILED", "CHAT");

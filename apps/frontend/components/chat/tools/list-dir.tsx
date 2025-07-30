@@ -1,6 +1,7 @@
 import type { Message, DirectoryListing } from "@repo/types";
 import { File, Folder, FolderOpen } from "lucide-react";
-import { CollapsibleTool, ToolType } from "./collapsible-tool";
+import { ToolType } from "@repo/types";
+import { CollapsibleTool } from "./collapsible-tool";
 
 export function ListDirTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;

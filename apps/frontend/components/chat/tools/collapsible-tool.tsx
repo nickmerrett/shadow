@@ -1,37 +1,10 @@
 import { cn } from "@/lib/utils";
+import { ToolType, TOOL_PREFIXES } from "@repo/types";
 import { useState } from "react";
-
-export enum ToolType {
-  EDIT_FILE = "edit_file",
-  READ_FILE = "read_file",
-  SEARCH_REPLACE = "search_replace",
-  SEMANTIC_SEARCH = "semantic_search",
-  GREP_SEARCH = "grep_search",
-  FILE_SEARCH = "file_search",
-  LIST_DIR = "list_dir",
-  DELETE_FILE = "delete_file",
-  WEB_SEARCH = "web_search",
-  TODO_WRITE = "todo_write",
-  RUN_TERMINAL_CMD = "run_terminal_cmd",
-}
-
-const TOOL_PREFIXES: Record<ToolType, string> = {
-  [ToolType.EDIT_FILE]: "Edited",
-  [ToolType.READ_FILE]: "Read",
-  [ToolType.SEARCH_REPLACE]: "Replaced in",
-  [ToolType.SEMANTIC_SEARCH]: "Semantic search",
-  [ToolType.GREP_SEARCH]: "Grepped",
-  [ToolType.FILE_SEARCH]: "Searched files",
-  [ToolType.LIST_DIR]: "Listed",
-  [ToolType.DELETE_FILE]: "Deleted",
-  [ToolType.WEB_SEARCH]: "Searched web",
-  [ToolType.TODO_WRITE]: "Updated todo list",
-  [ToolType.RUN_TERMINAL_CMD]: "Ran",
-};
 
 type ToolTriggerProps = {
   icon: React.ReactNode;
-  type: ToolType;
+  type: ToolType | "error";
   title: string;
   suffix?: string;
   prefix?: string;
@@ -65,10 +38,14 @@ export function ToolTrigger({
     >
       {icon}
       <div className="flex w-[calc(100%-1.5rem)] items-center gap-1">
-        <div className="whitespace-nowrap opacity-70">
-          {prefix || TOOL_PREFIXES[type]}
+        {type !== "error" && (
+          <div className="whitespace-nowrap opacity-70">
+            {prefix || TOOL_PREFIXES[type]}
+          </div>
+        )}
+        <div className={cn("truncate", type === "error" && "text-destructive")}>
+          {title}
         </div>
-        <div className="truncate">{title}</div>
         {changes && (
           <div className="flex items-center gap-1">
             <span className="text-green-400">+{changes.linesAdded}</span>

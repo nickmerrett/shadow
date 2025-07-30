@@ -1,6 +1,7 @@
 import type { Message, SemanticSearchToolResult } from "@repo/types";
 import { Code, File, Folder, ScanSearch, Search } from "lucide-react";
-import { CollapsibleTool, ToolType } from "./collapsible-tool";
+import { ToolType } from "@repo/types";
+import { CollapsibleTool,  } from "./collapsible-tool";
 
 export function SemanticSearchTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
