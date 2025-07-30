@@ -90,6 +90,7 @@ model Task {
   baseBranch          String
   baseCommitSha       String
   shadowBranch        String
+  pullRequestNumber   Int?
   messages            ChatMessage[]
   user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions            TaskSession[]
@@ -116,19 +117,20 @@ model Todo {
 }
 
 model ChatMessage {
-  id               String      @id @default(cuid())
-  content          String
-  role             MessageRole
-  llmModel         String?
-  metadata         Json?
-  sequence         Int
-  promptTokens     Int?
-  completionTokens Int?
-  totalTokens      Int?
-  finishReason     String?
-  createdAt        DateTime    @default(now())
-  taskId           String
-  task             Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id                  String               @id @default(cuid())
+  content             String
+  role                MessageRole
+  llmModel            String?
+  metadata            Json?
+  sequence            Int
+  promptTokens        Int?
+  completionTokens    Int?
+  totalTokens         Int?
+  finishReason        String?
+  createdAt           DateTime             @default(now())
+  taskId              String
+  task                Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  pullRequestSnapshot PullRequestSnapshot?
 
   @@index([taskId, sequence])
   @@index([taskId, role, sequence])
@@ -179,6 +181,26 @@ model CodebaseUnderstanding {
   @@index([repoFullName])
 }
 
+model PullRequestSnapshot {
+  id String @id @default(cuid())
+
+  status      PullRequestStatus
+  title       String
+  description String
+
+  filesChanged Int
+  linesAdded   Int
+  linesRemoved Int
+  commitSha    String
+
+  createdAt DateTime @default(now())
+
+  messageId String      @unique
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("pull_request_snapshot")
+}
+
 enum TaskStatus {
   STOPPED
   INITIALIZING
@@ -189,6 +211,10 @@ enum TaskStatus {
   CANCELLED
 }
 
+enum PullRequestStatus {
+  CREATED
+  UPDATED
+}
 
 enum MessageRole {
   USER
