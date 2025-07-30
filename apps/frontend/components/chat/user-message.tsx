@@ -1,4 +1,4 @@
-import "./user-message-gradient.css";
+import "./messages.css";
 import { cn } from "@/lib/utils";
 
 export function UserMessage({
@@ -12,9 +12,9 @@ export function UserMessage({
     // Outer button acts as a border, with a border-radius 1px larger than the inner div and 1px padding
     <button
       className={cn(
-        "shadow-highlight/10 relative z-0 w-full cursor-pointer rounded-[calc(var(--radius)+1px)] p-px text-left shadow-lg transition-all",
+        "relative z-0 w-full cursor-pointer rounded-[calc(var(--radius)+1px)] p-px text-left transition-all",
         "focus-visible:ring-ring/10 focus-visible:outline-none focus-visible:ring-4",
-        "user-message-border hover:shadow-highlight/20",
+        "user-message-border user-message-shadow",
         className
       )}
     >

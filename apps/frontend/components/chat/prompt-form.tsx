@@ -1,6 +1,6 @@
 "use client";
 
-import "./prompt-form.css";
+import "./messages.css";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { createTask } from "@/lib/actions/create-task";
@@ -292,7 +292,7 @@ export function PromptForm({
         className={cn(
           "shadow-highlight/10 relative z-0 rounded-[calc(var(--radius)+1px)] p-px shadow-lg transition-all",
           "focus-within:ring-ring/10 focus-within:border-sidebar-border focus-within:ring-4",
-          "prompt-form-border hover:shadow-highlight/20 focus-within:shadow-highlight/20",
+          "user-message-border hover:shadow-highlight/20 focus-within:shadow-highlight/20",
           isPending && "opacity-50"
         )}
       >

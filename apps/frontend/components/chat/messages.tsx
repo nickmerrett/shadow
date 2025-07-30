@@ -58,6 +58,7 @@ export function Messages({
   );
 
   // Group messages into pairs of [user, assistant] or single messages
+  // This is for sticky user message grouping, so that there's a bottom boundary
   const messageGroups = groupMessages(filteredMessages);
 
   return (
@@ -65,14 +66,17 @@ export function Messages({
       <InitializingAnimation taskId={taskId} />
 
       {messageGroups.map((messageGroup, index) => (
-        <div className="flex flex-col gap-3" key={index}>
-          {messageGroup.map((message, index) => {
+        <div
+          className={cn("flex flex-col gap-3", index !== 0 && "mt-16")}
+          key={index}
+        >
+          {messageGroup.map((message) => {
             if (isUserMessage(message)) {
               return (
                 <UserMessage
                   key={message.id}
                   content={message.content}
-                  className={cn("sticky top-16 mb-4", index !== 0 && "mt-4")}
+                  className="sticky top-16 z-10 mb-3"
                 />
               );
             }

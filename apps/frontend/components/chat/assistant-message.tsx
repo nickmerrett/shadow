@@ -1,11 +1,35 @@
 import { cn } from "@/lib/utils";
 import type { Message, ErrorPart } from "@repo/types";
-import { ChevronDown, AlertCircle } from "lucide-react";
+import { ChevronDown, AlertCircle, Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { MemoizedMarkdown } from "./memoized-markdown";
 import { ToolMessage } from "./tools";
 import { CollapsibleTool } from "./tools/collapsible-tool";
 import { PRCard } from "./pr-card";
+import { Button } from "../ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+
+function getMessageCopyContent(
+  groupedParts: Array<
+    | { type: "text"; text: string }
+    | { type: "tool-call"; part: any; index: number }
+    | { type: "tool-result"; part: any; index: number }
+    | { type: "error"; part: ErrorPart; index: number }
+  >
+): string {
+  return groupedParts
+    .map((part) => {
+      if (part.type === "text") {
+        return part.text;
+      } else if (part.type === "tool-call") {
+        return `Tool Call: ${part.part.toolName}`;
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
 
 export function AssistantMessage({
   message,
@@ -15,6 +39,7 @@ export function AssistantMessage({
   taskId: string;
 }) {
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
+  const { copyToClipboard, isCopied } = useCopyToClipboard();
 
   // TODO(Ishaan) test with a reasoning model
   if (message.metadata?.thinking) {
@@ -99,7 +124,7 @@ export function AssistantMessage({
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="group/assistant-message relative flex flex-col gap-1">
       {groupedParts.map((group, groupIndex) => {
         if (group.type === "text") {
           return (
@@ -165,6 +190,31 @@ export function AssistantMessage({
       {message.pullRequestSnapshot && (
         <PRCard taskId={taskId} snapshot={message.pullRequestSnapshot} />
       )}
+
+      <div className="absolute -bottom-6 left-0 flex w-full items-center justify-end px-3 opacity-0 transition-all focus-within:opacity-100 group-hover/assistant-message:opacity-100">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="iconSm"
+              className="text-muted-foreground hover:text-foreground"
+              disabled={isCopied}
+              onClick={() => {
+                const content = getMessageCopyContent(groupedParts);
+                copyToClipboard(content);
+              }}
+            >
+              {isCopied ? (
+                <Check className="size-3.5" />
+              ) : (
+                <Copy className="size-3.5" />
+              )}
+            </Button>
+          </TooltipTrigger>
+
+          <TooltipContent side="left">Copy to clipboard</TooltipContent>
+        </Tooltip>
+      </div>
     </div>
   );
 }
