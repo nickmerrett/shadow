@@ -71,7 +71,7 @@ model Verification {
 }
 
 model Task {
-  id     String     @id @default(nanoid(16))
+  id     String     @id @default(nanoid())
   title  String
   status TaskStatus @default(INITIALIZING)
 
@@ -168,7 +168,7 @@ model TaskSession {
 }
 
 model CodebaseUnderstanding {
-  id           String   @id @default(nanoid(16))
+  id           String   @id @default(nanoid())
   repoFullName String   @unique
   repoUrl      String
   content      Json
