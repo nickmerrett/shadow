@@ -68,7 +68,7 @@ check_prerequisites() {
     
     # Check if EKS cluster exists
     if ! aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --profile "$AWS_PROFILE" &> /dev/null; then
-        error "EKS cluster '$CLUSTER_NAME' not found. Run deploy-firecracker-infrastructure.sh first"
+        error "EKS cluster '$CLUSTER_NAME' not found. Run deploy-remote-infrastructure.sh first"
     fi
     
     log "Prerequisites check passed"
@@ -283,7 +283,7 @@ store_k8s_token() {
     
     # Check if .env.production exists
     if [[ ! -f ".env.production" ]]; then
-        error ".env.production not found. Run deploy-firecracker-infrastructure.sh first"
+        error ".env.production not found. Run deploy-remote-infrastructure.sh first"
     fi
     
     # Extract token from config file

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Shadow Firecracker Infrastructure Deployment Script
-# Sets up AWS EC2 bare metal cluster with Kubernetes and Firecracker support
+# Shadow Remote Execution Infrastructure Deployment Script
+# Sets up AWS EC2 bare metal cluster with Kubernetes and Kata QEMU runtime support
 #
 # VM Image Configuration:
 #   VM_IMAGE_TAG=v1.0.0 ./deploy-firecracker-infrastructure.sh
@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Configuration
-CLUSTER_NAME="${CLUSTER_NAME:-shadow-firecracker}"
+CLUSTER_NAME="${CLUSTER_NAME:-shadow-remote}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 NODE_INSTANCE_TYPE="${NODE_INSTANCE_TYPE:-c5n.metal}"
 MIN_NODES="${MIN_NODES:-1}"
@@ -90,7 +90,7 @@ check_prerequisites() {
 
 # Create EKS cluster with bare metal nodes
 create_eks_cluster() {
-    log "Creating EKS cluster with Firecracker-compatible nodes..."
+    log "Creating EKS cluster with Kata QEMU-compatible nodes..."
     
     # Check if cluster already exists
     if aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --profile ID &> /dev/null; then
@@ -112,7 +112,7 @@ iam:
   withOIDC: true
 
 nodeGroups:
-  - name: firecracker-nodes
+  - name: remote-nodes
     instanceType: $NODE_INSTANCE_TYPE
     minSize: $MIN_NODES
     maxSize: $MAX_NODES
@@ -141,15 +141,15 @@ nodeGroups:
         sudo yum update -y
         sudo yum install -y iptables-services
         
-    # Node labels for Firecracker scheduling
+    # Node labels for remote execution scheduling
     labels:
-      firecracker: "true"
+      remote: "true"
       kvm: "enabled"
       node-type: "bare-metal"
       
-    # Node taints for dedicated Firecracker workloads
+    # Node taints for dedicated remote workloads
     taints:
-      - key: firecracker.shadow.ai/dedicated
+      - key: remote.shadow.ai/dedicated
         value: "true"
         effect: NoSchedule
         
@@ -199,9 +199,9 @@ EOF
     log "EKS cluster created successfully"
 }
 
-# Install Kata Containers with Firecracker runtime
-install_firecracker_runtime() {
-    log "Installing Kata Containers with Firecracker runtime..."
+# Install Kata Containers with QEMU runtime
+install_kata_runtime() {
+    log "Installing Kata Containers with QEMU runtime..."
     
     # Install Kata Containers RBAC
     kubectl apply -f https://raw.githubusercontent.com/kata-containers/kata-containers/main/tools/packaging/kata-deploy/kata-rbac/base/kata-rbac.yaml
@@ -209,8 +209,8 @@ install_firecracker_runtime() {
     # Install kata-deploy with Firecracker support
     kubectl apply -f https://raw.githubusercontent.com/kata-containers/kata-containers/main/tools/packaging/kata-deploy/kata-deploy/base/kata-deploy.yaml
     
-    # Add toleration for firecracker nodes
-    kubectl patch daemonset kata-deploy -n kube-system -p='{"spec":{"template":{"spec":{"tolerations":[{"key":"firecracker.shadow.ai/dedicated","operator":"Equal","value":"true","effect":"NoSchedule"}]}}}}'
+    # Add toleration for remote nodes
+    kubectl patch daemonset kata-deploy -n kube-system -p='{"spec":{"template":{"spec":{"tolerations":[{"key":"remote.shadow.ai/dedicated","operator":"Equal","value":"true","effect":"NoSchedule"}]}}}}'
     
     # Enable RuntimeClass creation
     kubectl patch daemonset kata-deploy -n kube-system -p='{"spec":{"template":{"spec":{"containers":[{"name":"kube-kata","env":[{"name":"NODE_NAME","valueFrom":{"fieldRef":{"fieldPath":"spec.nodeName"}}},{"name":"DEBUG","value":"false"},{"name":"SHIMS","value":"clh cloud-hypervisor dragonball fc qemu qemu-nvidia-gpu qemu-sev qemu-snp qemu-tdx stratovirt"},{"name":"DEFAULT_SHIM","value":"qemu"},{"name":"CREATE_RUNTIMECLASSES","value":"true"},{"name":"CREATE_DEFAULT_RUNTIMECLASS","value":"true"},{"name":"ALLOWED_HYPERVISOR_ANNOTATIONS","value":""},{"name":"SNAPSHOTTER_HANDLER_MAPPING","value":""},{"name":"AGENT_HTTPS_PROXY","value":""},{"name":"AGENT_NO_PROXY","value":""}]}]}}}}'
@@ -222,7 +222,7 @@ install_firecracker_runtime() {
     # Wait for RuntimeClasses to be created
     sleep 30
     
-    log "Kata Containers with Firecracker runtime installed successfully"
+    log "Kata Containers with QEMU runtime installed successfully"
 }
 
 # Set up Kubernetes namespace and RBAC
@@ -262,9 +262,9 @@ spec:
   template:
     spec:
       nodeSelector:
-        firecracker: "true"
+        remote: "true"
       tolerations:
-      - key: firecracker.shadow.ai/dedicated
+      - key: remote.shadow.ai/dedicated
         operator: Equal
         value: "true"
         effect: NoSchedule
@@ -332,9 +332,9 @@ spec:
         component: vm-deployer
     spec:
       nodeSelector:
-        firecracker: "true"
+        remote: "true"
       tolerations:
-      - key: firecracker.shadow.ai/dedicated
+      - key: remote.shadow.ai/dedicated
         operator: Equal
         value: "true"
         effect: NoSchedule
@@ -525,7 +525,7 @@ verify_deployment() {
     
     # Check node readiness
     log "Checking node status..."
-    kubectl get nodes -l firecracker=true
+    kubectl get nodes -l remote=true
     
     # Check Kata Containers runtime
     log "Checking Kata Containers runtime..."
@@ -546,9 +546,9 @@ metadata:
 spec:
   runtimeClassName: kata-qemu
   nodeSelector:
-    firecracker: "true"
+    remote: "true"
   tolerations:
-  - key: firecracker.shadow.ai/dedicated
+  - key: remote.shadow.ai/dedicated
     operator: Equal
     value: "true"
     effect: NoSchedule
@@ -590,19 +590,19 @@ main() {
     check_prerequisites
     create_eks_cluster
     setup_kubernetes_resources
-    install_firecracker_runtime
+    install_kata_runtime
     install_monitoring
     deploy_vm_images
     pull_and_deploy_vm_images
     generate_access_config
     verify_deployment
     
-    log "🎉 Shadow Firecracker infrastructure deployed successfully!"
+    log "🎉 Shadow remote execution infrastructure deployed successfully!"
     log ""
     log "Next steps:"
     log "1. Source the configuration: source .env.production"
     log "2. Deploy Shadow application with AGENT_MODE=firecracker"
-    log "3. Test task execution with Firecracker VMs"
+    log "3. Test task execution with Kata QEMU VMs"
     log ""
     log "Cluster access:"
     log "- kubectl get nodes"
