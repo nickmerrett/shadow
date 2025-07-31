@@ -5,7 +5,8 @@
 
 set -e  # Exit on any error
 
-echo "🚀 Starting Shadow in Production Mode..."
+echo "🚀 Starting Shadow in Production Mode (Local Development)..."
+
 
 # Step 1: Build all packages
 echo "🔨 Building all packages..."
@@ -17,6 +18,6 @@ set -a  # Enable automatic export of variables
 source .env.production
 set +a  # Disable automatic export
 
-# Step 3: Start server in production mode
-echo "🔥 Starting server in Firecracker mode..."
+# Step 3: Start server in Remote mode (Local Development)
+echo "🔥 Starting server in Remote mode (Local Development)..."
 AGENT_MODE=firecracker NODE_ENV=production npm run --workspace=apps/server start

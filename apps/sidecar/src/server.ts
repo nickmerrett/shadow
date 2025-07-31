@@ -82,15 +82,15 @@ async function startServer() {
       logger.info("Health router added successfully");
       
       logger.info("Adding files router...");
-      app.use(createFilesRouter(fileService));
+      app.use('/api', createFilesRouter(fileService));
       logger.info("Files router added successfully");
       
       logger.info("Adding search router...");
-      app.use(createSearchRouter(searchService));
+      app.use('/api', createSearchRouter(searchService));
       logger.info("Search router added successfully");
       
       logger.info("Adding execute router...");
-      app.use(createExecuteRouter(commandService, terminalBuffer));
+      app.use('/api', createExecuteRouter(commandService, terminalBuffer));
       logger.info("Execute router added successfully");
       
       logger.info("Adding git router...");

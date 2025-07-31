@@ -198,5 +198,27 @@ export function createFilesRouter(fileService: FileService): Router {
     })
   );
 
+  /**
+   * POST /files/list
+   * List directory contents (alternative endpoint for FirecrackerToolExecutor)
+   */
+  router.post(
+    "/files/list",
+    asyncHandler(async (req, res) => {
+      const { path } = req.body;
+      const dirPath = path || "";
+
+      const result = await fileService.listDirectory(dirPath);
+
+      if (!result.success && result.error === "DIRECTORY_NOT_FOUND") {
+        res.status(404).json(result);
+      } else if (!result.success) {
+        res.status(500).json(result);
+      } else {
+        res.json(result);
+      }
+    })
+  );
+
   return router;
 }

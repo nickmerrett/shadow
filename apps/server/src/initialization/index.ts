@@ -3,7 +3,6 @@ import { getStepsForMode, InitializationProgress } from "@repo/types";
 import { emitStreamChunk } from "../socket";
 import {
   createWorkspaceManager,
-  createToolExecutor,
   getAgentMode,
 } from "../execution";
 import type { WorkspaceManager as AbstractWorkspaceManager } from "../execution";
@@ -355,8 +354,9 @@ export class TaskInitializationEngine {
     );
 
     try {
-      // Get the tool executor for this task (will contain sidecar endpoint info)
-      const executor = createToolExecutor(taskId);
+      // Use the workspace manager's getExecutor() method for consistent connectivity
+      // This ensures initialization uses the same approach as regular execution
+      const executor = await this.abstractWorkspaceManager.getExecutor(taskId);
 
       // Wait for both sidecar to be healthy AND repository to be cloned
       const maxRetries = 30; // 30 * 2s = 60s timeout
@@ -423,8 +423,9 @@ export class TaskInitializationEngine {
         throw new Error(`Task not found: ${taskId}`);
       }
 
-      // Get the tool executor for remote operations
-      const executor = createToolExecutor(taskId);
+      // Use the workspace manager's getExecutor() method for consistent connectivity
+      // This ensures initialization uses the same approach as regular execution
+      const executor = await this.abstractWorkspaceManager.getExecutor(taskId);
 
       // Final verification that workspace is fully ready with repository content
       console.log(
