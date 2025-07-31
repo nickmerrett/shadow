@@ -1,5 +1,5 @@
 # Sidecar Dockerfile - Optimized for Turborepo monorepo
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 
 # Builder stage - prunes monorepo and builds application
 FROM base AS builder
@@ -15,13 +15,14 @@ COPY . .
 # Generate a partial monorepo with pruned lockfile for sidecar workspace
 RUN turbo prune sidecar --docker
 
-# Installer stage - installs dependencies from pruned workspace
-FROM base AS installer
+# Dependencies stage - installs ALL dependencies for building
+FROM base AS deps
 RUN apk update && apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
 
 # Copy lockfile and package.json files from pruned workspace
 COPY --from=builder /app/out/json/ .
+# Install ALL dependencies (including devDependencies for building)
 RUN npm install
 
 # Copy source files and build
@@ -30,13 +31,36 @@ COPY --from=builder /app/out/full/ .
 # Generate Prisma client first (required before TypeScript compilation)
 RUN npm run generate --filter=@repo/db
 
+# Build workspace dependencies that sidecar imports
+RUN npx turbo build --filter=@repo/types --filter=@repo/command-security
+
+# Build the sidecar application
 WORKDIR /app/apps/sidecar
 RUN npx tsc
 
-# Runtime stage
+# Production dependencies stage - install only production dependencies
+FROM base AS prod-deps
+RUN apk update && apk add --no-cache libc6-compat python3 make g++
+WORKDIR /app
+
+# Copy lockfile and package.json files from pruned workspace
+COPY --from=builder /app/out/json/ .
+# Install ONLY production dependencies
+RUN npm ci --omit=dev --omit=optional
+
+# Copy built workspace packages (types and command-security)
+COPY --from=deps /app/packages/types/dist ./packages/types/dist
+COPY --from=deps /app/packages/command-security/dist ./packages/command-security/dist
+COPY --from=deps /app/packages/db/dist ./packages/db/dist
+COPY --from=deps /app/packages/db/generated ./packages/db/generated
+
+# Copy package.json files for workspace packages
+COPY --from=builder /app/out/json/packages ./packages
+
+# Runtime stage - optimized for minimal size
 FROM base AS runner
 
-# Install runtime dependencies
+# Install ONLY runtime dependencies (no build tools)
 RUN apk add --no-cache \
   bash \
   git \
@@ -53,10 +77,15 @@ RUN addgroup -g 1001 sidecar && \
 
 WORKDIR /app
 
-# Copy built application and dependencies from installer stage
-COPY --from=installer --chown=sidecar:sidecar /app/apps/sidecar/dist ./apps/sidecar/dist
-COPY --from=installer --chown=sidecar:sidecar /app/apps/sidecar/package.json ./apps/sidecar/package.json
-COPY --from=installer --chown=sidecar:sidecar /app/node_modules ./node_modules
+# Copy ONLY production node_modules (no dev dependencies)
+COPY --from=prod-deps --chown=sidecar:sidecar /app/node_modules ./node_modules
+
+# Copy built workspace packages
+COPY --from=prod-deps --chown=sidecar:sidecar /app/packages ./packages
+
+# Copy built sidecar application
+COPY --from=deps --chown=sidecar:sidecar /app/apps/sidecar/dist ./apps/sidecar/dist
+COPY --from=deps --chown=sidecar:sidecar /app/apps/sidecar/package.json ./apps/sidecar/package.json
 
 # Create workspace directory
 RUN mkdir -p /workspace && \

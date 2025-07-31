@@ -44,7 +44,25 @@
 - [ ] Local mode still works (no regression)
 
 ### Discovery Notes
-*Document what we learn during implementation*
+
+**🔍 Key Insights:**
+- **Working test pods**: `test-kata-qemu.yaml` shows simple 26-line pod spec vs our 380+ line manual VM management
+- **Sidecar analysis**: Express.js API server with NO Firecracker dependencies in main logic - only 5 references in unused vm-console-proxy.ts
+- **Architecture clarity**: kata-qemu runtime handles VM creation automatically, manual Firecracker setup conflicts with this
+
+**✅ Solution Implemented:**
+- Removed all init containers (200+ lines of manual VM setup) 
+- Simplified to single sidecar container running the Express.js API
+- Kept kata-qemu runtime class and essential metadata
+- Reduced pod spec from 380+ lines to ~80 lines
+
+**📋 Changes Made:**
+- Updated `createFirecrackerVMPodSpec()` method in firecracker-vm-runner.ts
+- Removed vm-image-loader and vm-starter init containers  
+- Removed manual Firecracker installation and configuration
+- Single sidecar container with proper environment variables
+- Simplified health checks and resource limits
+- **FIXED: Kubernetes pod name validation** - Added `.replaceAll('_', '-')` to convert underscores to hyphens in pod names (RFC 1123 compliance)
 
 ---
 
