@@ -1,40 +1,30 @@
 import { Router } from "express";
 import { asyncHandler } from "./middleware";
 import { FileService } from "../services/file-service";
-import {
-  FileReadOptionsSchema,
-  FileWriteRequestSchema,
-  SearchReplaceRequestSchema,
-} from "@repo/types";
+import { SearchReplaceRequestSchema } from "@repo/types";
 
 export function createFilesRouter(fileService: FileService): Router {
   const router = Router();
 
   /**
-   * GET /files/:path
-   * Read file contents
+   * POST /files/read
+   * Read file contents (FirecrackerToolExecutor endpoint)
    */
-  router.get(
-    "/files/*splat",
+  router.post(
+    "/files/read",
     asyncHandler(async (req, res) => {
-      const filePath = req.params.splat || "";
-
-      // Parse and validate query parameters
-      const options = FileReadOptionsSchema.parse({
-        shouldReadEntireFile: req.query.shouldReadEntireFile !== "false",
-        startLineOneIndexed: req.query.startLineOneIndexed
-          ? parseInt(req.query.startLineOneIndexed as string)
-          : undefined,
-        endLineOneIndexedInclusive: req.query.endLineOneIndexedInclusive
-          ? parseInt(req.query.endLineOneIndexedInclusive as string)
-          : undefined,
-      });
+      const {
+        path,
+        shouldReadEntireFile,
+        startLineOneIndexed,
+        endLineOneIndexedInclusive,
+      } = req.body;
 
       const result = await fileService.readFile(
-        filePath,
-        options.shouldReadEntireFile,
-        options.startLineOneIndexed,
-        options.endLineOneIndexedInclusive
+        path,
+        shouldReadEntireFile,
+        startLineOneIndexed,
+        endLineOneIndexedInclusive
       );
 
       if (!result.success && result.error === "FILE_NOT_FOUND") {
@@ -48,15 +38,15 @@ export function createFilesRouter(fileService: FileService): Router {
   );
 
   /**
-   * GET /files/:path/stats
-   * Get file stats (size, modification time, type)
+   * POST /files/stats
+   * Get file stats (FirecrackerToolExecutor endpoint)
    */
-  router.get(
-    "/files/*path/stats",
+  router.post(
+    "/files/stats",
     asyncHandler(async (req, res) => {
-      const filePath = req.params.path || "";
+      const { path } = req.body;
 
-      const result = await fileService.getFileStats(filePath);
+      const result = await fileService.getFileStats(path);
 
       if (!result.success && result.error === "FILE_NOT_FOUND") {
         res.status(404).json(result);
@@ -69,20 +59,15 @@ export function createFilesRouter(fileService: FileService): Router {
   );
 
   /**
-   * POST /files/:path
-   * Write file contents
+   * POST /files/write
+   * Write file contents (FirecrackerToolExecutor endpoint)
    */
   router.post(
-    "/files/*splat",
+    "/files/write",
     asyncHandler(async (req, res) => {
-      const filePath = req.params.splat || "";
-      const body = FileWriteRequestSchema.parse(req.body);
+      const { path, content, instructions } = req.body;
 
-      const result = await fileService.writeFile(
-        filePath,
-        body.content,
-        body.instructions
-      );
+      const result = await fileService.writeFile(path, content, instructions);
 
       if (!result.success) {
         res.status(500).json(result);
@@ -93,15 +78,15 @@ export function createFilesRouter(fileService: FileService): Router {
   );
 
   /**
-   * DELETE /files/:path
-   * Delete file
+   * POST /files/delete
+   * Delete file (FirecrackerToolExecutor endpoint)
    */
-  router.delete(
-    "/files/*splat",
+  router.post(
+    "/files/delete",
     asyncHandler(async (req, res) => {
-      const filePath = req.params.splat || "";
+      const { path } = req.body;
 
-      const result = await fileService.deleteFile(filePath);
+      const result = await fileService.deleteFile(path);
 
       if (!result.success && !result.wasAlreadyDeleted) {
         res.status(500).json(result);
@@ -112,28 +97,21 @@ export function createFilesRouter(fileService: FileService): Router {
   );
 
   /**
-   * POST /files/:path/replace
-   * Search and replace in file
+   * POST /files/list
+   * List directory contents (FirecrackerToolExecutor endpoint)
    */
   router.post(
-    "/files/*path/replace",
+    "/files/list",
     asyncHandler(async (req, res) => {
-      const filePath = req.params.path || "";
+      const { path } = req.body;
+      const dirPath = path || "";
 
-      const body = SearchReplaceRequestSchema.parse(req.body);
+      const result = await fileService.listDirectory(dirPath);
 
-      const result = await fileService.searchReplace(
-        filePath,
-        body.oldString,
-        body.newString
-      );
-
-      if (!result.success) {
-        if (result.error === "TEXT_NOT_FOUND" || result.error === "TEXT_NOT_UNIQUE") {
-          res.status(400).json(result);
-        } else {
-          res.status(500).json(result);
-        }
+      if (!result.success && result.error === "DIRECTORY_NOT_FOUND") {
+        res.status(404).json(result);
+      } else if (!result.success) {
+        res.status(500).json(result);
       } else {
         res.json(result);
       }
@@ -153,7 +131,7 @@ export function createFilesRouter(fileService: FileService): Router {
         res.status(400).json({
           success: false,
           message: "Path is required for this endpoint",
-          error: "MISSING_PATH"
+          error: "MISSING_PATH",
         });
         return;
       }
@@ -165,55 +143,16 @@ export function createFilesRouter(fileService: FileService): Router {
       );
 
       if (!result.success) {
-        if (result.error === "TEXT_NOT_FOUND" || result.error === "TEXT_NOT_UNIQUE" || 
-            result.error === "EMPTY_OLD_STRING" || result.error === "IDENTICAL_STRINGS") {
+        if (
+          result.error === "TEXT_NOT_FOUND" ||
+          result.error === "TEXT_NOT_UNIQUE" ||
+          result.error === "EMPTY_OLD_STRING" ||
+          result.error === "IDENTICAL_STRINGS"
+        ) {
           res.status(400).json(result);
         } else {
           res.status(500).json(result);
         }
-      } else {
-        res.json(result);
-      }
-    })
-  );
-
-  /**
-   * GET /directory/:path
-   * List directory contents
-   */
-  router.get(
-    "/directory/*splat",
-    asyncHandler(async (req, res) => {
-      const dirPath = req.params.splat || "";
-
-      const result = await fileService.listDirectory(dirPath);
-
-      if (!result.success && result.error === "DIRECTORY_NOT_FOUND") {
-        res.status(404).json(result);
-      } else if (!result.success) {
-        res.status(500).json(result);
-      } else {
-        res.json(result);
-      }
-    })
-  );
-
-  /**
-   * POST /files/list
-   * List directory contents (alternative endpoint for FirecrackerToolExecutor)
-   */
-  router.post(
-    "/files/list",
-    asyncHandler(async (req, res) => {
-      const { path } = req.body;
-      const dirPath = path || "";
-
-      const result = await fileService.listDirectory(dirPath);
-
-      if (!result.success && result.error === "DIRECTORY_NOT_FOUND") {
-        res.status(404).json(result);
-      } else if (!result.success) {
-        res.status(500).json(result);
       } else {
         res.json(result);
       }
