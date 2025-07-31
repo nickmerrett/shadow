@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
-import rateLimit from "express-rate-limit";
 import { config } from "./config";
 import { logger } from "./utils/logger";
 import { errorHandler, requestLogger } from "./api/middleware";
@@ -37,24 +36,18 @@ async function startServer() {
 
   // Ensure workspace exists
   await workspaceService.ensureWorkspace();
-  logger.info("Workspace initialized", { 
-    path: config.workspaceDir 
+  logger.info("Workspace initialized", {
+    path: config.workspaceDir,
   });
 
   // Security middleware
   app.use(helmet());
-  app.use(cors({
-    origin: config.corsOrigin,
-    credentials: true,
-  }));
-
-  // Rate limiting
-  const limiter = rateLimit({
-    windowMs: config.rateLimitWindowMs,
-    max: config.rateLimitMaxRequests,
-    message: "Too many requests from this IP",
-  });
-  app.use(limiter);
+  app.use(
+    cors({
+      origin: config.corsOrigin,
+      credentials: true,
+    })
+  );
 
   // Body parsing and compression
   app.use(express.json({ limit: "10mb" }));
@@ -63,7 +56,6 @@ async function startServer() {
 
   // Request logging
   app.use(requestLogger);
-
 
   // API routes
   app.use(createHealthRouter(workspaceService));
@@ -98,14 +90,15 @@ async function startServer() {
 
   const taskId = process.env.TASK_ID;
   const serverUrl = process.env.SHADOW_SERVER_URL;
-  const filesystemWatchEnabled = process.env.FILESYSTEM_WATCH_ENABLED !== 'false';
+  const filesystemWatchEnabled =
+    process.env.FILESYSTEM_WATCH_ENABLED !== "false";
 
   if (taskId && serverUrl && filesystemWatchEnabled) {
     try {
       logger.info("Initializing filesystem watcher", {
         taskId,
         serverUrl,
-        workspaceDir: config.workspaceDir
+        workspaceDir: config.workspaceDir,
       });
 
       // Initialize Socket.IO client
@@ -124,7 +117,7 @@ async function startServer() {
     logger.info("Filesystem watcher disabled or missing configuration", {
       hasTaskId: !!taskId,
       hasServerUrl: !!serverUrl,
-      filesystemWatchEnabled
+      filesystemWatchEnabled,
     });
   }
 
@@ -146,7 +139,6 @@ async function startServer() {
 
     // Kill all running processes
     commandService.killAllProcesses();
-
 
     // Destroy terminal buffer
     terminalBuffer.destroy();
