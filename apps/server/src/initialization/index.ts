@@ -359,7 +359,7 @@ export class TaskInitializationEngine {
       const executor = await this.abstractWorkspaceManager.getExecutor(taskId);
 
       // Wait for both sidecar to be healthy AND repository to be cloned
-      const maxRetries = 30; // 30 * 2s = 60s timeout
+      const maxRetries = 5; // 5 * 2s = 10s timeout (faster for testing)
       const retryDelay = 2000; // 2 seconds between retries
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
