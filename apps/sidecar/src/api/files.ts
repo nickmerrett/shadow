@@ -15,9 +15,9 @@ export function createFilesRouter(fileService: FileService): Router {
    * Read file contents
    */
   router.get(
-    "/files/*",
+    "/files/*splat",
     asyncHandler(async (req, res) => {
-      const filePath = req.params[0] || "";
+      const filePath = req.params.splat || "";
 
       // Parse and validate query parameters
       const options = FileReadOptionsSchema.parse({
@@ -52,11 +52,9 @@ export function createFilesRouter(fileService: FileService): Router {
    * Get file stats (size, modification time, type)
    */
   router.get(
-    "/files/*/stats",
+    "/files/*path/stats",
     asyncHandler(async (req, res) => {
-      const pathParts = req.params[0]?.split("/") || [];
-      pathParts.pop(); // Remove "stats" from the path
-      const filePath = pathParts.join("/");
+      const filePath = req.params.path || "";
 
       const result = await fileService.getFileStats(filePath);
 
@@ -75,9 +73,9 @@ export function createFilesRouter(fileService: FileService): Router {
    * Write file contents
    */
   router.post(
-    "/files/*",
+    "/files/*splat",
     asyncHandler(async (req, res) => {
-      const filePath = req.params[0] || "";
+      const filePath = req.params.splat || "";
       const body = FileWriteRequestSchema.parse(req.body);
 
       const result = await fileService.writeFile(
@@ -99,9 +97,9 @@ export function createFilesRouter(fileService: FileService): Router {
    * Delete file
    */
   router.delete(
-    "/files/*",
+    "/files/*splat",
     asyncHandler(async (req, res) => {
-      const filePath = req.params[0] || "";
+      const filePath = req.params.splat || "";
 
       const result = await fileService.deleteFile(filePath);
 
@@ -118,11 +116,9 @@ export function createFilesRouter(fileService: FileService): Router {
    * Search and replace in file
    */
   router.post(
-    "/files/*/replace",
+    "/files/*path/replace",
     asyncHandler(async (req, res) => {
-      const pathParts = req.params[0]?.split("/") || [];
-      pathParts.pop(); // Remove "replace" from the path
-      const filePath = pathParts.join("/");
+      const filePath = req.params.path || "";
 
       const body = SearchReplaceRequestSchema.parse(req.body);
 
@@ -186,9 +182,9 @@ export function createFilesRouter(fileService: FileService): Router {
    * List directory contents
    */
   router.get(
-    "/directory/*",
+    "/directory/*splat",
     asyncHandler(async (req, res) => {
-      const dirPath = req.params[0] || "";
+      const dirPath = req.params.splat || "";
 
       const result = await fileService.listDirectory(dirPath);
 
