@@ -6,7 +6,7 @@ import {
   createSharedConfig,
 } from "./shared";
 
-dotenv.config();
+dotenv.config({ path: ".env.production" });
 
 /**
  * Production environment configuration schema

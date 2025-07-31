@@ -490,7 +490,7 @@ EOF
     SERVICE_ACCOUNT_TOKEN=$(kubectl get secret shadow-service-account-token -n shadow-agents -o jsonpath='{.data.token}' | base64 -d)
     
     # Generate environment configuration
-    cat > firecracker-cluster-config.env << EOF
+    cat > .env.production << EOF
 # Shadow Firecracker Cluster Configuration
 # Generated on: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 
@@ -516,7 +516,7 @@ VM_MEMORY_LIMIT=$VM_MEMORY_LIMIT
 VM_STORAGE_LIMIT=$VM_STORAGE_LIMIT
 EOF
 
-    log "Cluster access configuration saved to: firecracker-cluster-config.env"
+    log "Cluster access configuration saved to: .env.production"
 }
 
 # Verify deployment
@@ -600,7 +600,7 @@ main() {
     log "🎉 Shadow Firecracker infrastructure deployed successfully!"
     log ""
     log "Next steps:"
-    log "1. Source the configuration: source firecracker-cluster-config.env"
+    log "1. Source the configuration: source .env.production"
     log "2. Deploy Shadow application with AGENT_MODE=firecracker"
     log "3. Test task execution with Firecracker VMs"
     log ""
@@ -615,7 +615,7 @@ main() {
 # Handle cleanup on exit
 cleanup() {
     log "Cleaning up temporary files..."
-    rm -f cluster-config.yaml firecracker-cluster-config.env
+    rm -f cluster-config.yaml .env.production
 }
 
 trap cleanup EXIT
