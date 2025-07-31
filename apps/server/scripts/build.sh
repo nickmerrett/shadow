@@ -7,6 +7,9 @@ set -e  # Exit on any error
 
 echo "🔨 Building Shadow Server..."
 
+echo "🧹 Cleaning previous build..."
+rm -rf dist
+
 echo "📦 Compiling TypeScript..."
 tsc
 
