@@ -71,6 +71,11 @@ export class FirecrackerVMRunner {
           },
         ],
         restartPolicy: "Never",
+        imagePullSecrets: [
+          {
+            name: "ghcr-secret",
+          },
+        ],
         initContainers: [
           {
             name: "workspace-init",
