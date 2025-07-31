@@ -10,6 +10,23 @@ echo "🔨 Building Shadow Server..."
 echo "📦 Compiling TypeScript..."
 tsc
 
+echo "🔗 Flattening build structure..."
+# Move files from nested structure to flat structure for compatibility
+if [ -d "dist/apps/server/src" ]; then
+    # Clean up any existing temp directory first
+    rm -rf dist_temp
+    # Create a fresh temporary directory
+    mkdir -p dist_temp
+    # Move nested files to temp
+    mv dist/apps/server/src/* dist_temp/
+    # Remove the nested structure
+    rm -rf dist/apps
+    # Move files to the root of dist
+    mv dist_temp/* dist/
+    # Remove temp directory
+    rm -rf dist_temp
+fi
+
 echo "🔗 Resolving path aliases..."
 tsc-alias
 
