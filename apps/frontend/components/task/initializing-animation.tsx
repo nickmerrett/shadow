@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 
 // height of each step
 const LINE_HEIGHT = 20;
+const GAP = 8;
 // extra padding to hide stream if its too fast
 const BOTTOM_PADDING = 150;
 
@@ -51,19 +52,20 @@ export default function InitializingAnimation({ taskId }: { taskId: string }) {
         <div
           className="flex flex-col gap-2 transition-transform duration-1000 ease-in-out"
           style={{
-            transform: `translateY(-${currentStepIndex * LINE_HEIGHT}px)`,
+            transform: `translateY(-${currentStepIndex * (LINE_HEIGHT + GAP)}px)`,
           }}
         >
           {steps.map((step, index) => (
             <div
               key={index}
               className={cn(
-                "flex items-center gap-2 capitalize transition-colors",
+                "flex items-center capitalize transition-colors",
                 index !== currentStepIndex
                   ? "text-muted-foreground/50"
                   : "text-foreground"
               )}
               style={{
+                gap: `${GAP}px`,
                 height: `${LINE_HEIGHT}px`,
               }}
             >
