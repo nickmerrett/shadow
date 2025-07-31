@@ -13,6 +13,7 @@ import {
   setTaskFailed,
   clearTaskProgress,
 } from "../utils/task-status";
+import indexRepo from "../indexing/indexer.js";
 
 // Helper for async delays
 const delay = (ms: number) =>
@@ -41,6 +42,12 @@ const STEP_DEFINITIONS: Record<
   VERIFY_VM_WORKSPACE: {
     name: "Verifying Workspace",
     description: "Verify workspace is ready and contains repository",
+  },
+
+  // Repository indexing step (both modes)
+  INDEX_REPOSITORY: {
+    name: "Indexing Repository",
+    description: "Index repository files for semantic search",
   },
 
   // Cleanup step (firecracker only)
@@ -192,6 +199,11 @@ export class TaskInitializationEngine {
 
       case "VERIFY_VM_WORKSPACE":
         await this.executeVerifyVMWorkspace(taskId, userId);
+        break;
+
+      // Repository indexing step (both modes)
+      case "INDEX_REPOSITORY":
+        await this.executeIndexRepository(taskId);
         break;
 
       // Cleanup step (firecracker only)
@@ -439,6 +451,42 @@ export class TaskInitializationEngine {
         `[TASK_INIT] ${taskId}: Failed to verify workspace:`,
         error
       );
+      throw error;
+    }
+  }
+
+  /**
+   * Index repository step - Index repository files for semantic search
+   */
+  private async executeIndexRepository(taskId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Starting repository indexing`);
+
+    try {
+      // Get task info
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { repoFullName: true },
+      });
+
+      if (!task) {
+        throw new Error(`Task not found: ${taskId}`);
+      }
+
+      // Index the repository with embeddings enabled
+      console.log(
+        `[TASK_INIT] ${taskId}: Indexing repository ${task.repoFullName}`
+      );
+      
+      await indexRepo(task.repoFullName, taskId, {
+        embed: true,
+        clearNamespace: true,
+      });
+
+      console.log(
+        `[TASK_INIT] ${taskId}: Successfully indexed repository ${task.repoFullName}`
+      );
+    } catch (error) {
+      console.error(`[TASK_INIT] ${taskId}: Failed to index repository:`, error);
       throw error;
     }
   }

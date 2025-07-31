@@ -80,7 +80,7 @@ export class FirecrackerWorkspaceManager implements WorkspaceManager {
       // Delete the VM pod using the VM runner
       await this.vmRunner.deleteVMPod(taskId);
 
-      console.log(`[FIRECRACKER_WM] Deleted Firecracker VM pod: shadow-vm-${taskId}`);
+      console.log(`[FIRECRACKER_WM] Deleted Firecracker VM pod: shadow-vm-${taskId.toLowerCase()}`);
 
       return {
         success: true,
