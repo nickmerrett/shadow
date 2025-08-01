@@ -15,6 +15,9 @@ export const STEP_DISPLAY_NAMES: Record<InitStepType, string> = {
   // Repository indexing step (both modes)
   INDEX_REPOSITORY: "Indexing Repository",
 
+  // Deep wiki generation step (both modes, optional)
+  GENERATE_DEEP_WIKI: "Generating Deep Wiki",
+
   // Cleanup step (firecracker only)
   CLEANUP_WORKSPACE: "Cleaning Up"
 };
@@ -22,18 +25,30 @@ export const STEP_DISPLAY_NAMES: Record<InitStepType, string> = {
 /**
  * Get all step display names in execution order for a given mode
  */
-export function getStepsForMode(mode: "local" | "firecracker"): InitStepType[] {
+export function getStepsForMode(
+  mode: "local" | "firecracker",
+  options?: { enableDeepWiki?: boolean }
+): InitStepType[] {
+  const steps: InitStepType[] = [];
+  
   if (mode === "firecracker") {
-    return [
+    steps.push(
       "CREATE_VM",
       "WAIT_VM_READY",
       "VERIFY_VM_WORKSPACE",
       "INDEX_REPOSITORY"
-    ];
+    );
   } else {
-    return [
+    steps.push(
       "PREPARE_WORKSPACE",
       "INDEX_REPOSITORY"
-    ];
+    );
   }
+
+  // Add deep wiki step if enabled
+  if (options?.enableDeepWiki) {
+    steps.push("GENERATE_DEEP_WIKI");
+  }
+
+  return steps;
 }
