@@ -15,7 +15,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Configuration
 CLUSTER_NAME="${CLUSTER_NAME:-shadow-remote}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
-NODE_INSTANCE_TYPE="${NODE_INSTANCE_TYPE:-c5n.metal}"
+NODE_INSTANCE_TYPE="${NODE_INSTANCE_TYPE:-c5.metal}"
 MIN_NODES="${MIN_NODES:-1}"
 MAX_NODES="${MAX_NODES:-3}"
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.28}"
@@ -29,7 +29,7 @@ VM_STORAGE_LIMIT="${VM_STORAGE_LIMIT:-10Gi}"
 
 # VM Image Configuration
 VM_IMAGE_REGISTRY="${VM_IMAGE_REGISTRY:-ghcr.io/ishaan1013/shadow}"
-VM_IMAGE_NAME="${VM_IMAGE_NAME:-shadow-vm}"
+VM_IMAGE_NAME="${VM_IMAGE_NAME:-shadow-sidecar}"
 VM_IMAGE_TAG="${VM_IMAGE_TAG:-latest}"
 
 # Colors for output
@@ -251,6 +251,9 @@ install_monitoring() {
 deploy_vm_images() {
     log "Deploying VM images to cluster..."
     
+    # Delete existing setup job if it exists
+    kubectl delete job setup-vm-storage -n shadow-agents --ignore-not-found=true
+    
     # Create VM image storage directories on nodes
     kubectl apply -f - << EOF
 apiVersion: batch/v1
@@ -459,12 +462,12 @@ EOF
     fi
     
     # Cleanup deployment job
-    kubectl delete job/$JOB_NAME -n shadow-agents || true
+    kubectl delete job/$JOB_NAME -n shadow-agents --ignore-not-found=true
     
     log "VM image deployment completed"
 }
 
-# Generate cluster access configurationc5.m
+# Generate cluster access configuration
 generate_access_config() {
     log "Generating cluster access configuration..."
     
@@ -474,7 +477,8 @@ generate_access_config() {
     # Get cluster endpoint
     CLUSTER_ENDPOINT=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --profile ID --query 'cluster.endpoint' --output text)
     
-    # Create service account token for Shadow application
+    # Create service account token for Shadow application (delete existing first)
+    kubectl delete secret shadow-service-account-token -n shadow-agents --ignore-not-found=true
     kubectl apply -f - << EOF
 apiVersion: v1
 kind: Secret
@@ -489,9 +493,18 @@ EOF
     # Get service account token
     SERVICE_ACCOUNT_TOKEN=$(kubectl get secret shadow-service-account-token -n shadow-agents -o jsonpath='{.data.token}' | base64 -d)
     
-    # Generate environment configuration
-    cat > .env.production << EOF
-# Shadow Firecracker Cluster Configuration
+    # Check if .env.production.initial exists
+    if [[ ! -f "$PROJECT_ROOT/.env.production.initial" ]]; then
+        error ".env.production.initial not found in project root. Please create this file first."
+    fi
+    
+    # Start with the initial configuration
+    cp "$PROJECT_ROOT/.env.production.initial" .env.production
+    
+    # Append deployment-specific configuration
+    cat >> .env.production << EOF
+
+# Shadow Remote Execution Cluster Configuration
 # Generated on: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # AWS Configuration
@@ -508,12 +521,17 @@ KUBERNETES_NAMESPACE=shadow-agents
 AGENT_MODE=firecracker
 NODE_ENV=production
 
-# Firecracker Configuration
+# VM Resource Configuration
 VM_CPU_COUNT=$VM_CPU_COUNT
 VM_MEMORY_SIZE_MB=$VM_MEMORY_SIZE_MB
 VM_CPU_LIMIT=$VM_CPU_LIMIT
 VM_MEMORY_LIMIT=$VM_MEMORY_LIMIT
 VM_STORAGE_LIMIT=$VM_STORAGE_LIMIT
+
+# VM Image Configuration
+VM_IMAGE_REGISTRY=$VM_IMAGE_REGISTRY
+VM_IMAGE_NAME=$VM_IMAGE_NAME
+VM_IMAGE_TAG=$VM_IMAGE_TAG
 EOF
 
     log "Cluster access configuration saved to: .env.production"
@@ -537,6 +555,10 @@ verify_deployment() {
     
     # Test QEMU VM creation with Kata
     log "Testing QEMU VM creation with Kata..."
+    
+    # Delete existing test pod if it exists
+    kubectl delete pod kata-qemu-test -n shadow-agents --ignore-not-found=true
+    
     kubectl apply -f - << EOF
 apiVersion: v1
 kind: Pod
