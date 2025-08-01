@@ -22,8 +22,8 @@ if (!process.env.VM_IMAGE_REGISTRY) {
  */
 const prodConfigSchema = sharedConfigSchema.extend({
   // === EXECUTION MODE ===
-  // Controls how agent code executes - 'firecracker' for VM isolation, 'local' for direct execution
-  AGENT_MODE: z.enum(["local", "firecracker"]).default("firecracker"),
+  // Controls how agent code executes - 'remote' for VM isolation, 'local' for direct execution
+  AGENT_MODE: z.enum(["local", "remote"]).default("remote"),
 
   // === FIRECRACKER VM CORE CONFIGURATION ===
   // Enable Firecracker microVM execution (hardware-isolated containers)
@@ -185,7 +185,7 @@ const prodValidationRules = (data: z.infer<typeof prodConfigSchema>) => {
   const errors: string[] = [];
 
   // If remote mode is enabled, ensure required fields are present
-  if (data.AGENT_MODE === "firecracker" && data.FIRECRACKER_ENABLED) {
+  if (data.AGENT_MODE === "remote" && data.FIRECRACKER_ENABLED) {
     if (!data.VM_IMAGE_REGISTRY) {
       errors.push("VM_IMAGE_REGISTRY is required when using remote mode");
     }

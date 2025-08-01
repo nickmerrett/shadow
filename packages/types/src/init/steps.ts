@@ -7,7 +7,7 @@ export const STEP_DISPLAY_NAMES: Record<InitStepType, string> = {
   // Local mode step
   PREPARE_WORKSPACE: "Preparing Workspace",
 
-  // Firecracker-specific steps
+  // Remote execution steps
   CREATE_VM: "Creating VM",
   WAIT_VM_READY: "Starting VM",
   VERIFY_VM_WORKSPACE: "Verifying Workspace",
@@ -19,7 +19,7 @@ export const STEP_DISPLAY_NAMES: Record<InitStepType, string> = {
   GENERATE_DEEP_WIKI: "Generating Deep Wiki",
 
   // Cleanup step (firecracker only)
-  CLEANUP_WORKSPACE: "Cleaning Up"
+  CLEANUP_WORKSPACE: "Cleaning Up",
 };
 
 /**
@@ -30,7 +30,7 @@ export function getStepsForMode(
   options?: { enableDeepWiki?: boolean }
 ): InitStepType[] {
   const steps: InitStepType[] = [];
-  
+
   if (mode === "firecracker") {
     steps.push(
       "CREATE_VM",
@@ -39,10 +39,7 @@ export function getStepsForMode(
       "INDEX_REPOSITORY"
     );
   } else {
-    steps.push(
-      "PREPARE_WORKSPACE",
-      "INDEX_REPOSITORY"
-    );
+    steps.push("PREPARE_WORKSPACE", "INDEX_REPOSITORY");
   }
 
   // Add deep wiki step if enabled

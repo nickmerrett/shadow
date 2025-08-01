@@ -1,10 +1,7 @@
 import { InitStepType, prisma } from "@repo/db";
 import { getStepsForMode, InitializationProgress } from "@repo/types";
 import { emitStreamChunk } from "../socket";
-import {
-  createWorkspaceManager,
-  getAgentMode,
-} from "../execution";
+import { createWorkspaceManager, getAgentMode } from "../execution";
 import type { WorkspaceManager as AbstractWorkspaceManager } from "../execution";
 import {
   setTaskInProgress,
@@ -31,10 +28,10 @@ const STEP_DEFINITIONS: Record<
     description: "Create local workspace directory and clone repository",
   },
 
-  // Firecracker-specific steps
+  // Remote execution steps
   CREATE_VM: {
     name: "Creating VM",
-    description: "Create Firecracker VM for task execution",
+    description: "Create remote VM for task execution",
   },
   WAIT_VM_READY: {
     name: "Starting VM",
@@ -285,14 +282,14 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Create VM step - firecracker mode only
-   * Creates Firecracker VM pod (VM startup script handles repository cloning)
+   * Create VM step - remote mode only
+   * Creates remote VM pod (VM startup script handles repository cloning)
    */
   private async executeCreateVM(taskId: string, userId: string): Promise<void> {
     const agentMode = getAgentMode();
-    if (agentMode !== "firecracker") {
+    if (agentMode !== "remote") {
       throw new Error(
-        `CREATE_VM step should only be used in firecracker mode, but agent mode is: ${agentMode}`
+        `CREATE_VM step should only be used in remote mode, but agent mode is: ${agentMode}`
       );
     }
 
@@ -490,7 +487,7 @@ export class TaskInitializationEngine {
       console.log(
         `[TASK_INIT] ${taskId}: Indexing repository ${task.repoFullName}`
       );
-      
+
       await indexRepo(task.repoFullName, taskId, {
         embed: true,
         clearNamespace: true,
@@ -500,7 +497,10 @@ export class TaskInitializationEngine {
         `[TASK_INIT] ${taskId}: Successfully indexed repository ${task.repoFullName}`
       );
     } catch (error) {
-      console.error(`[TASK_INIT] ${taskId}: Failed to index repository:`, error);
+      console.error(
+        `[TASK_INIT] ${taskId}: Failed to index repository:`,
+        error
+      );
       throw error;
     }
   }
@@ -553,7 +553,10 @@ export class TaskInitializationEngine {
         `[TASK_INIT] ${taskId}: Successfully generated deep wiki - ${result.stats.filesProcessed} files, ${result.stats.directoriesProcessed} directories processed`
       );
     } catch (error) {
-      console.error(`[TASK_INIT] ${taskId}: Failed to generate deep wiki:`, error);
+      console.error(
+        `[TASK_INIT] ${taskId}: Failed to generate deep wiki:`,
+        error
+      );
       throw error;
     }
   }
@@ -614,7 +617,7 @@ export class TaskInitializationEngine {
   getCleanupSteps(): InitStepType[] {
     const agentMode = getAgentMode();
 
-    if (agentMode === "firecracker") {
+    if (agentMode === "remote") {
       return ["CLEANUP_WORKSPACE"];
     } else {
       return []; // Local mode cleanup is handled automatically
