@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { CodebaseUnderstanding } from "@repo/db";
 
-// Zod schemas for ShallowWiki data structure based on backend implementation
+// Zod schemas for DeepWiki data structure based on backend implementation
 export const TreeNodeSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -18,31 +18,31 @@ export const IndexFileSchema = z.object({
   nodes: z.record(z.string(), TreeNodeSchema),
 });
 
-export const ShallowWikiMetadataSchema = z.object({
+export const DeepWikiMetadataSchema = z.object({
   filesProcessed: z.number(),
   directoriesProcessed: z.number(),
   generatedAt: z.string(),
 });
 
-export const ShallowWikiContentSchema = z.object({
+export const DeepWikiContentSchema = z.object({
   rootSummary: z.string(),
   structure: IndexFileSchema,
   fileCache: z.record(z.string(), z.string()),
-  metadata: ShallowWikiMetadataSchema,
+  metadata: DeepWikiMetadataSchema,
 });
 
 // Export inferred types
 export type TreeNode = z.infer<typeof TreeNodeSchema>;
 export type IndexFile = z.infer<typeof IndexFileSchema>;
-export type ShallowWikiMetadata = z.infer<typeof ShallowWikiMetadataSchema>;
-export type ShallowWikiContent = z.infer<typeof ShallowWikiContentSchema>;
+export type DeepWikiMetadata = z.infer<typeof DeepWikiMetadataSchema>;
+export type DeepWikiContent = z.infer<typeof DeepWikiContentSchema>;
 
-// Simplified schema for the new shallow wiki implementation
+// Simplified schema for the new deep wiki implementation
 export const TaskCodebaseUnderstandingSchema = z.object({
   id: z.string(),
   repoFullName: z.string(),
   repoUrl: z.string(),
-  content: ShallowWikiContentSchema, // Now properly typed instead of z.any()
+  content: DeepWikiContentSchema, // Now properly typed instead of z.any()
   createdAt: z.date(),
   updatedAt: z.date(),
 });
