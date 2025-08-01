@@ -29,7 +29,6 @@ interface ConnectionState {
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 const connectionStates = new Map<string, ConnectionState>();
-const cookieCache = new Map<string, string>(); // Cache cookies by request origin/session
 let currentStreamContent = "";
 let isStreaming = false;
 let io: Server<ClientToServerEvents, ServerToClientEvents>;
@@ -38,14 +37,47 @@ function parseApiKeysFromCookies(cookieHeader?: string): {
   openai?: string;
   anthropic?: string;
 } {
-  if (!cookieHeader) return {};
+  if (!cookieHeader) {
+    console.log(
+      "[SOCKET] No cookie header provided to parseApiKeysFromCookies"
+    );
+    return {};
+  }
+
+  console.log(
+    `[SOCKET] Parsing cookies from header (length: ${cookieHeader.length})`
+  );
+  console.log(
+    `[SOCKET] Cookie header preview: ${cookieHeader.substring(0, 100)}...`
+  );
 
   const cookies: Record<string, string> = {};
   cookieHeader.split(";").forEach((cookie) => {
-    const [name, value] = cookie.trim().split("=");
-    if (name && value) {
-      cookies[name] = decodeURIComponent(value);
+    const trimmedCookie = cookie.trim();
+    const equalIndex = trimmedCookie.indexOf("=");
+
+    if (equalIndex > 0) {
+      const name = trimmedCookie.substring(0, equalIndex);
+      const value = trimmedCookie.substring(equalIndex + 1);
+
+      // Log individual cookie parsing for debugging
+      if (name === "openai-key" || name === "anthropic-key") {
+        console.log(
+          `[SOCKET] Parsing cookie "${name}": length=${value.length}, starts with="${value.substring(0, 10)}..."`
+        );
+      }
+
+      // Only decode if the value contains URL-encoded characters
+      // API keys typically don't need decoding, but session tokens might
+      cookies[name] = value.includes("%") ? decodeURIComponent(value) : value;
     }
+  });
+
+  console.log("[SOCKET] Extracted API keys:", {
+    hasOpenAI: !!cookies["openai-key"],
+    hasAnthropic: !!cookies["anthropic-key"],
+    openaiLength: cookies["openai-key"]?.length || 0,
+    anthropicLength: cookies["anthropic-key"]?.length || 0,
   });
 
   return {
@@ -243,20 +275,9 @@ export function createSocketServer(
     },
   });
 
-  // Manual cookie parsing fallback for Socket.IO v4
+  // Debug: Log cookies during HTTP handshake
   io.engine.on("headers", (_headers, request) => {
-    if (request.headers.cookie) {
-      console.log(
-        "[SOCKET] Found cookies in headers event:",
-        request.headers.cookie
-      );
-      // Cache cookies by request origin for later use
-      const origin =
-        request.headers.origin || request.headers.host || "unknown";
-      cookieCache.set(origin, request.headers.cookie);
-    } else {
-      console.log("[SOCKET] No cookies found in headers event");
-    }
+    console.log("[SOCKET] HTTP handshake cookies:", request.headers.cookie);
   });
 
   // Set up sidecar namespace for filesystem watching (only in remote mode)
@@ -267,26 +288,15 @@ export function createSocketServer(
 
   io.on("connection", (socket: TypedSocket) => {
     const connectionId = socket.id;
-    let cookieHeader = socket.handshake.headers.cookie;
 
-    // Fallback: try to get cookies from cache if not in handshake
-    if (!cookieHeader) {
-      const origin =
-        socket.handshake.headers.origin ||
-        socket.handshake.headers.host ||
-        "unknown";
-      cookieHeader = cookieCache.get(origin);
-      console.log(
-        `[SOCKET] Using cached cookies for origin ${origin}:`,
-        cookieHeader
-      );
-    }
-
+    // Correct way to access cookies in Socket.IO
+    const cookieHeader = socket.request.headers.cookie;
     const apiKeys = parseApiKeysFromCookies(cookieHeader);
 
     console.log(`[SOCKET] User connected: ${connectionId}`);
-    console.log(`[SOCKET] Cookie header:`, cookieHeader);
-    console.log(`[SOCKET] All headers:`, socket.handshake.headers);
+    console.log(`[SOCKET] Cookie header from socket.request:`, cookieHeader);
+    console.log(`[SOCKET] Handshake headers:`, socket.handshake.headers);
+    console.log(`[SOCKET] Request headers:`, socket.request.headers);
     console.log(`[SOCKET] Parsed API keys:`, {
       hasOpenAI: !!apiKeys.openai,
       hasAnthropic: !!apiKeys.anthropic,

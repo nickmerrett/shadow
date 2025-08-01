@@ -23,15 +23,45 @@ function parseApiKeysFromCookies(cookieHeader?: string): {
   openai?: string;
   anthropic?: string;
 } {
-  console.log("cookieHeader", cookieHeader);
-  if (!cookieHeader) return {};
+  if (!cookieHeader) {
+    console.log("[APP] No cookie header provided to parseApiKeysFromCookies");
+    return {};
+  }
+
+  console.log(
+    `[APP] Parsing cookies from header (length: ${cookieHeader.length})`
+  );
+  console.log(
+    `[APP] Cookie header preview: ${cookieHeader.substring(0, 100)}...`
+  );
 
   const cookies: Record<string, string> = {};
   cookieHeader.split(";").forEach((cookie) => {
-    const [name, value] = cookie.trim().split("=");
-    if (name && value) {
-      cookies[name] = decodeURIComponent(value);
+    const trimmedCookie = cookie.trim();
+    const equalIndex = trimmedCookie.indexOf("=");
+
+    if (equalIndex > 0) {
+      const name = trimmedCookie.substring(0, equalIndex);
+      const value = trimmedCookie.substring(equalIndex + 1);
+
+      // Log individual cookie parsing for debugging
+      if (name === "openai-key" || name === "anthropic-key") {
+        console.log(
+          `[APP] Parsing cookie "${name}": length=${value.length}, starts with="${value.substring(0, 10)}..."`
+        );
+      }
+
+      // Only decode if the value contains URL-encoded characters
+      // API keys typically don't need decoding, but session tokens might
+      cookies[name] = value.includes("%") ? decodeURIComponent(value) : value;
     }
+  });
+
+  console.log("[APP] Extracted API keys:", {
+    hasOpenAI: !!cookies["openai-key"],
+    hasAnthropic: !!cookies["anthropic-key"],
+    openaiLength: cookies["openai-key"]?.length || 0,
+    anthropicLength: cookies["anthropic-key"]?.length || 0,
   });
 
   return {
