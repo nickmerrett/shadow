@@ -30,6 +30,11 @@ export const sharedConfigSchema = z.object({
     .union([z.boolean(), z.string().transform((val) => val === "true")])
     .default(false),
 
+  // Enable deep wiki generation during initialization
+  ENABLE_DEEP_WIKI: z
+    .union([z.boolean(), z.string().transform((val) => val === "true")])
+    .default(true),
+
   // GitHub integration (required for all environments)
   GITHUB_CLIENT_ID: z.string(),
   GITHUB_CLIENT_SECRET: z.string(),
@@ -87,6 +92,10 @@ export const createSharedConfig = (
   anthropicApiKey: data.ANTHROPIC_API_KEY,
   openaiApiKey: data.OPENAI_API_KEY,
   exaApiKey: data.EXA_API_KEY,
+
+  // Feature flags
+  enableSemanticSearch: data.ENABLE_SEMANTIC_SEARCH,
+  enableDeepWiki: data.ENABLE_DEEP_WIKI,
 
   // GitHub
   githubClientId: data.GITHUB_CLIENT_ID,
