@@ -29,10 +29,10 @@ const STEP_DEFINITIONS: Record<
     description: "Create local workspace directory and clone repository",
   },
 
-  // Firecracker-specific steps
+  // Remote execution steps
   CREATE_VM: {
     name: "Creating VM",
-    description: "Create Firecracker VM for task execution",
+    description: "Create remote VM for task execution",
   },
   WAIT_VM_READY: {
     name: "Starting VM",
@@ -49,7 +49,7 @@ const STEP_DEFINITIONS: Record<
     description: "Index repository files for semantic search",
   },
 
-  // Cleanup step (firecracker only)
+  // Cleanup step (remote mode only)
   CLEANUP_WORKSPACE: {
     name: "Cleaning Up",
     description: "Clean up workspace and resources",
@@ -205,7 +205,7 @@ export class TaskInitializationEngine {
         await this.executeIndexRepository(taskId);
         break;
 
-      // Cleanup step (firecracker only)
+      // Cleanup step (remote mode only)
       case "CLEANUP_WORKSPACE":
         await this.executeCleanupWorkspace(taskId);
         break;
@@ -272,14 +272,14 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Create VM step - firecracker mode only
-   * Creates Firecracker VM pod (VM startup script handles repository cloning)
+   * Create VM step - remote mode only
+   * Creates remote VM pod (VM startup script handles repository cloning)
    */
   private async executeCreateVM(taskId: string, userId: string): Promise<void> {
     const agentMode = getAgentMode();
-    if (agentMode !== "firecracker") {
+    if (agentMode !== "remote") {
       throw new Error(
-        `CREATE_VM step should only be used in firecracker mode, but agent mode is: ${agentMode}`
+        `CREATE_VM step should only be used in remote mode, but agent mode is: ${agentMode}`
       );
     }
 
@@ -546,7 +546,7 @@ export class TaskInitializationEngine {
   getCleanupSteps(): InitStepType[] {
     const agentMode = getAgentMode();
 
-    if (agentMode === "firecracker") {
+    if (agentMode === "remote") {
       return ["CLEANUP_WORKSPACE"];
     } else {
       return []; // Local mode cleanup is handled automatically

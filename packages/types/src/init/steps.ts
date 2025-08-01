@@ -7,7 +7,7 @@ export const STEP_DISPLAY_NAMES: Record<InitStepType, string> = {
   // Local mode step
   PREPARE_WORKSPACE: "Preparing Workspace",
 
-  // Firecracker-specific steps
+  // Remote execution steps
   CREATE_VM: "Creating VM",
   WAIT_VM_READY: "Starting VM",
   VERIFY_VM_WORKSPACE: "Verifying Workspace",
@@ -15,15 +15,15 @@ export const STEP_DISPLAY_NAMES: Record<InitStepType, string> = {
   // Repository indexing step (both modes)
   INDEX_REPOSITORY: "Indexing Repository",
 
-  // Cleanup step (firecracker only)
+  // Cleanup step (remote mode only)
   CLEANUP_WORKSPACE: "Cleaning Up"
 };
 
 /**
  * Get all step display names in execution order for a given mode
  */
-export function getStepsForMode(mode: "local" | "firecracker"): InitStepType[] {
-  if (mode === "firecracker") {
+export function getStepsForMode(mode: "local" | "remote"): InitStepType[] {
+  if (mode === "remote") {
     return [
       "CREATE_VM",
       "WAIT_VM_READY",

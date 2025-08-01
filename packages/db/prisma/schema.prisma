@@ -235,7 +235,7 @@ enum InitStepType {
   // Local mode step
   PREPARE_WORKSPACE
 
-  // Firecracker-specific steps
+  // Remote execution steps
   CREATE_VM
   WAIT_VM_READY
   VERIFY_VM_WORKSPACE
@@ -243,7 +243,7 @@ enum InitStepType {
   // Repository indexing step (both modes)
   INDEX_REPOSITORY
 
-  // Cleanup step (firecracker only)
+  // Cleanup step (remote mode only)
   CLEANUP_WORKSPACE
 }
 
