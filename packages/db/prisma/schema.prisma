@@ -243,6 +243,9 @@ enum InitStepType {
   // Repository indexing step (both modes)
   INDEX_REPOSITORY
 
+  // Deep wiki generation step (both modes, optional)
+  GENERATE_DEEP_WIKI
+
   // Cleanup step (firecracker only)
   CLEANUP_WORKSPACE
 }
