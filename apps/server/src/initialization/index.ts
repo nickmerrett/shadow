@@ -13,6 +13,8 @@ import {
   clearTaskProgress,
 } from "../utils/task-status";
 import indexRepo from "../indexing/indexer.js";
+import { runDeepWiki } from "../indexing/deepwiki/core";
+import config from "../config";
 
 // Helper for async delays
 const delay = (ms: number) =>
@@ -47,6 +49,12 @@ const STEP_DEFINITIONS: Record<
   INDEX_REPOSITORY: {
     name: "Indexing Repository",
     description: "Index repository files for semantic search",
+  },
+
+  // Deep wiki generation step (both modes, optional)
+  GENERATE_DEEP_WIKI: {
+    name: "Generating Deep Wiki",
+    description: "Generate comprehensive codebase documentation",
   },
 
   // Cleanup step (firecracker only)
@@ -203,6 +211,11 @@ export class TaskInitializationEngine {
       // Repository indexing step (both modes)
       case "INDEX_REPOSITORY":
         await this.executeIndexRepository(taskId);
+        break;
+
+      // Deep wiki generation step (both modes, optional)
+      case "GENERATE_DEEP_WIKI":
+        await this.executeGenerateDeepWiki(taskId);
         break;
 
       // Cleanup step (firecracker only)
@@ -493,6 +506,59 @@ export class TaskInitializationEngine {
   }
 
   /**
+   * Generate deep wiki step - Generate comprehensive codebase documentation
+   */
+  private async executeGenerateDeepWiki(taskId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Starting deep wiki generation`);
+
+    try {
+      // Get task info
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: {
+          repoFullName: true,
+          repoUrl: true,
+          userId: true,
+          workspacePath: true,
+        },
+      });
+
+      if (!task) {
+        throw new Error(`Task not found: ${taskId}`);
+      }
+
+      if (!task.workspacePath) {
+        throw new Error(`Workspace path not found for task: ${taskId}`);
+      }
+
+      // Generate deep wiki documentation
+      console.log(
+        `[TASK_INIT] ${taskId}: Generating deep wiki for ${task.repoFullName}`
+      );
+
+      const result = await runDeepWiki(
+        task.workspacePath,
+        taskId,
+        task.repoFullName,
+        task.repoUrl,
+        task.userId,
+        {
+          concurrency: 12,
+          model: "gpt-4o",
+          modelMini: "gpt-4o-mini",
+        }
+      );
+
+      console.log(
+        `[TASK_INIT] ${taskId}: Successfully generated deep wiki - ${result.stats.filesProcessed} files, ${result.stats.directoriesProcessed} directories processed`
+      );
+    } catch (error) {
+      console.error(`[TASK_INIT] ${taskId}: Failed to generate deep wiki:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Cleanup workspace step - Clean up resources (local or VM)
    */
   private async executeCleanupWorkspace(taskId: string): Promise<void> {
@@ -537,7 +603,9 @@ export class TaskInitializationEngine {
    */
   getDefaultStepsForTask(): InitStepType[] {
     const agentMode = getAgentMode();
-    return getStepsForMode(agentMode);
+    return getStepsForMode(agentMode, {
+      enableDeepWiki: config.enableDeepWiki,
+    });
   }
 
   /**
