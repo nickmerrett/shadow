@@ -15,8 +15,11 @@ export function TaskPageContent() {
 
   const queryClient = useQueryClient();
 
-  const { data: messages = [], error: taskMessagesError } =
-    useTaskMessages(taskId);
+  const {
+    data: { messages = [], mostRecentMessageModel = null } = {},
+    error: taskMessagesError,
+  } = useTaskMessages(taskId);
+
   const sendMessageMutation = useSendMessage();
 
   const { streamingAssistantParts, isStreaming, sendMessage, stopStream } =
@@ -62,6 +65,7 @@ export function TaskPageContent() {
         role: "assistant",
         content: "", // Content will come from parts
         createdAt: new Date().toISOString(),
+        llmModel: mostRecentMessageModel || "",
         metadata: {
           isStreaming: true,
           parts: streamingAssistantParts,
@@ -82,6 +86,7 @@ export function TaskPageContent() {
         onSubmit={handleSendMessage}
         onStopStream={handleStopStream}
         isStreaming={isStreaming || sendMessageMutation.isPending}
+        initialSelectedModel={mostRecentMessageModel}
         onFocus={() => {
           queryClient.setQueryData(["edit-message-id", taskId], null);
         }}

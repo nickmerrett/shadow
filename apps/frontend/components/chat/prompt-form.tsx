@@ -3,9 +3,11 @@
 import "./messages.css";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+
 import { createTask } from "@/lib/actions/create-task";
+import { saveModelSelectorCookie } from "@/lib/actions/model-selector-cookie";
 import { cn } from "@/lib/utils";
-import { AvailableModels, ModelType } from "@repo/types";
+import { type ModelType } from "@repo/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUp,
@@ -41,6 +43,7 @@ export function PromptForm({
   onFocus,
   onBlur,
   initialGitCookieState,
+  initialSelectedModel,
 }: {
   onSubmit?: (message: string, model: ModelType, queue: boolean) => void;
   onStopStream?: () => void;
@@ -52,13 +55,14 @@ export function PromptForm({
     repo: Repository | null;
     branch: { name: string; commitSha: string } | null;
   } | null;
+  initialSelectedModel?: ModelType | null;
 }) {
   const { taskId } = useParams<{ taskId: string }>();
 
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [selectedModel, setSelectedModel] = useState<ModelType>(
-    AvailableModels.GPT_4O
+  const [selectedModel, setSelectedModel] = useState<ModelType | null>(
+    initialSelectedModel ?? null
   );
 
   const [repo, setRepo] = useState<Repository | null>(
@@ -71,6 +75,21 @@ export function PromptForm({
 
   const [isPending, startTransition] = useTransition();
 
+  const handleSelectModel = useCallback(
+    async (model: ModelType | null) => {
+      setSelectedModel(model);
+      // Persist the model selection if on home page
+      if (isHome) {
+        try {
+          await saveModelSelectorCookie(model);
+        } catch (error) {
+          console.error("Failed to save model selection:", error);
+        }
+      }
+    },
+    [isHome]
+  );
+
   const queryClient = useQueryClient();
 
   const [isMessageOptionsOpen, setIsMessageOptionsOpen] = useState(false);
@@ -78,6 +97,10 @@ export function PromptForm({
 
   const messageOptions = useMemo(() => {
     const queueAction = () => {
+      if (!selectedModel) {
+        toast.error("Please select a model first");
+        return;
+      }
       console.log("queue");
       onSubmit?.(message, selectedModel, true);
       queryClient.setQueryData(["queued-message", taskId], message);
@@ -85,12 +108,20 @@ export function PromptForm({
     };
 
     const sendAction = () => {
+      if (!selectedModel) {
+        toast.error("Please select a model first");
+        return;
+      }
       console.log("send");
       onSubmit?.(message, selectedModel, false);
       setMessage("");
     };
 
     const stackPRAction = (queue: boolean) => () => {
+      if (!selectedModel) {
+        toast.error("Please select a model first");
+        return;
+      }
       console.log("stack-pr (NOT IMPLEMENTED)");
       onSubmit?.(message, selectedModel, queue);
       setMessage("");
@@ -402,7 +433,7 @@ export function PromptForm({
             <ModelSelector
               isHome={isHome}
               selectedModel={selectedModel}
-              handleSelectModel={setSelectedModel}
+              handleSelectModel={handleSelectModel}
             />
 
             <div className="flex items-center gap-2">

@@ -1,5 +1,6 @@
-import { ModelInfos, ModelType } from "@repo/types";
+import { ModelInfos, ModelType, getModelProvider } from "@repo/types";
 import { useEffect, useState } from "react";
+import { useModal } from "@/components/layout/modal-context";
 import {
   Popover,
   PopoverContent,
@@ -11,8 +12,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Layers, Square } from "lucide-react";
+import { Box, Layers, Square } from "lucide-react";
 import { useModels } from "@/hooks/use-models";
+import { useApiKeys } from "@/hooks/use-api-keys";
 
 export function ModelSelector({
   isHome,
@@ -20,12 +22,26 @@ export function ModelSelector({
   handleSelectModel,
 }: {
   isHome?: boolean;
-  selectedModel: ModelType;
-  handleSelectModel: (model: ModelType) => void;
+  selectedModel: ModelType | null;
+  handleSelectModel: (model: ModelType | null) => void;
 }) {
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+  const { openSettingsModal } = useModal();
 
   const { data: availableModels = [] } = useModels();
+  const { data: apiKeys } = useApiKeys();
+
+  // Filter models based on available API keys
+  const filteredModels = availableModels.filter((model) => {
+    const provider = getModelProvider(model.id as ModelType);
+    if (provider === "openai") {
+      return !!apiKeys?.openai;
+    }
+    if (provider === "anthropic") {
+      return !!apiKeys?.anthropic;
+    }
+    return true;
+  });
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -53,7 +69,7 @@ export function ModelSelector({
               <span>
                 {selectedModel
                   ? ModelInfos[selectedModel].name
-                  : "Select model"}
+                  : "No Model Selected"}
               </span>
             </Button>
           </PopoverTrigger>
@@ -66,20 +82,39 @@ export function ModelSelector({
       </Tooltip>
       <PopoverContent
         align="start"
-        className="flex flex-col gap-0.5 rounded-lg p-1"
+        className="flex flex-col gap-0.5 overflow-hidden rounded-lg p-0"
       >
-        {availableModels.map((model) => (
-          <Button
-            key={model.id}
-            size="sm"
-            variant="ghost"
-            className="hover:bg-accent justify-start font-normal"
-            onClick={() => handleSelectModel(model.id as ModelType)}
-          >
-            <Square className="size-4" />
-            {model.name}
-          </Button>
-        ))}
+        <div className="flex flex-col gap-0.5 rounded-lg p-1.5">
+          {filteredModels.length > 0 ? (
+            filteredModels.map((model) => (
+              <Button
+                key={model.id}
+                size="sm"
+                variant="ghost"
+                className="hover:bg-accent justify-start font-normal"
+                onClick={() => handleSelectModel(model.id as ModelType)}
+              >
+                <Square className="size-4" />
+                {model.name}
+              </Button>
+            ))
+          ) : (
+            <div className="text-muted-foreground p-2 text-left text-sm">
+              No models available. Configure your API keys to begin using
+              Shadow.
+            </div>
+          )}
+        </div>
+        <button
+          className="hover:bg-sidebar-accent flex h-9 w-full cursor-pointer items-center gap-2 border-t px-3 text-sm transition-colors"
+          onClick={() => {
+            setIsModelSelectorOpen(false);
+            openSettingsModal("models");
+          }}
+        >
+          <Box className="size-4" />
+          <span>Manage API Keys</span>
+        </button>
       </PopoverContent>
     </Popover>
   );

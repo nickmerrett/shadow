@@ -24,8 +24,6 @@ import config from "./config";
 import { updateTaskStatus } from "./utils/task-status";
 import { createToolExecutor } from "./execution";
 
-export const DEFAULT_MODEL: ModelType = "gpt-4o";
-
 export class ChatService {
   private llmService: LLMService;
   private githubService: GitHubService;
@@ -53,7 +51,7 @@ export class ChatService {
   async saveUserMessage(
     taskId: string,
     content: string,
-    llmModel?: string,
+    llmModel: string,
     metadata?: MessageMetadata
   ): Promise<ChatMessage> {
     const sequence = await this.getNextSequence(taskId);
@@ -104,6 +102,7 @@ export class ChatService {
     toolArgs: Record<string, unknown>,
     toolResult: string,
     sequence: number,
+    llmModel: string,
     metadata?: MessageMetadata
   ): Promise<ChatMessage> {
     return await prisma.chatMessage.create({
@@ -112,6 +111,7 @@ export class ChatService {
         content: toolResult,
         role: "TOOL",
         sequence,
+        llmModel,
         metadata: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...(metadata as any),
@@ -374,6 +374,9 @@ export class ChatService {
   async getChatHistory(taskId: string): Promise<Message[]> {
     const dbMessages = await prisma.chatMessage.findMany({
       where: { taskId },
+      include: {
+        pullRequestSnapshot: true,
+      },
       orderBy: [
         { sequence: "asc" }, // Primary ordering by sequence
         { createdAt: "asc" }, // Fallback ordering by timestamp
@@ -384,16 +387,17 @@ export class ChatService {
       id: msg.id,
       role: msg.role.toLowerCase() as Message["role"],
       content: msg.content,
-      llmModel: msg.llmModel || undefined,
+      llmModel: msg.llmModel,
       createdAt: msg.createdAt.toISOString(),
       metadata: msg.metadata as MessageMetadata | undefined,
+      pullRequestSnapshot: msg.pullRequestSnapshot || undefined,
     }));
   }
 
   async processUserMessage({
     taskId,
     userMessage,
-    llmModel = DEFAULT_MODEL,
+    llmModel,
     enableTools = true,
     skipUserMessageSave = false,
     workspacePath,
@@ -401,7 +405,7 @@ export class ChatService {
   }: {
     taskId: string;
     userMessage: string;
-    llmModel?: ModelType;
+    llmModel: ModelType;
     enableTools?: boolean;
     skipUserMessageSave?: boolean;
     workspacePath?: string;
@@ -458,6 +462,7 @@ export class ChatService {
           role: "user",
           content: userMessage,
           createdAt: new Date().toISOString(),
+          llmModel,
         },
       ]);
 
@@ -591,6 +596,7 @@ export class ChatService {
             chunk.toolCall.args,
             "Running...", // Placeholder content
             toolSequence,
+            llmModel,
             {
               tool: {
                 name: chunk.toolCall.name,
