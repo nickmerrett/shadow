@@ -221,11 +221,11 @@ export function PromptForm({
     []
   );
 
-  // Submission handling for home page
-  const handleSubmit = useCallback(
+  const handleInitiateTask = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      if (!selectedModel || !isHome || !repo || !branch || !message.trim()) {
+
+      if (!repo || !branch || !message.trim() || !selectedModel) {
         return;
       }
 
@@ -255,7 +255,24 @@ export function PromptForm({
         }
       });
     },
-    [selectedModel, isHome, repo, branch, message, startTransition, queryClient]
+    [repo, branch, message, selectedModel, queryClient]
+  );
+
+  // Submission handling for home page
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (isHome) {
+        handleInitiateTask(e);
+      } else {
+        if (isStreaming && !message.trim()) {
+          onStopStream?.();
+        } else {
+          // For the task page, we have a custom double-enter flow so don't handle submission here
+        }
+      }
+    },
+    [selectedModel, isHome, repo, branch, message, handleInitiateTask]
   );
 
   // Textarea's onKeyDown handler for home page
