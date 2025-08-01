@@ -35,7 +35,12 @@ export class ChatService {
   private stopRequested: Set<string> = new Set();
   private queuedMessages: Map<
     string,
-    { message: string; model: ModelType; workspacePath?: string }
+    {
+      message: string;
+      model: ModelType;
+      workspacePath?: string;
+      userApiKeys: { openai?: string; anthropic?: string };
+    }
   > = new Map();
 
   constructor() {
@@ -467,6 +472,7 @@ export class ChatService {
     taskId,
     userMessage,
     llmModel,
+    userApiKeys,
     enableTools = true,
     skipUserMessageSave = false,
     workspacePath,
@@ -475,6 +481,7 @@ export class ChatService {
     taskId: string;
     userMessage: string;
     llmModel: ModelType;
+    userApiKeys: { openai?: string; anthropic?: string };
     enableTools?: boolean;
     skipUserMessageSave?: boolean;
     workspacePath?: string;
@@ -495,6 +502,7 @@ export class ChatService {
           message: userMessage,
           model: llmModel,
           workspacePath,
+          userApiKeys,
         });
         return;
       }
@@ -567,6 +575,7 @@ export class ChatService {
         systemPrompt,
         messages,
         llmModel,
+        userApiKeys,
         enableTools,
         taskId, // Pass taskId to enable todo tool context
         workspacePath, // Pass workspace path for tool operations
@@ -950,6 +959,7 @@ export class ChatService {
         taskId,
         userMessage: queuedMessage.message,
         llmModel: queuedMessage.model,
+        userApiKeys: queuedMessage.userApiKeys,
         enableTools: true,
         skipUserMessageSave: false,
         workspacePath: queuedMessage.workspacePath,
@@ -963,8 +973,11 @@ export class ChatService {
     }
   }
 
-  getAvailableModels(): ModelType[] {
-    return this.llmService.getAvailableModels();
+  getAvailableModels(userApiKeys: {
+    openai?: string;
+    anthropic?: string;
+  }): ModelType[] {
+    return this.llmService.getAvailableModels(userApiKeys);
   }
 
   getQueuedMessage(taskId: string): string | undefined {
@@ -997,12 +1010,14 @@ export class ChatService {
     messageId,
     newContent,
     newModel,
+    userApiKeys,
     workspacePath,
   }: {
     taskId: string;
     messageId: string;
     newContent: string;
     newModel: ModelType;
+    userApiKeys: { openai?: string; anthropic?: string };
     workspacePath?: string;
   }): Promise<void> {
     console.log(`[CHAT] Editing user message ${messageId} in task ${taskId}`);
@@ -1074,6 +1089,7 @@ export class ChatService {
       taskId,
       userMessage: newContent,
       llmModel: newModel,
+      userApiKeys,
       enableTools: true,
       skipUserMessageSave: true, // Don't save again, already updated
       workspacePath,

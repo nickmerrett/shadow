@@ -19,16 +19,40 @@ interface ConnectionState {
   lastSeen: number;
   taskId?: string;
   reconnectCount: number;
-  // Track buffer position for incremental updates
   bufferPosition: number;
+  apiKeys?: {
+    openai?: string;
+    anthropic?: string;
+  };
 }
 
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 const connectionStates = new Map<string, ConnectionState>();
+const cookieCache = new Map<string, string>(); // Cache cookies by request origin/session
 let currentStreamContent = "";
 let isStreaming = false;
 let io: Server<ClientToServerEvents, ServerToClientEvents>;
+
+function parseApiKeysFromCookies(cookieHeader?: string): {
+  openai?: string;
+  anthropic?: string;
+} {
+  if (!cookieHeader) return {};
+
+  const cookies: Record<string, string> = {};
+  cookieHeader.split(";").forEach((cookie) => {
+    const [name, value] = cookie.trim().split("=");
+    if (name && value) {
+      cookies[name] = decodeURIComponent(value);
+    }
+  });
+
+  return {
+    openai: cookies["openai-key"] || undefined,
+    anthropic: cookies["anthropic-key"] || undefined,
+  };
+}
 
 async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
   try {
@@ -183,7 +207,11 @@ async function verifyTaskAccess(
     const task = await prisma.task.findUnique({
       where: { id: taskId },
     });
-    console.log(`[SOCKET] Task found:`, !!task, task ? `(${task.status})` : '(not found)');
+    console.log(
+      `[SOCKET] Task found:`,
+      !!task,
+      task ? `(${task.status})` : "(not found)"
+    );
     return !!task;
   } catch (error) {
     console.error(`[SOCKET] Error verifying task access:`, error);
@@ -206,7 +234,29 @@ export function createSocketServer(
     cors: {
       origin: config.clientUrl,
       methods: ["GET", "POST"],
+      credentials: true,
     },
+    cookie: {
+      name: "io",
+      httpOnly: true,
+      sameSite: "lax",
+    },
+  });
+
+  // Manual cookie parsing fallback for Socket.IO v4
+  io.engine.on("headers", (_headers, request) => {
+    if (request.headers.cookie) {
+      console.log(
+        "[SOCKET] Found cookies in headers event:",
+        request.headers.cookie
+      );
+      // Cache cookies by request origin for later use
+      const origin =
+        request.headers.origin || request.headers.host || "unknown";
+      cookieCache.set(origin, request.headers.cookie);
+    } else {
+      console.log("[SOCKET] No cookies found in headers event");
+    }
   });
 
   // Set up sidecar namespace for filesystem watching (only in remote mode)
@@ -217,7 +267,32 @@ export function createSocketServer(
 
   io.on("connection", (socket: TypedSocket) => {
     const connectionId = socket.id;
+    let cookieHeader = socket.handshake.headers.cookie;
+
+    // Fallback: try to get cookies from cache if not in handshake
+    if (!cookieHeader) {
+      const origin =
+        socket.handshake.headers.origin ||
+        socket.handshake.headers.host ||
+        "unknown";
+      cookieHeader = cookieCache.get(origin);
+      console.log(
+        `[SOCKET] Using cached cookies for origin ${origin}:`,
+        cookieHeader
+      );
+    }
+
+    const apiKeys = parseApiKeysFromCookies(cookieHeader);
+
     console.log(`[SOCKET] User connected: ${connectionId}`);
+    console.log(`[SOCKET] Cookie header:`, cookieHeader);
+    console.log(`[SOCKET] All headers:`, socket.handshake.headers);
+    console.log(`[SOCKET] Parsed API keys:`, {
+      hasOpenAI: !!apiKeys.openai,
+      hasAnthropic: !!apiKeys.anthropic,
+      openaiLength: apiKeys.openai?.length || 0,
+      anthropicLength: apiKeys.anthropic?.length || 0,
+    });
 
     // Initialize connection state
     const existingState = connectionStates.get(connectionId);
@@ -226,6 +301,7 @@ export function createSocketServer(
       taskId: existingState?.taskId,
       reconnectCount: existingState ? existingState.reconnectCount + 1 : 0,
       bufferPosition: existingState?.bufferPosition || 0,
+      apiKeys,
     };
     connectionStates.set(connectionId, connectionState);
 
@@ -321,10 +397,29 @@ export function createSocketServer(
           select: { workspacePath: true },
         });
 
+        const connectionState = connectionStates.get(connectionId);
+        const userApiKeys = connectionState?.apiKeys || {};
+
+        // Validate that user has the required API key for the selected model
+        if (data.llmModel) {
+          const modelProvider = data.llmModel.includes("claude")
+            ? "anthropic"
+            : "openai";
+          if (!userApiKeys[modelProvider]) {
+            const providerName =
+              modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
+            socket.emit("message-error", {
+              error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
+            });
+            return;
+          }
+        }
+
         await chatService.processUserMessage({
           taskId: data.taskId,
           userMessage: data.message,
           llmModel: data.llmModel as ModelType,
+          userApiKeys,
           workspacePath: task?.workspacePath || undefined,
           queue: data.queue || false,
         });
@@ -364,11 +459,30 @@ export function createSocketServer(
           select: { workspacePath: true },
         });
 
+        const connectionState = connectionStates.get(connectionId);
+        const userApiKeys = connectionState?.apiKeys || {};
+
+        // Validate that user has the required API key for the selected model
+        if (data.llmModel) {
+          const modelProvider = data.llmModel.includes("claude")
+            ? "anthropic"
+            : "openai";
+          if (!userApiKeys[modelProvider]) {
+            const providerName =
+              modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
+            socket.emit("message-error", {
+              error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
+            });
+            return;
+          }
+        }
+
         await chatService.editUserMessage({
           taskId: data.taskId,
           messageId: data.messageId,
           newContent: data.message,
           newModel: data.llmModel,
+          userApiKeys,
           workspacePath: task?.workspacePath || undefined,
         });
       } catch (error) {
@@ -573,7 +687,11 @@ export function handleStreamError(error: unknown, taskId: string) {
   }
 }
 
-export async function emitTaskStatusUpdate(taskId: string, status: string, initStatus?: InitStatus) {
+export async function emitTaskStatusUpdate(
+  taskId: string,
+  status: string,
+  initStatus?: InitStatus
+) {
   if (io) {
     // If initStatus not provided, fetch current task state
     let currentInitStatus = initStatus;
@@ -581,11 +699,14 @@ export async function emitTaskStatusUpdate(taskId: string, status: string, initS
       try {
         const task = await prisma.task.findUnique({
           where: { id: taskId },
-          select: { initStatus: true }
+          select: { initStatus: true },
         });
         currentInitStatus = task?.initStatus;
       } catch (error) {
-        console.error(`[SOCKET] Error fetching initStatus for task ${taskId}:`, error);
+        console.error(
+          `[SOCKET] Error fetching initStatus for task ${taskId}:`,
+          error
+        );
       }
     }
 
