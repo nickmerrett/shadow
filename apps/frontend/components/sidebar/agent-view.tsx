@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { fetchIndexApi } from "@/lib/actions/index-repo";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
+import { SidebarMemoriesView } from "./memories-view";
 
 const todoStatusConfig = {
   PENDING: { icon: Square, className: "text-muted-foreground" },
@@ -279,6 +280,9 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           </SidebarGroupContent>
         </SidebarGroup>
       )}
+
+      {/* Memories - Show relevant memories for this task */}
+      <SidebarMemoriesView taskId={taskId} />
 
       {/* Modified Files - Only show if file changes exist */}
       {fileChanges.length > 0 && (

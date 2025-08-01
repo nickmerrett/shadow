@@ -11,6 +11,7 @@ import {
 import { FileText, FolderOpen, FolderGit2 } from "lucide-react";
 import { useMemo } from "react";
 import { useCodebase } from "@/hooks/use-codebase";
+import { SidebarCodebaseMemoriesView } from "./codebase-memories-view";
 
 export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
   const { data: codebase } = useCodebase(codebaseId);
@@ -82,6 +83,9 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
           </SidebarGroupContent>
         </SidebarGroup>
       )}
+
+      {/* Memories - Show relevant memories for this codebase */}
+      <SidebarCodebaseMemoriesView codebaseId={codebaseId} />
 
       {/* Files */}
       {fileSummaries.length > 0 && (

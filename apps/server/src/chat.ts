@@ -11,6 +11,7 @@ import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import { systemPrompt } from "./prompt/system-prompt";
+import { memoryService } from "./services/memory-service";
 import { GitManager } from "./services/git-manager";
 import { PRManager } from "./services/pr-manager";
 import { GitHubService } from "./github";
@@ -491,8 +492,14 @@ export class ChatService {
     const toolCallSequences = new Map<string, number>();
 
     try {
+      // Create system prompt with memory context
+      const systemPromptWithMemories = await memoryService.createSystemPromptWithMemories(
+        systemPrompt, 
+        taskId
+      );
+
       for await (const chunk of this.llmService.createMessageStream(
-        systemPrompt,
+        systemPromptWithMemories,
         messages,
         llmModel,
         enableTools,

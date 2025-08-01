@@ -1,0 +1,1 @@
+Add a repository-specific memory to help remember important details about this codebase. Memories are concise notes categorized by type (INFRA, SETUP, STYLES, ARCHITECTURE, TESTING, PATTERNS, BUGS, PERFORMANCE, CONFIG, GENERAL) that persist across tasks in the same repository. Use this to capture important insights, patterns, or context discovered during coding sessions.
