@@ -168,7 +168,12 @@ export function AssistantMessage({
   }
 
   return (
-    <div className="group/assistant-message relative flex flex-col gap-1">
+    <div
+      className={cn(
+        "group/assistant-message relative flex flex-col gap-1",
+        groupedParts[groupedParts.length - 1]?.type !== "text" ? "pb-3" : ""
+      )}
+    >
       {groupedParts.map((group, groupIndex) => {
         if (group.type === "text") {
           return (
