@@ -2,7 +2,7 @@ import type {
   FinishReason
 } from "ai";
 import type { InitStatus } from "@repo/db";
-import { ToolResultTypes } from "../tools/results";
+import { ToolResultTypes } from "../tools/schemas";
 import { CompletionTokenUsage } from "./messages";
 
 export interface StreamChunk {

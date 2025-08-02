@@ -175,6 +175,15 @@ export const CommandResultSchema = BaseResultSchema.extend({
   securityLevel: z.string().optional(),
 });
 
+export const FileStatsResultSchema = BaseResultSchema.extend({
+  stats: z.object({
+    size: z.number(),
+    mtime: z.date(),
+    isFile: z.boolean(),
+    isDirectory: z.boolean(),
+  }).optional(),
+});
+
 // === Inferred Types ===
 export type TodoWriteParams = z.infer<typeof TodoWriteParamsSchema>;
 export type ReadFileParams = z.infer<typeof ReadFileParamsSchema>;
@@ -200,6 +209,7 @@ export type GrepResult = z.infer<typeof GrepResultSchema>;
 export type SemanticSearchToolResult = z.infer<typeof SemanticSearchResultSchema>;
 export type WebSearchResult = z.infer<typeof WebSearchResultSchema>;
 export type CommandResult = z.infer<typeof CommandResultSchema>;
+export type FileStatsResult = z.infer<typeof FileStatsResultSchema>;
 
 // === Tool Schema Map ===
 export const ToolResultSchemas = {

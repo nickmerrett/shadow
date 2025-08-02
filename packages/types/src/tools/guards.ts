@@ -1,54 +1,86 @@
-import type { MessageMetadata } from '../chat/messages';
+import type { MessageMetadata } from "../chat/messages";
 import type {
-  WriteResult,
-  CommandResult,
-  FileResult,
+  ToolName,
   FileSearchResult,
-  ToolResultTypes
-} from './results';
+} from "./schemas";
+import { ToolResultSchemas } from "./schemas";
+import { z } from "zod";
 
-// Type-safe accessor for tool results
-export function getToolResult<T extends ToolResultTypes['toolName']>(
-  toolMeta: MessageMetadata['tool'] | undefined,
+export interface ValidationResult<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export function createValidator<T>(schema: z.ZodSchema<T>) {
+  return (data: unknown): ValidationResult<T> => {
+    const result = schema.safeParse(data);
+    if (result.success) {
+      return { success: true, data: result.data };
+    } else {
+      const errorMessage = result.error.errors
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join(", ");
+      return { success: false, error: errorMessage };
+    }
+  };
+}
+
+// Type-safe accessor for tool results with Zod validation
+export function getToolResult<T extends ToolName>(
+  toolMeta: MessageMetadata["tool"] | undefined,
   toolName: T
-): Extract<ToolResultTypes, { toolName: T }>['result'] | null {
+): any {
   if (!toolMeta?.result || toolMeta.name !== toolName) return null;
 
   try {
     // Handle both new object format and legacy JSON strings
-    const result = typeof toolMeta.result === 'string'
-      ? JSON.parse(toolMeta.result)
-      : toolMeta.result;
+    const rawResult =
+      typeof toolMeta.result === "string"
+        ? JSON.parse(toolMeta.result)
+        : toolMeta.result;
 
-    return result;
+    // Get the appropriate schema for validation
+    const schema = ToolResultSchemas[toolName];
+    if (!schema) {
+      console.warn(`No schema found for tool: ${toolName}`);
+      return rawResult;
+    }
+
+    // Validate the result using Zod
+    const validation = createValidator(schema)(rawResult);
+    if (validation.success) {
+      return validation.data;
+    } else {
+      console.warn(
+        `Tool result validation failed for ${toolName}:`,
+        validation.error
+      );
+      // Return raw result for backward compatibility, but log the validation error
+      return rawResult;
+    }
   } catch (error) {
     console.warn(`Failed to parse tool result for ${toolName}:`, error);
     return null;
   }
 }
 
-// Type guards for runtime validation
-export function isEditFileResult(result: unknown): result is WriteResult {
-  return typeof result === 'object' && result !== null &&
-    'success' in result && 'message' in result &&
-    ('isNewFile' in result || 'linesAdded' in result || 'linesRemoved' in result);
+export function validateToolResult<T extends ToolName>(
+  result: unknown,
+  toolName: T
+): ValidationResult<any> {
+  const schema = ToolResultSchemas[toolName];
+  if (!schema) {
+    return { success: false, error: `No schema found for tool: ${toolName}` };
+  }
+
+  return createValidator(schema)(result);
 }
 
-export function isCommandResult(result: unknown): result is CommandResult {
-  return typeof result === 'object' && result !== null &&
-    'success' in result && 'message' in result &&
-    ('stdout' in result || 'stderr' in result || 'command' in result);
-}
-
-export function isFileResult(result: unknown): result is FileResult {
-  return typeof result === 'object' && result !== null &&
-    'success' in result && 'message' in result &&
-    ('content' in result || 'totalLines' in result);
-}
-
-export function isFileSearchResult(result: unknown): result is FileSearchResult {
-  return typeof result === 'object' && result !== null &&
-    'success' in result && 'message' in result &&
-    'files' in result && Array.isArray((result as FileSearchResult).files) &&
-    'query' in result && 'count' in result;
+// Only keep the type guards that are actually used in the codebase
+export function isFileSearchResult(
+  result: unknown
+): result is FileSearchResult {
+  const validation = validateToolResult(result, "file_search");
+  return validation.success;
 }

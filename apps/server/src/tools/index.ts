@@ -2,7 +2,19 @@ import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { prisma, TodoStatus } from "@repo/db";
 import { tool } from "ai";
-import { z } from "zod";
+import { 
+  TodoWriteParamsSchema,
+  ReadFileParamsSchema,
+  EditFileParamsSchema,
+  SearchReplaceParamsSchema,
+  RunTerminalCmdParamsSchema,
+  ListDirParamsSchema,
+  GrepSearchParamsSchema,
+  FileSearchParamsSchema,
+  DeleteFileParamsSchema,
+  SemanticSearchParamsSchema,
+  WebSearchParamsSchema
+} from "@repo/types";
 import { createToolExecutor, isLocalMode } from "../execution";
 import { LocalFileSystemWatcher } from "../services/local-filesystem-watcher";
 import { emitTerminalOutput, emitStreamChunk } from "../socket";
@@ -80,29 +92,7 @@ export function createTools(taskId: string, workspacePath?: string) {
   return {
     todo_write: tool({
       description: readDescription("todo_write"),
-      parameters: z.object({
-        merge: z
-          .boolean()
-          .describe(
-            "Whether to merge with existing todos (true) or replace them (false)"
-          ),
-        todos: z
-          .array(
-            z.object({
-              id: z.string().describe("Unique identifier for the todo item"),
-              content: z.string().describe("Descriptive content of the todo"),
-              status: z
-                .enum(["pending", "in_progress", "completed", "cancelled"])
-                .describe("Current status of the todo item"),
-            })
-          )
-          .describe("Array of todo items to create or update"),
-        explanation: z
-          .string()
-          .describe(
-            "One sentence explanation as to why this tool is being used"
-          ),
-      }),
+      parameters: TodoWriteParamsSchema,
       execute: async ({ merge, todos, explanation }) => {
         try {
           console.log(`[TODO_WRITE] ${explanation}`);
@@ -174,7 +164,7 @@ export function createTools(taskId: string, workspacePath?: string) {
                   status: "COMPLETED",
                 },
               })
-            : todos.filter((t) => t.status === "completed").length;
+            : todos.filter((t: any) => t.status === "completed").length;
 
           const summary = `${merge ? "Merged" : "Replaced"} todos: ${results
             .map((r) => `${r.action} "${r.content}" (${r.status})`)
@@ -185,7 +175,7 @@ export function createTools(taskId: string, workspacePath?: string) {
             {
               type: "todo-update",
               todoUpdate: {
-                todos: todos.map((todo, index) => ({
+                todos: todos.map((todo: any, index: number) => ({
                   id: todo.id,
                   content: todo.content,
                   status: todo.status as
@@ -224,25 +214,7 @@ export function createTools(taskId: string, workspacePath?: string) {
 
     read_file: tool({
       description: readDescription("read_file"),
-      parameters: z.object({
-        target_file: z.string().describe("The path of the file to read"),
-        should_read_entire_file: z
-          .boolean()
-          .describe("Whether to read the entire file"),
-        start_line_one_indexed: z
-          .number()
-          .optional()
-          .describe("The one-indexed line number to start reading from"),
-        end_line_one_indexed_inclusive: z
-          .number()
-          .optional()
-          .describe("The one-indexed line number to end reading at"),
-        explanation: z
-          .string()
-          .describe(
-            "One sentence explanation as to why this tool is being used"
-          ),
-      }),
+      parameters: ReadFileParamsSchema,
       execute: async ({
         target_file,
         should_read_entire_file,
@@ -262,17 +234,7 @@ export function createTools(taskId: string, workspacePath?: string) {
 
     run_terminal_cmd: tool({
       description: readDescription("run_terminal_cmd"),
-      parameters: z.object({
-        command: z.string().describe("The terminal command to execute"),
-        is_background: z
-          .boolean()
-          .describe("Whether the command should be run in the background"),
-        explanation: z
-          .string()
-          .describe(
-            "One sentence explanation as to why this command needs to be run"
-          ),
-      }),
+      parameters: RunTerminalCmdParamsSchema,
       execute: async ({ command, is_background, explanation }) => {
         console.log(`[TERMINAL_CMD] ${explanation}`);
 
@@ -314,16 +276,7 @@ export function createTools(taskId: string, workspacePath?: string) {
 
     list_dir: tool({
       description: readDescription("list_dir"),
-      parameters: z.object({
-        relative_workspace_path: z
-          .string()
-          .describe("Path to list contents of, relative to the workspace root"),
-        explanation: z
-          .string()
-          .describe(
-            "One sentence explanation as to why this tool is being used"
-          ),
-      }),
+      parameters: ListDirParamsSchema,
       execute: async ({ relative_workspace_path, explanation }) => {
         console.log(`[LIST_DIR] ${explanation}`);
         const result = await executor.listDirectory(relative_workspace_path);
@@ -333,26 +286,7 @@ export function createTools(taskId: string, workspacePath?: string) {
 
     grep_search: tool({
       description: readDescription("grep_search"),
-      parameters: z.object({
-        query: z.string().describe("The regex pattern to search for"),
-        include_pattern: z
-          .string()
-          .optional()
-          .describe("Glob pattern for files to include"),
-        exclude_pattern: z
-          .string()
-          .optional()
-          .describe("Glob pattern for files to exclude"),
-        case_sensitive: z
-          .boolean()
-          .optional()
-          .describe("Whether the search should be case sensitive"),
-        explanation: z
-          .string()
-          .describe(
-            "One sentence explanation as to why this tool is being used"
-          ),
-      }),
+      parameters: GrepSearchParamsSchema,
       execute: async ({
         query,
         include_pattern,
@@ -372,17 +306,7 @@ export function createTools(taskId: string, workspacePath?: string) {
 
     edit_file: tool({
       description: readDescription("edit_file"),
-      parameters: z.object({
-        target_file: z.string().describe("The target file to modify"),
-        instructions: z
-          .string()
-          .describe(
-            "A single sentence instruction describing what you are going to do"
-          ),
-        code_edit: z
-          .string()
-          .describe("The precise lines of code to edit or create"),
-      }),
+      parameters: EditFileParamsSchema,
       execute: async ({ target_file, instructions, code_edit }) => {
         console.log(`[EDIT_FILE] ${instructions}`);
         const result = await executor.writeFile(
@@ -396,17 +320,7 @@ export function createTools(taskId: string, workspacePath?: string) {
 
     search_replace: tool({
       description: readDescription("search_replace"),
-      parameters: z.object({
-        file_path: z
-          .string()
-          .describe("The path to the file to search and replace in"),
-        old_string: z
-          .string()
-          .describe("The text to replace (must be unique within the file)"),
-        new_string: z
-          .string()
-          .describe("The edited text to replace the old_string"),
-      }),
+      parameters: SearchReplaceParamsSchema,
       execute: async ({ file_path, old_string, new_string }) => {
         console.log(`[SEARCH_REPLACE] Replacing text in ${file_path}`);
         const result = await executor.searchReplace(
@@ -420,14 +334,7 @@ export function createTools(taskId: string, workspacePath?: string) {
 
     file_search: tool({
       description: readDescription("file_search"),
-      parameters: z.object({
-        query: z.string().describe("Fuzzy filename to search for"),
-        explanation: z
-          .string()
-          .describe(
-            "One sentence explanation as to why this tool is being used"
-          ),
-      }),
+      parameters: FileSearchParamsSchema,
       execute: async ({ query, explanation }) => {
         console.log(`[FILE_SEARCH] ${explanation}`);
         const result = await executor.searchFiles(query);
@@ -437,14 +344,7 @@ export function createTools(taskId: string, workspacePath?: string) {
 
     delete_file: tool({
       description: readDescription("delete_file"),
-      parameters: z.object({
-        target_file: z.string().describe("The path of the file to delete"),
-        explanation: z
-          .string()
-          .describe(
-            "One sentence explanation as to why this tool is being used"
-          ),
-      }),
+      parameters: DeleteFileParamsSchema,
       execute: async ({ target_file, explanation }) => {
         console.log(`[DELETE_FILE] ${explanation}`);
         const result = await executor.deleteFile(target_file);
@@ -453,14 +353,7 @@ export function createTools(taskId: string, workspacePath?: string) {
     }),
     semantic_search: tool({
       description: readDescription("semantic_search"),
-      parameters: z.object({
-        query: z.string().describe("The query to search the codebase for"),
-        explanation: z
-          .string()
-          .describe(
-            "One sentence explanation as to why this tool is being used"
-          ),
-      }),
+      parameters: SemanticSearchParamsSchema,
       execute: async ({ query, explanation }) => {
         console.log(`[SEMANTIC_SEARCH] ${explanation}`);
 
@@ -522,18 +415,7 @@ export function createTools(taskId: string, workspacePath?: string) {
     }),
     web_search: tool({
       description: readDescription("web_search"),
-      parameters: z.object({
-        query: z.string().describe("The search query"),
-        domain: z
-          .string()
-          .optional()
-          .describe("Optional domain to filter results to"),
-        explanation: z
-          .string()
-          .describe(
-            "One sentence explanation as to why this tool is being used"
-          ),
-      }),
+      parameters: WebSearchParamsSchema,
       execute: async ({ query, domain, explanation }) => {
         console.log(`[WEB_SEARCH] ${explanation}`);
         const result = await executor.webSearch(query, domain);
