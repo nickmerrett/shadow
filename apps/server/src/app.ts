@@ -14,6 +14,7 @@ import { updateTaskStatus } from "./utils/task-status";
 import { createWorkspaceManager } from "./execution";
 import { filesRouter } from "./file-routes";
 import { parseApiKeysFromCookies } from "./utils/cookie-parser";
+import { handleGitHubWebhook } from "./webhooks/github-webhook";
 
 const app = express();
 export const chatService = new ChatService();
@@ -36,6 +37,10 @@ app.use(
     credentials: true,
   })
 );
+
+// Special raw body handling for webhook endpoints (before JSON parsing)
+app.use('/api/webhooks', express.raw({ type: 'application/json' }));
+
 app.use(express.json());
 
 /* ROUTES */
@@ -48,6 +53,9 @@ app.use("/api/indexing", IndexingRouter);
 
 // Files routes
 app.use("/api/tasks", filesRouter);
+
+// GitHub webhook endpoint
+app.post("/api/webhooks/github/pull-request", handleGitHubWebhook);
 
 // Get task details
 app.get("/api/tasks/:taskId", async (req, res) => {
