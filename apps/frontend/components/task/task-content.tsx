@@ -11,7 +11,7 @@ import { useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ModelType } from "@repo/types";
 
-export function TaskPageContent() {
+export function TaskPageContent({ isArchived }: { isArchived: boolean }) {
   const { taskId } = useParams<{ taskId: string }>();
 
   const queryClient = useQueryClient();
@@ -81,17 +81,21 @@ export function TaskPageContent() {
     <div className="relative z-0 mx-auto flex w-full max-w-lg grow flex-col items-center px-4 sm:px-6">
       <Messages taskId={taskId} messages={displayMessages} />
 
-      <ScrollToBottom />
+      {!isArchived && (
+        <>
+          <ScrollToBottom />
 
-      <PromptForm
-        onSubmit={handleSendMessage}
-        onStopStream={handleStopStream}
-        isStreaming={isStreaming || sendMessageMutation.isPending}
-        initialSelectedModel={mostRecentMessageModel}
-        onFocus={() => {
-          queryClient.setQueryData(["edit-message-id", taskId], null);
-        }}
-      />
+          <PromptForm
+            onSubmit={handleSendMessage}
+            onStopStream={handleStopStream}
+            isStreaming={isStreaming || sendMessageMutation.isPending}
+            initialSelectedModel={mostRecentMessageModel}
+            onFocus={() => {
+              queryClient.setQueryData(["edit-message-id", taskId], null);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

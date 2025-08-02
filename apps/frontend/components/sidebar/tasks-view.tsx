@@ -140,7 +140,7 @@ export function SidebarTasksView({
                   <StatusIcon
                     className={`!size-3 shrink-0 ${statusColorsConfig[displayStatus].className}`}
                   />
-                  <span className="mr-0.5 text-xs capitalize">
+                  <span className="mr-0.5 whitespace-nowrap text-xs capitalize">
                     {getStatusText(task).startsWith("Failed")
                       ? "Failed"
                       : getStatusText(task)}

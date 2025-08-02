@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { fetchIndexApi } from "@/lib/actions/index-repo";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
+import { GithubLogo } from "../graphics/github/github-logo";
 
 const todoStatusConfig = {
   PENDING: { icon: Square, className: "text-muted-foreground" },
@@ -125,6 +126,31 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   return (
     <>
+      {/* View PR button - only show if PR exists */}
+      {task.pullRequestNumber && (
+        <SidebarGroup>
+          <SidebarGroupContent className="flex flex-col gap-0.5">
+            <SidebarMenuItem>
+              <Button
+                variant="secondary"
+                className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full justify-start font-normal"
+                asChild
+              >
+                <Link
+                  href={`${task.repoUrl}/pull/${task.pullRequestNumber}`}
+                  target="_blank"
+                >
+                  <GithubLogo className="size-4 shrink-0" />
+                  <span className="truncate">
+                    View PR #{task.pullRequestNumber}
+                  </span>
+                </Link>
+              </Button>
+            </SidebarMenuItem>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      )}
+
       <SidebarGroup>
         <SidebarGroupContent className="flex flex-col gap-0.5">
           <SidebarMenuItem>
@@ -138,6 +164,33 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 <span className="truncate">{task.repoFullName}</span>
               </Link>
             </Button>
+          </SidebarMenuItem>
+
+          <SidebarMenuItem>
+            <Button
+              variant="ghost"
+              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+              asChild
+            >
+              <Link
+                href={`${task.repoUrl}/tree/${task.shadowBranch}`}
+                target="_blank"
+              >
+                <GitBranch className="size-4 shrink-0" />
+                <span className="truncate">{task.shadowBranch}</span>
+              </Link>
+            </Button>
+          </SidebarMenuItem>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <div className="px-3">
+        <div className="bg-border h-px w-full" />
+      </div>
+
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenuItem>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               {(() => {
                 const StatusIcon =
@@ -158,41 +211,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 );
               })()}
             </div>
-          </SidebarMenuItem>
-
-          {/* View PR button - only show if PR exists */}
-          {task.pullRequestNumber && (
-            <SidebarMenuItem>
-              <Button
-                variant="ghost"
-                className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
-                asChild
-              >
-                <Link
-                  href={`${task.repoUrl}/pull/${task.pullRequestNumber}`}
-                  target="_blank"
-                >
-                  <GitPullRequest className="size-4 shrink-0" />
-                  <span className="truncate">View PR #{task.pullRequestNumber}</span>
-                </Link>
-              </Button>
-            </SidebarMenuItem>
-          )}
-
-          <SidebarMenuItem>
-            <Button
-              variant="ghost"
-              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
-              asChild
-            >
-              <Link
-                href={`${task.repoUrl}/tree/${task.shadowBranch}`}
-                target="_blank"
-              >
-                <GitBranch className="size-4 shrink-0" />
-                <span className="truncate">{task.shadowBranch}</span>
-              </Link>
-            </Button>
           </SidebarMenuItem>
 
           {/* Task total diff */}

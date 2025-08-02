@@ -27,6 +27,11 @@ function verifyGitHubSignature(
 
   const receivedSignature = signature.slice(7); // Remove 'sha256=' prefix
 
+  // Check if lengths match before timing-safe comparison
+  if (expectedSignature.length !== receivedSignature.length) {
+    return false;
+  }
+
   return crypto.timingSafeEqual(
     Buffer.from(expectedSignature, "hex"),
     Buffer.from(receivedSignature, "hex")
@@ -43,8 +48,6 @@ async function processPullRequestClosed(
 ): Promise<number> {
   const isMerged = payload.pull_request.merged;
   const action = isMerged ? "merged" : "closed";
-
-  console.log(`[WEBHOOK] Processing PR ${action}: ${repoFullName}#${prNumber}`);
 
   // Find all tasks associated with this PR
   const tasks = await prisma.task.findMany({
@@ -63,24 +66,22 @@ async function processPullRequestClosed(
 
   // Update all found tasks to ARCHIVED status
   await Promise.all(
-    tasks.map(task => updateTaskStatus(task.id, "ARCHIVED", "WEBHOOK"))
+    tasks.map((task) => updateTaskStatus(task.id, "ARCHIVED", "WEBHOOK"))
   );
 
-  console.log(`[WEBHOOK] Archived ${tasks.length} tasks for PR #${prNumber} (${action})`);
+  console.log(
+    `[WEBHOOK] Archived ${tasks.length} tasks for PR #${prNumber} (${action})`
+  );
   return tasks.length;
 }
 
 /**
  * Main GitHub webhook handler
  */
-export async function handleGitHubWebhook(
-  req: Request,
-  res: Response
-) {
+export async function handleGitHubWebhook(req: Request, res: Response) {
   try {
     const webhookSecret = config.githubWebhookSecret;
     if (!webhookSecret) {
-      console.error("[WEBHOOK] GITHUB_WEBHOOK_SECRET not configured");
       return res.status(500).json({ error: "Webhook secret not configured" });
     }
 
@@ -91,11 +92,10 @@ export async function handleGitHubWebhook(
     }
 
     // Get raw body for signature verification
-    const rawBody = req.body.toString('utf8');
+    const rawBody = req.body.toString("utf8");
 
     // Verify webhook signature
     if (!verifyGitHubSignature(rawBody, signature, webhookSecret)) {
-      console.warn("[WEBHOOK] Invalid signature");
       return res.status(401).json({ error: "Invalid webhook signature" });
     }
 
@@ -103,7 +103,6 @@ export async function handleGitHubWebhook(
     const parsedBody = JSON.parse(rawBody);
     const validation = GitHubPullRequestWebhookSchema.safeParse(parsedBody);
     if (!validation.success) {
-      console.warn("[WEBHOOK] Invalid payload:", validation.error);
       return res.status(400).json({ error: "Invalid payload" });
     }
 
@@ -121,11 +120,10 @@ export async function handleGitHubWebhook(
       pull_request.number
     );
 
-    res.status(200).json({ 
-      message: "Success", 
-      tasksArchived 
+    res.status(200).json({
+      message: "Success",
+      tasksArchived,
     });
-
   } catch (error) {
     console.error("[WEBHOOK] Error:", error);
     res.status(500).json({ error: "Internal server error" });
