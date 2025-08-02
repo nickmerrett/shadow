@@ -81,7 +81,8 @@ model Task {
   repoUrl      String
 
   workspacePath       String?
-  lastCompletedStep   InitStepType?
+  initStatus          InitStatus        @default(INACTIVE)
+  scheduledCleanupAt  DateTime?
   initializationError String?
   workspaceCleanedUp  Boolean           @default(false)
   createdAt           DateTime          @default(now())
@@ -91,6 +92,7 @@ model Task {
   baseCommitSha       String
   shadowBranch        String
   pullRequestNumber   Int?
+  githubIssueId       String?
   messages            ChatMessage[]
   user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions            TaskSession[]
@@ -209,7 +211,6 @@ enum TaskStatus {
   RUNNING
   COMPLETED
   FAILED
-  CANCELLED
 }
 
 enum PullRequestStatus {
@@ -231,17 +232,14 @@ enum TodoStatus {
   CANCELLED
 }
 
-enum InitStepType {
-  // Local mode step
+enum InitStatus {
+  INACTIVE
   PREPARE_WORKSPACE
-
-  // Remote execution steps
   CREATE_VM
   WAIT_VM_READY
   VERIFY_VM_WORKSPACE
-
-  // Repository indexing step (both modes)
   INDEX_REPOSITORY
+  ACTIVE
 
   // Deep wiki generation step (both modes, optional)
   GENERATE_DEEP_WIKI

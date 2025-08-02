@@ -17,6 +17,7 @@ import { TaskMessages } from "@/lib/db-operations/get-task-messages";
 import { getMostRecentMessageModel } from "@/lib/utils/model-utils";
 import { CodebaseTreeResponse } from "../use-codebase-tree";
 import { Task, TodoStatus } from "@repo/db";
+import { TaskStatusData } from "@/lib/db-operations/get-task-status";
 
 interface FileChange {
   filePath: string;
@@ -436,11 +437,27 @@ export function useTaskSocket(taskId: string | undefined) {
                 if (!oldData) return oldData;
                 return {
                   ...oldData,
-                  lastCompletedStep:
-                    chunk.initProgress?.currentStep ||
-                    oldData.task?.lastCompletedStep,
-                  initializationError: chunk.initProgress?.error || null,
-                  updatedAt: new Date().toISOString(),
+                  task: {
+                    ...oldData.task,
+                    initStatus:
+                      chunk.initProgress?.initStatus ||
+                      chunk.initProgress?.currentStep ||
+                      oldData.task?.initStatus,
+                    initializationError: chunk.initProgress?.error || null,
+                    updatedAt: new Date().toISOString(),
+                  },
+                };
+              }
+            );
+
+            queryClient.setQueryData(
+              ["task-status", taskId],
+              (oldData: TaskStatusData) => {
+                if (!oldData) return oldData;
+                return {
+                  ...oldData,
+                  initStatus:
+                    chunk.initProgress?.initStatus || oldData.initStatus,
                 };
               }
             );
@@ -451,9 +468,10 @@ export function useTaskSocket(taskId: string | undefined) {
                   task.id === taskId
                     ? {
                         ...task,
-                        lastCompletedStep:
+                        initStatus:
+                          chunk.initProgress?.initStatus ||
                           chunk.initProgress?.currentStep ||
-                          task.lastCompletedStep,
+                          task.initStatus,
                         initializationError: chunk.initProgress?.error || null,
                         updatedAt: new Date().toISOString(),
                       }
@@ -554,6 +572,7 @@ export function useTaskSocket(taskId: string | undefined) {
                 task: {
                   ...oldData.task,
                   status: data.status,
+                  initStatus: data.initStatus || oldData.task.initStatus,
                   updatedAt: data.timestamp,
                 },
               };
@@ -562,11 +581,27 @@ export function useTaskSocket(taskId: string | undefined) {
           }
         );
 
+        queryClient.setQueryData(
+          ["task-status", taskId],
+          (oldData: TaskStatusData) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              status: data.status,
+            };
+          }
+        );
+
         queryClient.setQueryData(["tasks"], (oldTasks: Task[]) => {
           if (oldTasks) {
             return oldTasks.map((task: Task) =>
               task.id === taskId
-                ? { ...task, status: data.status, updatedAt: data.timestamp }
+                ? {
+                    ...task,
+                    status: data.status,
+                    initStatus: data.initStatus || task.initStatus,
+                    updatedAt: data.timestamp,
+                  }
                 : task
             );
           }

@@ -38,6 +38,7 @@ export const sharedConfigSchema = z.object({
   // GitHub integration (required for all environments)
   GITHUB_CLIENT_ID: z.string(),
   GITHUB_CLIENT_SECRET: z.string(),
+  GITHUB_WEBHOOK_SECRET: z.string().optional(),
 
   // Repository limits
   MAX_REPO_SIZE_MB: z.coerce.number().default(500),
@@ -100,6 +101,7 @@ export const createSharedConfig = (
   // GitHub
   githubClientId: data.GITHUB_CLIENT_ID,
   githubClientSecret: data.GITHUB_CLIENT_SECRET,
+  githubWebhookSecret: data.GITHUB_WEBHOOK_SECRET,
 
   // Repository
   maxRepoSizeMB: data.MAX_REPO_SIZE_MB,
