@@ -29,7 +29,6 @@ import { Button } from "@/components/ui/button";
 import { fetchIndexApi } from "@/lib/actions/index-repo";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
-import { SidebarMemoriesView } from "./memories-view";
 
 const todoStatusConfig = {
   PENDING: { icon: Square, className: "text-muted-foreground" },
@@ -84,7 +83,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
           type: item.type,
           path: item.path,
           children: item.children ? convertToArray(item.children) : undefined,
-        })
+        }),
       );
   };
 
@@ -99,7 +98,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   const completedTodos = useMemo(
     () => todos.filter((todo) => todo.status === "COMPLETED").length,
-    [todos]
+    [todos],
   );
 
   // Create file tree from file changes
@@ -121,7 +120,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       updateSelectedFilePath(file.path);
       expandRightPanel();
     },
-    [expandRightPanel, updateSelectedFilePath]
+    [expandRightPanel, updateSelectedFilePath],
   );
 
   return (
@@ -174,7 +173,9 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                   target="_blank"
                 >
                   <GitPullRequest className="size-4 shrink-0" />
-                  <span className="truncate">View PR #{task.pullRequestNumber}</span>
+                  <span className="truncate">
+                    View PR #{task.pullRequestNumber}
+                  </span>
                 </Link>
               </Button>
             </SidebarMenuItem>
@@ -266,7 +267,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                       className={cn(
                         "flex min-h-8 items-start gap-2 p-2 pb-0 text-sm",
                         todo.status === "COMPLETED" &&
-                          "text-muted-foreground line-through"
+                          "text-muted-foreground line-through",
                       )}
                     >
                       <TodoIcon className={cn("size-4", iconClass)} />
@@ -282,7 +283,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       )}
 
       {/* Memories - Show relevant memories for this task */}
-      <SidebarMemoriesView taskId={taskId} />
+      {/* SidebarMemoriesView removed; chat will handle memory listing */}
 
       {/* Modified Files - Only show if file changes exist */}
       {fileChanges.length > 0 && (
