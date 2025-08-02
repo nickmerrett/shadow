@@ -1,13 +1,7 @@
 import { prisma } from "@repo/db";
 
 export interface MemoryContext {
-  globalMemories: Array<{
-    id: string;
-    content: string;
-    category: string;
-    createdAt: Date;
-  }>;
-  repositoryMemories: Array<{
+  memories: Array<{
     id: string;
     content: string;
     category: string;
@@ -17,7 +11,7 @@ export interface MemoryContext {
 
 export class MemoryService {
   /**
-   * Get relevant memories for a task context
+   * Get repository-specific memories for a task context
    */
   async getMemoriesForTask(taskId: string): Promise<MemoryContext | null> {
     try {
@@ -27,15 +21,6 @@ export class MemoryService {
         select: { 
           repoFullName: true, 
           userId: true,
-          user: {
-            select: {
-              settings: {
-                select: {
-                  memoriesEnabled: true,
-                },
-              },
-            },
-          },
         },
       });
 
@@ -44,24 +29,11 @@ export class MemoryService {
         return null;
       }
 
-      // Check if memories are enabled
-      if (!task.user.settings?.memoriesEnabled) {
-        return null;
-      }
-
-      // Get both global and repository-specific memories
+      // Get repository-specific memories
       const memories = await prisma.memory.findMany({
         where: {
           userId: task.userId,
-          OR: [
-            { isGlobal: true },
-            { 
-              AND: [
-                { isGlobal: false },
-                { repoFullName: task.repoFullName },
-              ],
-            },
-          ],
+          repoFullName: task.repoFullName,
         },
         orderBy: [
           { category: "asc" },
@@ -71,33 +43,17 @@ export class MemoryService {
           id: true,
           content: true,
           category: true,
-          isGlobal: true,
           createdAt: true,
         },
       });
 
-      // Split into global and repository memories
-      const globalMemories = memories
-        .filter((m) => m.isGlobal)
-        .map((m) => ({
-          id: m.id,
-          content: m.content,
-          category: m.category,
-          createdAt: m.createdAt,
-        }));
-
-      const repositoryMemories = memories
-        .filter((m) => !m.isGlobal)
-        .map((m) => ({
-          id: m.id,
-          content: m.content,
-          category: m.category,
-          createdAt: m.createdAt,
-        }));
-
       return {
-        globalMemories,
-        repositoryMemories,
+        memories: memories.map((m) => ({
+          id: m.id,
+          content: m.content,
+          category: m.category,
+          createdAt: m.createdAt,
+        })),
       };
     } catch (error) {
       console.error(`[MEMORY_SERVICE] Error fetching memories for task ${taskId}:`, error);
@@ -109,29 +65,17 @@ export class MemoryService {
    * Format memories into a string for system prompt inclusion
    */
   formatMemoriesForPrompt(memoryContext: MemoryContext): string {
-    if (!memoryContext || (memoryContext.globalMemories.length === 0 && memoryContext.repositoryMemories.length === 0)) {
+    if (!memoryContext || memoryContext.memories.length === 0) {
       return "";
     }
 
-    let formattedMemories = "\n\n## MEMORIES\n\nRelevant memories from previous sessions:\n";
+    let formattedMemories = "\n\n## REPOSITORY MEMORIES\n\nRelevant context from previous work in this repository:\n";
 
-    // Add global memories
-    if (memoryContext.globalMemories.length > 0) {
-      formattedMemories += "\n### Global User Preferences & Patterns:\n";
-      memoryContext.globalMemories.forEach((memory) => {
-        formattedMemories += `- [${memory.category}] ${memory.content}\n`;
-      });
-    }
+    memoryContext.memories.forEach((memory) => {
+      formattedMemories += `- [${memory.category}] ${memory.content}\n`;
+    });
 
-    // Add repository memories
-    if (memoryContext.repositoryMemories.length > 0) {
-      formattedMemories += "\n### Repository-Specific Context:\n";
-      memoryContext.repositoryMemories.forEach((memory) => {
-        formattedMemories += `- [${memory.category}] ${memory.content}\n`;
-      });
-    }
-
-    formattedMemories += "\nUse these memories to inform your responses and maintain consistency with past work and preferences.\n";
+    formattedMemories += "\nUse these memories to maintain consistency with past work in this repository.\n";
 
     return formattedMemories;
   }

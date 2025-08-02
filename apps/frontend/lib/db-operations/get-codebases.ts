@@ -5,12 +5,10 @@ export type SidebarCodebase = Omit<CodebaseUnderstanding, "content"> & {
 };
 
 export async function getCodebases(userId: string): Promise<SidebarCodebase[]> {
-  let initialCodebases: SidebarCodebase[] = [];
   try {
-    initialCodebases = await db.codebaseUnderstanding.findMany({
-      where: {
-        userId,
-      },
+    // Get codebases with documentation
+    return await db.codebaseUnderstanding.findMany({
+      where: { userId },
       select: {
         id: true,
         repoFullName: true,
@@ -18,17 +16,12 @@ export async function getCodebases(userId: string): Promise<SidebarCodebase[]> {
         createdAt: true,
         updatedAt: true,
         userId: true,
-        tasks: {
-          select: {
-            id: true,
-          },
-        },
+        tasks: { select: { id: true } },
       },
       orderBy: { updatedAt: "desc" },
     });
   } catch (err) {
-    console.error("Failed to fetch initial codebases", err);
+    console.error("Failed to fetch codebases", err);
+    return [];
   }
-
-  return initialCodebases;
 }

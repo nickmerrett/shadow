@@ -3,17 +3,13 @@ import { CodebaseWithSummaries } from "@repo/types";
 import { parseCodebaseSummaries } from "../codebase-understanding/parse-summaries";
 
 export async function getCodebase(
-  codebaseId: string
+  codebaseId: string,
 ): Promise<CodebaseWithSummaries | null> {
   try {
     const codebase = await db.codebaseUnderstanding.findUnique({
       where: { id: codebaseId },
       include: {
-        tasks: {
-          select: {
-            id: true,
-          },
-        },
+        tasks: { select: { id: true } },
       },
     });
 
@@ -22,7 +18,6 @@ export async function getCodebase(
     }
 
     const summaries = parseCodebaseSummaries(codebase);
-
     return { ...codebase, summaries };
   } catch (err) {
     console.error("Failed to fetch codebase", err);
@@ -32,7 +27,7 @@ export async function getCodebase(
 
 // New function to get codebase by task ID (for our new shallow wiki system)
 export async function getCodebaseByTaskId(
-  taskId: string
+  taskId: string,
 ): Promise<CodebaseWithSummaries | null> {
   try {
     const task = await db.task.findUnique({
@@ -40,11 +35,7 @@ export async function getCodebaseByTaskId(
       include: {
         codebaseUnderstanding: {
           include: {
-            tasks: {
-              select: {
-                id: true,
-              },
-            },
+            tasks: { select: { id: true } },
           },
         },
       },

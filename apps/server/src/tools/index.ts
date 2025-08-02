@@ -548,7 +548,7 @@ export function createTools(taskId: string, workspacePath?: string) {
         category: z
           .enum([
             "INFRA",
-            "SETUP", 
+            "SETUP",
             "STYLES",
             "ARCHITECTURE",
             "TESTING",
@@ -561,7 +561,9 @@ export function createTools(taskId: string, workspacePath?: string) {
           .describe("Category for organizing the memory"),
         explanation: z
           .string()
-          .describe("One sentence explanation for why this memory is being added"),
+          .describe(
+            "One sentence explanation for why this memory is being added"
+          ),
       }),
       execute: async ({ content, category, explanation }) => {
         try {
@@ -577,25 +579,11 @@ export function createTools(taskId: string, workspacePath?: string) {
             throw new Error(`Task ${taskId} not found`);
           }
 
-          // Check if user has memories enabled
-          const userSettings = await prisma.userSettings.findUnique({
-            where: { userId: task.userId },
-          });
-
-          if (!userSettings?.memoriesEnabled) {
-            return {
-              success: false,
-              error: "Memories are disabled in user settings",
-              message: "Enable memories in settings to use this feature",
-            };
-          }
-
           // Create repository-specific memory
           const memory = await prisma.memory.create({
             data: {
               content,
               category: category as MemoryCategory,
-              isGlobal: false,
               repoFullName: task.repoFullName,
               repoUrl: task.repoUrl,
               userId: task.userId,
@@ -625,88 +613,6 @@ export function createTools(taskId: string, workspacePath?: string) {
       },
     }),
 
-    add_global_memory: tool({
-      description: readDescription("add_global_memory"),
-      parameters: z.object({
-        content: z.string().describe("Concise global memory content to store"),
-        category: z
-          .enum([
-            "INFRA",
-            "SETUP",
-            "STYLES", 
-            "ARCHITECTURE",
-            "TESTING",
-            "PATTERNS",
-            "BUGS",
-            "PERFORMANCE",
-            "CONFIG",
-            "GENERAL",
-          ])
-          .describe("Category for organizing the memory"),
-        explanation: z
-          .string()
-          .describe("One sentence explanation for why this global memory is being added"),
-      }),
-      execute: async ({ content, category, explanation }) => {
-        try {
-          console.log(`[ADD_GLOBAL_MEMORY] ${explanation}`);
-
-          // Get task info for user context
-          const task = await prisma.task.findUnique({
-            where: { id: taskId },
-            select: { userId: true },
-          });
-
-          if (!task) {
-            throw new Error(`Task ${taskId} not found`);
-          }
-
-          // Check if user has memories enabled
-          const userSettings = await prisma.userSettings.findUnique({
-            where: { userId: task.userId },
-          });
-
-          if (!userSettings?.memoriesEnabled) {
-            return {
-              success: false,
-              error: "Memories are disabled in user settings",
-              message: "Enable memories in settings to use this feature",
-            };
-          }
-
-          // Create global memory
-          const memory = await prisma.memory.create({
-            data: {
-              content,
-              category: category as MemoryCategory,
-              isGlobal: true,
-              userId: task.userId,
-              taskId,
-            },
-          });
-
-          return {
-            success: true,
-            memory: {
-              id: memory.id,
-              content: memory.content,
-              category: memory.category,
-              isGlobal: true,
-              createdAt: memory.createdAt,
-            },
-            message: `Added global memory: ${content}`,
-          };
-        } catch (error) {
-          console.error(`[ADD_GLOBAL_MEMORY_ERROR]`, error);
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-            message: "Failed to add global memory",
-          };
-        }
-      },
-    }),
-
     list_memories: tool({
       description: readDescription("list_memories"),
       parameters: z.object({
@@ -715,7 +621,7 @@ export function createTools(taskId: string, workspacePath?: string) {
             "INFRA",
             "SETUP",
             "STYLES",
-            "ARCHITECTURE", 
+            "ARCHITECTURE",
             "TESTING",
             "PATTERNS",
             "BUGS",
@@ -727,7 +633,9 @@ export function createTools(taskId: string, workspacePath?: string) {
           .describe("Optional category filter"),
         explanation: z
           .string()
-          .describe("One sentence explanation for why memories are being listed"),
+          .describe(
+            "One sentence explanation for why memories are being listed"
+          ),
       }),
       execute: async ({ category, explanation }) => {
         try {
@@ -743,31 +651,10 @@ export function createTools(taskId: string, workspacePath?: string) {
             throw new Error(`Task ${taskId} not found`);
           }
 
-          // Check if user has memories enabled
-          const userSettings = await prisma.userSettings.findUnique({
-            where: { userId: task.userId },
-          });
-
-          if (!userSettings?.memoriesEnabled) {
-            return {
-              success: false,
-              error: "Memories are disabled in user settings",
-              message: "Enable memories in settings to use this feature",
-            };
-          }
-
           // Build filter conditions
           const whereConditions: any = {
             userId: task.userId,
-            OR: [
-              { isGlobal: true },
-              { 
-                AND: [
-                  { isGlobal: false },
-                  { repoFullName: task.repoFullName },
-                ],
-              },
-            ],
+            repoFullName: task.repoFullName,
           };
 
           if (category) {
@@ -777,36 +664,33 @@ export function createTools(taskId: string, workspacePath?: string) {
           // Get memories
           const memories = await prisma.memory.findMany({
             where: whereConditions,
-            orderBy: [
-              { category: "asc" },
-              { createdAt: "desc" },
-            ],
+            orderBy: [{ category: "asc" }, { createdAt: "desc" }],
             select: {
               id: true,
               content: true,
               category: true,
-              isGlobal: true,
               repoFullName: true,
               createdAt: true,
             },
           });
 
           // Group by category for better organization
-          const memoriesByCategory = memories.reduce((acc, memory) => {
-            if (!acc[memory.category]) {
-              acc[memory.category] = [];
-            }
-            acc[memory.category].push(memory);
-            return acc;
-          }, {} as Record<string, typeof memories>);
+          const memoriesByCategory = memories.reduce(
+            (acc, memory) => {
+              if (!acc[memory.category]) {
+                acc[memory.category] = [];
+              }
+              acc[memory.category]!.push(memory);
+              return acc;
+            },
+            {} as Record<string, typeof memories>
+          );
 
           return {
             success: true,
             memories,
             memoriesByCategory,
             totalCount: memories.length,
-            globalCount: memories.filter((m) => m.isGlobal).length,
-            repoCount: memories.filter((m) => !m.isGlobal).length,
             message: `Found ${memories.length} memories`,
           };
         } catch (error) {
@@ -826,7 +710,9 @@ export function createTools(taskId: string, workspacePath?: string) {
         memoryId: z.string().describe("ID of the memory to remove"),
         explanation: z
           .string()
-          .describe("One sentence explanation for why this memory is being removed"),
+          .describe(
+            "One sentence explanation for why this memory is being removed"
+          ),
       }),
       execute: async ({ memoryId, explanation }) => {
         try {
@@ -842,19 +728,6 @@ export function createTools(taskId: string, workspacePath?: string) {
             throw new Error(`Task ${taskId} not found`);
           }
 
-          // Check if user has memories enabled
-          const userSettings = await prisma.userSettings.findUnique({
-            where: { userId: task.userId },
-          });
-
-          if (!userSettings?.memoriesEnabled) {
-            return {
-              success: false,
-              error: "Memories are disabled in user settings",
-              message: "Enable memories in settings to use this feature",
-            };
-          }
-
           // Get memory to verify ownership
           const memory = await prisma.memory.findFirst({
             where: {
@@ -867,7 +740,8 @@ export function createTools(taskId: string, workspacePath?: string) {
             return {
               success: false,
               error: "Memory not found or access denied",
-              message: "Cannot remove memory that doesn't exist or belong to you",
+              message:
+                "Cannot remove memory that doesn't exist or belong to you",
             };
           }
 
@@ -882,7 +756,6 @@ export function createTools(taskId: string, workspacePath?: string) {
               id: memory.id,
               content: memory.content,
               category: memory.category,
-              isGlobal: memory.isGlobal,
             },
             message: `Removed memory: ${memory.content}`,
           };
