@@ -35,7 +35,8 @@ export function TaskPageWrapper({
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data: taskStatus } = useTaskStatus(taskId);
+  const { data } = useTaskStatus(taskId);
+  const taskStatus = data?.status;
   const isArchived = taskStatus === "ARCHIVED";
 
   const { data: taskTitle } = useTaskTitle(taskId);
@@ -243,7 +244,7 @@ export function TaskPageWrapper({
                 </Tooltip>
               </div>
             </div>
-            <TaskPageContent isArchived={isArchived} />
+            <TaskPageContent />
           </StickToBottom.Content>
         </StickToBottom>
       </ResizablePanel>

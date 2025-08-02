@@ -1,4 +1,4 @@
-import { TaskStatus } from "@repo/db";
+import { TaskStatusData } from "@/lib/db-operations/get-task-status";
 import { useQuery } from "@tanstack/react-query";
 
 export function useTaskStatus(taskId: string) {
@@ -8,7 +8,7 @@ export function useTaskStatus(taskId: string) {
       const res = await fetch(`/api/tasks/${taskId}/status`);
       if (!res.ok) throw new Error("Failed to fetch status");
       const data = await res.json();
-      return data.status as TaskStatus;
+      return data as TaskStatusData;
     },
     throwOnError: true,
     enabled: !!taskId,

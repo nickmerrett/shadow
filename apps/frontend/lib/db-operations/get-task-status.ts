@@ -1,10 +1,18 @@
-import { db, TaskStatus } from "@repo/db";
+import { db, InitStatus, TaskStatus } from "@repo/db";
 
-export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
+export type TaskStatusData = {
+  status: TaskStatus;
+  initStatus: InitStatus;
+  initializationError: string | null;
+};
+
+export async function getTaskStatus(taskId: string): Promise<TaskStatusData> {
   const data = await db.task.findUnique({
     where: { id: taskId },
     select: {
       status: true,
+      initStatus: true,
+      initializationError: true,
     },
   });
 
@@ -12,5 +20,9 @@ export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
     throw new Error("Task not found");
   }
 
-  return data.status;
+  return {
+    status: data.status,
+    initStatus: data.initStatus,
+    initializationError: data.initializationError,
+  };
 }

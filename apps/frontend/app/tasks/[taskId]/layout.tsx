@@ -67,7 +67,11 @@ export default async function TaskLayout({
     }),
     queryClient.prefetchQuery({
       queryKey: ["task-status", taskId],
-      queryFn: () => task.status,
+      queryFn: () => ({
+        status: task.status,
+        initStatus: task.initStatus,
+        initializationError: task.initializationError,
+      }),
     }),
     queryClient.prefetchQuery({
       queryKey: ["api-keys"],

@@ -8,7 +8,7 @@ export async function GET(
   const { taskId } = await params;
   try {
     const status = await getTaskStatus(taskId);
-    return NextResponse.json({ status });
+    return NextResponse.json(status);
   } catch (error) {
     console.error("Error fetching task status:", error);
     return NextResponse.json(

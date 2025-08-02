@@ -10,11 +10,15 @@ import { ScrollToBottom } from "./scroll-to-bottom";
 import { useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ModelType } from "@repo/types";
+import { useTaskStatus } from "@/hooks/use-task-status";
 
-export function TaskPageContent({ isArchived }: { isArchived: boolean }) {
+export function TaskPageContent() {
   const { taskId } = useParams<{ taskId: string }>();
 
   const queryClient = useQueryClient();
+
+  const { data } = useTaskStatus(taskId);
+  const status = data?.status;
 
   const {
     data: { messages = [], mostRecentMessageModel = null } = {},
@@ -79,9 +83,13 @@ export function TaskPageContent({ isArchived }: { isArchived: boolean }) {
 
   return (
     <div className="relative z-0 mx-auto flex w-full max-w-lg grow flex-col items-center px-4 sm:px-6">
-      <Messages taskId={taskId} messages={displayMessages} />
+      <Messages
+        taskId={taskId}
+        messages={displayMessages}
+        disableEditing={status === "ARCHIVED" || status === "INITIALIZING"}
+      />
 
-      {!isArchived && (
+      {status !== "ARCHIVED" && (
         <>
           <ScrollToBottom />
 

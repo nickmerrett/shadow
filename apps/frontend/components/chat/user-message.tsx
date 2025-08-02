@@ -18,11 +18,15 @@ export function UserMessage({
   message,
   className,
   isFirstMessage,
+  disableEditing,
+  userMessageWrapperRef,
 }: {
   taskId: string;
   message: Message;
   isFirstMessage: boolean;
   className?: string;
+  disableEditing: boolean;
+  userMessageWrapperRef: React.RefObject<HTMLButtonElement | null>;
 }) {
   const queryClient = useQueryClient();
   const { data: editMessageId } = useEditMessageId(taskId);
@@ -64,7 +68,7 @@ export function UserMessage({
   }, []);
 
   const handleStartEditing = () => {
-    if (!isEditing) {
+    if (!isEditing && !disableEditing) {
       queryClient.setQueryData(["edit-message-id", taskId], message.id);
       setEditValue(message.content);
     }
@@ -125,6 +129,7 @@ export function UserMessage({
   return (
     // Outer button acts as a border, with a border-radius 1px larger than the inner div and 1px padding
     <UserMessageWrapper
+      userMessageWrapperRef={userMessageWrapperRef}
       isEditing={isEditing}
       handleStartEditing={handleStartEditing}
       isFirstMessage={isFirstMessage}
@@ -227,12 +232,14 @@ function UserMessageWrapper({
   isFirstMessage,
   className,
   handleStartEditing,
+  userMessageWrapperRef,
 }: {
   children: React.ReactNode;
   isEditing: boolean;
   isFirstMessage: boolean;
   className?: string;
   handleStartEditing: () => void;
+  userMessageWrapperRef: React.RefObject<HTMLButtonElement | null>;
 }) {
   if (isEditing) {
     return (
@@ -251,6 +258,7 @@ function UserMessageWrapper({
 
   return (
     <button
+      ref={userMessageWrapperRef}
       onClick={handleStartEditing}
       className={cn(
         "sticky top-16 z-10 w-full cursor-pointer rounded-[calc(var(--radius)+1px)] p-px text-left transition-all",

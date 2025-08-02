@@ -17,6 +17,7 @@ import { TaskMessages } from "@/lib/db-operations/get-task-messages";
 import { getMostRecentMessageModel } from "@/lib/utils/model-utils";
 import { CodebaseTreeResponse } from "../use-codebase-tree";
 import { Task, TodoStatus } from "@repo/db";
+import { TaskStatusData } from "@/lib/db-operations/get-task-status";
 
 interface FileChange {
   filePath: string;
@@ -449,6 +450,18 @@ export function useTaskSocket(taskId: string | undefined) {
               }
             );
 
+            queryClient.setQueryData(
+              ["task-status", taskId],
+              (oldData: TaskStatusData) => {
+                if (!oldData) return oldData;
+                return {
+                  ...oldData,
+                  initStatus:
+                    chunk.initProgress?.initStatus || oldData.initStatus,
+                };
+              }
+            );
+
             queryClient.setQueryData(["tasks"], (oldTasks: Task[]) => {
               if (oldTasks) {
                 return oldTasks.map((task: Task) =>
@@ -568,15 +581,26 @@ export function useTaskSocket(taskId: string | undefined) {
           }
         );
 
+        queryClient.setQueryData(
+          ["task-status", taskId],
+          (oldData: TaskStatusData) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              status: data.status,
+            };
+          }
+        );
+
         queryClient.setQueryData(["tasks"], (oldTasks: Task[]) => {
           if (oldTasks) {
             return oldTasks.map((task: Task) =>
               task.id === taskId
-                ? { 
-                    ...task, 
-                    status: data.status, 
+                ? {
+                    ...task,
+                    status: data.status,
                     initStatus: data.initStatus || task.initStatus,
-                    updatedAt: data.timestamp 
+                    updatedAt: data.timestamp,
                   }
                 : task
             );
