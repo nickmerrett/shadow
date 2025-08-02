@@ -27,6 +27,7 @@ import {
   cancelTaskCleanup,
 } from "./utils/task-status";
 import { createToolExecutor } from "./execution";
+import { memoryService } from "./services/memory-service";
 
 export class ChatService {
   private llmService: LLMService;
@@ -571,8 +572,11 @@ export class ChatService {
     const toolCallSequences = new Map<string, number>();
 
     try {
-// Use base system prompt (memory context removed)
-const systemPromptWithMemories = systemPrompt;
+    // Append repository memories to system prompt if any exist
+    const systemPromptWithMemories = await memoryService.createSystemPromptWithMemories(
+      systemPrompt,
+      taskId
+    );
 
       for await (const chunk of this.llmService.createMessageStream(
         systemPromptWithMemories,
