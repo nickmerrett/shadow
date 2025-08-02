@@ -512,11 +512,10 @@ export function PromptForm({
                     type="submit"
                     size="iconSm"
                     disabled={
-                      (!isStreaming && !message.trim()) ||
                       isMessageOptionsOpen ||
                       isPending ||
                       !selectedModel ||
-                      (isHome && (!repo || !branch))
+                      (isHome && (!repo || !branch || !message.trim()))
                     }
                     className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
                   >
