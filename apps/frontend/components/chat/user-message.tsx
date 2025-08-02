@@ -169,7 +169,7 @@ export function UserMessage({
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               placeholder="Build a cool new feature..."
-              className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none border-0 shadow-none focus-visible:ring-0"
+              className="placeholder:text-muted-foreground/50 bg-transparent! max-h-48 flex-1 resize-none border-0 text-sm shadow-none focus-visible:ring-0"
               onKeyDown={onKeyDown}
             />
 
