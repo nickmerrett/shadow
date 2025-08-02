@@ -1,5 +1,6 @@
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
+import { z } from "zod";
 import { prisma, TodoStatus, MemoryCategory } from "@repo/db";
 import { tool } from "ai";
 import { 
