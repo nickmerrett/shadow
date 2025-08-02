@@ -86,7 +86,7 @@ export function UserMessage({
         e.preventDefault();
         e.stopPropagation();
 
-        if (!editValue.trim() || editValue.trim() === message.content.trim()) {
+        if (!editValue.trim()) {
           handleStopEditing();
           return;
         }
@@ -189,8 +189,7 @@ export function UserMessage({
                   disabled={
                     !editValue.trim() ||
                     editMessageMutation.isPending ||
-                    !selectedModel ||
-                    editValue.trim() === message.content.trim()
+                    !selectedModel
                   }
                   className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
                 >

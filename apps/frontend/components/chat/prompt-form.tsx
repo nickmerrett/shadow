@@ -275,7 +275,7 @@ export function PromptForm({
         }
       }
     },
-    [selectedModel, isHome, repo, branch, message, handleInitiateTask]
+    [isHome, message, handleInitiateTask, isStreaming, onStopStream]
   );
 
   // Textarea's onKeyDown handler for home page

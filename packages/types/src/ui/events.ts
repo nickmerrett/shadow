@@ -32,9 +32,9 @@ export interface ServerToClientEvents {
   }) => void;
   "chat-history-error": (data: { error: string }) => void;
   "stream-state": (state: {
-    content: string;
+    chunks: StreamChunk[];
     isStreaming: boolean;
-    bufferPosition: number;
+    totalChunks: number;
   }) => void;
   "stream-chunk": (chunk: StreamChunk) => void;
   "stream-complete": () => void;

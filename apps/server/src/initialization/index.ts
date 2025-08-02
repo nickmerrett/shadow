@@ -448,6 +448,7 @@ export class TaskInitializationEngine {
   /**
    * Index repository step - Index repository files for semantic search
    */
+  // @ts-ignore - Function not used yet but kept for future indexing feature
   private async executeIndexRepository(taskId: string): Promise<void> {
     console.log(`[TASK_INIT] ${taskId}: Starting repository indexing`);
 

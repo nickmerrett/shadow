@@ -63,23 +63,39 @@ export function TaskPageContent() {
   const displayMessages = useMemo(() => {
     const msgs = [...messages];
 
-    // Add streaming assistant message with structured parts if present
+    // If streaming and we have parts, merge with existing or create new message
     if (streamingAssistantParts.length > 0 || isStreaming) {
-      msgs.push({
-        id: "streaming",
-        role: "assistant",
-        content: "", // Content will come from parts
-        createdAt: new Date().toISOString(),
-        llmModel: mostRecentMessageModel || "",
-        metadata: {
-          isStreaming: true,
-          parts: streamingAssistantParts,
-        },
-      });
+      const lastMsg = msgs[msgs.length - 1];
+      
+      if (lastMsg && lastMsg.role === "assistant") {
+        // Merge existing parts with streaming parts
+        const existingParts = lastMsg.metadata?.parts || [];
+        msgs[msgs.length - 1] = {
+          ...lastMsg,
+          metadata: {
+            ...lastMsg.metadata,
+            isStreaming: true,
+            parts: [...existingParts, ...streamingAssistantParts],
+          },
+        };
+      } else {
+        // No existing assistant message, create new streaming one
+        msgs.push({
+          id: "streaming",
+          role: "assistant",
+          content: "", // Content will come from parts
+          createdAt: new Date().toISOString(),
+          llmModel: mostRecentMessageModel || "",
+          metadata: {
+            isStreaming: true,
+            parts: streamingAssistantParts,
+          },
+        });
+      }
     }
 
     return msgs;
-  }, [messages, streamingAssistantParts, isStreaming]);
+  }, [messages, streamingAssistantParts, isStreaming, mostRecentMessageModel]);
 
   return (
     <div className="relative z-0 mx-auto flex w-full max-w-lg grow flex-col items-center px-4 sm:px-6">
