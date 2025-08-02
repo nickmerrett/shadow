@@ -66,16 +66,18 @@ export function TaskPageContent() {
     // If streaming and we have parts, merge with existing or create new message
     if (streamingAssistantParts.length > 0 || isStreaming) {
       const lastMsg = msgs[msgs.length - 1];
-      
-      if (lastMsg && lastMsg.role === "assistant") {
+
+      if (lastMsg && lastMsg.role.toLowerCase() === "assistant") {
         // Merge existing parts with streaming parts
         const existingParts = lastMsg.metadata?.parts || [];
+        const mergedParts = [...existingParts, ...streamingAssistantParts];
+
         msgs[msgs.length - 1] = {
           ...lastMsg,
           metadata: {
             ...lastMsg.metadata,
             isStreaming: true,
-            parts: [...existingParts, ...streamingAssistantParts],
+            parts: mergedParts,
           },
         };
       } else {
