@@ -11,6 +11,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { useEditMessage } from "@/hooks/use-edit-message";
 
+const MAX_CONTENT_HEIGHT = 128;
+
 export function UserMessage({
   taskId,
   message,
@@ -40,6 +42,20 @@ export function UserMessage({
   const [editValue, setEditValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedModel, setSelectedModel] = useState<ModelType>(initialModel);
+  const messageContentRef = useRef<HTMLDivElement>(null);
+  const [isContentOverflowing, setIsContentOverflowing] = useState(false);
+
+  useEffect(() => {
+    if (messageContentRef.current) {
+      console.log(
+        messageContentRef.current.scrollHeight,
+        messageContentRef.current.clientHeight
+      );
+      setIsContentOverflowing(
+        messageContentRef.current.scrollHeight > MAX_CONTENT_HEIGHT
+      );
+    }
+  }, [message.content]);
 
   const handleSelectModel = useCallback((model: ModelType | null) => {
     if (model) {
@@ -185,8 +201,18 @@ export function UserMessage({
         </>
       ) : (
         <>
-          <div className="from-card/10 to-card w-full whitespace-pre-wrap rounded-lg bg-gradient-to-t px-3 py-2 text-sm">
-            {message.content}
+          <div
+            className="from-card/10 to-card relative z-0 w-full overflow-clip rounded-lg bg-gradient-to-t px-3 py-2 text-sm"
+            style={{
+              maxHeight: `${MAX_CONTENT_HEIGHT}px`,
+            }}
+          >
+            {isContentOverflowing && (
+              <div className="from-background via-background/80 to-card/0 animate-in fade-in absolute bottom-0 left-0 h-1/3 w-full bg-gradient-to-t" />
+            )}
+            <div className="whitespace-pre-wrap" ref={messageContentRef}>
+              {message.content}
+            </div>
           </div>
           <div className="bg-background absolute inset-px -z-10 rounded-[calc(var(--radius)+1px)]" />
         </>

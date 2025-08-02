@@ -255,8 +255,8 @@ export function SidebarTasksView({
       )}
 
       {/* Tasks grouped by repository */}
-      {!loading && !error ? (
-        searchQuery && filteredTasks.length > 0 ? (
+      {!loading && !error && filteredTasks.length > 0 ? (
+        searchQuery ? (
           <SidebarGroup>
             <SidebarGroupContent>
               {filteredTasks.map((task) => renderTaskItem(task))}
