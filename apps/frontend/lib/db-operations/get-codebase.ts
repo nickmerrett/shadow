@@ -3,7 +3,7 @@ import { CodebaseWithSummaries } from "@repo/types";
 import { parseCodebaseSummaries } from "../codebase-understanding/parse-summaries";
 
 export async function getCodebase(
-  codebaseId: string,
+  codebaseId: string
 ): Promise<CodebaseWithSummaries | null> {
   try {
     const codebase = await db.codebaseUnderstanding.findUnique({
@@ -27,7 +27,7 @@ export async function getCodebase(
 
 // New function to get codebase by task ID (for our new shallow wiki system)
 export async function getCodebaseByTaskId(
-  taskId: string,
+  taskId: string
 ): Promise<CodebaseWithSummaries | null> {
   try {
     const task = await db.task.findUnique({
