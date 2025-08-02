@@ -1,1 +1,1 @@
-List all relevant memories for the current context. Shows both repository-specific memories (for the current repo) and global user memories. Memories are organized by category and include creation dates. Use this to recall important context and patterns from previous work.
+List all memories for this repository. Shows repository-specific memories organized by category with creation dates. Use this to recall important context and patterns from previous work in this repository.
