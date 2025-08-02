@@ -1,1 +1,0 @@
-Add a global user memory that applies across all repositories and tasks. Use this to remember user preferences, coding patterns, or important information that should be available in all contexts. Global memories are categorized by type and persist across all your coding sessions.
