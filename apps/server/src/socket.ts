@@ -1,4 +1,4 @@
-import { prisma } from "@repo/db";
+import { prisma, InitStatus } from "@repo/db";
 import {
   StreamChunk,
   ServerToClientEvents,
@@ -19,8 +19,11 @@ interface ConnectionState {
   lastSeen: number;
   taskId?: string;
   reconnectCount: number;
-  // Track buffer position for incremental updates
   bufferPosition: number;
+  apiKeys?: {
+    openai?: string;
+    anthropic?: string;
+  };
 }
 
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -29,6 +32,59 @@ const connectionStates = new Map<string, ConnectionState>();
 let currentStreamContent = "";
 let isStreaming = false;
 let io: Server<ClientToServerEvents, ServerToClientEvents>;
+
+function parseApiKeysFromCookies(cookieHeader?: string): {
+  openai?: string;
+  anthropic?: string;
+} {
+  if (!cookieHeader) {
+    console.log(
+      "[SOCKET] No cookie header provided to parseApiKeysFromCookies"
+    );
+    return {};
+  }
+
+  console.log(
+    `[SOCKET] Parsing cookies from header (length: ${cookieHeader.length})`
+  );
+  console.log(
+    `[SOCKET] Cookie header preview: ${cookieHeader.substring(0, 100)}...`
+  );
+
+  const cookies: Record<string, string> = {};
+  cookieHeader.split(";").forEach((cookie) => {
+    const trimmedCookie = cookie.trim();
+    const equalIndex = trimmedCookie.indexOf("=");
+
+    if (equalIndex > 0) {
+      const name = trimmedCookie.substring(0, equalIndex);
+      const value = trimmedCookie.substring(equalIndex + 1);
+
+      // Log individual cookie parsing for debugging
+      if (name === "openai-key" || name === "anthropic-key") {
+        console.log(
+          `[SOCKET] Parsing cookie "${name}": length=${value.length}, starts with="${value.substring(0, 10)}..."`
+        );
+      }
+
+      // Only decode if the value contains URL-encoded characters
+      // API keys typically don't need decoding, but session tokens might
+      cookies[name] = value.includes("%") ? decodeURIComponent(value) : value;
+    }
+  });
+
+  console.log("[SOCKET] Extracted API keys:", {
+    hasOpenAI: !!cookies["openai-key"],
+    hasAnthropic: !!cookies["anthropic-key"],
+    openaiLength: cookies["openai-key"]?.length || 0,
+    anthropicLength: cookies["anthropic-key"]?.length || 0,
+  });
+
+  return {
+    openai: cookies["openai-key"] || undefined,
+    anthropic: cookies["anthropic-key"] || undefined,
+  };
+}
 
 async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
   try {
@@ -183,7 +239,11 @@ async function verifyTaskAccess(
     const task = await prisma.task.findUnique({
       where: { id: taskId },
     });
-    console.log(`[SOCKET] Task found:`, !!task, task ? `(${task.status})` : '(not found)');
+    console.log(
+      `[SOCKET] Task found:`,
+      !!task,
+      task ? `(${task.status})` : "(not found)"
+    );
     return !!task;
   } catch (error) {
     console.error(`[SOCKET] Error verifying task access:`, error);
@@ -206,7 +266,18 @@ export function createSocketServer(
     cors: {
       origin: config.clientUrl,
       methods: ["GET", "POST"],
+      credentials: true,
     },
+    cookie: {
+      name: "io",
+      httpOnly: true,
+      sameSite: "lax",
+    },
+  });
+
+  // Debug: Log cookies during HTTP handshake
+  io.engine.on("headers", (_headers, request) => {
+    console.log("[SOCKET] HTTP handshake cookies:", request.headers.cookie);
   });
 
   // Set up sidecar namespace for filesystem watching (only in remote mode)
@@ -217,7 +288,21 @@ export function createSocketServer(
 
   io.on("connection", (socket: TypedSocket) => {
     const connectionId = socket.id;
+
+    // Correct way to access cookies in Socket.IO
+    const cookieHeader = socket.request.headers.cookie;
+    const apiKeys = parseApiKeysFromCookies(cookieHeader);
+
     console.log(`[SOCKET] User connected: ${connectionId}`);
+    console.log(`[SOCKET] Cookie header from socket.request:`, cookieHeader);
+    console.log(`[SOCKET] Handshake headers:`, socket.handshake.headers);
+    console.log(`[SOCKET] Request headers:`, socket.request.headers);
+    console.log(`[SOCKET] Parsed API keys:`, {
+      hasOpenAI: !!apiKeys.openai,
+      hasAnthropic: !!apiKeys.anthropic,
+      openaiLength: apiKeys.openai?.length || 0,
+      anthropicLength: apiKeys.anthropic?.length || 0,
+    });
 
     // Initialize connection state
     const existingState = connectionStates.get(connectionId);
@@ -226,6 +311,7 @@ export function createSocketServer(
       taskId: existingState?.taskId,
       reconnectCount: existingState ? existingState.reconnectCount + 1 : 0,
       bufferPosition: existingState?.bufferPosition || 0,
+      apiKeys,
     };
     connectionStates.set(connectionId, connectionState);
 
@@ -321,10 +407,29 @@ export function createSocketServer(
           select: { workspacePath: true },
         });
 
+        const connectionState = connectionStates.get(connectionId);
+        const userApiKeys = connectionState?.apiKeys || {};
+
+        // Validate that user has the required API key for the selected model
+        if (data.llmModel) {
+          const modelProvider = data.llmModel.includes("claude")
+            ? "anthropic"
+            : "openai";
+          if (!userApiKeys[modelProvider]) {
+            const providerName =
+              modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
+            socket.emit("message-error", {
+              error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
+            });
+            return;
+          }
+        }
+
         await chatService.processUserMessage({
           taskId: data.taskId,
           userMessage: data.message,
           llmModel: data.llmModel as ModelType,
+          userApiKeys,
           workspacePath: task?.workspacePath || undefined,
           queue: data.queue || false,
         });
@@ -364,11 +469,30 @@ export function createSocketServer(
           select: { workspacePath: true },
         });
 
+        const connectionState = connectionStates.get(connectionId);
+        const userApiKeys = connectionState?.apiKeys || {};
+
+        // Validate that user has the required API key for the selected model
+        if (data.llmModel) {
+          const modelProvider = data.llmModel.includes("claude")
+            ? "anthropic"
+            : "openai";
+          if (!userApiKeys[modelProvider]) {
+            const providerName =
+              modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
+            socket.emit("message-error", {
+              error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
+            });
+            return;
+          }
+        }
+
         await chatService.editUserMessage({
           taskId: data.taskId,
           messageId: data.messageId,
           newContent: data.message,
           newModel: data.llmModel,
+          userApiKeys,
           workspacePath: task?.workspacePath || undefined,
         });
       } catch (error) {
@@ -573,11 +697,33 @@ export function handleStreamError(error: unknown, taskId: string) {
   }
 }
 
-export function emitTaskStatusUpdate(taskId: string, status: string) {
+export async function emitTaskStatusUpdate(
+  taskId: string,
+  status: string,
+  initStatus?: InitStatus
+) {
   if (io) {
+    // If initStatus not provided, fetch current task state
+    let currentInitStatus = initStatus;
+    if (!currentInitStatus) {
+      try {
+        const task = await prisma.task.findUnique({
+          where: { id: taskId },
+          select: { initStatus: true },
+        });
+        currentInitStatus = task?.initStatus;
+      } catch (error) {
+        console.error(
+          `[SOCKET] Error fetching initStatus for task ${taskId}:`,
+          error
+        );
+      }
+    }
+
     const statusUpdateEvent = {
       taskId,
       status,
+      initStatus: currentInitStatus,
       timestamp: new Date().toISOString(),
     };
 

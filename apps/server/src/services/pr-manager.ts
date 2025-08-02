@@ -88,10 +88,11 @@ export class PRManager {
    */
   private async createNewPR(
     options: CreatePROptions,
-    commitSha: string
+    commitSha: string,
+    userApiKeys?: { openai?: string; anthropic?: string }
   ): Promise<void> {
     // Generate PR metadata with AI
-    const metadata = await this.generatePRMetadata(options);
+    const metadata = await this.generatePRMetadata(options, userApiKeys);
 
     // Create GitHub PR
     const result = await this.githubService.createPullRequest(
@@ -200,7 +201,8 @@ export class PRManager {
    * Generate PR metadata using LLM based on git changes and task context
    */
   private async generatePRMetadata(
-    options: CreatePROptions
+    options: CreatePROptions,
+    userApiKeys?: { openai?: string; anthropic?: string }
   ): Promise<PRMetadata> {
     try {
       const diff = await this.gitManager.getDiff();
@@ -211,7 +213,7 @@ export class PRManager {
         gitDiff: diff,
         commitMessages,
         wasTaskCompleted: options.wasTaskCompleted,
-      });
+      }, userApiKeys || {});
 
       return metadata;
     } catch (error) {
@@ -234,7 +236,8 @@ export class PRManager {
   private async generateUpdatedDescription(
     oldDescription: string,
     newDiff: string,
-    taskTitle: string
+    taskTitle: string,
+    userApiKeys?: { openai?: string; anthropic?: string }
   ): Promise<string> {
     if (!oldDescription) {
       // If no old description, generate fresh one
@@ -249,7 +252,7 @@ export class PRManager {
         gitDiff: newDiff,
         commitMessages: [],
         wasTaskCompleted: true,
-      });
+      }, userApiKeys || {});
 
       return result.description;
     } catch (error) {

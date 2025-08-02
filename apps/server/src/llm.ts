@@ -1,5 +1,5 @@
-import { anthropic } from "@ai-sdk/anthropic";
-import { openai } from "@ai-sdk/openai";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
 import {
   AIStreamChunk,
   Message,
@@ -10,27 +10,48 @@ import {
   toCoreMessage,
 } from "@repo/types";
 import { CoreMessage, LanguageModel, generateText, streamText } from "ai";
-import config from "./config";
 import { createTools } from "./tools";
 
 const MAX_STEPS = 50;
 
 export class LLMService {
-  private getModel(modelId: ModelType): LanguageModel {
+  private getModel(
+    modelId: ModelType,
+    userApiKeys: { openai?: string; anthropic?: string }
+  ): LanguageModel {
     const provider = getModelProvider(modelId);
 
     switch (provider) {
-      case "anthropic":
-        if (!config.anthropicApiKey) {
-          throw new Error("Anthropic API key not configured");
+      case "anthropic": {
+        if (!userApiKeys.anthropic) {
+          throw new Error(
+            "Anthropic API key not provided. Please configure your API key in settings."
+          );
         }
-        return anthropic(modelId);
 
-      case "openai":
-        if (!config.openaiApiKey) {
-          throw new Error("OpenAI API key not configured");
+        console.log(
+          "Creating Anthropic client with API key",
+          userApiKeys.anthropic
+        );
+
+        const anthropicClient = createAnthropic({
+          apiKey: userApiKeys.anthropic,
+        });
+        return anthropicClient(modelId);
+      }
+
+      case "openai": {
+        if (!userApiKeys.openai) {
+          throw new Error(
+            "OpenAI API key not provided. Please configure your API key in settings."
+          );
         }
-        return openai(modelId);
+
+        console.log("Creating OpenAI client with API key", userApiKeys.openai);
+
+        const openaiClient = createOpenAI({ apiKey: userApiKeys.openai });
+        return openaiClient(modelId);
+      }
 
       default:
         throw new Error(`Unsupported provider: ${provider}`);
@@ -41,13 +62,16 @@ export class LLMService {
     systemPrompt: string,
     messages: Message[],
     model: ModelType,
+    userApiKeys: { openai?: string; anthropic?: string },
     enableTools: boolean = true,
     taskId?: string,
     workspacePath?: string,
     abortSignal?: AbortSignal
   ): AsyncGenerator<StreamChunk> {
     try {
-      const modelInstance = this.getModel(model);
+      const modelInstance = this.getModel(model, userApiKeys);
+
+      console.log("modelInstance", modelInstance);
 
       // Convert our messages to AI SDK CoreMessage format
       const coreMessages: CoreMessage[] = messages.map(toCoreMessage);
@@ -175,15 +199,18 @@ export class LLMService {
     }
   }
 
-  // Helper method to get available models based on configured API keys
-  getAvailableModels(): ModelType[] {
+  // Helper method to get available models based on user API keys
+  getAvailableModels(userApiKeys: {
+    openai?: string;
+    anthropic?: string;
+  }): ModelType[] {
     const models: ModelType[] = [];
 
-    if (config.anthropicApiKey) {
+    if (userApiKeys.anthropic) {
       models.push("claude-sonnet-4-20250514", "claude-opus-4-20250514");
     }
 
-    if (config.openaiApiKey) {
+    if (userApiKeys.openai) {
       models.push("gpt-4o", "o3", "o4-mini-high");
     }
 
@@ -193,12 +220,15 @@ export class LLMService {
   /**
    * Generate PR metadata using LLM based on task context and git changes
    */
-  async generatePRMetadata(options: {
-    taskTitle: string;
-    gitDiff: string;
-    commitMessages: string[];
-    wasTaskCompleted: boolean;
-  }): Promise<{
+  async generatePRMetadata(
+    options: {
+      taskTitle: string;
+      gitDiff: string;
+      commitMessages: string[];
+      wasTaskCompleted: boolean;
+    },
+    userApiKeys: { openai?: string; anthropic?: string }
+  ): Promise<{
     title: string;
     description: string;
     isDraft: boolean;
@@ -206,26 +236,16 @@ export class LLMService {
     try {
       const prompt = this.buildPRGenerationPrompt(options);
 
-      const prModel = "gpt-4o-mini";
-      const isPrModelAnthropic = getModelProvider(prModel) === "anthropic";
+      const prModel = userApiKeys.openai
+        ? "gpt-4o-mini"
+        : // TODO: Add Claude 3.5 Haiku
+          "claude-sonnet-4-20250514";
 
       const { text } = await generateText({
-        model: this.getModel(prModel),
+        model: this.getModel(prModel, userApiKeys),
         temperature: 0.3,
         maxTokens: 1000,
-        ...(isPrModelAnthropic
-          ? {
-              messages: [
-                {
-                  role: "system",
-                  content: prompt,
-                  providerOptions: {
-                    anthropic: { cacheControl: { type: "ephemeral" } },
-                  },
-                } as CoreMessage,
-              ],
-            }
-          : { prompt }),
+        prompt,
       });
 
       const result = this.parsePRMetadata(text);
