@@ -4,18 +4,14 @@ import type { InitStatus } from "@repo/db";
  * Human-readable display names for initialization steps
  */
 export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
-  INACTIVE: "Not Started",
+  INACTIVE: "Inactive",
   PREPARE_WORKSPACE: "Preparing Workspace",
   CREATE_VM: "Creating VM",
   WAIT_VM_READY: "Starting VM",
   VERIFY_VM_WORKSPACE: "Verifying Workspace",
   INDEX_REPOSITORY: "Indexing Repository",
-  ACTIVE: "Ready",
-
-  // Deep wiki generation step (both modes, optional)
+  ACTIVE: "Active",
   GENERATE_DEEP_WIKI: "Generating Deep Wiki",
-
-  // Cleanup step (firecracker only)
   CLEANUP_WORKSPACE: "Cleaning Up",
 };
 
@@ -23,12 +19,12 @@ export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
  * Get all step display names in execution order for a given mode
  */
 export function getStepsForMode(
-  mode: "local" | "firecracker",
+  mode: "local" | "remote",
   options?: { enableDeepWiki?: boolean }
-): InitStepType[] {
-  const steps: InitStepType[] = [];
+): InitStatus[] {
+  const steps: InitStatus[] = [];
 
-  if (mode === "firecracker") {
+  if (mode === "remote") {
     steps.push(
       "CREATE_VM",
       "WAIT_VM_READY",
