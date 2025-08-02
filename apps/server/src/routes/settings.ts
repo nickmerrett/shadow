@@ -142,7 +142,6 @@ settingsRouter.get("/:userId/memories", async (req, res) => {
         id: true,
         content: true,
         category: true,
-        isGlobal: true,
         repoFullName: true,
         createdAt: true,
       },
@@ -152,8 +151,6 @@ settingsRouter.get("/:userId/memories", async (req, res) => {
       success: true,
       memories,
       totalCount: memories.length,
-      globalCount: memories.filter((m) => m.isGlobal).length,
-      repoCount: memories.filter((m) => !m.isGlobal).length,
     });
   } catch (error) {
     console.error("Error fetching memories:", error);
