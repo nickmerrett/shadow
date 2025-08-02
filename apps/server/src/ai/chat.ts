@@ -23,6 +23,7 @@ import {
 import config from "../config";
 import {
   updateTaskStatus,
+  updateTaskActivity,
   scheduleTaskCleanup,
   cancelTaskCleanup,
 } from "../utils/task-status";
@@ -62,7 +63,7 @@ export class ChatService {
     metadata?: MessageMetadata
   ): Promise<ChatMessage> {
     const sequence = await this.getNextSequence(taskId);
-    return await prisma.chatMessage.create({
+    const message = await prisma.chatMessage.create({
       data: {
         taskId,
         content,
@@ -73,6 +74,11 @@ export class ChatService {
         metadata: (metadata as any) || undefined,
       },
     });
+
+    // Update task activity timestamp when user sends a message
+    await updateTaskActivity(taskId, "MESSAGE");
+
+    return message;
   }
 
   async saveAssistantMessage(
@@ -880,6 +886,9 @@ export class ChatService {
         await updateTaskStatus(taskId, "COMPLETED", "CHAT");
         await scheduleTaskCleanup(taskId, 10);
 
+        // Update task activity timestamp when assistant completes response
+        await updateTaskActivity(taskId, "CHAT");
+
         // Commit changes if there are any (only for successfully completed responses)
         try {
           const changesCommitted = await this.commitChangesIfAny(
@@ -1031,6 +1040,9 @@ export class ChatService {
         editedAt: new Date(),
       },
     });
+
+    // Update task activity timestamp when user edits a message
+    await updateTaskActivity(taskId, "MESSAGE");
 
     // Get the sequence of the edited message
     const editedMessage = await prisma.chatMessage.findUnique({

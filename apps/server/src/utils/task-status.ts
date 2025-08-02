@@ -52,6 +52,22 @@ export async function setInitStatus(
 }
 
 /**
+ * Set task as completed with final step
+ */
+export async function setTaskCompleted(
+  taskId: string,
+  status: InitStatus
+): Promise<void> {
+  await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      initStatus: status,
+      initializationError: null,
+    },
+  });
+}
+
+/**
  * Set task as failed with error message
  */
 export async function setTaskFailed(
@@ -79,6 +95,30 @@ export async function clearTaskProgress(taskId: string): Promise<void> {
       initializationError: null,
     },
   });
+}
+
+/**
+ * Updates a task's updatedAt timestamp to reflect recent activity
+ * @param taskId - The task ID to update
+ * @param context - Optional context for logging (e.g., "MESSAGE", "CHAT", "TOOL")
+ */
+export async function updateTaskActivity(
+  taskId: string,
+  context?: string
+): Promise<void> {
+  try {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        updatedAt: new Date(),
+      },
+    });
+
+    const logPrefix = context ? `[${context}]` : "[ACTIVITY]";
+    console.log(`${logPrefix} Task ${taskId} activity timestamp updated`);
+  } catch (error) {
+    console.error(`Failed to update task ${taskId} activity timestamp:`, error);
+  }
 }
 
 /**
