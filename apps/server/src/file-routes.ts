@@ -225,7 +225,7 @@ router.get("/:taskId/file-changes", async (req, res) => {
     // Validate task exists and get full status
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { id: true, workspacePath: true, status: true },
+      select: { id: true, workspacePath: true, status: true, baseBranch: true },
     });
 
     if (!task) {
@@ -254,7 +254,10 @@ router.get("/:taskId/file-changes", async (req, res) => {
       });
     }
 
-    const { fileChanges, diffStats } = await getFileChanges(taskId);
+    const { fileChanges, diffStats } = await getFileChanges(
+      taskId,
+      task.baseBranch
+    );
 
     res.json({
       success: true,

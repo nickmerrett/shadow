@@ -223,7 +223,8 @@ export class ChatService {
   private async createPRIfNeeded(
     taskId: string,
     workspacePath?: string,
-    messageId?: string
+    messageId?: string,
+    userApiKeys?: { openai?: string; anthropic?: string }
   ): Promise<void> {
     try {
       console.log(`[CHAT] Attempting to create PR for task ${taskId}`);
@@ -272,7 +273,7 @@ export class ChatService {
         taskTitle: task.title,
         wasTaskCompleted: task.status === "COMPLETED",
         messageId,
-      });
+      }, userApiKeys);
     } catch (error) {
       console.error(`[CHAT] Failed to create PR for task ${taskId}:`, error);
       // Non-blocking - don't throw
@@ -901,7 +902,8 @@ export class ChatService {
             await this.createPRIfNeeded(
               taskId,
               workspacePath,
-              assistantMessageId
+              assistantMessageId,
+              userApiKeys
             );
           }
         } catch (error) {

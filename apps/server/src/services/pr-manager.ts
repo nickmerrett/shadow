@@ -16,7 +16,10 @@ export class PRManager {
   /**
    * Create or update PR and save snapshot
    */
-  async createPRIfNeeded(options: CreatePROptions): Promise<void> {
+  async createPRIfNeeded(
+    options: CreatePROptions, 
+    userApiKeys?: { openai?: string; anthropic?: string }
+  ): Promise<void> {
     try {
       console.log(`[PR_MANAGER] Processing PR for task ${options.taskId}`);
 
@@ -39,10 +42,10 @@ export class PRManager {
 
       if (!existingPRNumber) {
         // Create new PR path
-        await this.createNewPR(options, commitSha);
+        await this.createNewPR(options, commitSha, userApiKeys);
       } else {
         // Update existing PR path
-        await this.updateExistingPR(options, existingPRNumber, commitSha);
+        await this.updateExistingPR(options, existingPRNumber, commitSha, userApiKeys);
       }
 
       console.log(
@@ -82,7 +85,8 @@ export class PRManager {
   private async updateExistingPR(
     options: CreatePROptions,
     prNumber: number,
-    commitSha: string
+    commitSha: string,
+    userApiKeys?: { openai?: string; anthropic?: string }
   ): Promise<void> {
     // Get current PR description from most recent snapshot
     const latestSnapshot = await this.prService.getLatestSnapshot(
@@ -99,7 +103,8 @@ export class PRManager {
     const newDescription = await this.generateUpdatedDescription(
       latestSnapshot?.description || "",
       await this.gitManager.getDiff(),
-      options.taskTitle
+      options.taskTitle,
+      userApiKeys
     );
 
     // Use PR service to update the PR
