@@ -471,7 +471,6 @@ export class TaskInitializationEngine {
   /**
    * Generate deep wiki step - Generate comprehensive codebase documentation
    */
-  // @ts-expect-error - Temporarily disabled for now
   private async executeGenerateDeepWiki(taskId: string): Promise<void> {
     console.log(`[TASK_INIT] ${taskId}: Starting deep wiki generation`);
 
