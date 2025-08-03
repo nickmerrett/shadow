@@ -82,20 +82,20 @@ class PineconeHandler {
             // logger.info(`[PINECONE_SERVICE] ${record.id} - no text to embed`);
             return null;
           }
-          
+
           const finalRecord = {
             _id: record.id,
             text: text,
             ...record.metadata,
           };
-          
+
           // Log metadata size for debugging
           const totalSize = JSON.stringify(finalRecord).length;
-          
-          if (totalSize > 35000) { // Log large records
+
+          if (totalSize > 35000) {
             // logger.warn(`[PINECONE_SERVICE] Large record ${record.id}: total=${totalSize}B`);
           }
-          
+
           return finalRecord;
         })
         .filter((record): record is PineconeAutoEmbedRecord => record !== null);
@@ -115,6 +115,7 @@ class PineconeHandler {
     }
   }
   // Chunks Graph records into smaller chunks if there are too many LOC in a batch
+  // Also splits individual records that are too large
   async chunkRecords(
     records: GraphNode[],
     maxLinesPerChunk = 50,
@@ -127,6 +128,51 @@ class PineconeHandler {
     for (const record of records) {
       const lineSpan =
         (record.loc?.endLine || 0) - (record.loc?.startLine || 0) + 1;
+
+      if (lineSpan > maxLinesPerChunk && record.code) {
+        logger.info(`[PINECONE_SERVICE] Splitting large record: ${record.path} (${lineSpan} lines)`);
+
+        // Flush current chunk first
+        if (currentChunk.length > 0) {
+          chunks.push([...currentChunk]);
+          currentChunk = [];
+          currentLineSpan = 0;
+        }
+
+        // Split the large record into smaller sub-records
+        const lines = record.code.split("\n");
+        const totalLines = lines.length;
+        let subChunkIndex = 0;
+
+        for (let i = 0; i < totalLines; i += maxLinesPerChunk) {
+          const endIndex = Math.min(i + maxLinesPerChunk - 1, totalLines - 1);
+          const subChunkLines = lines.slice(i, endIndex + 1);
+          const subChunkCode = subChunkLines.join("\n");
+
+          // Create a new sub-record
+          const subRecord = new GraphNode({
+            id: `${record.id}-part-${subChunkIndex}`,
+            kind: record.kind,
+            name: record.name,
+            path: record.path,
+            lang: record.lang,
+            loc: {
+              ...record.loc,
+              startLine: (record.loc?.startLine || 0) + i,
+              endLine: (record.loc?.startLine || 0) + endIndex,
+            },
+            signature: record.signature,
+            code: subChunkCode,
+            doc: record.doc,
+            meta: record.meta,
+          });
+
+          chunks.push([subRecord]);
+          subChunkIndex++;
+        }
+
+        continue; // Skip the normal processing for this record
+      }
 
       const pathChanged =
         currentChunk.length > 0 && currentChunk[0]?.path !== record.path;

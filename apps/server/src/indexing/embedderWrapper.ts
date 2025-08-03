@@ -47,7 +47,6 @@ async function embedAndUpsertToPinecone(
       const batchRecords: PineconeBatchRecord[] = recordChunk.map((chunk) => {
         try {
           const code = chunk.code || "";
-          // Very aggressively truncate code for both metadata and text to stay under 40KB total
           // The text field in Pinecone auto-embed also counts towards metadata size
           const truncatedCode = code.length > 5000 ? code.substring(0, 5000) + "..." : code;
           

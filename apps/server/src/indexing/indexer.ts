@@ -166,7 +166,7 @@ async function indexRepo(
         'woff', 'woff2', 'ttf', 'eot', 'otf',
         'db', 'sqlite', 'sqlite3',
         'class', 'jar', 'war',
-        'o', 'obj', 'lib', 'a'
+        'o', 'obj', 'lib', 'a', 'json', 'sql', 'out'
       ];
       
       if (excludedExtensions.includes(ext)) {
@@ -394,6 +394,7 @@ async function indexRepo(
           const chunkContent = lines.slice(startLine, endLine + 1).join("\n");
 
           if (chunkContent.trim()) {
+            logger.info(`[INDEXER] Creating file chunk for ${file.path}: lines ${startLine}-${endLine} (${chunkContent.length} chars)`);
             const chunkId = getNodeHash(
               repoId,
               file.path,
