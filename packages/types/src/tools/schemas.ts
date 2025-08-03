@@ -336,6 +336,9 @@ export enum ToolTypes {
   WEB_SEARCH = "web_search",
   TODO_WRITE = "todo_write",
   RUN_TERMINAL_CMD = "run_terminal_cmd",
+  ADD_MEMORY = "add_memory",
+  LIST_MEMORIES = "list_memories",
+  REMOVE_MEMORY = "remove_memory",
 }
 
 // Tool prefixes for UI display
@@ -351,4 +354,7 @@ export const TOOL_PREFIXES: Record<ToolTypes, string> = {
   [ToolTypes.WEB_SEARCH]: "Searched web",
   [ToolTypes.TODO_WRITE]: "Updated todo list",
   [ToolTypes.RUN_TERMINAL_CMD]: "Ran",
+  [ToolTypes.ADD_MEMORY]: "Added memory",
+  [ToolTypes.LIST_MEMORIES]: "Listed memories",
+  [ToolTypes.REMOVE_MEMORY]: "Removed memory",
 };
