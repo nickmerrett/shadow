@@ -3,6 +3,7 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as XTerm } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
+import "./terminal.css";
 import { useEffect, useRef } from "react";
 import { useTerminalSocket } from "@/hooks/socket";
 import { useParams } from "next/navigation";
@@ -40,7 +41,7 @@ export default function Terminal() {
         break;
       case "stdout":
         // Normal white text for stdout
-        xterm.write(entry.data + '\r\n');
+        xterm.write(entry.data + "\r\n");
         break;
       case "stderr":
         // Red text for errors
@@ -131,7 +132,7 @@ export default function Terminal() {
       isFirstRender.current = false;
       return;
     }
-    
+
     if (fitAddonRef.current) {
       fitAddonRef.current.fit();
     }
@@ -151,7 +152,7 @@ export default function Terminal() {
   }, [terminalEntries]);
 
   return (
-    <div className="bg-background relative flex-1 overflow-hidden p-2">
+    <div className="bg-background relative flex-1 overflow-hidden">
       {/* Connection status indicator */}
       <div className="absolute right-4 top-4 z-10">
         <div

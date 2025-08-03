@@ -20,10 +20,11 @@ import { LeftPanelIcon } from "../graphics/icons/left-panel-icon";
 import { LeftPanelOpenIcon } from "../graphics/icons/left-panel-open-icon";
 import { BottomPanelOpenIcon } from "../graphics/icons/bottom-panel-open-icon";
 import { BottomPanelIcon } from "../graphics/icons/bottom-panel-icon";
+import { Close as SheetPrimitiveClose } from "@radix-ui/react-dialog";
 
 const Terminal = dynamic(() => import("./terminal"), { ssr: false });
 
-function AgentEnvironment() {
+function AgentEnvironment({ isMobile }: { isMobile?: boolean }) {
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
   const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(false);
 
@@ -32,6 +33,7 @@ function AgentEnvironment() {
 
   // Use context for file selection state
   const {
+    rightPanelRef,
     selectedFilePath,
     selectedFileWithContent,
     updateSelectedFilePath,
@@ -144,14 +146,37 @@ function AgentEnvironment() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hover:bg-sidebar-accent size-7 cursor-pointer"
-                onClick={() => setIsTerminalCollapsed((prev) => !prev)}
-              >
-                <X className="size-4" />
-              </Button>
+              {isMobile ? (
+                <SheetPrimitiveClose asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hover:bg-sidebar-accent size-7 cursor-pointer"
+                    onClick={() => {
+                      if (rightPanelRef.current) {
+                        const panel = rightPanelRef.current;
+                        panel.collapse();
+                      }
+                    }}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </SheetPrimitiveClose>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hover:bg-sidebar-accent size-7 cursor-pointer"
+                  onClick={() => {
+                    if (rightPanelRef.current) {
+                      const panel = rightPanelRef.current;
+                      panel.collapse();
+                    }
+                  }}
+                >
+                  <X className="size-4" />
+                </Button>
+              )}
             </TooltipTrigger>
             <TooltipContent side="bottom" align="end">
               Close Shadow Realm
