@@ -12,7 +12,6 @@ export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
   INDEX_REPOSITORY: "Indexing Repository",
   ACTIVE: "Active",
   GENERATE_DEEP_WIKI: "Generating Deep Wiki",
-  CLEANUP_WORKSPACE: "Cleaning Up",
 };
 
 /**
