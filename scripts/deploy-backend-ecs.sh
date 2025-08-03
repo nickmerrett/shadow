@@ -386,6 +386,7 @@ store_secrets() {
     GITHUB_CLIENT_ID=$(grep "GITHUB_CLIENT_ID=" .env.production | cut -d'=' -f2)
     GITHUB_CLIENT_SECRET=$(grep "GITHUB_CLIENT_SECRET=" .env.production | cut -d'=' -f2)
     GITHUB_WEBHOOK_SECRET=$(grep "GITHUB_WEBHOOK_SECRET=" .env.production | cut -d'=' -f2)
+    VM_IMAGE_REGISTRY=$(grep "VM_IMAGE_REGISTRY=" .env.production | cut -d'=' -f2 | tr -d '"')
     
     # Validate required secrets
     if [[ -z "$K8S_TOKEN" ]]; then
@@ -395,6 +396,11 @@ store_secrets() {
     
     if [[ -z "$DATABASE_URL" ]]; then
         error "DATABASE_URL not found in .env.production"
+    fi
+    
+    if [[ -z "$VM_IMAGE_REGISTRY" ]]; then
+        warn "VM_IMAGE_REGISTRY not found - using default ghcr.io/ishaan1013/shadow"
+        VM_IMAGE_REGISTRY="ghcr.io/ishaan1013/shadow"
     fi
     
     # Store all secrets in Parameter Store
@@ -472,6 +478,15 @@ store_secrets() {
             --region "$AWS_REGION" \
             --profile "$AWS_PROFILE"
     fi
+    
+    log "Storing VM image registry..."
+    aws ssm put-parameter \
+        --name "/shadow/vm-image-registry" \
+        --value "$VM_IMAGE_REGISTRY" \
+        --type "String" \
+        --overwrite \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE"
     
     log "All secrets stored in Parameter Store successfully"
 }
@@ -626,7 +641,8 @@ create_task_definition() {
         {"name": "PINECONE_INDEX_NAME", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/pinecone-index-name"},
         {"name": "GITHUB_CLIENT_ID", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-client-id"},
         {"name": "GITHUB_CLIENT_SECRET", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-client-secret"},
-        {"name": "GITHUB_WEBHOOK_SECRET", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-webhook-secret"}
+        {"name": "GITHUB_WEBHOOK_SECRET", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-webhook-secret"},
+        {"name": "VM_IMAGE_REGISTRY", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/vm-image-registry"}
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
@@ -648,6 +664,31 @@ create_task_definition() {
   ]
 }
 EOF
+    
+    # Check if identical task definition already exists
+    log "Checking for existing task definition..."
+    if aws ecs describe-task-definition --task-definition "$TASK_FAMILY" --region "$AWS_REGION" --profile "$AWS_PROFILE" &> /dev/null; then
+        # Get current task definition content (excluding metadata)
+        CURRENT_TASK_DEF=$(aws ecs describe-task-definition --task-definition "$TASK_FAMILY" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'taskDefinition.{family:family,networkMode:networkMode,requiresCompatibilities:requiresCompatibilities,cpu:cpu,memory:memory,runtimePlatform:runtimePlatform,executionRoleArn:executionRoleArn,taskRoleArn:taskRoleArn,containerDefinitions:containerDefinitions}' --output json)
+        NEW_TASK_DEF=$(cat task-definition.json)
+        
+        # Compare definitions (basic check - could be enhanced)
+        if echo "$CURRENT_TASK_DEF" | jq -S . > current_def.json && echo "$NEW_TASK_DEF" | jq -S . > new_def.json; then
+            if cmp -s current_def.json new_def.json; then
+                log "Task definition is identical to existing version, skipping registration"
+                rm -f current_def.json new_def.json
+                # Clean up and return early
+                rm -f task-definition.json
+                log "Task definition creation completed (no changes)"
+                return 0
+            else
+                log "Task definition has changes, registering new revision..."
+                rm -f current_def.json new_def.json
+            fi
+        else
+            log "Could not compare task definitions, proceeding with registration..."
+        fi
+    fi
     
     # Register task definition
     log "Registering ECS task definition..."

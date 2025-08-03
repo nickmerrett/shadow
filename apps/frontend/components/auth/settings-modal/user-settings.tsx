@@ -120,7 +120,7 @@ export function UserSettings() {
             </div>
             <div className="flex items-center justify-between">
               <label htmlFor="deep-wiki" className="flex flex-col gap-0">
-                <div className="text-sm font-normal">Enable Wikis</div>
+                <div className="text-sm font-normal">Enable Deep Wiki</div>
                 <div className="text-muted-foreground text-[11px]">
                   Generate lightweight codebase understanding for AI context
                 </div>
