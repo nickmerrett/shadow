@@ -43,4 +43,13 @@ ${readToolInstructions('semantic_search')}
 
 ### web_search
 ${readToolInstructions('web_search')}
+
+### add_memory
+${readToolInstructions('add_memory')}
+
+### list_memories
+${readToolInstructions('list_memories')}
+
+### remove_memory
+${readToolInstructions('remove_memory')}
 </tool_guidance>`;
