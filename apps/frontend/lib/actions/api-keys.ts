@@ -1,23 +1,19 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { ApiKeyProvider, ApiKeys } from "@repo/types";
 
-export type ApiKeyProvider = "openai" | "anthropic";
-
-export interface ApiKeys {
-  openai: string;
-  anthropic: string;
-}
+export type { ApiKeyProvider };
 
 export async function getApiKeys(): Promise<ApiKeys> {
   const cookieStore = await cookies();
 
-  const openaiKey = cookieStore.get("openai-key")?.value || "";
-  const anthropicKey = cookieStore.get("anthropic-key")?.value || "";
+  const openaiKey = cookieStore.get("openai-key")?.value;
+  const anthropicKey = cookieStore.get("anthropic-key")?.value;
 
   return {
-    openai: openaiKey,
-    anthropic: anthropicKey,
+    openai: openaiKey || undefined,
+    anthropic: anthropicKey || undefined,
   };
 }
 

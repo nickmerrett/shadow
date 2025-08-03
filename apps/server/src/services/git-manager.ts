@@ -1,7 +1,9 @@
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { AvailableModels, ApiKeys } from "@repo/types";
 
 const execAsync = promisify(exec);
 
@@ -14,6 +16,7 @@ export interface CommitOptions {
   user: GitUser;
   coAuthor?: GitUser;
   message?: string;
+  userApiKeys?: ApiKeys;
 }
 
 export class GitManager {
@@ -122,10 +125,31 @@ export class GitManager {
   /**
    * Generate a commit message using AI based on the git diff
    */
-  async generateCommitMessage(diff: string): Promise<string> {
+  async generateCommitMessage(
+    diff: string,
+    userApiKeys?: ApiKeys
+  ): Promise<string> {
     try {
+      // If no API keys provided, use fallback
+      if (!userApiKeys?.openai && !userApiKeys?.anthropic) {
+        console.warn(
+          "[GIT_MANAGER] No API keys provided for commit message generation"
+        );
+        return "Update code via Shadow agent";
+      }
+
+      // Choose model based on available API keys (same pattern as pr-generator)
+      const modelChoice = userApiKeys.openai
+        ? AvailableModels.GPT_4O_MINI
+        : AvailableModels.CLAUDE_HAIKU_3_5;
+
+      // Create model instance based on provider
+      const model = userApiKeys.openai
+        ? openai(modelChoice)
+        : anthropic(modelChoice);
+
       const { text } = await generateText({
-        model: openai("gpt-4o-mini"),
+        model,
         temperature: 0.3,
         maxTokens: 100,
         prompt: `Generate a concise git commit message for these changes. Focus on what was changed, not how. Use imperative mood (e.g., "Add", "Fix", "Update"). Keep it under 50 characters.
@@ -159,7 +183,10 @@ Commit message:`,
       if (!commitMessage) {
         const diff = await this.getDiff();
         if (diff) {
-          commitMessage = await this.generateCommitMessage(diff);
+          commitMessage = await this.generateCommitMessage(
+            diff,
+            options.userApiKeys
+          );
         } else {
           commitMessage = "Update code via Shadow agent";
         }

@@ -372,9 +372,9 @@ Use bullet points and fragments. Ultra-concise technical descriptions only.`;
 }
 
 /**
- * Main function to run shallow wiki analysis and store in database
+ * Main function to run deep wiki analysis and store in database
  */
-export async function runShallowWiki(
+export async function runDeepWiki(
   repoPath: string,
   taskId: string,
   repoFullName: string,
@@ -386,7 +386,7 @@ export async function runShallowWiki(
     modelMini?: string;
   }
 ): Promise<{ codebaseUnderstandingId: string; stats: ProcessingStats }> {
-  console.log(`[SHALLOW-WIKI] Analyzing ${repoPath} for task ${taskId}`);
+  console.log(`[DEEP-WIKI] Analyzing ${repoPath} for task ${taskId}`);
 
   // Update config
   if (options.model) config.model = options.model;
@@ -478,7 +478,7 @@ export async function runShallowWiki(
   );
 
   console.log(
-    `[SHALLOW-WIKI] Complete: ${stats.filesProcessed} files, ${stats.directoriesProcessed} dirs`
+    `[DEEP-WIKI] Complete: ${stats.filesProcessed} files, ${stats.directoriesProcessed} dirs`
   );
 
   return { codebaseUnderstandingId, stats };

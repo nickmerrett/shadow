@@ -2,6 +2,9 @@
 
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
+import { AvailableModels } from "@repo/types";
+import { getApiKeys } from "./api-keys";
 
 const WORD_LIMIT = 8;
 
@@ -45,10 +48,13 @@ export async function generateTaskTitleAndBranch(
   userPrompt: string
 ) {
   try {
-    // Check if OpenAI API key is available
-    if (!process.env.OPENAI_API_KEY) {
+    // Get API keys from cookies
+    const userApiKeys = await getApiKeys();
+
+    // Check if any API key is available
+    if (!userApiKeys.openai && !userApiKeys.anthropic) {
       console.warn(
-        `[GENERATE_TITLE_BRANCH] OpenAI API key not configured, skipping title generation for task ${taskId}`
+        `[GENERATE_TITLE_BRANCH] No API keys provided, skipping title generation for task ${taskId}`
       );
       return {
         title: userPrompt.slice(0, 50),
@@ -56,9 +62,19 @@ export async function generateTaskTitleAndBranch(
       };
     }
 
+    // Choose model based on available API keys (same pattern as pr-generator)
+    const modelChoice = userApiKeys.openai
+      ? AvailableModels.GPT_4O_MINI
+      : AvailableModels.CLAUDE_HAIKU_3_5;
+
+    // Create model instance based on provider
+    const model = userApiKeys.openai
+      ? openai(modelChoice)
+      : anthropic(modelChoice);
+
     // Generate a descriptive title using AI
     const { text: generatedText } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model,
       temperature: 0.3,
       prompt: `Generate a concise title (under 50 chars) for this coding task:
 

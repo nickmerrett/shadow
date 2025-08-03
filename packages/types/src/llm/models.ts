@@ -9,8 +9,9 @@ export interface LLMConfig {
 // Model Selection
 export const AvailableModels = {
   // Anthropic models
-  CLAUDE_SONNET_4: "claude-sonnet-4-20250514",
-  CLAUDE_OPUS_4: "claude-opus-4-20250514",
+  CLAUDE_SONNET_4: "claude-sonnet-4-latest",
+  CLAUDE_OPUS_4: "claude-opus-4-latest",
+  CLAUDE_HAIKU_3_5: "claude-3-5-haiku-latest",
   // OpenAI models
   GPT_4O_MINI: "gpt-4o-mini",
   O3: "o3",
@@ -35,6 +36,11 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
   [AvailableModels.CLAUDE_OPUS_4]: {
     id: AvailableModels.CLAUDE_OPUS_4,
     name: "Claude Opus 4",
+    provider: "anthropic",
+  },
+  [AvailableModels.CLAUDE_HAIKU_3_5]: {
+    id: AvailableModels.CLAUDE_HAIKU_3_5,
+    name: "Claude Haiku 3.5",
     provider: "anthropic",
   },
   [AvailableModels.GPT_4O]: {
@@ -67,4 +73,16 @@ export function getModelProvider(model: ModelType): "anthropic" | "openai" {
 // Helper to get model info
 export function getModelInfo(model: ModelType): ModelInfo {
   return ModelInfos[model];
+}
+
+// Helper to get the appropriate mini model based on user's main model choice
+export function getMiniModelForProvider(mainModel: ModelType): ModelType {
+  const provider = getModelProvider(mainModel);
+
+  if (provider === "openai") {
+    return AvailableModels.GPT_4O_MINI;
+  } else {
+    // For Anthropic models, use Claude Haiku 3.5
+    return AvailableModels.CLAUDE_HAIKU_3_5;
+  }
 }

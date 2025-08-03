@@ -10,7 +10,7 @@ import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../../packages/db/src/client";
 import { LLMService } from "./llm";
-import { systemPrompt } from "./system-prompt";
+import { getSystemPrompt, getDeepWikiMessage } from "./system-prompt";
 import { GitManager } from "../services/git-manager";
 import { PRManager } from "../services/pr-manager";
 
@@ -105,6 +105,26 @@ export class ChatService {
         completionTokens: usage?.completionTokens,
         totalTokens: usage?.totalTokens,
         finishReason: metadata?.finishReason,
+      },
+    });
+  }
+
+  async saveSystemMessage(
+    taskId: string,
+    content: string,
+    llmModel: string,
+    sequence: number,
+    metadata?: MessageMetadata
+  ): Promise<ChatMessage> {
+    return await prisma.chatMessage.create({
+      data: {
+        taskId,
+        content,
+        role: "SYSTEM",
+        llmModel,
+        sequence,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        metadata: (metadata as any) || undefined,
       },
     });
   }
@@ -597,16 +617,48 @@ export class ChatService {
     // Filter out tool messages since they're embedded in assistant messages as parts
     const messages: Message[] = history
       .slice(0, -1) // Remove the last message (the one we just saved)
-      .filter((msg) => msg.role === "user" || msg.role === "assistant")
-      .concat([
-        {
+      .filter(
+        (msg) =>
+          msg.role === "user" ||
+          msg.role === "assistant" ||
+          msg.role === "system"
+      );
+
+    // Check if deep wiki system message already exists in conversation
+    const hasDeepWikiMessage = history.some((msg) => msg.role === "system");
+
+    // Add deep wiki content as the first system message only if no system messages exist yet
+    if (!hasDeepWikiMessage) {
+      const deepWikiContent = await getDeepWikiMessage(taskId);
+      if (deepWikiContent) {
+        // Save the deep wiki as a system message in the database
+        const deepWikiSequence = await this.getNextSequence(taskId);
+        await this.saveSystemMessage(
+          taskId,
+          deepWikiContent,
+          llmModel,
+          deepWikiSequence
+        );
+
+        // Insert at the beginning, right after system prompt
+        messages.unshift({
           id: randomUUID(),
-          role: "user",
-          content: userMessage,
+          role: "system",
+          content: deepWikiContent,
           createdAt: new Date().toISOString(),
           llmModel,
-        },
-      ]);
+        });
+      }
+    }
+
+    // Add the current user message last
+    messages.push({
+      id: randomUUID(),
+      role: "user",
+      content: userMessage,
+      createdAt: new Date().toISOString(),
+      llmModel,
+    });
 
     console.log(
       `[CHAT] Processing message for task ${taskId} with ${messages.length} context messages`
@@ -632,9 +684,12 @@ export class ChatService {
     // Map to track tool call sequences as they're created
     const toolCallSequences = new Map<string, number>();
 
+    // Get clean system prompt (deep wiki content is now in messages array)
+    const taskSystemPrompt = await getSystemPrompt();
+
     try {
       for await (const chunk of this.llmService.createMessageStream(
-        systemPrompt,
+        taskSystemPrompt,
         messages,
         llmModel,
         userApiKeys,

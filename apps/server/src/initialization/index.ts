@@ -1,5 +1,9 @@
 import { InitStatus, prisma } from "@repo/db";
-import { getStepsForMode, InitializationProgress } from "@repo/types";
+import {
+  getStepsForMode,
+  InitializationProgress,
+  AvailableModels,
+} from "@repo/types";
 import { emitStreamChunk } from "../socket";
 import { createWorkspaceManager, getAgentMode } from "../execution";
 import type { WorkspaceManager as AbstractWorkspaceManager } from "../execution";
@@ -8,7 +12,7 @@ import {
   setTaskFailed,
   clearTaskProgress,
 } from "../utils/task-status";
-import indexRepo from "../indexing/indexer";
+import { runDeepWiki } from "../indexing/deepwiki/core";
 
 // Helper for async delays
 const delay = (ms: number) =>
@@ -42,6 +46,12 @@ const STEP_DEFINITIONS: Record<
   INDEX_REPOSITORY: {
     name: "Indexing Repository",
     description: "Index repository files for semantic search",
+  },
+
+  // Deep wiki generation step (both modes, optional)
+  GENERATE_DEEP_WIKI: {
+    name: "Generating Deep Wiki",
+    description: "Generate comprehensive codebase documentation",
   },
   ACTIVE: {
     name: "Ready",
@@ -192,7 +202,12 @@ export class TaskInitializationEngine {
 
       // Repository indexing step (both modes)
       case "INDEX_REPOSITORY":
-        // await this.executeIndexRepository(taskId);
+        // Indexing is handled during deep wiki generation
+        break;
+
+      // Deep wiki generation step (both modes, optional)
+      case "GENERATE_DEEP_WIKI":
+        await this.executeGenerateDeepWiki(taskId);
         break;
 
       case "INACTIVE":
@@ -446,39 +461,80 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Index repository step - Index repository files for semantic search
+   * Generate deep wiki step - Generate comprehensive codebase documentation
    */
-  // @ts-expect-error - Temporarily disabled for now
-  private async executeIndexRepository(taskId: string): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Starting repository indexing`);
+  private async executeGenerateDeepWiki(taskId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Starting deep wiki generation`);
 
     try {
       // Get task info
       const task = await prisma.task.findUnique({
         where: { id: taskId },
-        select: { repoFullName: true },
+        select: {
+          repoFullName: true,
+          repoUrl: true,
+          userId: true,
+          workspacePath: true,
+        },
       });
 
       if (!task) {
         throw new Error(`Task not found: ${taskId}`);
       }
 
-      // Index the repository with embeddings enabled
+      // Check if deep wiki already exists for this repository
+      const existingUnderstanding =
+        await prisma.codebaseUnderstanding.findUnique({
+          where: { repoFullName: task.repoFullName },
+          select: { id: true },
+        });
+
+      if (existingUnderstanding) {
+        // Link task to existing understanding
+        console.log(
+          `[TASK_INIT] ${taskId}: Linking to existing deep wiki for ${task.repoFullName} (ID: ${existingUnderstanding.id})`
+        );
+
+        await prisma.task.update({
+          where: { id: taskId },
+          data: { codebaseUnderstandingId: existingUnderstanding.id },
+        });
+
+        console.log(
+          `[TASK_INIT] ${taskId}: Successfully linked to existing codebase understanding`
+        );
+        return;
+      }
+
+      if (!task.workspacePath) {
+        throw new Error(`Workspace path not found for task: ${taskId}`);
+      }
+
+      // Generate deep wiki documentation
       console.log(
-        `[TASK_INIT] ${taskId}: Indexing repository ${task.repoFullName}`
+        `[TASK_INIT] ${taskId}: Generating new deep wiki for ${task.repoFullName}`
       );
 
-      await indexRepo(task.repoFullName, taskId, {
-        embed: true,
-        clearNamespace: true,
-      });
+      const result = await runDeepWiki(
+        task.workspacePath,
+        taskId,
+        task.repoFullName,
+        task.repoUrl,
+        task.userId,
+        {
+          // migrate to better abstraction for userApiKeys
+          concurrency: 12,
+          model: AvailableModels.GPT_4O,
+          modelMini: AvailableModels.GPT_4O_MINI,
+        }
+      );
 
       console.log(
-        `[TASK_INIT] ${taskId}: Successfully indexed repository ${task.repoFullName}`
+        `[TASK_INIT] ${taskId}: Successfully generated deep wiki - ${result.stats.filesProcessed} files, ${result.stats.directoriesProcessed} directories processed`
       );
     } catch (error) {
       console.error(
-        `[TASK_INIT] ${taskId}: Failed to index repository:`,
+        `[TASK_INIT] ${taskId}: Failed to generate deep wiki:`,
         error
       );
       throw error;
@@ -499,10 +555,26 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Get default initialization steps based on agent mode
+   * Get default initialization steps based on agent mode and user settings
    */
-  getDefaultStepsForTask(): InitStatus[] {
+  async getDefaultStepsForTask(userId: string): Promise<InitStatus[]> {
     const agentMode = getAgentMode();
-    return getStepsForMode(agentMode);
+
+    // Fetch user settings to determine if deep wiki generation should be enabled
+    let enableDeepWiki = true; // Default to true
+    try {
+      const userSettings = await prisma.userSettings.findUnique({
+        where: { userId },
+        select: { enableDeepWiki: true },
+      });
+      enableDeepWiki = userSettings?.enableDeepWiki ?? true;
+    } catch (error) {
+      console.warn(
+        `[TASK_INIT] Failed to fetch user settings for ${userId}, using default enableDeepWiki=true:`,
+        error
+      );
+    }
+
+    return getStepsForMode(agentMode, { enableDeepWiki });
   }
 }

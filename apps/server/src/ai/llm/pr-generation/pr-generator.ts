@@ -2,6 +2,7 @@ import { generateText } from "ai";
 import { ModelProvider } from "../models/model-provider";
 import { PRPrompts } from "./pr-prompts";
 import { PRParser } from "./pr-parser";
+import { AvailableModels, ApiKeys } from "@repo/types";
 
 export class PRGenerator {
   private modelProvider = new ModelProvider();
@@ -18,7 +19,7 @@ export class PRGenerator {
       commitMessages: string[];
       wasTaskCompleted: boolean;
     },
-    userApiKeys: { openai?: string; anthropic?: string }
+    userApiKeys: ApiKeys
   ): Promise<{
     title: string;
     description: string;
@@ -28,9 +29,8 @@ export class PRGenerator {
       const prompt = this.prPrompts.buildPRGenerationPrompt(options);
 
       const prModel = userApiKeys.openai
-        ? "gpt-4o-mini"
-        : // TODO: Add Claude 3.5 Haiku
-          "claude-sonnet-4-20250514";
+        ? AvailableModels.GPT_4O_MINI
+        : AvailableModels.CLAUDE_HAIKU_3_5;
 
       const { text } = await generateText({
         model: this.modelProvider.getModel(prModel, userApiKeys),

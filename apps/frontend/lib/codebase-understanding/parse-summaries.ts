@@ -1,7 +1,7 @@
 import { CodebaseUnderstanding } from "@repo/db";
 import {
   CodebaseSummary,
-  ShallowWikiContentSchema,
+  DeepWikiContentSchema,
   type TreeNode,
 } from "@repo/types";
 
@@ -13,7 +13,7 @@ export function parseCodebaseSummaries(
 
   try {
     // Validate and parse the content using Zod
-    const parseResult = ShallowWikiContentSchema.safeParse(codebaseContent);
+    const parseResult = DeepWikiContentSchema.safeParse(codebaseContent);
 
     if (!parseResult.success) {
       console.warn("Failed to parse codebase content:", parseResult.error);
