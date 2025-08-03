@@ -28,6 +28,7 @@ import {
   cancelTaskCleanup,
 } from "../utils/task-status";
 import { createToolExecutor } from "../execution";
+import { memoryService } from "../services/memory-service";
 
 export class ChatService {
   private llmService: LLMService;
@@ -648,6 +649,46 @@ export class ChatService {
           createdAt: new Date().toISOString(),
           llmModel,
         });
+      }
+
+      // Check if user has memories enabled (default true if no settings exist)
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        include: {
+          user: {
+            include: {
+              userSettings: true,
+            },
+          },
+        },
+      });
+
+      const memoriesEnabled = task?.user.userSettings?.memoriesEnabled ?? true;
+
+      // Add memory content as a system message if memories are enabled
+      if (memoriesEnabled) {
+        const memoryContext = await memoryService.getMemoriesForTask(taskId);
+        if (memoryContext && memoryContext.memories.length > 0) {
+          const memoryContent = memoryService.formatMemoriesForPrompt(memoryContext);
+          
+          // Save the memories as a system message in the database
+          const memorySequence = await this.getNextSequence(taskId);
+          await this.saveSystemMessage(
+            taskId,
+            memoryContent,
+            llmModel,
+            memorySequence
+          );
+
+          // Insert after deep wiki content, before user messages
+          messages.push({
+            id: randomUUID(),
+            role: "system",
+            content: memoryContent,
+            createdAt: new Date().toISOString(),
+            llmModel,
+          });
+        }
       }
     }
 
