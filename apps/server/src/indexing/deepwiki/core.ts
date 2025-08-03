@@ -435,7 +435,7 @@ export async function runDeepWiki(
       mainModel = "gpt-4o" as ModelType;
       miniModel = "gpt-4o-mini" as ModelType;
     } else if (userApiKeys.anthropic) {
-      mainModel = "claude-sonnet-4-latest" as ModelType;
+      mainModel = "claude-sonnet-4-20250514" as ModelType;
       miniModel = "claude-3-5-haiku-latest" as ModelType;
     } else {
       throw new Error(
