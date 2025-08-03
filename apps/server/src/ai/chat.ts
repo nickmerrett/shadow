@@ -10,7 +10,7 @@ import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../../packages/db/src/client";
 import { LLMService } from "./llm";
-import { systemPrompt } from "./system-prompt";
+import { getSystemPrompt } from "./system-prompt";
 import { GitManager } from "../services/git-manager";
 import { PRManager } from "../services/pr-manager";
 
@@ -570,10 +570,30 @@ export class ChatService {
 
     // Map to track tool call sequences as they're created
     const toolCallSequences = new Map<string, number>();
+    
+    // Get system prompt with deep wiki content for this task
+    const taskSystemPrompt = await getSystemPrompt(taskId);
+    
+    // Send system prompt to browser console for debugging
+    emitStreamChunk(
+      {
+        type: "debug",
+        debug: {
+          type: "system_prompt",
+          data: {
+            taskId,
+            promptLength: taskSystemPrompt.length,
+            hasDeepWiki: taskSystemPrompt.includes('<codebase_architecture>'),
+            prompt: taskSystemPrompt
+          }
+        }
+      },
+      taskId
+    );
 
     try {
       for await (const chunk of this.llmService.createMessageStream(
-        systemPrompt,
+        taskSystemPrompt,
         messages,
         llmModel,
         userApiKeys,
