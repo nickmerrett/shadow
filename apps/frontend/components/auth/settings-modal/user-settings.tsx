@@ -33,22 +33,16 @@ export function UserSettings() {
     }
   };
 
-  const handleAutoPRToggle = (checked: boolean | "indeterminate") => {
-    if (typeof checked === "boolean") {
-      updateUserSettings.mutate({ autoPullRequest: checked });
-    }
+  const handleAutoPRToggle = (checked: boolean) => {
+    updateUserSettings.mutate({ autoPullRequest: checked });
   };
 
-  const handleMemoriesEnabledToggle = (checked: boolean | "indeterminate") => {
-    if (typeof checked === "boolean") {
-      updateUserSettings.mutate({ memoriesEnabled: checked });
-    }
+  const handleMemoriesEnabledToggle = (checked: boolean) => {
+    updateUserSettings.mutate({ memoriesEnabled: checked });
   };
 
-  const handleDeepWikiToggle = (checked: boolean | "indeterminate") => {
-    if (typeof checked === "boolean") {
-      updateUserSettings.mutate({ enableDeepWiki: checked });
-    }
+  const handleDeepWikiToggle = (checked: boolean) => {
+    updateUserSettings.mutate({ enableDeepWiki: checked });
   };
 
   return (
