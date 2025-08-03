@@ -1,13 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-
-export type ApiKeyProvider = "openai" | "anthropic";
-
-export interface ApiKeys {
-  openai: string;
-  anthropic: string;
-}
+import { ApiKeyProvider, ApiKeys } from "@repo/types";
 
 export async function getApiKeys(): Promise<ApiKeys> {
   const cookieStore = await cookies();
