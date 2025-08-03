@@ -54,7 +54,7 @@ const prodConfigSchema = sharedConfigSchema.extend({
   // Pod restart policy (Never = single-use pods, OnFailure = retry on crashes)
   POD_RESTART_POLICY: z.string().default("Never"),
   // Service account for pod security and RBAC permissions
-  POD_SERVICE_ACCOUNT: z.string().default("shadow-firecracker-vm-sa"),
+  POD_SERVICE_ACCOUNT: z.string().default("shadow-remote-vm-sa"),
   // Runtime class for Kata QEMU container execution
   RUNTIME_CLASS: z.string().default("kata-qemu"),
   // Enable privileged containers (required for VM creation)
@@ -249,7 +249,7 @@ if (!prodValidation.success) {
 
 /**
  * Production configuration object
- * Combines shared config with production-specific Firecracker settings
+ * Combines shared config with production-specific remote execution settings
  */
 const prodConfig = {
   ...createSharedConfig(parsed.data),

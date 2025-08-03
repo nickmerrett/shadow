@@ -300,7 +300,7 @@ install_kata_runtime() {
     # Install Kata Containers RBAC
     kubectl apply -f https://raw.githubusercontent.com/kata-containers/kata-containers/main/tools/packaging/kata-deploy/kata-rbac/base/kata-rbac.yaml
     
-    # Install kata-deploy with Firecracker support
+    # Install kata-deploy with QEMU support
     kubectl apply -f https://raw.githubusercontent.com/kata-containers/kata-containers/main/tools/packaging/kata-deploy/kata-deploy/base/kata-deploy.yaml
     
     # Add toleration for remote nodes
@@ -418,7 +418,7 @@ EOF
 
 # Verify deployment
 verify_deployment() {
-    log "Verifying Firecracker deployment..."
+    log "Verifying remote deployment..."
     
     # Check node readiness
     log "Checking node status..."
@@ -482,7 +482,7 @@ EOF
 
 # Main execution
 main() {
-    log "Starting Shadow Firecracker infrastructure deployment..."
+    log "Starting Shadow remote infrastructure deployment..."
     log "Cluster: $CLUSTER_NAME"
     log "Region: $AWS_REGION"
     log "Instance Type: $NODE_INSTANCE_TYPE"
