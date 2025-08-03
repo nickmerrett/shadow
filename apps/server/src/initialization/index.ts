@@ -468,47 +468,6 @@ export class TaskInitializationEngine {
     }
   }
 
-  /**
-   * Index repository step - Index repository files for semantic search
-   */
-  private async executeIndexRepository(taskId: string): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Starting repository indexing`);
-
-    try {
-      // Get task info
-      const task = await prisma.task.findUnique({
-        where: { id: taskId },
-        select: { repoFullName: true },
-      });
-
-      if (!task) {
-        throw new Error(`Task not found: ${taskId}`);
-      }
-
-      // Index the repository with embeddings enabled
-      console.log(
-        `[TASK_INIT] ${taskId}: Indexing repository ${task.repoFullName}`
-      );
-
-      await indexRepo(task.repoFullName, taskId, {
-        embed: true,
-        clearNamespace: true,
-      });
-
-      console.log(
-        `[TASK_INIT] ${taskId}: Successfully indexed repository ${task.repoFullName}`
-      );
-    } catch (error) {
-      console.error(
-        
-        `[TASK_INIT] ${taskId}: Failed to index repository:`,
-       
-        error
-      
-      );
-      throw error;
-    }
-  }
 
   /**
    * Generate deep wiki step - Generate comprehensive codebase documentation
