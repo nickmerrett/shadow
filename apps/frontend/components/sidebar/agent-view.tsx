@@ -13,7 +13,6 @@ import {
   Folder,
   FolderGit2,
   GitBranch,
-  GitPullRequest,
   ListTodo,
   RefreshCcw,
   Square,
@@ -29,6 +28,10 @@ import { Button } from "@/components/ui/button";
 import { fetchIndexApi } from "@/lib/actions/index-repo";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
+import { GithubLogo } from "../graphics/github/github-logo";
+import { useCreatePR } from "@/hooks/use-create-pr";
+import { useTaskSocket } from "@/hooks/socket";
+import { Loader2, GitPullRequest } from "lucide-react";
 
 const todoStatusConfig = {
   PENDING: { icon: Square, className: "text-muted-foreground" },
@@ -83,7 +86,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
           type: item.type,
           path: item.path,
           children: item.children ? convertToArray(item.children) : undefined,
-        }),
+        })
       );
   };
 
@@ -93,12 +96,14 @@ function createFileTree(filePaths: string[]): FileNode[] {
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
+  const { isStreaming } = useTaskSocket(taskId);
+  const createPRMutation = useCreatePR();
 
   const [isIndexing, setIsIndexing] = useState(false);
 
   const completedTodos = useMemo(
     () => todos.filter((todo) => todo.status === "COMPLETED").length,
-    [todos],
+    [todos]
   );
 
   // Create file tree from file changes
@@ -120,11 +125,74 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       updateSelectedFilePath(file.path);
       expandRightPanel();
     },
-    [expandRightPanel, updateSelectedFilePath],
+    [expandRightPanel, updateSelectedFilePath]
   );
+
+  const handleCreatePR = useCallback(async () => {
+    if (!task?.id) return;
+    try {
+      await createPRMutation.mutateAsync(task.id);
+    } catch (error) {
+      console.error("Failed to create PR:", error);
+    }
+  }, [task?.id, createPRMutation]);
+
+  // Determine if we should show create PR button
+  const showCreatePR = !task?.pullRequestNumber && fileChanges.length > 0;
+  const isCreatePRDisabled = isStreaming || createPRMutation.isPending;
 
   return (
     <>
+      {/* PR buttons - show create or view based on state */}
+      {(task.pullRequestNumber || showCreatePR) && (
+        <SidebarGroup>
+          <SidebarGroupContent className="flex flex-col gap-0.5">
+            <SidebarMenuItem>
+              {task.pullRequestNumber ? (
+                // View PR button when PR exists
+                <Button
+                  variant="secondary"
+                  className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full"
+                  asChild
+                >
+                  <Link
+                    href={`${task.repoUrl}/pull/${task.pullRequestNumber}`}
+                    target="_blank"
+                  >
+                    <GithubLogo className="size-4 shrink-0" />
+                    <div className="flex gap-1 overflow-hidden">
+                      <span className="truncate">View Pull Request</span>
+                      <span className="text-muted-foreground">
+                        #{task.pullRequestNumber}
+                      </span>
+                    </div>
+                  </Link>
+                </Button>
+              ) : (
+                // Create PR button when file changes exist and no PR
+                <Button
+                  variant="secondary"
+                  className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full"
+                  onClick={handleCreatePR}
+                  disabled={isCreatePRDisabled}
+                >
+                  {createPRMutation.isPending ? (
+                    <Loader2 className="size-4 shrink-0 animate-spin" />
+                  ) : (
+                    <GithubLogo className="size-4 shrink-0" />
+                  )}
+                  <span className="truncate">
+                    {createPRMutation.isPending
+                      ? "Creating..."
+                      : "Create Pull Request"}
+                  </span>
+                </Button>
+              )}
+            </SidebarMenuItem>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      )}
+
       <SidebarGroup>
         <SidebarGroupContent className="flex flex-col gap-0.5">
           <SidebarMenuItem>
@@ -138,6 +206,33 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 <span className="truncate">{task.repoFullName}</span>
               </Link>
             </Button>
+          </SidebarMenuItem>
+
+          <SidebarMenuItem>
+            <Button
+              variant="ghost"
+              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+              asChild
+            >
+              <Link
+                href={`${task.repoUrl}/tree/${task.shadowBranch}`}
+                target="_blank"
+              >
+                <GitBranch className="size-4 shrink-0" />
+                <span className="truncate">{task.shadowBranch}</span>
+              </Link>
+            </Button>
+          </SidebarMenuItem>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <div className="px-3">
+        <div className="bg-border h-px w-full" />
+      </div>
+
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenuItem>
             <div className="flex h-8 items-center gap-2 px-2 text-sm">
               {(() => {
                 const StatusIcon =
@@ -158,43 +253,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 );
               })()}
             </div>
-          </SidebarMenuItem>
-
-          {/* View PR button - only show if PR exists */}
-          {task.pullRequestNumber && (
-            <SidebarMenuItem>
-              <Button
-                variant="ghost"
-                className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
-                asChild
-              >
-                <Link
-                  href={`${task.repoUrl}/pull/${task.pullRequestNumber}`}
-                  target="_blank"
-                >
-                  <GitPullRequest className="size-4 shrink-0" />
-                  <span className="truncate">
-                    View PR #{task.pullRequestNumber}
-                  </span>
-                </Link>
-              </Button>
-            </SidebarMenuItem>
-          )}
-
-          <SidebarMenuItem>
-            <Button
-              variant="ghost"
-              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
-              asChild
-            >
-              <Link
-                href={`${task.repoUrl}/tree/${task.shadowBranch}`}
-                target="_blank"
-              >
-                <GitBranch className="size-4 shrink-0" />
-                <span className="truncate">{task.shadowBranch}</span>
-              </Link>
-            </Button>
           </SidebarMenuItem>
 
           {/* Task total diff */}
@@ -267,7 +325,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                       className={cn(
                         "flex min-h-8 items-start gap-2 p-2 pb-0 text-sm",
                         todo.status === "COMPLETED" &&
-                          "text-muted-foreground line-through",
+                          "text-muted-foreground line-through"
                       )}
                     >
                       <TodoIcon className={cn("size-4", iconClass)} />

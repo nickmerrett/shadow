@@ -14,6 +14,7 @@ import config from "./config";
 import { updateTaskStatus } from "./utils/task-status";
 import { createToolExecutor } from "./execution";
 import { setupSidecarNamespace } from "./services/sidecar-socket-handler";
+import { parseApiKeysFromCookies } from "./utils/cookie-parser";
 
 interface ConnectionState {
   lastSeen: number;
@@ -29,62 +30,9 @@ interface ConnectionState {
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 const connectionStates = new Map<string, ConnectionState>();
-let currentStreamContent = "";
+let currentStreamChunks: StreamChunk[] = [];
 let isStreaming = false;
 let io: Server<ClientToServerEvents, ServerToClientEvents>;
-
-function parseApiKeysFromCookies(cookieHeader?: string): {
-  openai?: string;
-  anthropic?: string;
-} {
-  if (!cookieHeader) {
-    console.log(
-      "[SOCKET] No cookie header provided to parseApiKeysFromCookies"
-    );
-    return {};
-  }
-
-  console.log(
-    `[SOCKET] Parsing cookies from header (length: ${cookieHeader.length})`
-  );
-  console.log(
-    `[SOCKET] Cookie header preview: ${cookieHeader.substring(0, 100)}...`
-  );
-
-  const cookies: Record<string, string> = {};
-  cookieHeader.split(";").forEach((cookie) => {
-    const trimmedCookie = cookie.trim();
-    const equalIndex = trimmedCookie.indexOf("=");
-
-    if (equalIndex > 0) {
-      const name = trimmedCookie.substring(0, equalIndex);
-      const value = trimmedCookie.substring(equalIndex + 1);
-
-      // Log individual cookie parsing for debugging
-      if (name === "openai-key" || name === "anthropic-key") {
-        console.log(
-          `[SOCKET] Parsing cookie "${name}": length=${value.length}, starts with="${value.substring(0, 10)}..."`
-        );
-      }
-
-      // Only decode if the value contains URL-encoded characters
-      // API keys typically don't need decoding, but session tokens might
-      cookies[name] = value.includes("%") ? decodeURIComponent(value) : value;
-    }
-  });
-
-  console.log("[SOCKET] Extracted API keys:", {
-    hasOpenAI: !!cookies["openai-key"],
-    hasAnthropic: !!cookies["anthropic-key"],
-    openaiLength: cookies["openai-key"]?.length || 0,
-    anthropicLength: cookies["anthropic-key"]?.length || 0,
-  });
-
-  return {
-    openai: cookies["openai-key"] || undefined,
-    anthropic: cookies["anthropic-key"] || undefined,
-  };
-}
 
 async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
   try {
@@ -233,17 +181,11 @@ async function verifyTaskAccess(
   taskId: string
 ): Promise<boolean> {
   try {
-    console.log(`[SOCKET] Verifying access for task: ${taskId}`);
     // For now, just check if task exists
     // TODO: Add proper user authentication and authorization
     const task = await prisma.task.findUnique({
       where: { id: taskId },
     });
-    console.log(
-      `[SOCKET] Task found:`,
-      !!task,
-      task ? `(${task.status})` : "(not found)"
-    );
     return !!task;
   } catch (error) {
     console.error(`[SOCKET] Error verifying task access:`, error);
@@ -275,11 +217,6 @@ export function createSocketServer(
     },
   });
 
-  // Debug: Log cookies during HTTP handshake
-  io.engine.on("headers", (_headers, request) => {
-    console.log("[SOCKET] HTTP handshake cookies:", request.headers.cookie);
-  });
-
   // Set up sidecar namespace for filesystem watching (only in remote mode)
   const agentMode = config.agentMode;
   if (agentMode === "remote") {
@@ -289,14 +226,10 @@ export function createSocketServer(
   io.on("connection", (socket: TypedSocket) => {
     const connectionId = socket.id;
 
-    // Correct way to access cookies in Socket.IO
     const cookieHeader = socket.request.headers.cookie;
     const apiKeys = parseApiKeysFromCookies(cookieHeader);
 
     console.log(`[SOCKET] User connected: ${connectionId}`);
-    console.log(`[SOCKET] Cookie header from socket.request:`, cookieHeader);
-    console.log(`[SOCKET] Handshake headers:`, socket.handshake.headers);
-    console.log(`[SOCKET] Request headers:`, socket.request.headers);
     console.log(`[SOCKET] Parsed API keys:`, {
       hasOpenAI: !!apiKeys.openai,
       hasAnthropic: !!apiKeys.anthropic,
@@ -322,21 +255,21 @@ export function createSocketServer(
     });
 
     // Send current stream state to new connections
-    if (isStreaming && currentStreamContent) {
+    if (isStreaming && currentStreamChunks.length > 0) {
       console.log(
         `[SOCKET] Sending stream state to ${connectionId}:`,
-        currentStreamContent.length
+        currentStreamChunks.length
       );
       socket.emit("stream-state", {
-        content: currentStreamContent,
+        chunks: currentStreamChunks,
         isStreaming: true,
-        bufferPosition: currentStreamContent.length,
+        totalChunks: currentStreamChunks.length,
       });
     } else {
       socket.emit("stream-state", {
-        content: "",
+        chunks: [],
         isStreaming: false,
-        bufferPosition: 0,
+        totalChunks: 0,
       });
     }
 
@@ -623,21 +556,19 @@ export function createSocketServer(
           connectionStates.set(connectionId, state);
         }
 
-        // Send incremental updates from position
-        const fromPosition = data.fromPosition || 0;
-        if (currentStreamContent.length > fromPosition) {
-          const incrementalContent = currentStreamContent.slice(fromPosition);
-          socket.emit("stream-update", {
-            content: incrementalContent,
-            isIncremental: true,
-            fromPosition,
-            totalLength: currentStreamContent.length,
+        // Send structured chunks instead of positional content
+        if (currentStreamChunks.length > 0) {
+          // Send all chunks - let frontend handle deduplication
+          socket.emit("stream-state", {
+            chunks: currentStreamChunks,
+            isStreaming: isStreaming,
+            totalChunks: currentStreamChunks.length,
           });
         }
 
         socket.emit("history-complete", {
           taskId: data.taskId,
-          totalLength: currentStreamContent.length,
+          totalLength: currentStreamChunks.length,
         });
       } catch (error) {
         console.error(
@@ -679,7 +610,7 @@ export function createSocketServer(
 }
 
 export function startStream() {
-  currentStreamContent = "";
+  currentStreamChunks = [];
   isStreaming = true;
 }
 
@@ -733,9 +664,9 @@ export async function emitTaskStatusUpdate(
 }
 
 export function emitStreamChunk(chunk: StreamChunk, taskId: string) {
-  // Accumulate content for state tracking
-  if (chunk.type === "content" && chunk.content) {
-    currentStreamContent += chunk.content;
+  // Store the chunk for state recovery (exclude complete/error chunks from state)
+  if (chunk.type !== "complete" && chunk.type !== "error") {
+    currentStreamChunks.push(chunk);
   }
 
   if (io) {

@@ -5,70 +5,20 @@ import cors from "cors";
 import express from "express";
 import http from "http";
 import { z } from "zod";
-import { ChatService } from "./chat";
+import { ChatService } from "./ai/chat";
 import { TaskInitializationEngine } from "./initialization";
 import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";
-import { getGitHubAccessToken } from "./utils/github-account";
+import { getGitHubAccessToken } from "./github/auth/account-service";
 import { updateTaskStatus } from "./utils/task-status";
 import { createWorkspaceManager } from "./execution";
-import { filesRouter } from "./routes/files";
+import { filesRouter } from "./file-routes";
+import { parseApiKeysFromCookies } from "./utils/cookie-parser";
+import { handleGitHubWebhook } from "./webhooks/github-webhook";
 
 const app = express();
 export const chatService = new ChatService();
 const initializationEngine = new TaskInitializationEngine();
-
-// Helper function to parse API keys from cookies
-function parseApiKeysFromCookies(cookieHeader?: string): {
-  openai?: string;
-  anthropic?: string;
-} {
-  if (!cookieHeader) {
-    console.log("[APP] No cookie header provided to parseApiKeysFromCookies");
-    return {};
-  }
-
-  console.log(
-    `[APP] Parsing cookies from header (length: ${cookieHeader.length})`
-  );
-  console.log(
-    `[APP] Cookie header preview: ${cookieHeader.substring(0, 100)}...`
-  );
-
-  const cookies: Record<string, string> = {};
-  cookieHeader.split(";").forEach((cookie) => {
-    const trimmedCookie = cookie.trim();
-    const equalIndex = trimmedCookie.indexOf("=");
-
-    if (equalIndex > 0) {
-      const name = trimmedCookie.substring(0, equalIndex);
-      const value = trimmedCookie.substring(equalIndex + 1);
-
-      // Log individual cookie parsing for debugging
-      if (name === "openai-key" || name === "anthropic-key") {
-        console.log(
-          `[APP] Parsing cookie "${name}": length=${value.length}, starts with="${value.substring(0, 10)}..."`
-        );
-      }
-
-      // Only decode if the value contains URL-encoded characters
-      // API keys typically don't need decoding, but session tokens might
-      cookies[name] = value.includes("%") ? decodeURIComponent(value) : value;
-    }
-  });
-
-  console.log("[APP] Extracted API keys:", {
-    hasOpenAI: !!cookies["openai-key"],
-    hasAnthropic: !!cookies["anthropic-key"],
-    openaiLength: cookies["openai-key"]?.length || 0,
-    anthropicLength: cookies["anthropic-key"]?.length || 0,
-  });
-
-  return {
-    openai: cookies["openai-key"] || undefined,
-    anthropic: cookies["anthropic-key"] || undefined,
-  };
-}
 
 const initiateTaskSchema = z.object({
   message: z.string().min(1, "Message is required"),
@@ -87,11 +37,21 @@ app.use(
     credentials: true,
   })
 );
+
+// Special raw body handling for webhook endpoints (before JSON parsing)
+app.use("/api/webhooks", express.raw({ type: "application/json" }));
+
 app.use(express.json());
 
 /* ROUTES */
 app.get("/", (_req, res) => {
   res.send("<h1>Hello world</h1>");
+});
+
+app.get("/health", (_req, res) => {
+  res
+    .status(200)
+    .json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
 // Indexing routes
@@ -100,7 +60,8 @@ app.use("/api/indexing", IndexingRouter);
 // Files routes
 app.use("/api/tasks", filesRouter);
 
-// Settings routes
+// GitHub webhook endpoint
+app.post("/api/webhooks/github/pull-request", handleGitHubWebhook);
 
 // Get task details
 app.get("/api/tasks/:taskId", async (req, res) => {
@@ -193,9 +154,8 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 
       // Process the message with the agent using the task workspace
       // Skip saving user message since it's already saved in the server action
-      const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
 
-      // Validate that user has the required API key for the selected model
+      const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
       const modelProvider = model.includes("claude") ? "anthropic" : "openai";
       if (!userApiKeys[modelProvider]) {
         const providerName =
@@ -206,7 +166,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         });
       }
 
-      console.log("userApiKeys", userApiKeys, "model", model);
+      console.log("\n\n[TASK_INITIATE] PROCESSING USER MESSAGE\n\n");
 
       await chatService.processUserMessage({
         taskId,
@@ -378,6 +338,127 @@ app.delete("/api/tasks/:taskId/cleanup", async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to cleanup task",
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+// Create PR for a task
+app.post("/api/tasks/:taskId/pull-request", async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { userId } = req.body;
+
+    console.log(`[PR_CREATION] Creating PR for task ${taskId}`);
+
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        id: true,
+        userId: true,
+        repoFullName: true,
+        shadowBranch: true,
+        baseBranch: true,
+        title: true,
+        status: true,
+        repoUrl: true,
+        pullRequestNumber: true,
+        workspacePath: true,
+      },
+    });
+
+    if (!task) {
+      console.warn(`[PR_CREATION] Task ${taskId} not found`);
+      return res.status(404).json({
+        success: false,
+        error: "Task not found",
+      });
+    }
+
+    if (task.userId !== userId) {
+      console.warn(`[PR_CREATION] User ${userId} does not own task ${taskId}`);
+      return res.status(403).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
+
+    if (task.pullRequestNumber) {
+      console.log(
+        `[PR_CREATION] Task ${taskId} already has PR #${task.pullRequestNumber}`
+      );
+      return res.json({
+        success: true,
+        prNumber: task.pullRequestNumber,
+        prUrl: `${task.repoUrl}/pull/${task.pullRequestNumber}`,
+        message: "Pull request already exists",
+      });
+    }
+
+    // Find the most recent assistant message for this task
+    const latestAssistantMessage = await prisma.chatMessage.findFirst({
+      where: {
+        taskId,
+        role: "ASSISTANT",
+      },
+      orderBy: {
+        sequence: "desc",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!latestAssistantMessage) {
+      console.warn(
+        `[PR_CREATION] No assistant messages found for task ${taskId}`
+      );
+      return res.status(400).json({
+        success: false,
+        error:
+          "No assistant messages found. Cannot create PR without agent responses.",
+      });
+    }
+
+    const userApiKeys = parseApiKeysFromCookies(req.headers.cookie || "");
+
+    await chatService.createPRIfNeeded(
+      taskId,
+      task.workspacePath || undefined,
+      latestAssistantMessage.id,
+      userApiKeys
+    );
+
+    const updatedTask = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        pullRequestNumber: true,
+        repoUrl: true,
+      },
+    });
+
+    if (!updatedTask?.pullRequestNumber) {
+      throw new Error("PR creation completed but no PR number found");
+    }
+
+    console.log(
+      `[PR_CREATION] Successfully created PR #${updatedTask.pullRequestNumber} for task ${taskId}`
+    );
+
+    res.json({
+      success: true,
+      prNumber: updatedTask.pullRequestNumber,
+      prUrl: `${updatedTask.repoUrl}/pull/${updatedTask.pullRequestNumber}`,
+      messageId: latestAssistantMessage.id,
+    });
+  } catch (error) {
+    console.error(
+      `[PR_CREATION] Error creating PR for task ${req.params.taskId}:`,
+      error
+    );
+    res.status(500).json({
+      success: false,
+      error: "Failed to create pull request",
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }

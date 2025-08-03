@@ -8,7 +8,7 @@ import {
   setTaskFailed,
   clearTaskProgress,
 } from "../utils/task-status";
-import indexRepo from "../indexing/indexer.js";
+import indexRepo from "../indexing/indexer";
 
 // Helper for async delays
 const delay = (ms: number) =>
@@ -192,7 +192,7 @@ export class TaskInitializationEngine {
 
       // Repository indexing step (both modes)
       case "INDEX_REPOSITORY":
-        await this.executeIndexRepository(taskId);
+        // await this.executeIndexRepository(taskId);
         break;
 
       case "INACTIVE":
@@ -448,6 +448,7 @@ export class TaskInitializationEngine {
   /**
    * Index repository step - Index repository files for semantic search
    */
+  // @ts-expect-error - Temporarily disabled for now
   private async executeIndexRepository(taskId: string): Promise<void> {
     console.log(`[TASK_INIT] ${taskId}: Starting repository indexing`);
 

@@ -17,6 +17,7 @@ import { TaskMessages } from "@/lib/db-operations/get-task-messages";
 import { getMostRecentMessageModel } from "@/lib/utils/model-utils";
 import { CodebaseTreeResponse } from "../use-codebase-tree";
 import { Task, TodoStatus } from "@repo/db";
+import { TaskStatusData } from "@/lib/db-operations/get-task-status";
 
 interface FileChange {
   filePath: string;
@@ -299,9 +300,47 @@ export function useTaskSocket(taskId: string | undefined) {
       }
     }
 
-    function onStreamState(state: { content: string; isStreaming: boolean }) {
+    function onStreamState(state: { 
+      chunks: StreamChunk[]; 
+      isStreaming: boolean; 
+      totalChunks: number; 
+    }) {
       console.log("Received stream state:", state);
       setIsStreaming(state.isStreaming);
+      
+      // Replay chunks to reconstruct streamingAssistantParts
+      if (state.chunks && state.chunks.length > 0) {
+        const parts: AssistantMessagePart[] = [];
+        
+        state.chunks.forEach(chunk => {
+          if (chunk.type === "content" && chunk.content) {
+            const textPart: TextPart = {
+              type: "text",
+              text: chunk.content,
+            };
+            parts.push(textPart);
+          } else if (chunk.type === "tool-call" && chunk.toolCall) {
+            const toolCallPart: ToolCallPart = {
+              type: "tool-call",
+              toolCallId: chunk.toolCall.id,
+              toolName: chunk.toolCall.name,
+              args: chunk.toolCall.args,
+            };
+            parts.push(toolCallPart);
+          } else if (chunk.type === "tool-result" && chunk.toolResult) {
+            const toolResultPart: ToolResultPart = {
+              type: "tool-result",
+              toolCallId: chunk.toolResult.id,
+              toolName: "", // Will be filled by existing message processing logic
+              result: chunk.toolResult.result,
+            };
+            parts.push(toolResultPart);
+          }
+        });
+        
+        setStreamingAssistantParts(parts);
+        console.log(`[STREAM_STATE] Reconstructed ${parts.length} parts from ${state.chunks.length} chunks`);
+      }
     }
 
     function onStreamChunk(chunk: StreamChunk) {
@@ -449,6 +488,18 @@ export function useTaskSocket(taskId: string | undefined) {
               }
             );
 
+            queryClient.setQueryData(
+              ["task-status", taskId],
+              (oldData: TaskStatusData) => {
+                if (!oldData) return oldData;
+                return {
+                  ...oldData,
+                  initStatus:
+                    chunk.initProgress?.initStatus || oldData.initStatus,
+                };
+              }
+            );
+
             queryClient.setQueryData(["tasks"], (oldTasks: Task[]) => {
               if (oldTasks) {
                 return oldTasks.map((task: Task) =>
@@ -568,15 +619,26 @@ export function useTaskSocket(taskId: string | undefined) {
           }
         );
 
+        queryClient.setQueryData(
+          ["task-status", taskId],
+          (oldData: TaskStatusData) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              status: data.status,
+            };
+          }
+        );
+
         queryClient.setQueryData(["tasks"], (oldTasks: Task[]) => {
           if (oldTasks) {
             return oldTasks.map((task: Task) =>
               task.id === taskId
-                ? { 
-                    ...task, 
-                    status: data.status, 
+                ? {
+                    ...task,
+                    status: data.status,
                     initStatus: data.initStatus || task.initStatus,
-                    updatedAt: data.timestamp 
+                    updatedAt: data.timestamp,
                   }
                 : task
             );

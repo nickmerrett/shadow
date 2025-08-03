@@ -21,7 +21,7 @@ model User {
   sessions              Session[]
   CodebaseUnderstanding CodebaseUnderstanding[]
   memories              Memory[]
-  settings              UserSettings?
+  userSettings          UserSettings?
 
   @@map("user")
 }
@@ -94,6 +94,7 @@ model Task {
   baseCommitSha       String
   shadowBranch        String
   pullRequestNumber   Int?
+  githubIssueId       String?
   messages            ChatMessage[]
   user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions            TaskSession[]
@@ -187,37 +188,27 @@ model CodebaseUnderstanding {
 }
 
 model Memory {
-  id        String      @id @default(cuid())
-  content   String
-  category  MemoryCategory
-  
+  id       String         @id @default(cuid())
+  content  String
+  category MemoryCategory
+
   // Repository-specific memories only
   repoFullName String
   repoUrl      String
-  
+
   // User and task context
-  userId    String
-  taskId    String
-  
+  userId String
+  taskId String
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([userId, repoFullName])
   @@index([taskId])
   @@index([category])
-}
-
-model UserSettings {
-  id              String  @id @default(cuid())
-  memoriesEnabled Boolean @default(false)
-  userId          String  @unique
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PullRequestSnapshot {
@@ -276,6 +267,18 @@ enum InitStatus {
   VERIFY_VM_WORKSPACE
   INDEX_REPOSITORY
   ACTIVE
+}
+
+model UserSettings {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  memoriesEnabled Boolean  @default(true)
+  autoPullRequest Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
 }
 
 enum FileOp {
