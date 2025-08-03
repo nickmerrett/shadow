@@ -336,9 +336,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         </SidebarGroup>
       )}
 
-      {/* Memories - Show relevant memories for this task */}
-      {/* SidebarMemoriesView removed; chat will handle memory listing */}
-
       {/* Modified Files - Only show if file changes exist */}
       {fileChanges.length > 0 && (
         <SidebarGroup>
