@@ -6,13 +6,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import {
   Tooltip,
@@ -125,7 +119,7 @@ export function TaskPageWrapper({
       setIsSheetOpen(true);
       return;
     }
-    
+
     const panel = rightPanelRef.current;
     if (!panel) return;
     if (panel.isCollapsed()) {
@@ -297,15 +291,16 @@ export function TaskPageWrapper({
           </>
         )}
       </ResizablePanelGroup>
-      
+
       {isMobile && (
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <SheetContent side="right" className="w-full sm:w-3/4">
-            <SheetHeader>
-              <SheetTitle>Shadow Realm</SheetTitle>
-            </SheetHeader>
+          <SheetContent
+            side="right"
+            hideCloseButton
+            className="w-[90%] sm:w-3/4 sm:max-w-none"
+          >
             <div className="flex-1 overflow-hidden">
-              <AgentEnvironment />
+              <AgentEnvironment isMobile />
             </div>
           </SheetContent>
         </Sheet>
