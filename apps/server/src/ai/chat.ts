@@ -615,9 +615,14 @@ export class ChatService {
 
     // Prepare messages for LLM (exclude the user message we just saved to avoid duplication)
     // Filter out tool messages since they're embedded in assistant messages as parts
-    let messages: Message[] = history
+    const messages: Message[] = history
       .slice(0, -1) // Remove the last message (the one we just saved)
-      .filter((msg) => msg.role === "user" || msg.role === "assistant" || msg.role === "system");
+      .filter(
+        (msg) =>
+          msg.role === "user" ||
+          msg.role === "assistant" ||
+          msg.role === "system"
+      );
 
     // Check if deep wiki system message already exists in conversation
     const hasDeepWikiMessage = history.some((msg) => msg.role === "system");
@@ -628,8 +633,13 @@ export class ChatService {
       if (deepWikiContent) {
         // Save the deep wiki as a system message in the database
         const deepWikiSequence = await this.getNextSequence(taskId);
-        await this.saveSystemMessage(taskId, deepWikiContent, llmModel, deepWikiSequence);
-        
+        await this.saveSystemMessage(
+          taskId,
+          deepWikiContent,
+          llmModel,
+          deepWikiSequence
+        );
+
         // Insert at the beginning, right after system prompt
         messages.unshift({
           id: randomUUID(),
@@ -673,7 +683,7 @@ export class ChatService {
 
     // Map to track tool call sequences as they're created
     const toolCallSequences = new Map<string, number>();
-    
+
     // Get clean system prompt (deep wiki content is now in messages array)
     const taskSystemPrompt = await getSystemPrompt();
 
