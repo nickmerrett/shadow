@@ -5,7 +5,7 @@ import cors from "cors";
 import express from "express";
 import http from "http";
 import { z } from "zod";
-import { ChatService } from "./ai/chat";
+import { ChatService } from "./agent/chat";
 import { TaskInitializationEngine } from "./initialization";
 import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";
@@ -138,7 +138,8 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 
       await updateTaskStatus(taskId, "INITIALIZING", "INIT");
 
-      const initSteps = await initializationEngine.getDefaultStepsForTask(userId);
+      const initSteps =
+        await initializationEngine.getDefaultStepsForTask(userId);
       await initializationEngine.initializeTask(taskId, initSteps, userId);
 
       // Get updated task with workspace info

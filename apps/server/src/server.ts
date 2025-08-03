@@ -1,6 +1,6 @@
 import { app, socketIOServer } from "./app";
 import config from "./config";
-import { stopAllFileSystemWatchers } from "./ai/tools";
+import { stopAllFileSystemWatchers } from "./agent/tools";
 import { taskCleanupService } from "./services/task-cleanup";
 
 const apiServer = app.listen(config.apiPort, () => {

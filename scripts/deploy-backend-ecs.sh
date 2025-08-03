@@ -8,6 +8,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Create logs directory
+LOGS_DIR="$SCRIPT_DIR/logs"
+mkdir -p "$LOGS_DIR"
+LOG_FILE="$LOGS_DIR/ecs-deploy-$(date +%Y%m%d-%H%M%S).log"
+
 # Configuration
 CLUSTER_NAME="${EKS_CLUSTER_NAME:-shadow-remote}"
 ECS_CLUSTER_NAME="${ECS_CLUSTER_NAME:-shadow-ecs-cluster}"
@@ -16,7 +21,7 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 AWS_PROFILE="${AWS_PROFILE:-ID}"
 SERVICE_NAME="${SERVICE_NAME:-shadow-backend-service}"
 TASK_FAMILY="${TASK_FAMILY:-shadow-server-task}"
-DESIRED_COUNT="${DESIRED_COUNT:-2}"
+DESIRED_COUNT="${DESIRED_COUNT:-1}"
 
 # Resource Configuration
 TASK_CPU="${TASK_CPU:-1024}"
@@ -32,6 +37,7 @@ NC='\033[0m' # No Color
 
 log() {
     echo -e "${GREEN}[ECS-DEPLOY]${NC} $1"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
 warn() {
@@ -546,23 +552,28 @@ create_load_balancer() {
         --query 'TargetGroups[0].TargetGroupArn' \
         --output text)
     
-    # Enable sticky sessions for WebSocket (with timeout)
-    log "Enabling sticky sessions on target group..."
-    timeout 30s aws elbv2 modify-target-group-attributes \
-        --target-group-arn "$TG_ARN" \
-        --attributes Key=stickiness.enabled,Value=true Key=stickiness.type,Value=lb_cookie Key=stickiness.lb_cookie.duration_seconds,Value=86400 \
-        --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE" || warn "Target group attribute modification timed out or failed, continuing..."
+    # Enable sticky sessions for WebSocket (check if already enabled first)
+    log "Checking sticky sessions on target group..."
+    if aws elbv2 describe-target-group-attributes --target-group-arn "$TG_ARN" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'Attributes[?Key==`stickiness.enabled`].Value' --output text | grep -q "true"; then
+        log "Sticky sessions already enabled"
+    else
+        log "Enabling sticky sessions on target group..."
+        aws elbv2 modify-target-group-attributes \
+            --target-group-arn "$TG_ARN" \
+            --attributes Key=stickiness.enabled,Value=true Key=stickiness.type,Value=lb_cookie Key=stickiness.lb_cookie.duration_seconds,Value=86400 \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE" || warn "Failed to enable sticky sessions, continuing..."
+    fi
     
-    # Create listener (with timeout)
+    # Create listener
     log "Creating ALB listener..."
-    timeout 30s aws elbv2 create-listener \
+    aws elbv2 create-listener \
         --load-balancer-arn "$ALB_ARN" \
         --protocol HTTP \
         --port 80 \
         --default-actions Type=forward,TargetGroupArn="$TG_ARN" \
         --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE" 2>/dev/null || warn "Listener creation timed out or already exists, continuing..."
+        --profile "$AWS_PROFILE" 2>/dev/null || warn "Listener creation failed or already exists, continuing..."
     
     log "Load balancer and target group configured"
 }
@@ -593,7 +604,6 @@ create_task_definition() {
     {
       "name": "shadow-server",
       "image": "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:latest",
-      "imagePullPolicy": "ALWAYS",
       "portMappings": [
         {
           "containerPort": $CONTAINER_PORT,
@@ -639,16 +649,17 @@ create_task_definition() {
 }
 EOF
     
-    # Register task definition (with timeout)
+    # Register task definition
     log "Registering ECS task definition..."
-    if timeout 60s aws ecs register-task-definition \
+    log "Detailed output streaming to: $LOG_FILE"
+    if aws ecs register-task-definition \
         --cli-input-json file://task-definition.json \
         --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE"; then
+        --profile "$AWS_PROFILE" >> "$LOG_FILE" 2>&1; then
         log "Task definition registered successfully"
     else
-        warn "Task definition registration timed out or failed, checking if it exists..."
-        # Check if task definition was created despite timeout
+        warn "Task definition registration failed, checking if it exists..."
+        # Check if task definition was created despite failure
         if aws ecs describe-task-definition --task-definition "$TASK_FAMILY" --region "$AWS_REGION" --profile "$AWS_PROFILE" &> /dev/null; then
             log "Task definition exists, continuing..."
         else
