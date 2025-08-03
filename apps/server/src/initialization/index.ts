@@ -2,14 +2,12 @@ import { InitStatus, prisma } from "@repo/db";
 import { getStepsForMode, InitializationProgress } from "@repo/types";
 import { emitStreamChunk } from "../socket";
 import { createWorkspaceManager, getAgentMode } from "../execution";
-import { createWorkspaceManager, getAgentMode } from "../execution";
 import type { WorkspaceManager as AbstractWorkspaceManager } from "../execution";
 import {
   setInitStatus,
   setTaskFailed,
   clearTaskProgress,
 } from "../utils/task-status";
-import indexRepo from "../indexing/indexer";
 import { runDeepWiki } from "../indexing/deepwiki/core";
 import config from "../config";
 
@@ -57,6 +55,7 @@ const STEP_DEFINITIONS: Record<
   CLEANUP_WORKSPACE: {
     name: "Cleaning Up",
     description: "Clean up workspace and resources",
+  },
   ACTIVE: {
     name: "Ready",
     description: "Task is ready for execution",
@@ -206,7 +205,7 @@ export class TaskInitializationEngine {
 
       // Repository indexing step (both modes)
       case "INDEX_REPOSITORY":
-        // await this.executeIndexRepository(taskId);
+        // Indexing is handled during deep wiki generation
         break;
 
       // Deep wiki generation step (both modes, optional)
@@ -217,6 +216,8 @@ export class TaskInitializationEngine {
       // Cleanup step (firecracker only)
       case "CLEANUP_WORKSPACE":
         await this.executeCleanupWorkspace(taskId);
+        break;
+        
       case "INACTIVE":
       case "ACTIVE":
         // These are state markers, not executable steps
@@ -531,13 +532,34 @@ export class TaskInitializationEngine {
         throw new Error(`Task not found: ${taskId}`);
       }
 
+      // Check if deep wiki already exists for this repository
+      const existingUnderstanding = await prisma.codebaseUnderstanding.findUnique({
+        where: { repoFullName: task.repoFullName },
+        select: { id: true },
+      });
+
+      if (existingUnderstanding) {
+        // Link task to existing understanding
+        console.log(
+          `[TASK_INIT] ${taskId}: Linking to existing deep wiki for ${task.repoFullName} (ID: ${existingUnderstanding.id})`
+        );
+        
+        await prisma.task.update({
+          where: { id: taskId },
+          data: { codebaseUnderstandingId: existingUnderstanding.id },
+        });
+        
+        console.log(`[TASK_INIT] ${taskId}: Successfully linked to existing codebase understanding`);
+        return;
+      }
+
       if (!task.workspacePath) {
         throw new Error(`Workspace path not found for task: ${taskId}`);
       }
 
-      // Generate deep wiki documentation
+      // Generate deep wiki documentation 
       console.log(
-        `[TASK_INIT] ${taskId}: Generating deep wiki for ${task.repoFullName}`
+        `[TASK_INIT] ${taskId}: Generating new deep wiki for ${task.repoFullName}`
       );
 
       const result = await runDeepWiki(
@@ -566,6 +588,27 @@ export class TaskInitializationEngine {
   }
 
   /**
+   * Cleanup workspace step - Clean up resources for firecracker mode
+   */
+  private async executeCleanupWorkspace(taskId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Starting workspace cleanup`);
+
+    try {
+      // Use the workspace manager to handle cleanup
+      const cleanupResult = await this.abstractWorkspaceManager.cleanupWorkspace(taskId);
+      
+      if (!cleanupResult.success) {
+        throw new Error(`Cleanup failed: ${cleanupResult.message}`);
+      }
+
+      console.log(`[TASK_INIT] ${taskId}: Workspace cleanup completed successfully`);
+    } catch (error) {
+      console.error(`[TASK_INIT] ${taskId}: Failed to cleanup workspace:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Emit progress events via WebSocket
    */
   private emitProgress(taskId: string, progress: InitializationProgress): void {
@@ -583,6 +626,8 @@ export class TaskInitializationEngine {
    */
   getDefaultStepsForTask(): InitStatus[] {
     const agentMode = getAgentMode();
-    return getStepsForMode(agentMode);
+    return getStepsForMode(agentMode, {
+      enableDeepWiki: config.enableDeepWiki,
+    });
   }
 }
