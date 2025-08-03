@@ -412,7 +412,6 @@ export function createTools(taskId: string, workspacePath?: string) {
         }
       },
     }),
-    // web_search: Removed - now using provider-specific web search tools configured in stream processor
   };
 }
 

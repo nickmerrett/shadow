@@ -12,7 +12,6 @@ import {
   WriteResult,
   SearchReplaceResult,
   SemanticSearchToolResult,
-  WebSearchResult,
   GitStatusResponse,
   GitDiffResponse,
   GitCommitResponse,
@@ -61,7 +60,6 @@ export interface ToolExecutor {
     repo: string,
     options?: SearchOptions
   ): Promise<SemanticSearchToolResult>;
-  webSearch(query: string, domain?: string): Promise<WebSearchResult>;
 
   // Command execution
   executeCommand(

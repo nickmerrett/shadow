@@ -40,7 +40,4 @@ ${readToolInstructions('delete_file')}
 
 ### semantic_search
 ${readToolInstructions('semantic_search')}
-
-### web_search
-${readToolInstructions('web_search')}
 </tool_guidance>`;
