@@ -18,7 +18,7 @@ export class PRService {
     commitSha: string
   ): Promise<PROperationResult> {
     try {
-      // Create GitHub PR
+      // Create GitHub PR (always as draft)
       const result = await this.apiClient.createPullRequest(
         options.repoFullName,
         {
@@ -26,7 +26,7 @@ export class PRService {
           body: metadata.description,
           head: options.shadowBranch,
           base: options.baseBranch,
-          draft: metadata.isDraft,
+          draft: true,
         },
         options.userId
       );

@@ -201,7 +201,7 @@ export function GithubConnection({
       return (
         <>
           <Folder className="size-4" />
-          <span>{selectedRepo.full_name}</span>
+          <span className="truncate">{selectedRepo.full_name}</span>
           <GitBranch className="size-4" />
           <span title={selectedBranch.name}>
             {truncateBranchName(selectedBranch.name, maxBranchLength)}
@@ -383,7 +383,7 @@ export function GithubConnection({
             <Button
               size="sm"
               variant="ghost"
-              className="text-muted-foreground hover:bg-accent font-normal"
+              className="text-muted-foreground hover:bg-accent shrink overflow-hidden font-normal"
             >
               {getButtonText()}
             </Button>

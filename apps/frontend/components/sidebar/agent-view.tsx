@@ -13,7 +13,6 @@ import {
   Folder,
   FolderGit2,
   GitBranch,
-  GitPullRequest,
   ListTodo,
   RefreshCcw,
   Square,
@@ -30,6 +29,9 @@ import { fetchIndexApi } from "@/lib/actions/index-repo";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
 import { GithubLogo } from "../graphics/github/github-logo";
+import { useCreatePR } from "@/hooks/use-create-pr";
+import { useTaskSocket } from "@/hooks/socket";
+import { Loader2, GitPullRequest } from "lucide-react";
 
 const todoStatusConfig = {
   PENDING: { icon: Square, className: "text-muted-foreground" },
@@ -94,6 +96,8 @@ function createFileTree(filePaths: string[]): FileNode[] {
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
+  const { isStreaming } = useTaskSocket(taskId);
+  const createPRMutation = useCreatePR();
 
   const [isIndexing, setIsIndexing] = useState(false);
 
@@ -124,28 +128,66 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
     [expandRightPanel, updateSelectedFilePath]
   );
 
+  const handleCreatePR = useCallback(async () => {
+    if (!task?.id) return;
+    try {
+      await createPRMutation.mutateAsync(task.id);
+    } catch (error) {
+      console.error("Failed to create PR:", error);
+    }
+  }, [task?.id, createPRMutation]);
+
+  // Determine if we should show create PR button
+  const showCreatePR = !task?.pullRequestNumber && fileChanges.length > 0;
+  const isCreatePRDisabled = isStreaming || createPRMutation.isPending;
+
   return (
     <>
-      {/* View PR button - only show if PR exists */}
-      {task.pullRequestNumber && (
+      {/* PR buttons - show create or view based on state */}
+      {(task.pullRequestNumber || showCreatePR) && (
         <SidebarGroup>
           <SidebarGroupContent className="flex flex-col gap-0.5">
             <SidebarMenuItem>
-              <Button
-                variant="secondary"
-                className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full justify-start font-normal"
-                asChild
-              >
-                <Link
-                  href={`${task.repoUrl}/pull/${task.pullRequestNumber}`}
-                  target="_blank"
+              {task.pullRequestNumber ? (
+                // View PR button when PR exists
+                <Button
+                  variant="secondary"
+                  className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full"
+                  asChild
                 >
-                  <GithubLogo className="size-4 shrink-0" />
+                  <Link
+                    href={`${task.repoUrl}/pull/${task.pullRequestNumber}`}
+                    target="_blank"
+                  >
+                    <GithubLogo className="size-4 shrink-0" />
+                    <div className="flex gap-1 overflow-hidden">
+                      <span className="truncate">View Pull Request</span>
+                      <span className="text-muted-foreground">
+                        #{task.pullRequestNumber}
+                      </span>
+                    </div>
+                  </Link>
+                </Button>
+              ) : (
+                // Create PR button when file changes exist and no PR
+                <Button
+                  variant="secondary"
+                  className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full"
+                  onClick={handleCreatePR}
+                  disabled={isCreatePRDisabled}
+                >
+                  {createPRMutation.isPending ? (
+                    <Loader2 className="size-4 shrink-0 animate-spin" />
+                  ) : (
+                    <GithubLogo className="size-4 shrink-0" />
+                  )}
                   <span className="truncate">
-                    View PR #{task.pullRequestNumber}
+                    {createPRMutation.isPending
+                      ? "Creating..."
+                      : "Create Pull Request"}
                   </span>
-                </Link>
-              </Button>
+                </Button>
+              )}
             </SidebarMenuItem>
           </SidebarGroupContent>
         </SidebarGroup>

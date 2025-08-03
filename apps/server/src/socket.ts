@@ -30,7 +30,7 @@ interface ConnectionState {
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 const connectionStates = new Map<string, ConnectionState>();
-let currentStreamContent = "";
+let currentStreamChunks: StreamChunk[] = [];
 let isStreaming = false;
 let io: Server<ClientToServerEvents, ServerToClientEvents>;
 
@@ -255,21 +255,21 @@ export function createSocketServer(
     });
 
     // Send current stream state to new connections
-    if (isStreaming && currentStreamContent) {
+    if (isStreaming && currentStreamChunks.length > 0) {
       console.log(
         `[SOCKET] Sending stream state to ${connectionId}:`,
-        currentStreamContent.length
+        currentStreamChunks.length
       );
       socket.emit("stream-state", {
-        content: currentStreamContent,
+        chunks: currentStreamChunks,
         isStreaming: true,
-        bufferPosition: currentStreamContent.length,
+        totalChunks: currentStreamChunks.length,
       });
     } else {
       socket.emit("stream-state", {
-        content: "",
+        chunks: [],
         isStreaming: false,
-        bufferPosition: 0,
+        totalChunks: 0,
       });
     }
 
@@ -556,21 +556,19 @@ export function createSocketServer(
           connectionStates.set(connectionId, state);
         }
 
-        // Send incremental updates from position
-        const fromPosition = data.fromPosition || 0;
-        if (currentStreamContent.length > fromPosition) {
-          const incrementalContent = currentStreamContent.slice(fromPosition);
-          socket.emit("stream-update", {
-            content: incrementalContent,
-            isIncremental: true,
-            fromPosition,
-            totalLength: currentStreamContent.length,
+        // Send structured chunks instead of positional content
+        if (currentStreamChunks.length > 0) {
+          // Send all chunks - let frontend handle deduplication
+          socket.emit("stream-state", {
+            chunks: currentStreamChunks,
+            isStreaming: isStreaming,
+            totalChunks: currentStreamChunks.length,
           });
         }
 
         socket.emit("history-complete", {
           taskId: data.taskId,
-          totalLength: currentStreamContent.length,
+          totalLength: currentStreamChunks.length,
         });
       } catch (error) {
         console.error(
@@ -612,7 +610,7 @@ export function createSocketServer(
 }
 
 export function startStream() {
-  currentStreamContent = "";
+  currentStreamChunks = [];
   isStreaming = true;
 }
 
@@ -666,9 +664,9 @@ export async function emitTaskStatusUpdate(
 }
 
 export function emitStreamChunk(chunk: StreamChunk, taskId: string) {
-  // Accumulate content for state tracking
-  if (chunk.type === "content" && chunk.content) {
-    currentStreamContent += chunk.content;
+  // Store the chunk for state recovery (exclude complete/error chunks from state)
+  if (chunk.type !== "complete" && chunk.type !== "error") {
+    currentStreamChunks.push(chunk);
   }
 
   if (io) {

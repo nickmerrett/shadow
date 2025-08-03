@@ -151,7 +151,7 @@ export class PRManager {
       return {
         title: options.taskTitle,
         description: "Pull request description generation failed.",
-        isDraft: !options.wasTaskCompleted,
+        isDraft: true,
       };
     }
   }

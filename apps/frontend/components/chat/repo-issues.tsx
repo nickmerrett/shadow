@@ -88,9 +88,11 @@ function IssuesContent({
               variant="ghost"
               size="iconXs"
               onClick={handleRefresh}
-              className="text-muted-foreground hover:text-foreground invisible opacity-0 transition-all group-hover/issues:visible group-hover/issues:opacity-100"
+              className="text-muted-foreground hover:text-foreground group/refresh invisible opacity-0 transition-all group-hover/issues:visible group-hover/issues:opacity-100"
             >
-              {<RotateCw className="size-3.5" />}
+              {
+                <RotateCw className="size-3.5 transition-transform group-active/refresh:rotate-90" />
+              }
             </Button>
           </TooltipTrigger>
           <TooltipContent side="top">
