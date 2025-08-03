@@ -7,15 +7,16 @@ interface UserSettingsResponse {
   error?: string;
 }
 
-async function fetchUserSettings(): Promise<UserSettings> {
-  const response = await fetch("/api/user-settings");
-  const data: UserSettingsResponse = await response.json();
+async function fetchUserSettings(): Promise<UserSettings | null> {
+  try {
+    const response = await fetch("/api/user-settings");
+    const data: UserSettingsResponse = await response.json();
 
-  if (!response.ok || !data.success) {
-    throw new Error(data.error || "Failed to fetch user settings");
+    return data.settings;
+  } catch (error) {
+    console.error("Failed to fetch user settings:", error);
+    return null;
   }
-
-  return data.settings;
 }
 
 async function updateUserSettingsAPI(settings: {
