@@ -18,7 +18,7 @@ import {
   SquareCheck,
   SquareX,
 } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { statusColorsConfig } from "./status";
 import { FileExplorer } from "@/components/agent-environment/file-explorer";
 import { FileNode } from "@repo/types";
@@ -96,7 +96,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
   const { isStreaming } = useTaskSocket(taskId);
   const createPRMutation = useCreatePR();
-
 
   const completedTodos = useMemo(
     () => todos.filter((todo) => todo.status === "COMPLETED").length,

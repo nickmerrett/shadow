@@ -33,16 +33,22 @@ export function UserSettings() {
     }
   };
 
-  const handleAutoPRToggle = (checked: boolean) => {
-    updateUserSettings.mutate({ autoPullRequest: checked });
+  const handleAutoPRToggle = (checked: boolean | "indeterminate") => {
+    if (typeof checked === "boolean") {
+      updateUserSettings.mutate({ autoPullRequest: checked });
+    }
   };
 
-  const handleMemoriesEnabledToggle = (checked: boolean) => {
-    updateUserSettings.mutate({ memoriesEnabled: checked });
+  const handleMemoriesEnabledToggle = (checked: boolean | "indeterminate") => {
+    if (typeof checked === "boolean") {
+      updateUserSettings.mutate({ memoriesEnabled: checked });
+    }
   };
 
-  const handleDeepWikiToggle = (checked: boolean) => {
-    updateUserSettings.mutate({ enableDeepWiki: checked });
+  const handleDeepWikiToggle = (checked: boolean | "indeterminate") => {
+    if (typeof checked === "boolean") {
+      updateUserSettings.mutate({ enableDeepWiki: checked });
+    }
   };
 
   return (
@@ -105,7 +111,7 @@ export function UserSettings() {
               />
             </div>
             <div className="flex items-center justify-between">
-              <label htmlFor="auto-pr" className="flex flex-col gap-0">
+              <label htmlFor="memories-enabled" className="flex flex-col gap-0">
                 <div className="text-sm font-normal">Enable Memories</div>
                 <div className="text-muted-foreground text-[11px]">
                   Allow the agent to manage long-term memories (by repository)
@@ -120,9 +126,9 @@ export function UserSettings() {
             </div>
             <div className="flex items-center justify-between">
               <label htmlFor="deep-wiki" className="flex flex-col gap-0">
-                <div className="text-sm font-normal">Enable Deep Wiki</div>
+                <div className="text-sm font-normal">Enable Wikis</div>
                 <div className="text-muted-foreground text-[11px]">
-                  Generate comprehensive codebase understanding for AI context
+                  Generate lightweight codebase understanding for AI context
                 </div>
               </label>
               <Checkbox
