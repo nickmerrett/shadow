@@ -3,22 +3,15 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useModal } from "@/components/layout/modal-context";
-import { Box, User2, Settings } from "lucide-react";
+import { Box, User2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
 import { GithubLogo } from "../../graphics/github/github-logo";
 import { UserSettings } from "./user-settings";
 import { ModelSettings } from "./model-settings";
 import { GitHubSettings } from "./github-settings";
-import { GeneralSettings } from "./general-settings";
 
 const tabs = [
-  {
-    title: "General",
-    sidebarLabel: "General",
-    icon: <Settings className="size-4" />,
-    value: "general",
-  },
   {
     title: "GitHub Connection",
     sidebarLabel: "GitHub",
@@ -65,8 +58,6 @@ export function SettingsModal() {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "general":
-        return <GeneralSettings />;
       case "user":
         return <UserSettings />;
       case "models":
@@ -74,7 +65,7 @@ export function SettingsModal() {
       case "github":
         return <GitHubSettings />;
       default:
-        return <GeneralSettings />;
+        return <GitHubSettings />;
     }
   };
 
@@ -100,7 +91,7 @@ export function SettingsModal() {
                   )}
                   onClick={() =>
                     setSettingsModalTab(
-                      tab.value as "general" | "user" | "models" | "github"
+                      tab.value as "user" | "models" | "github"
                     )
                   }
                 >
