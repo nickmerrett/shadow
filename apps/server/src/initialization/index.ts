@@ -9,7 +9,6 @@ import {
   clearTaskProgress,
 } from "../utils/task-status";
 import { runDeepWiki } from "../indexing/deepwiki/core";
-import config from "../config";
 
 // Helper for async delays
 const delay = (ms: number) =>
