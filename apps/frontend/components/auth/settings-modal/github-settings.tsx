@@ -43,7 +43,7 @@ export function GitHubSettings() {
           </div>
         ) : githubRepos?.groups ? (
           <div className="flex w-full flex-col gap-3">
-            <div>Your Repositories</div>
+            <div className="font-medium">Your Repositories</div>
             <div className="flex w-full flex-col gap-2">
               {githubRepos.groups.map((group) => (
                 <Fragment key={group.name}>

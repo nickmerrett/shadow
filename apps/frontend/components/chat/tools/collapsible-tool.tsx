@@ -1,12 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ToolTypes, TOOL_PREFIXES } from "@repo/types";
-import {
-  ChevronDown,
-  ChevronRight,
-  CornerDownRight,
-  Expand,
-} from "lucide-react";
+import { ChevronRight, CornerDownRight, Expand } from "lucide-react";
 import { useState } from "react";
 
 export function ToolComponent({
@@ -14,7 +9,6 @@ export function ToolComponent({
   type,
   title,
   changes,
-  className,
   prefix,
   suffix,
   collapsible = false,
@@ -128,7 +122,7 @@ const ToolWrapper = ({
   return (
     <div
       className={cn(
-        "text-muted-foreground flex w-full flex-col gap-2 rounded-md px-3 py-1.5 text-left text-[13px]",
+        "text-muted-foreground flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-[13px] [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:shrink-0 [&_svg]:opacity-70",
         className
       )}
     >

@@ -175,3 +175,7 @@ body,
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+img {
+  user-select: none;
+}
