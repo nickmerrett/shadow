@@ -490,21 +490,23 @@ create_load_balancer() {
         --query 'TargetGroups[0].TargetGroupArn' \
         --output text)
     
-    # Enable sticky sessions for WebSocket
-    aws elbv2 modify-target-group-attributes \
+    # Enable sticky sessions for WebSocket (with timeout)
+    log "Enabling sticky sessions on target group..."
+    timeout 30s aws elbv2 modify-target-group-attributes \
         --target-group-arn "$TG_ARN" \
         --attributes Key=stickiness.enabled,Value=true Key=stickiness.type,Value=lb_cookie Key=stickiness.lb_cookie.duration_seconds,Value=86400 \
         --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE"
+        --profile "$AWS_PROFILE" || warn "Target group attribute modification timed out or failed, continuing..."
     
-    # Create listener
-    aws elbv2 create-listener \
+    # Create listener (with timeout)
+    log "Creating ALB listener..."
+    timeout 30s aws elbv2 create-listener \
         --load-balancer-arn "$ALB_ARN" \
         --protocol HTTP \
         --port 80 \
         --default-actions Type=forward,TargetGroupArn="$TG_ARN" \
         --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE" 2>/dev/null || true
+        --profile "$AWS_PROFILE" 2>/dev/null || warn "Listener creation timed out or already exists, continuing..."
     
     log "Load balancer and target group configured"
 }
@@ -576,16 +578,27 @@ create_task_definition() {
 }
 EOF
     
-    # Register task definition
-    aws ecs register-task-definition \
+    # Register task definition (with timeout)
+    log "Registering ECS task definition..."
+    if timeout 60s aws ecs register-task-definition \
         --cli-input-json file://task-definition.json \
         --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE"
+        --profile "$AWS_PROFILE"; then
+        log "Task definition registered successfully"
+    else
+        warn "Task definition registration timed out or failed, checking if it exists..."
+        # Check if task definition was created despite timeout
+        if aws ecs describe-task-definition --task-definition "$TASK_FAMILY" --region "$AWS_REGION" --profile "$AWS_PROFILE" &> /dev/null; then
+            log "Task definition exists, continuing..."
+        else
+            error "Task definition registration failed and does not exist"
+        fi
+    fi
     
     # Clean up
     rm -f task-definition.json
     
-    log "Task definition registered successfully"
+    log "Task definition creation completed"
 }
 
 # Create ECS service
