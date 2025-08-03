@@ -4,6 +4,7 @@ import { runDeepWiki } from "./core";
 import { CodebaseUnderstandingStorage } from "./db-storage";
 import fs from "fs";
 import { db } from "@repo/db";
+import { AvailableModels } from "@repo/types";
 
 const deepwikiRouter = express.Router();
 
@@ -29,7 +30,7 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
     // Check if summary already exists and no force refresh
     const storage = new CodebaseUnderstandingStorage(taskId);
     const hasExisting = await storage.hasExistingSummary();
-    
+
     if (hasExisting && !forceRefresh) {
       return res.json({
         message: "Summary already exists. Use forceRefresh=true to regenerate.",
@@ -43,8 +44,8 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
     const workspaceDir = workspaceManager.getWorkspacePath(taskId);
 
     if (!fs.existsSync(workspaceDir)) {
-      return res.status(404).json({ 
-        error: "Workspace directory not found. Task may not be initialized." 
+      return res.status(404).json({
+        error: "Workspace directory not found. Task may not be initialized.",
       });
     }
 
@@ -59,8 +60,8 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
       task.userId,
       {
         concurrency: 12,
-        model: "gpt-4o",
-        modelMini: "gpt-4o-mini",
+        model: AvailableModels.GPT_4O,
+        modelMini: AvailableModels.GPT_4O_MINI,
       }
     );
 

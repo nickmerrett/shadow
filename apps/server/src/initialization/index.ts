@@ -1,5 +1,9 @@
 import { InitStatus, prisma } from "@repo/db";
-import { getStepsForMode, InitializationProgress } from "@repo/types";
+import {
+  getStepsForMode,
+  InitializationProgress,
+  AvailableModels,
+} from "@repo/types";
 import { emitStreamChunk } from "../socket";
 import { createWorkspaceManager, getAgentMode } from "../execution";
 import type { WorkspaceManager as AbstractWorkspaceManager } from "../execution";
@@ -518,9 +522,10 @@ export class TaskInitializationEngine {
         task.repoUrl,
         task.userId,
         {
+          // migrate to better abstraction for userApiKeys
           concurrency: 12,
-          model: "gpt-4o",
-          modelMini: "gpt-4o-mini",
+          model: AvailableModels.GPT_4O,
+          modelMini: AvailableModels.GPT_4O_MINI,
         }
       );
 
@@ -535,7 +540,6 @@ export class TaskInitializationEngine {
       throw error;
     }
   }
-
 
   /**
    * Emit progress events via WebSocket
@@ -555,7 +559,7 @@ export class TaskInitializationEngine {
    */
   async getDefaultStepsForTask(userId: string): Promise<InitStatus[]> {
     const agentMode = getAgentMode();
-    
+
     // Fetch user settings to determine if deep wiki generation should be enabled
     let enableDeepWiki = true; // Default to true
     try {
@@ -565,9 +569,12 @@ export class TaskInitializationEngine {
       });
       enableDeepWiki = userSettings?.enableDeepWiki ?? true;
     } catch (error) {
-      console.warn(`[TASK_INIT] Failed to fetch user settings for ${userId}, using default enableDeepWiki=true:`, error);
+      console.warn(
+        `[TASK_INIT] Failed to fetch user settings for ${userId}, using default enableDeepWiki=true:`,
+        error
+      );
     }
-    
+
     return getStepsForMode(agentMode, { enableDeepWiki });
   }
 }
