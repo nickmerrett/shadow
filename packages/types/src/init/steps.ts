@@ -19,7 +19,7 @@ export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
  */
 export function getStepsForMode(
   mode: "local" | "remote",
-  options?: { enableDeepWiki?: boolean }
+  _options?: { enableDeepWiki?: boolean }
 ): InitStatus[] {
   const steps: InitStatus[] = [];
 
@@ -28,15 +28,11 @@ export function getStepsForMode(
       "CREATE_VM",
       "WAIT_VM_READY",
       "VERIFY_VM_WORKSPACE",
+      "GENERATE_DEEP_WIKI",
       "INDEX_REPOSITORY"
     );
   } else {
-    steps.push("PREPARE_WORKSPACE", "INDEX_REPOSITORY");
-  }
-
-  // Add deep wiki step if enabled
-  if (options?.enableDeepWiki) {
-    steps.push("GENERATE_DEEP_WIKI");
+    steps.push("PREPARE_WORKSPACE", "GENERATE_DEEP_WIKI", "INDEX_REPOSITORY");
   }
 
   return steps;
