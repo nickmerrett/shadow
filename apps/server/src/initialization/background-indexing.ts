@@ -102,6 +102,21 @@ export function isCurrentlyIndexing(repoFullName: string): boolean {
   return activeIndexingJobs.has(repoFullName);
 }
 
+// Check if indexing is complete for a repository
+export async function isIndexingComplete(repoFullName: string): Promise<boolean> {
+  // If currently indexing, return false
+  if (isCurrentlyIndexing(repoFullName)) {
+    return false;
+  }
+  
+  // Check if we have a completed index in database
+  const repositoryIndex = await prisma.repositoryIndex.findUnique({
+    where: { repoFullName }
+  });
+  
+  return !!repositoryIndex?.lastIndexedAt;
+}
+
 // Get the current indexing promise for a repository (if any)
 export function getIndexingPromise(repoFullName: string): Promise<void> | undefined {
   return activeIndexingJobs.get(repoFullName);

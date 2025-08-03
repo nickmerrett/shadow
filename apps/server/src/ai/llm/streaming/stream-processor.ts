@@ -45,7 +45,7 @@ export class StreamProcessor {
       console.log("coreMessages", coreMessages);
 
       // Create tools with task context if taskId is provided
-      const tools = taskId ? createTools(taskId, workspacePath) : undefined;
+      const tools = taskId ? await createTools(taskId, workspacePath) : undefined;
 
       // For Anthropic models, add system prompt as first message with cache control
       // For other providers, use the system parameter
