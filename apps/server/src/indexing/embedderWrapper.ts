@@ -19,16 +19,18 @@ import { GraphNode } from "./graph";
 import { logger } from "./logger";
 import { getNamespaceFromRepo } from "./utils/repository";
 import { PineconeBatchRecord } from "./types";
+import { IndexRepoOptions } from "@repo/types";
 
 // Wrapper used to embed and upsert to Pinecone
 async function embedAndUpsertToPinecone(
   nodes: GraphNode[],
   repo: string,
-  clearNamespace: boolean
+  options: Pick<IndexRepoOptions, 'clearNamespace'>
 ): Promise<number> {
-  // Input: GraphNode[], repo: string, clearNamespace: boolean
+  // Input: GraphNode[], repo: string, options: IndexRepoOptions
   // Upserts the records to Pinecone as PineconeBatchRecord[]
   // Output: num_uploaded_records?
+  const { clearNamespace } = options;
   const pinecone = new PineconeHandler();
   const namespace = getNamespaceFromRepo(repo);
   logger.info(`[EMBEDDER_WRAPPER] Clear namespace if requested: ${clearNamespace}`);

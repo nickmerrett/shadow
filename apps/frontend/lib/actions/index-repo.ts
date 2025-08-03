@@ -24,7 +24,6 @@ export async function fetchIndexApi({
         repo: repoFullName, 
         taskId: taskId, 
         options: { 
-          embed: true, 
           clearNamespace, 
           force: true,
           ...otherOptions 

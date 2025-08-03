@@ -22,7 +22,6 @@ router.post(
   ) => {
     console.log("Indexing repo", req.body.repo);
     const { repo, taskId, options } = req.body;
-    const clearNamespace = options.clearNamespace;
     if (!repo || !isValidRepo(repo)) {
       return res
         .status(400)
@@ -32,8 +31,7 @@ router.post(
     try {
       // Start background indexing
       await startBackgroundIndexing(repo, taskId, {
-        embed: options.embed ?? true,
-        clearNamespace: clearNamespace ?? true,
+        clearNamespace: options.clearNamespace ?? true,
         force: true // Allow manual indexing to override recent indexing
       });
       

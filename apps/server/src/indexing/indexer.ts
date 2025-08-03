@@ -17,17 +17,17 @@ import { embedAndUpsertToPinecone } from "./embedderWrapper";
 import { getOwnerFromRepo, isValidRepo } from "./utils/repository";
 import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
 import { IndexRepoOptions } from "@repo/types";
+import { DEFAULT_MAX_LINES_PER_CHUNK } from "./constants";
 
 async function createUnsupportedFileChunks(
   file: { path: string; content: string; type: string },
   repoId: string,
-  maxLines: number,
   graph: Graph
 ): Promise<void> {
   if (!file.content.trim()) return;
   
   const lines = file.content.split("\n");
-  const chunkSize = maxLines;
+  const chunkSize = DEFAULT_MAX_LINES_PER_CHUNK;
   let chunkIndex = 0;
 
   for (let startLine = 0; startLine < lines.length; startLine += chunkSize) {
@@ -99,15 +99,9 @@ async function indexRepo(
   invertedIndex: any;
   embeddings?: { index: any; binary: Buffer };
 }> {
-  const {
-    maxLines = 200,
-    embed = false,
-    clearNamespace = true,
-  } = options;
+  const { clearNamespace = true } = options;
 
-  logger.info(
-    `[INDEXER] Indexing ${repoName}${embed ? " + embeddings" : ""}`
-  );
+  logger.info(`[INDEXER] Indexing ${repoName} + embeddings`);
 
   let files: Array<{ path: string; content: string; type: string }> = [];
   let repoId: string;
@@ -166,7 +160,7 @@ async function indexRepo(
       // For unsupported files, skip graph creation but still create chunks for embedding
       if (!shouldUseTreeSitter) {
         // Create chunks directly for embedding without adding to graph
-        await createUnsupportedFileChunks(file, repoId, maxLines, graph);
+        await createUnsupportedFileChunks(file, repoId, graph);
         // logger.info(`Directly embedding unsupported file: ${file.path}`);
         continue;
       }
@@ -338,7 +332,7 @@ async function indexRepo(
           sym: d,
           lang: spec!.id,
           sourceText: file.content,
-          maxLines,
+          maxLines: DEFAULT_MAX_LINES_PER_CHUNK,
         });
         let prev: GraphNode | null = null;
         for (const ch of chunks) {
@@ -368,7 +362,7 @@ async function indexRepo(
       // If no symbols found, create file-level chunks for the entire file content
       if (!hasChunks && file.content.trim()) {
         const lines = file.content.split("\n");
-        const chunkSize = maxLines;
+        const chunkSize = DEFAULT_MAX_LINES_PER_CHUNK;
         let chunkIndex = 0;
 
         for (
@@ -472,16 +466,12 @@ async function indexRepo(
 
     // Output is the graph with nodes, adjacencies and inverted index
     // Only the nodes get embedded
-    if (embed) {
-      logger.info("[INDEXER] Embedding and uploading to Pinecone...");
-      await embedAndUpsertToPinecone(
-        Array.from(graph.nodes.values()),
-        repoName,
-        clearNamespace
-      );
-    } else {
-      logger.info("[INDEXER] Embedding skipped (embed=false).");
-    }
+    logger.info("[INDEXER] Embedding and uploading to Pinecone...");
+    await embedAndUpsertToPinecone(
+      Array.from(graph.nodes.values()),
+      repoName,
+      { clearNamespace }
+    );
 
     logger.info(`[INDEXER] Indexed ${graph.nodes.size} nodes.`);
     return {

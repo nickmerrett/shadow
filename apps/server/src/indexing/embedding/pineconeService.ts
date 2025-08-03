@@ -7,6 +7,7 @@ import {
   CodebaseSearchRequest,
   CodebaseSearchResponse,
 } from "../codebase-types";
+import { DEFAULT_MAX_LINES_PER_CHUNK, DEFAULT_MAX_RECORDS_PER_BATCH } from "../constants";
 
 // Handles Pinecone operators
 class PineconeHandler {
@@ -118,8 +119,8 @@ class PineconeHandler {
   // Also splits individual records that are too large
   async chunkRecords(
     records: GraphNode[],
-    maxLinesPerChunk = 50,
-    maxRecordsPerBatch = 100
+    maxLinesPerChunk = DEFAULT_MAX_LINES_PER_CHUNK,
+    maxRecordsPerBatch = DEFAULT_MAX_RECORDS_PER_BATCH
   ): Promise<GraphNode[][]> {
     const chunks: GraphNode[][] = [];
     let currentChunk: GraphNode[] = [];

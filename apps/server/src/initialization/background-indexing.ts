@@ -13,7 +13,6 @@ export async function startBackgroundIndexing(
   repoFullName: string,
   taskId: string,
   options: IndexRepoOptions = {
-    embed: true,
     clearNamespace: true,
     force: false
   }
@@ -54,9 +53,7 @@ export async function startBackgroundIndexing(
 
   // Start indexing promise
   const indexingPromise = indexRepo(repoFullName, taskId, {
-    embed: options.embed ?? true,
     clearNamespace: options.clearNamespace ?? true,
-    force: options.force ?? false,
     // Note: force is not passed to indexRepo as it's only used for background indexing logic
   })
     .then(() => {

@@ -464,7 +464,6 @@ export class TaskInitializationEngine {
 
       // Start background indexing (non-blocking)
       await startBackgroundIndexing(task.repoFullName, taskId, {
-        embed: true,
         clearNamespace: true,
         force: false
       });

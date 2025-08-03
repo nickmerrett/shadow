@@ -1,6 +1,5 @@
 export interface IndexRepoOptions {
   clearNamespace: boolean;
-  embed?: boolean;
   force?: boolean;
 }
 
