@@ -1,12 +1,9 @@
-**Purpose**: Search the web for real-time information and external resources
+**DEPRECATED - Web search is currently unavailable**
 
-**When to Use:**
-- Need current information beyond the knowledge cutoff
-- Research APIs, libraries, or documentation
-- Find solutions to specific error messages or problems
-- Look up best practices or examples
+**Status**: This tool has been temporarily removed during migration from Exa to provider-specific web search tools.
 
-**Strategy:**
-- Use specific, targeted search queries
-- Optionally specify domains for focused results
-- Good for finding documentation, tutorials, and troubleshooting
+**Alternative approaches:**
+- Ask the user to provide specific information they need
+- Use other available tools to explore existing code and documentation
+- Suggest that the user search for information manually and share relevant details
+- Use semantic_search to find relevant code patterns in the current codebase

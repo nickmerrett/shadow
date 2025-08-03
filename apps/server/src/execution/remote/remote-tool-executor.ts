@@ -352,31 +352,18 @@ export class RemoteToolExecutor implements ToolExecutor {
   }
 
   /**
-   * Perform web search (delegated to VM sidecar)
+   * Web search is now handled by provider-specific tools (Anthropic webSearch_20250305, OpenAI webSearchPreview)
+   * This method is kept for interface compatibility but should not be called directly
    */
   async webSearch(query: string, domain?: string): Promise<WebSearchResult> {
-    try {
-      const response = await this.makeSidecarRequest<WebSearchResult>(
-        `/api/search/web`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            query,
-            domain,
-          }),
-        }
-      );
-
-      return response;
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        query,
-        results: [],
-        message: `Failed to search web: ${query}`,
-      };
-    }
+    return {
+      success: false,
+      results: [],
+      query,
+      domain,
+      message: "Web search is now handled by provider-specific tools. Use the web search tool through the LLM instead.",
+      error: "Direct web search execution not supported - use provider tools",
+    };
   }
 
   /**

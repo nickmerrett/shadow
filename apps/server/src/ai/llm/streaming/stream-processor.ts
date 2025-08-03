@@ -46,6 +46,11 @@ export class StreamProcessor {
 
       // Create tools with task context if taskId is provided
       const tools = taskId ? createTools(taskId, workspacePath) : undefined;
+      
+      // Note: Provider-specific web search tools are not currently integrated
+      // They work differently from our custom tool system and would require
+      // significant changes to how tool results are processed and displayed
+      // For now, web search functionality has been removed
 
       // For Anthropic models, add system prompt as first message with cache control
       // For other providers, use the system parameter
