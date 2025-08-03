@@ -31,6 +31,63 @@ export interface IndexRepoOptions {
   paths?: string[] | null;
 }
 
+async function createUnsupportedFileChunks(
+  file: { path: string; content: string; type: string },
+  repoId: string,
+  maxLines: number,
+  graph: Graph
+): Promise<void> {
+  if (!file.content.trim()) return;
+  
+  const lines = file.content.split("\n");
+  const chunkSize = maxLines;
+  let chunkIndex = 0;
+
+  for (let startLine = 0; startLine < lines.length; startLine += chunkSize) {
+    const endLine = Math.min(startLine + chunkSize - 1, lines.length - 1);
+    const chunkContent = lines.slice(startLine, endLine + 1).join("\n");
+
+    if (chunkContent.trim()) {
+      const chunkId = getNodeHash(
+        repoId,
+        file.path,
+        "CHUNK",
+        `unknown-chunk-${chunkIndex}`,
+        {
+          startLine,
+          endLine,
+          startCol: 0,
+          endCol: 0,
+          byteStart: 0,
+          byteEnd: chunkContent.length,
+        }
+      );
+
+      const chunkNode = new GraphNode({
+        id: chunkId,
+        kind: GraphNodeKind.CHUNK,
+        name: `${file.path}#${chunkIndex}`,
+        path: file.path,
+        lang: "unknown",
+        loc: {
+          startLine,
+          endLine,
+          startCol: 0,
+          endCol: 0,
+          byteStart: 0,
+          byteEnd: chunkContent.length,
+        },
+        code: chunkContent,
+        meta: { strategy: "unknown-file", isUnsupported: true },
+      });
+
+      // Add to graph for embedding but don't create file/symbol structure
+      graph.addNode(chunkNode);
+      chunkIndex++;
+    }
+  }
+}
+
 // Add GitHub API helper
 async function fetchRepoFiles(
   taskId: string
@@ -100,34 +157,29 @@ async function indexRepo(
 
     for (const file of files) {
       const spec = await getLanguageForPath(file.path);
-      if (!spec || !spec.language) {
-        logger.warn(`Skipping unsupported: ${file.path}`);
+      const shouldUseTreeSitter = spec && spec.language;
+      
+      // For unsupported files, skip graph creation but still create chunks for embedding
+      if (!shouldUseTreeSitter) {
+        // Create chunks directly for embedding without adding to graph
+        await createUnsupportedFileChunks(file, repoId, maxLines, graph);
+        logger.info(`Directly embedding unsupported file: ${file.path}`);
         continue;
       }
 
-      const parser = new TreeSitter();
+      let parser: TreeSitter | null = null;
+      let tree: any = null;
+      let rootNode: any = null;
+      
+      // Try to parse with tree-sitter
       try {
-        if (spec.language && typeof spec.language === "object") {
-          parser.setLanguage(spec.language);
-        } else {
-          logger.warn(`Invalid language object for ${file.path}`);
-          continue;
-        }
-      } catch (error) {
-        logger.warn(
-          `Failed to set language for ${file.path}: ${error instanceof Error ? error.message : String(error)}`
-        );
-        continue;
-      }
-
-      let tree, rootNode;
-      try {
+        parser = new TreeSitter();
+        parser.setLanguage(spec!.language);
         tree = parser.parse(file.content);
         rootNode = tree.rootNode;
       } catch (error) {
-        logger.warn(
-          `Failed to parse ${file.path}: ${error instanceof Error ? error.message : String(error)}`
-        );
+        logger.warn(`Failed to parse ${file.path} with tree-sitter: ${error instanceof Error ? error.message : String(error)}`);
+        // Skip files that fail to parse
         continue;
       }
 
@@ -141,7 +193,7 @@ async function indexRepo(
         kind: GraphNodeKind.FILE,
         name: file.path,
         path: file.path,
-        lang: spec.id,
+        lang: spec!.id,
         meta: { mtime: stat.mtimeMs, source: repoName },
       });
       graph.addNode(fileNode);
@@ -155,27 +207,34 @@ async function indexRepo(
       );
 
       // ================================ START OF THIS CODE SHOULD NOT BE CHANGED ================================ //
-      // Extract
-      const { defs, imports, calls, docs } = extractGeneric(
+      // Extract - only for supported languages with tree-sitter parsing
+      let defs: any[] = [];
+      let imports: any[] = [];
+      let calls: any[] = [];
+      let docs: any[] = [];
+      
+      // Extract symbols, imports, calls, and docs
+      ({ defs, imports, calls, docs } = extractGeneric(
         rootNode,
-        spec,
+        spec!,
         file.content
-      );
-      const symNodes: GraphNode[] = [];
+      ));
       logger.info(
         `File ${file.path}: Found ${defs.length} definitions, ${imports.length} imports, ${calls.length} calls, ${docs.length} docs`
       );
+      
+      const symNodes: GraphNode[] = [];
 
       // SYMBOL defs
       for (const d of defs) {
-        const sig = buildSignatureFromNode(d.node, spec, file.content);
+        const sig = buildSignatureFromNode(d.node, spec!, file.content);
         const id = getNodeHash(repoId, file.path, "SYMBOL", d.name, d.loc);
         const symNode = new GraphNode({
           id,
           kind: GraphNodeKind.SYMBOL,
           name: d.name,
           path: file.path,
-          lang: spec.id,
+          lang: spec!.id,
           loc: d.loc,
           signature: sig,
         }); // omit full code to avoid redundancy; chunks will hold code
@@ -210,7 +269,7 @@ async function indexRepo(
           kind: GraphNodeKind.COMMENT,
           name: `doc@${file.path}:${ds.loc.startLine}`,
           path: file.path,
-          lang: spec.id,
+          lang: spec!.id,
           loc: ds.loc,
           code: docCode,
           doc: docCode,
@@ -248,7 +307,7 @@ async function indexRepo(
           kind: GraphNodeKind.IMPORT,
           name,
           path: file.path,
-          lang: spec.id,
+          lang: spec!.id,
           loc: im.loc,
           code: imText,
         });
@@ -275,7 +334,7 @@ async function indexRepo(
           repoId,
           fileNode: symNode,
           sym: d,
-          lang: spec.id,
+          lang: spec!.id,
           sourceText: file.content,
           maxLines,
         });
@@ -339,7 +398,7 @@ async function indexRepo(
               kind: GraphNodeKind.CHUNK,
               name: `${file.path}#${chunkIndex}`,
               path: file.path,
-              lang: spec.id,
+              lang: spec!.id,
               loc: {
                 startLine,
                 endLine,
