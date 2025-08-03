@@ -147,10 +147,15 @@ build_and_push_image() {
     aws ecr get-login-password --region "$AWS_REGION" --profile "$AWS_PROFILE" | \
         docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
     
-    # Build image
-    log "Building Docker image..."
+    # Build image for amd64 architecture using buildx (required for ECS Fargate on Apple Silicon)
+    log "Building Docker image for amd64 architecture using buildx..."
     cd "$PROJECT_ROOT"
-    docker build -f apps/server/Dockerfile -t "$ECR_REPO_NAME:latest" .
+    
+    # Ensure buildx builder exists and is active
+    docker buildx create --use --name shadow-builder 2>/dev/null || docker buildx use shadow-builder 2>/dev/null || true
+    
+    # Build with buildx for true cross-platform support
+    docker buildx build --platform linux/amd64 -f apps/server/Dockerfile -t "$ECR_REPO_NAME:latest" . --load
     
     # Tag image for ECR
     docker tag "$ECR_REPO_NAME:latest" "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:latest"
@@ -253,6 +258,57 @@ EOF
             --role-name shadowECSExecutionRole \
             --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy \
             --profile "$AWS_PROFILE"
+        
+        # Add SSM Parameter Store permissions for secrets
+        cat > ssm-policy.json << EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameters",
+        "ssm:GetParameter"
+      ],
+      "Resource": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/*"
+    }
+  ]
+}
+EOF
+        
+        aws iam put-role-policy \
+            --role-name shadowECSExecutionRole \
+            --policy-name shadowSSMAccess \
+            --policy-document file://ssm-policy.json \
+            --profile "$AWS_PROFILE"
+            
+        rm -f ssm-policy.json
+    else
+        # Role exists, but ensure SSM permissions are added
+        log "ECS execution role exists, adding SSM permissions..."
+        cat > ssm-policy.json << EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameters",
+        "ssm:GetParameter"
+      ],
+      "Resource": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/*"
+    }
+  ]
+}
+EOF
+        
+        aws iam put-role-policy \
+            --role-name shadowECSExecutionRole \
+            --policy-name shadowSSMAccess \
+            --policy-document file://ssm-policy.json \
+            --profile "$AWS_PROFILE" || true
+            
+        rm -f ssm-policy.json
     fi
     
     # Create task role with K8s permissions
@@ -527,12 +583,17 @@ create_task_definition() {
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "$TASK_CPU",
   "memory": "$TASK_MEMORY",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
   "executionRoleArn": "arn:aws:iam::$ACCOUNT_ID:role/shadowECSExecutionRole",
   "taskRoleArn": "arn:aws:iam::$ACCOUNT_ID:role/shadowECSTaskRole",
   "containerDefinitions": [
     {
       "name": "shadow-server",
       "image": "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:latest",
+      "imagePullPolicy": "ALWAYS",
       "portMappings": [
         {
           "containerPort": $CONTAINER_PORT,
@@ -646,7 +707,7 @@ get_service_info() {
     log "Load Balancer DNS: http://$ALB_DNS"
     
     # Save configuration
-    cat > ecs-deployment-config.env << EOF
+    cat > .env.ecs-result << EOF
 # Shadow ECS Deployment Configuration
 # Generated on: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 
@@ -668,7 +729,7 @@ ECS_SECURITY_GROUP=$ECS_SG
 ECR_REPOSITORY_URI=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME
 EOF
     
-    log "Configuration saved to: ecs-deployment-config.env"
+    log "Configuration saved to: .env.ecs-result"
 }
 
 # Verify deployment
