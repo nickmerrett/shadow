@@ -327,7 +327,15 @@ export class RemoteToolExecutor implements ToolExecutor {
         error
       );
 
-
+      // Return error result
+      return {
+        success: false,
+        results: [],
+        query: query,
+        searchTerms: query.split(/\s+/).filter(term => term.length > 0),
+        message: `Semantic search failed for "${query}"`,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
 

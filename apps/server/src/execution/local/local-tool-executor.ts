@@ -471,7 +471,7 @@ export class LocalToolExecutor implements ToolExecutor {
       };
     } catch (error) {
       // ripgrep returns exit code 1 when no matches found, which is normal
-      if (error instanceof Error && error.message.includes("exit code 1")) {
+      if (error instanceof Error && (error.message.includes("exit code 1") || error.message.includes("Command failed: rg"))) {
         return {
           success: true,
           matches: [],
@@ -508,7 +508,15 @@ export class LocalToolExecutor implements ToolExecutor {
         error
       );
 
-
+      // Return error result
+      return {
+        success: false,
+        results: [],
+        query: query,
+        searchTerms: query.split(/\s+/).filter(term => term.length > 0),
+        message: `Semantic search failed for "${query}"`,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
   async webSearch(query: string, domain?: string): Promise<WebSearchResult> {
