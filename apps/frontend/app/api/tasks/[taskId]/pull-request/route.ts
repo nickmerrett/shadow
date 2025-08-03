@@ -8,12 +8,12 @@ export async function POST(
 ) {
   try {
     const { taskId } = await params;
-    
+
     // Check authentication
     const session = await auth.api.getSession({
       headers: await headers(),
     });
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
@@ -26,25 +26,31 @@ export async function POST(
     const requestHeaders = await headers();
     const cookieHeader = requestHeaders.get("cookie");
 
-    const response = await fetch(`${baseUrl}/api/tasks/${taskId}/pull-request`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(cookieHeader && { Cookie: cookieHeader }),
-      },
-      body: JSON.stringify({
-        userId: session.user.id,
-      }),
-    });
+    const response = await fetch(
+      `${baseUrl}/api/tasks/${taskId}/pull-request`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(cookieHeader && { Cookie: cookieHeader }),
+        },
+        body: JSON.stringify({
+          userId: session.user.id,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Backend PR creation failed for task ${taskId}:`, errorText);
-      
+      console.error(
+        `Backend PR creation failed for task ${taskId}:`,
+        errorText
+      );
+
       return NextResponse.json(
-        { 
-          success: false, 
-          error: "Failed to create pull request" 
+        {
+          success: false,
+          error: "Failed to create pull request",
         },
         { status: response.status }
       );
@@ -52,13 +58,12 @@ export async function POST(
 
     const result = await response.json();
     return NextResponse.json(result);
-    
   } catch (error) {
     console.error(`Error creating PR for task:`, error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: "Internal server error" 
+      {
+        success: false,
+        error: "Internal server error",
       },
       { status: 500 }
     );

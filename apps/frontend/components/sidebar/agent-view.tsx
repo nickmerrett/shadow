@@ -152,7 +152,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 // View PR button when PR exists
                 <Button
                   variant="secondary"
-                  className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full justify-start font-normal"
+                  className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full"
                   asChild
                 >
                   <Link
@@ -160,24 +160,31 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                     target="_blank"
                   >
                     <GithubLogo className="size-4 shrink-0" />
-                    <span className="truncate">View Pull Request</span>
+                    <div className="flex gap-1 overflow-hidden">
+                      <span className="truncate">View Pull Request</span>
+                      <span className="text-muted-foreground">
+                        #{task.pullRequestNumber}
+                      </span>
+                    </div>
                   </Link>
                 </Button>
               ) : (
                 // Create PR button when file changes exist and no PR
                 <Button
                   variant="secondary"
-                  className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full justify-start font-normal"
+                  className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full"
                   onClick={handleCreatePR}
                   disabled={isCreatePRDisabled}
                 >
                   {createPRMutation.isPending ? (
                     <Loader2 className="size-4 shrink-0 animate-spin" />
                   ) : (
-                    <GitPullRequest className="size-4 shrink-0" />
+                    <GithubLogo className="size-4 shrink-0" />
                   )}
                   <span className="truncate">
-                    {createPRMutation.isPending ? "Creating..." : "Create Pull Request"}
+                    {createPRMutation.isPending
+                      ? "Creating..."
+                      : "Create Pull Request"}
                   </span>
                 </Button>
               )}

@@ -28,14 +28,8 @@ export function useCreatePR() {
       return await response.json();
     },
     onSuccess: (data, taskId) => {
-      // Invalidate task data to refresh PR number and other details
       queryClient.invalidateQueries({ queryKey: ["task", taskId] });
-
-      // If successful, the task should now have a pullRequestNumber
-      console.log(`PR created successfully: #${data.prNumber}`);
-    },
-    onError: (error) => {
-      console.error("Failed to create PR:", error);
+      queryClient.invalidateQueries({ queryKey: ["task-messages", taskId] });
     },
   });
 }
