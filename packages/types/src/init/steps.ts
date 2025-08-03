@@ -4,27 +4,47 @@ import type { InitStatus } from "@repo/db";
  * Human-readable display names for initialization steps
  */
 export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
-  INACTIVE: "Not Started",
+  INACTIVE: "Inactive",
   PREPARE_WORKSPACE: "Preparing Workspace",
   CREATE_VM: "Creating VM",
   WAIT_VM_READY: "Starting VM",
   VERIFY_VM_WORKSPACE: "Verifying Workspace",
   INDEX_REPOSITORY: "Indexing Repository",
-  ACTIVE: "Ready",
+  ACTIVE: "Active",
+  GENERATE_DEEP_WIKI: "Generating Deep Wiki",
 };
 
 /**
  * Get all step display names in execution order for a given mode
  */
-export function getStepsForMode(mode: "local" | "remote"): InitStatus[] {
+export function getStepsForMode(
+  mode: "local" | "remote",
+  options?: { enableDeepWiki?: boolean }
+): InitStatus[] {
+  const steps: InitStatus[] = [];
+  const enableDeepWiki = options?.enableDeepWiki ?? true; // Default to true
+
   if (mode === "remote") {
-    return [
+    steps.push(
       "CREATE_VM",
       "WAIT_VM_READY",
-      "VERIFY_VM_WORKSPACE",
-      "INDEX_REPOSITORY",
-    ];
+      "VERIFY_VM_WORKSPACE"
+    );
+    
+    if (enableDeepWiki) {
+      steps.push("GENERATE_DEEP_WIKI");
+    }
+    
+    steps.push("INDEX_REPOSITORY");
   } else {
-    return ["PREPARE_WORKSPACE", "INDEX_REPOSITORY"];
+    steps.push("PREPARE_WORKSPACE");
+    
+    if (enableDeepWiki) {
+      steps.push("GENERATE_DEEP_WIKI");
+    }
+    
+    steps.push("INDEX_REPOSITORY");
   }
+
+  return steps;
 }

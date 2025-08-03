@@ -270,7 +270,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      <SidebarGroup>
+      {/* <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenuItem>
             <Button
@@ -294,7 +294,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             </Button>
           </SidebarMenuItem>
         </SidebarGroupContent>
-      </SidebarGroup>
+      </SidebarGroup> */}
 
       {/* Task List (Todos) */}
       {todos.length > 0 && (

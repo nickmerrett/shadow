@@ -22,6 +22,7 @@ async function fetchUserSettings(): Promise<UserSettings | null> {
 async function updateUserSettingsAPI(settings: {
   autoPullRequest?: boolean;
   memoriesEnabled?: boolean;
+  enableDeepWiki?: boolean;
 }): Promise<UserSettings> {
   const response = await fetch("/api/user-settings", {
     method: "POST",

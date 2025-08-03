@@ -10,7 +10,7 @@ export async function POST(
     
     // Proxy to backend server
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
-    const response = await fetch(`${backendUrl}/api/indexing/shallowwiki/generate/${taskId}`, {
+    const response = await fetch(`${backendUrl}/api/indexing/deepwiki/generate/${taskId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
