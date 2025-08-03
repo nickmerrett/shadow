@@ -220,7 +220,7 @@ export class ChatService {
   /**
    * Create a PR if needed after changes are committed
    */
-  private async createPRIfNeeded(
+  async createPRIfNeeded(
     taskId: string,
     workspacePath?: string,
     messageId?: string,
@@ -264,16 +264,19 @@ export class ChatService {
         return;
       }
 
-      await prManager.createPRIfNeeded({
-        taskId,
-        repoFullName: task.repoFullName,
-        shadowBranch: task.shadowBranch,
-        baseBranch: task.baseBranch,
-        userId: task.userId,
-        taskTitle: task.title,
-        wasTaskCompleted: task.status === "COMPLETED",
-        messageId,
-      }, userApiKeys);
+      await prManager.createPRIfNeeded(
+        {
+          taskId,
+          repoFullName: task.repoFullName,
+          shadowBranch: task.shadowBranch,
+          baseBranch: task.baseBranch,
+          userId: task.userId,
+          taskTitle: task.title,
+          wasTaskCompleted: task.status === "COMPLETED",
+          messageId,
+        },
+        userApiKeys
+      );
     } catch (error) {
       console.error(`[CHAT] Failed to create PR for task ${taskId}:`, error);
       // Non-blocking - don't throw
@@ -294,12 +297,12 @@ export class ChatService {
 
       const task = await prisma.task.findUnique({
         where: { id: taskId },
-        include: { 
+        include: {
           user: {
             include: {
-              userSettings: true
-            }
-          }
+              userSettings: true,
+            },
+          },
         },
       });
 
@@ -310,18 +313,30 @@ export class ChatService {
 
       // Check if user has auto-PR enabled (default to true if no settings exist)
       const autoPREnabled = task.user.userSettings?.autoPullRequest ?? true;
-      
+
       if (!autoPREnabled) {
-        console.log(`[CHAT] Auto-PR disabled for user ${task.userId}, skipping PR creation`);
+        console.log(
+          `[CHAT] Auto-PR disabled for user ${task.userId}, skipping PR creation`
+        );
         return;
       }
 
-      console.log(`[CHAT] Auto-PR enabled for user ${task.userId}, creating PR`);
-      
+      console.log(
+        `[CHAT] Auto-PR enabled for user ${task.userId}, creating PR`
+      );
+
       // Use the existing createPRIfNeeded method
-      await this.createPRIfNeeded(taskId, workspacePath, messageId, userApiKeys);
+      await this.createPRIfNeeded(
+        taskId,
+        workspacePath,
+        messageId,
+        userApiKeys
+      );
     } catch (error) {
-      console.error(`[CHAT] Failed to check user auto-PR setting for task ${taskId}:`, error);
+      console.error(
+        `[CHAT] Failed to check user auto-PR setting for task ${taskId}:`,
+        error
+      );
       // Non-blocking - don't throw
     }
   }
