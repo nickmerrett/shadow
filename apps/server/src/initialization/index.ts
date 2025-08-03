@@ -536,32 +536,6 @@ export class TaskInitializationEngine {
     }
   }
 
-  /**
-   * Cleanup workspace step - Clean up resources for firecracker mode
-   */
-  private async executeCleanupWorkspace(taskId: string): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Starting workspace cleanup`);
-
-    try {
-      // Use the workspace manager to handle cleanup
-      const cleanupResult =
-        await this.abstractWorkspaceManager.cleanupWorkspace(taskId);
-
-      if (!cleanupResult.success) {
-        throw new Error(`Cleanup failed: ${cleanupResult.message}`);
-      }
-
-      console.log(
-        `[TASK_INIT] ${taskId}: Workspace cleanup completed successfully`
-      );
-    } catch (error) {
-      console.error(
-        `[TASK_INIT] ${taskId}: Failed to cleanup workspace:`,
-        error
-      );
-      throw error;
-    }
-  }
 
   /**
    * Emit progress events via WebSocket
@@ -577,10 +551,23 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Get default initialization steps based on agent mode
+   * Get default initialization steps based on agent mode and user settings
    */
-  getDefaultStepsForTask(): InitStatus[] {
+  async getDefaultStepsForTask(userId: string): Promise<InitStatus[]> {
     const agentMode = getAgentMode();
-    return getStepsForMode(agentMode);
+    
+    // Fetch user settings to determine if deep wiki generation should be enabled
+    let enableDeepWiki = true; // Default to true
+    try {
+      const userSettings = await prisma.userSettings.findUnique({
+        where: { userId },
+        select: { enableDeepWiki: true },
+      });
+      enableDeepWiki = userSettings?.enableDeepWiki ?? true;
+    } catch (error) {
+      console.warn(`[TASK_INIT] Failed to fetch user settings for ${userId}, using default enableDeepWiki=true:`, error);
+    }
+    
+    return getStepsForMode(agentMode, { enableDeepWiki });
   }
 }
