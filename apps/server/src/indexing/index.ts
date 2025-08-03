@@ -1,4 +1,5 @@
-import indexRepo, { IndexRepoOptions } from "@/indexing/indexer";
+import { IndexRepoOptions } from "@/indexing/indexer";
+import { startBackgroundIndexing } from "../initialization/background-indexing";
 import express from "express";
 import { isValidRepo } from "./utils/repository";
 import { shallowwikiRouter } from "./shallowwiki/routes";
@@ -29,15 +30,22 @@ router.post(
     }
 
     try {
-      const result = await indexRepo(repo, taskId, {
-        ...options,
-        clearNamespace: clearNamespace,
+      // Start background indexing (non-blocking)
+      await startBackgroundIndexing(repo, taskId, {
+        embed: options.embed ?? true,
+        clearNamespace: clearNamespace ?? true,
+        force: true // Allow manual indexing to override recent indexing
       });
-      res.json({ message: "Indexing complete", ...result });
+      
+      res.json({ 
+        message: "Background indexing started",
+        repoFullName: repo,
+        taskId: taskId
+      });
     } catch (error: unknown) {
       if (error instanceof Error && error.message.includes("Not Found")) {
         return res.status(500).json({
-          error: `Failed to fetch repository: ${error.message}`,
+          error: `Failed to start indexing: ${error.message}`,
         });
       }
       next(error);

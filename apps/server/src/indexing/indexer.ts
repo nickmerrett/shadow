@@ -156,6 +156,24 @@ async function indexRepo(
     logger.info(`Number of nodes in the graph: ${graph.nodes.size}`);
 
     for (const file of files) {
+      // Skip binary/excluded file types
+      const ext = file.path.split('.').pop()?.toLowerCase() || '';
+      const excludedExtensions = [
+        'ico', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp',
+        'pdf', 'zip', 'tar', 'gz', 'rar', '7z',
+        'mp3', 'mp4', 'avi', 'mov', 'wmv', 'flv',
+        'exe', 'dll', 'so', 'dylib', 'bin',
+        'woff', 'woff2', 'ttf', 'eot', 'otf',
+        'db', 'sqlite', 'sqlite3',
+        'class', 'jar', 'war',
+        'o', 'obj', 'lib', 'a'
+      ];
+      
+      if (excludedExtensions.includes(ext)) {
+        logger.info(`Skipping excluded file type: ${file.path}`);
+        continue;
+      }
+      
       const spec = await getLanguageForPath(file.path);
       const shouldUseTreeSitter = spec && spec.language;
       
@@ -219,9 +237,7 @@ async function indexRepo(
         spec!,
         file.content
       ));
-      logger.info(
-        `File ${file.path}: Found ${defs.length} definitions, ${imports.length} imports, ${calls.length} calls, ${docs.length} docs`
-      );
+
       
       const symNodes: GraphNode[] = [];
 

@@ -8,7 +8,7 @@ import {
   setTaskFailed,
   clearTaskProgress,
 } from "../utils/task-status";
-import indexRepo from "../indexing/indexer";
+import { startBackgroundIndexing } from "./background-indexing";
 
 // Helper for async delays
 const delay = (ms: number) =>
@@ -192,7 +192,7 @@ export class TaskInitializationEngine {
 
       // Repository indexing step (both modes)
       case "INDEX_REPOSITORY":
-        // await this.executeIndexRepository(taskId);
+        await this.executeIndexRepository(taskId);
         break;
 
       case "INACTIVE":
@@ -446,11 +446,10 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Index repository step - Index repository files for semantic search
+   * Index repository step - Start background indexing (non-blocking)
    */
-  // @ts-expect-error - Temporarily disabled for now
   private async executeIndexRepository(taskId: string): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Starting repository indexing`);
+    console.log(`[TASK_INIT] ${taskId}: Starting background repository indexing`);
 
     try {
       // Get task info
@@ -463,25 +462,23 @@ export class TaskInitializationEngine {
         throw new Error(`Task not found: ${taskId}`);
       }
 
-      // Index the repository with embeddings enabled
-      console.log(
-        `[TASK_INIT] ${taskId}: Indexing repository ${task.repoFullName}`
-      );
-
-      await indexRepo(task.repoFullName, taskId, {
+      // Start background indexing (non-blocking)
+      await startBackgroundIndexing(task.repoFullName, taskId, {
         embed: true,
         clearNamespace: true,
+        force: false
       });
 
       console.log(
-        `[TASK_INIT] ${taskId}: Successfully indexed repository ${task.repoFullName}`
+        `[TASK_INIT] ${taskId}: Background indexing started for repository ${task.repoFullName}`
       );
     } catch (error) {
       console.error(
-        `[TASK_INIT] ${taskId}: Failed to index repository:`,
+        `[TASK_INIT] ${taskId}: Failed to start background indexing:`,
         error
       );
-      throw error;
+      // Don't throw error - we don't want indexing failures to block task startup
+      console.log(`[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`);
     }
   }
 

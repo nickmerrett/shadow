@@ -42,22 +42,59 @@ async function embedAndUpsertToPinecone(
 
   let totalUploaded = 0;
   for (const recordChunk of recordChunks) {
-    // Convert each chunk to Pinecone format
-    const batchRecords: PineconeBatchRecord[] = recordChunk.map((chunk) => ({
-      id: chunk.id,
-      metadata: {
-        code: chunk.code || "",
-        path: chunk.path,
-        name: chunk.name,
-        lang: chunk.lang,
-        line_start: chunk.loc?.startLine || 0,
-        line_end: chunk.loc?.endLine || 0,
-        kind: chunk.kind,
-      },
-    })); // Input: GraphNode[], Output: PineconeBatchRecord[]
+    try {
+      // Convert each chunk to Pinecone format
+      const batchRecords: PineconeBatchRecord[] = recordChunk.map((chunk) => {
+        try {
+          const code = chunk.code || "";
+          // Very aggressively truncate code for both metadata and text to stay under 40KB total
+          // The text field in Pinecone auto-embed also counts towards metadata size
+          const truncatedCode = code.length > 5000 ? code.substring(0, 5000) + "..." : code;
+          
+          if (code.length > 5000) {
+            logger.info(`Truncating large code chunk for ${chunk.path} (${code.length} → 5000 chars)`);
+          }
+          
+          // Truncate other potentially large fields too
+          const truncatedPath = chunk.path && chunk.path.length > 500 ? chunk.path.substring(0, 500) + "..." : chunk.path;
+          const truncatedName = chunk.name && chunk.name.length > 200 ? chunk.name.substring(0, 200) + "..." : chunk.name;
+          
+          const record = {
+            id: chunk.id,
+            metadata: {
+              code: truncatedCode,
+              path: truncatedPath,
+              name: truncatedName,
+              lang: chunk.lang,
+              line_start: chunk.loc?.startLine || 0,
+              line_end: chunk.loc?.endLine || 0,
+              kind: chunk.kind,
+              fullCode: code, // Keep full code for embedding generation
+            },
+          };
 
-    const uploaded = await pinecone.upsertAutoEmbed(batchRecords, namespace); // Input: PineconeBatchRecord[], Output: num_uploaded_records?
-    totalUploaded += uploaded;
+          // Log record size for debugging
+          const recordSize = JSON.stringify(record).length;
+          if (recordSize > 35000) { // Log if approaching 40KB limit
+            logger.warn(`Large record detected: ${chunk.path} (${recordSize} bytes) - ID: ${chunk.id}, codeLength: ${code.length}`);
+          }
+
+          return record;
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          logger.error(`Failed to process chunk for record creation - ID: ${chunk.id}, path: ${chunk.path}, error: ${errorMsg}`);
+          throw error;
+        }
+      }); // Input: GraphNode[], Output: PineconeBatchRecord[]
+
+      const uploaded = await pinecone.upsertAutoEmbed(batchRecords, namespace); // Input: PineconeBatchRecord[], Output: num_uploaded_records?
+      totalUploaded += uploaded;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const chunkPaths = recordChunk.map(chunk => chunk.path).join(', ');
+      logger.error(`Failed to upsert record chunk (${recordChunk.length} records) - paths: ${chunkPaths}, error: ${errorMsg}. Continuing with next chunk.`);
+      // Continue processing other chunks instead of throwing
+    }
   }
 
   logger.info(`Embedded and uploaded ${totalUploaded} chunks to Pinecone`);
