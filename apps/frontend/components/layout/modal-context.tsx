@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState } from "react";
 
-type SettingsTab = "general" | "user" | "models" | "github";
+type SettingsTab = "user" | "models" | "github";
 
 interface ModalContextType {
   // Settings modal state
@@ -21,9 +21,9 @@ interface ModalProviderProps {
 
 export function ModalProvider({ children }: ModalProviderProps) {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [settingsModalTab, setSettingsModalTab] = useState<SettingsTab>("general");
+  const [settingsModalTab, setSettingsModalTab] = useState<SettingsTab>("github");
 
-  const openSettingsModal = (tab: SettingsTab = "general") => {
+  const openSettingsModal = (tab: SettingsTab = "github") => {
     setSettingsModalTab(tab);
     setIsSettingsModalOpen(true);
   };
