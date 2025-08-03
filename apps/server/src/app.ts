@@ -48,6 +48,12 @@ app.get("/", (_req, res) => {
   res.send("<h1>Hello world</h1>");
 });
 
+app.get("/health", (_req, res) => {
+  res
+    .status(200)
+    .json({ status: "healthy", timestamp: new Date().toISOString() });
+});
+
 // Indexing routes
 app.use("/api/indexing", IndexingRouter);
 
