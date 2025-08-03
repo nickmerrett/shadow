@@ -51,21 +51,18 @@ async function embedAndUpsertToPinecone(
           const code = chunk.code || "";
           // The text field in Pinecone auto-embed also counts towards metadata size
           const truncatedCode = code.length > 5000 ? code.substring(0, 5000) + "..." : code;
-          
+          /* 
           if (code.length > 5000) {
-            // logger.info(`Truncating large code chunk for ${chunk.path} (${code.length} → 5000 chars)`);
+            logger.info(`Truncating large code chunk for ${chunk.path} (${code.length} → 5000 chars)`);
           }
-          
-          // Truncate other potentially large fields too
-          const truncatedPath = chunk.path && chunk.path.length > 500 ? chunk.path.substring(0, 500) + "..." : chunk.path;
-          const truncatedName = chunk.name && chunk.name.length > 200 ? chunk.name.substring(0, 200) + "..." : chunk.name;
-          
+           */
+
           const record = {
             id: chunk.id,
             metadata: {
               code: truncatedCode,
-              path: truncatedPath,
-              name: truncatedName,
+              path: chunk.path,
+              name: chunk.name,
               lang: chunk.lang,
               line_start: chunk.loc?.startLine || 0,
               line_end: chunk.loc?.endLine || 0,
@@ -73,13 +70,13 @@ async function embedAndUpsertToPinecone(
               fullCode: code, // Keep full code for embedding generation
             },
           };
-
+          /* 
           // Log record size for debugging
           const recordSize = JSON.stringify(record).length;
           if (recordSize > 35000) { // Log if approaching 40KB limit
-            // logger.warn(`Large record detected: ${chunk.path} (${recordSize} bytes) - ID: ${chunk.id}, codeLength: ${code.length}`);
+            logger.warn(`Large record detected: ${chunk.path} (${recordSize} bytes) - ID: ${chunk.id}, codeLength: ${code.length}`);
           }
-
+          */
           return record;
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);

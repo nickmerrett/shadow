@@ -97,23 +97,17 @@ export async function startBackgroundIndexing(
   // Don't await - let it run in background
 }
 
-/**
- * Check if a repository is currently being indexed
- */
+// Check if a repository is currently being indexed
 export function isCurrentlyIndexing(repoFullName: string): boolean {
   return activeIndexingJobs.has(repoFullName);
 }
 
-/**
- * Get the current indexing promise for a repository (if any)
- */
+// Get the current indexing promise for a repository (if any)
 export function getIndexingPromise(repoFullName: string): Promise<void> | undefined {
   return activeIndexingJobs.get(repoFullName);
 }
 
-/**
- * Get list of all repositories currently being indexed
- */
+// Get list of all repositories currently being indexed 
 export function getCurrentlyIndexingRepos(): string[] {
   return Array.from(activeIndexingJobs.keys());
 }
