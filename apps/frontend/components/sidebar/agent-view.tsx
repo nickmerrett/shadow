@@ -275,32 +275,38 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {/* <SidebarGroup>
+      <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenuItem>
             <Button
               variant="ghost"
               className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
-              onClick={() => indexMutation.mutate({
-                repoFullName: task.repoFullName,
-                taskId: task.id,
-                clearNamespace: true,
-              })}
+              onClick={() =>
+                indexMutation.mutate({
+                  repoFullName: task.repoFullName,
+                  taskId: task.id,
+                  clearNamespace: true,
+                })
+              }
               disabled={indexMutation.isPending}
             >
               <RefreshCcw className="size-4 shrink-0" />
-              <span>{indexMutation.isPending ? "Indexing..." : "Index Repo"}</span>
+              <span>
+                {indexMutation.isPending ? "Indexing..." : "Index Repo"}
+              </span>
             </Button>
           </SidebarMenuItem>
           {indexMutation.error && (
             <SidebarMenuItem>
               <div className="px-2 text-xs text-red-400">
-                {indexMutation.error instanceof Error ? indexMutation.error.message : "Failed to index repository"}
+                {indexMutation.error instanceof Error
+                  ? indexMutation.error.message
+                  : "Failed to index repository"}
               </div>
             </SidebarMenuItem>
           )}
         </SidebarGroupContent>
-      </SidebarGroup> */}
+      </SidebarGroup>
 
       {/* Task List (Todos) */}
       {todos.length > 0 && (

@@ -18,6 +18,7 @@ import { getOwnerFromRepo, isValidRepo } from "./utils/repository";
 import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
 import { IndexRepoOptions } from "@repo/types";
 import { DEFAULT_MAX_LINES_PER_CHUNK } from "./constants";
+import { EXCLUDED_EXTENSIONS } from "@repo/types";
 
 async function createUnsupportedFileChunks(
   file: { path: string; content: string; type: string },
@@ -25,7 +26,7 @@ async function createUnsupportedFileChunks(
   graph: Graph
 ): Promise<void> {
   if (!file.content.trim()) return;
-  
+
   const lines = file.content.split("\n");
   const chunkSize = DEFAULT_MAX_LINES_PER_CHUNK;
   let chunkIndex = 0;
@@ -137,26 +138,16 @@ async function indexRepo(
 
     for (const file of files) {
       // Skip binary/excluded file types
-      const ext = file.path.split('.').pop()?.toLowerCase() || '';
-      const excludedExtensions = [
-        'ico', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp',
-        'pdf', 'zip', 'tar', 'gz', 'rar', '7z',
-        'mp3', 'mp4', 'avi', 'mov', 'wmv', 'flv',
-        'exe', 'dll', 'so', 'dylib', 'bin',
-        'woff', 'woff2', 'ttf', 'eot', 'otf',
-        'db', 'sqlite', 'sqlite3',
-        'class', 'jar', 'war',
-        'o', 'obj', 'lib', 'a', 'json', 'sql', 'out'
-      ];
-      
-      if (excludedExtensions.includes(ext)) {
+      const ext = file.path.split(".").pop()?.toLowerCase() || "";
+
+      if (EXCLUDED_EXTENSIONS.includes(ext)) {
         // logger.info(`Skipping excluded file type: ${file.path}`);
         continue;
       }
-      
+
       const spec = await getLanguageForPath(file.path);
       const shouldUseTreeSitter = spec && spec.language;
-      
+
       // For unsupported files, skip graph creation but still create chunks for embedding
       if (!shouldUseTreeSitter) {
         // Create chunks directly for embedding without adding to graph
@@ -168,7 +159,7 @@ async function indexRepo(
       let parser: TreeSitter | null = null;
       let tree: any = null;
       let rootNode: any = null;
-      
+
       // Try to parse with tree-sitter
       try {
         parser = new TreeSitter();
@@ -176,7 +167,9 @@ async function indexRepo(
         tree = parser.parse(file.content);
         rootNode = tree.rootNode;
       } catch (error) {
-        logger.warn(`Failed to parse ${file.path} with tree-sitter: ${error instanceof Error ? error.message : String(error)}`);
+        logger.warn(
+          `Failed to parse ${file.path} with tree-sitter: ${error instanceof Error ? error.message : String(error)}`
+        );
         // Skip files that fail to parse
         continue;
       }
@@ -210,7 +203,7 @@ async function indexRepo(
       let imports: any[] = [];
       let calls: any[] = [];
       let docs: any[] = [];
-      
+
       // Extract symbols, imports, calls, and docs
       ({ defs, imports, calls, docs } = extractGeneric(
         rootNode,
@@ -218,7 +211,6 @@ async function indexRepo(
         file.content
       ));
 
-      
       const symNodes: GraphNode[] = [];
 
       // SYMBOL defs
@@ -374,7 +366,9 @@ async function indexRepo(
           const chunkContent = lines.slice(startLine, endLine + 1).join("\n");
 
           if (chunkContent.trim()) {
-            logger.info(`[INDEXER] Creating file chunk for ${file.path}: lines ${startLine}-${endLine} (${chunkContent.length} chars)`);
+            logger.info(
+              `[INDEXER] Creating file chunk for ${file.path}: lines ${startLine}-${endLine} (${chunkContent.length} chars)`
+            );
             const chunkId = getNodeHash(
               repoId,
               file.path,
@@ -467,11 +461,9 @@ async function indexRepo(
     // Output is the graph with nodes, adjacencies and inverted index
     // Only the nodes get embedded
     logger.info("[INDEXER] Embedding and uploading to Pinecone...");
-    await embedAndUpsertToPinecone(
-      Array.from(graph.nodes.values()),
-      repoName,
-      { clearNamespace }
-    );
+    await embedAndUpsertToPinecone(Array.from(graph.nodes.values()), repoName, {
+      clearNamespace,
+    });
 
     logger.info(`[INDEXER] Indexed ${graph.nodes.size} nodes.`);
     return {
