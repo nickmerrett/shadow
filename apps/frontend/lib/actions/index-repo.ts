@@ -1,10 +1,16 @@
 "use server";
 
-export async function fetchIndexApi({ repoFullName, taskId, clearNamespace = true }: {
+import { IndexRepoOptions } from "@repo/types";
+
+export async function fetchIndexApi({ 
+  repoFullName, 
+  taskId, 
+  clearNamespace = true,
+  ...otherOptions 
+}: {
   repoFullName: string;
   taskId: string;
-  clearNamespace?: boolean;
-}) {
+} & Partial<IndexRepoOptions>) {
   const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
   const response = await fetch(
     `${backendUrl}/api/indexing/index`,
@@ -13,7 +19,17 @@ export async function fetchIndexApi({ repoFullName, taskId, clearNamespace = tru
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ repo: repoFullName, taskId: taskId, options: { embed: true, clearNamespace: clearNamespace } }),
+      // Force is used because the only case this is called is when we manually index a repo
+      body: JSON.stringify({ 
+        repo: repoFullName, 
+        taskId: taskId, 
+        options: { 
+          embed: true, 
+          clearNamespace, 
+          force: true,
+          ...otherOptions 
+        } 
+      }),
     }
   );
   

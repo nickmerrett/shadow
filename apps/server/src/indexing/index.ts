@@ -1,4 +1,4 @@
-import { IndexRepoOptions } from "@/indexing/indexer";
+import { IndexRepoOptions } from "@repo/types";
 import { startBackgroundIndexing, getIndexingPromise } from "../initialization/background-indexing";
 import express from "express";
 import { isValidRepo } from "./utils/repository";

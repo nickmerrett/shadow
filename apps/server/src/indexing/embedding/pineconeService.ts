@@ -89,13 +89,13 @@ class PineconeHandler {
             ...record.metadata,
           };
 
+          /* 
           // Log metadata size for debugging
           const totalSize = JSON.stringify(finalRecord).length;
-
           if (totalSize > 35000) {
-            // logger.warn(`[PINECONE_SERVICE] Large record ${record.id}: total=${totalSize}B`);
+            logger.warn(`[PINECONE_SERVICE] Large record ${record.id}: total=${totalSize}B`);
           }
-
+          */
           return finalRecord;
         })
         .filter((record): record is PineconeAutoEmbedRecord => record !== null);

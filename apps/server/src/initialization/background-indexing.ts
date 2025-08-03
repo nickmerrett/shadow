@@ -1,14 +1,9 @@
 import { prisma } from "@repo/db";
 import indexRepo from "../indexing/indexer";
+import { IndexRepoOptions } from "@repo/types";
 
 // Global tracking of active indexing operations
 const activeIndexingJobs = new Map<string, Promise<void>>();
-
-interface BackgroundIndexingOptions {
-  embed?: boolean;
-  clearNamespace?: boolean;
-  force?: boolean;
-}
 
 /**
  * Start background indexing for a repository with duplicate detection
@@ -17,7 +12,7 @@ interface BackgroundIndexingOptions {
 export async function startBackgroundIndexing(
   repoFullName: string,
   taskId: string,
-  options: BackgroundIndexingOptions = {
+  options: IndexRepoOptions = {
     embed: true,
     clearNamespace: true,
     force: false
@@ -60,7 +55,9 @@ export async function startBackgroundIndexing(
   // Start indexing promise
   const indexingPromise = indexRepo(repoFullName, taskId, {
     embed: options.embed ?? true,
-    clearNamespace: options.clearNamespace ?? true
+    clearNamespace: options.clearNamespace ?? true,
+    force: options.force ?? false,
+    // Note: force is not passed to indexRepo as it's only used for background indexing logic
   })
     .then(() => {
       console.log(`[BACKGROUND_INDEXING] Background indexing completed successfully for ${repoFullName}`);

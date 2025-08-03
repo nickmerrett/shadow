@@ -16,20 +16,7 @@ import TreeSitter from "tree-sitter";
 import { embedAndUpsertToPinecone } from "./embedderWrapper";
 import { getOwnerFromRepo, isValidRepo } from "./utils/repository";
 import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
-
-export interface FileContentResponse {
-  content: string;
-  path: string;
-  type: string;
-}
-
-export interface IndexRepoOptions {
-  clearNamespace: boolean;
-  maxLines?: number;
-  embed?: boolean;
-  outDir?: string;
-  paths?: string[] | null;
-}
+import { IndexRepoOptions } from "@repo/types";
 
 async function createUnsupportedFileChunks(
   file: { path: string; content: string; type: string },
@@ -115,12 +102,11 @@ async function indexRepo(
   const {
     maxLines = 200,
     embed = false,
-    paths = null,
     clearNamespace = true,
   } = options;
 
   logger.info(
-    `[INDEXER] Indexing ${repoName}${paths ? " (filtered)" : ""}${embed ? " + embeddings" : ""}`
+    `[INDEXER] Indexing ${repoName}${embed ? " + embeddings" : ""}`
   );
 
   let files: Array<{ path: string; content: string; type: string }> = [];

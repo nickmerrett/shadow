@@ -35,3 +35,6 @@ export * from "./codebase-understanding/summaries";
 
 // === GitHub Types ===
 export * from "./github";
+
+// === Indexing Types ===
+export * from "./indexing/options";
