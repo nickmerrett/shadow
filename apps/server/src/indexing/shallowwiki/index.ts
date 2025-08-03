@@ -7,7 +7,7 @@ import path from "path";
 import { DeepWikiStorage } from "./storage";
 
 // Tree-sitter imports
-import Parser, { Language } from "tree-sitter";
+import Parser from "tree-sitter";
 import JavaScript from "tree-sitter-javascript";
 import TS from "tree-sitter-typescript";
 import Python from "tree-sitter-python";
@@ -66,13 +66,13 @@ const sha1 = (data: string) => createHash("sha1").update(data).digest("hex");
 
 // Tree-sitter language setup
 const parserJS = new Parser();
-parserJS.setLanguage(JavaScript as Language);
+parserJS.setLanguage(JavaScript as any);
 const parserTS = new Parser();
-parserTS.setLanguage(TS.typescript as Language);
+parserTS.setLanguage(TS.typescript as any);
 const parserTSX = new Parser();
-parserTSX.setLanguage(TS.tsx as Language);
+parserTSX.setLanguage(TS.tsx as any);
 const parserPy = new Parser();
-parserPy.setLanguage(Python as Language);
+parserPy.setLanguage(Python as any);
 
 // Typed language aliases for tree-sitter
 const LangJS = JavaScript;
@@ -94,7 +94,7 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
     parser: parserJS,
     extensions: [".js", ".cjs", ".mjs", ".jsx"],
     queryDefs: new Parser.Query(
-      LangJS as Language,
+      LangJS as any,
       `
       (function_declaration name: (identifier) @def.name)
       (method_definition name: (property_identifier) @def.name)
@@ -103,14 +103,14 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
     `
     ),
     queryCalls: new Parser.Query(
-      LangJS as Language,
+      LangJS as any,
       `
       (call_expression function: (identifier) @call.name)
       (call_expression function: (member_expression property: (property_identifier) @call.name))
     `
     ),
     queryImports: new Parser.Query(
-      LangJS as Language,
+      LangJS as any,
       `
       (import_statement source: (string) @import.source)
     `
@@ -120,14 +120,14 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
     parser: parserTS,
     extensions: [".ts", ".mts", ".cts"],
     queryDefs: new Parser.Query(
-      LangTS as Language,
+      LangTS as any,
       `
       (function_declaration name: (identifier) @def.name)
     `
     ),
-    queryCalls: new Parser.Query(LangTS as Language, ``),
+    queryCalls: new Parser.Query(LangTS as any, ``),
     queryImports: new Parser.Query(
-      LangTS as Language,
+      LangTS as any,
       `
       (import_statement source: (string) @import.source)
     `
@@ -137,14 +137,14 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
     parser: parserTSX,
     extensions: [".tsx"],
     queryDefs: new Parser.Query(
-      LangTSX as Language,
+      LangTSX as any,
       `
       (function_declaration name: (identifier) @def.name)
     `
     ),
-    queryCalls: new Parser.Query(LangTSX as Language, ``),
+    queryCalls: new Parser.Query(LangTSX as any, ``),
     queryImports: new Parser.Query(
-      LangTSX as Language,
+      LangTSX as any,
       `
       (import_statement source: (string) @import.source)
     `
@@ -154,20 +154,20 @@ const LANGUAGES: Record<LangKey, LangSpec> = {
     parser: parserPy,
     extensions: [".py"],
     queryDefs: new Parser.Query(
-      LangPy as Language,
+      LangPy as any,
       `
       (function_definition name: (identifier) @def.name)
       (class_definition name: (identifier) @def.name)
     `
     ),
     queryCalls: new Parser.Query(
-      LangPy as Language,
+      LangPy as any,
       `
       (call function: (identifier) @call.name)
     `
     ),
     queryImports: new Parser.Query(
-      LangPy as Language,
+      LangPy as any,
       `
       (import_from_statement module_name: (dotted_name) @import.module)
       (import_statement name: (dotted_name) @import.module)
