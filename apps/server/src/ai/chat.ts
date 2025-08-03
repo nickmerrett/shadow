@@ -573,23 +573,6 @@ export class ChatService {
     
     // Get system prompt with deep wiki content for this task
     const taskSystemPrompt = await getSystemPrompt(taskId);
-    
-    // Send system prompt to browser console for debugging
-    emitStreamChunk(
-      {
-        type: "debug",
-        debug: {
-          type: "system_prompt",
-          data: {
-            taskId,
-            promptLength: taskSystemPrompt.length,
-            hasDeepWiki: taskSystemPrompt.includes('<codebase_architecture>'),
-            prompt: taskSystemPrompt
-          }
-        }
-      },
-      taskId
-    );
 
     try {
       for await (const chunk of this.llmService.createMessageStream(
