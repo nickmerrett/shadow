@@ -93,13 +93,13 @@ class PineconeHandler {
           };
           
           // Log metadata size for debugging
-          const metadataSize = JSON.stringify(metadataWithoutFullCode).length;
-          const textSize = text.length;
+          // const metadataSize = JSON.stringify(metadataWithoutFullCode).length;
+          // const textSize = text.length;
           const totalSize = JSON.stringify(finalRecord).length;
           
           if (totalSize > 35000) { // Log large records
-            logger.warn(`[PINECONE_SERVICE] Large record ${record.id}: metadata=${metadataSize}B, text=${textSize}B, total=${totalSize}B`);
-            logger.warn(`[PINECONE_SERVICE] Metadata keys: ${Object.keys(metadataWithoutFullCode).join(', ')}`);
+            // logger.warn(`[PINECONE_SERVICE] Large record ${record.id}: metadata=${metadataSize}B, text=${textSize}B, total=${totalSize}B`);
+            // logger.warn(`[PINECONE_SERVICE] Metadata keys: ${Object.keys(metadataWithoutFullCode).join(', ')}`);
           }
           
           return finalRecord;
@@ -107,13 +107,13 @@ class PineconeHandler {
         .filter((record): record is PineconeAutoEmbedRecord => record !== null);
 
       if (autoEmbedRecords.length === 0) {
-        logger.warn("[PINECONE_SERVICE] No records to upsert in pineconeService.ts");
+        // logger.warn("[PINECONE_SERVICE] No records to upsert");
         return 0; // If there are no records, return 0
       }
 
       // Use upsertRecords for auto-embedding
       await this.client.namespace(namespace).upsertRecords(autoEmbedRecords); // Pinecone fn
-      logger.info(`[PINECONE_SERVICE] Upserted ${autoEmbedRecords.length} records to Pinecone`);
+      // logger.info(`[PINECONE_SERVICE] Upserted ${autoEmbedRecords.length} records to Pinecone`);
       return autoEmbedRecords.length;
     } catch (error) {
       logger.error(`[PINECONE_SERVICE] Error upserting records: ${error}`);

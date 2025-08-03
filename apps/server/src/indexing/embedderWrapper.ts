@@ -31,15 +31,15 @@ async function embedAndUpsertToPinecone(
   // Output: num_uploaded_records?
   const pinecone = new PineconeHandler();
   const namespace = getNamespaceFromRepo(repo);
-
+  logger.info(`[EMBEDDER_WRAPPER] Clear namespace if requested: ${clearNamespace}`);
   if (clearNamespace) {
-    console.log("Clearing namespace", namespace);
+    logger.info(`[EMBEDDER_WRAPPER] Clearing namespace: ${namespace}`);
     await pinecone.clearNamespace(namespace);
   }
-
+  logger.info(`[EMBEDDER_WRAPPER] Starting chunking and embedding...`);
   // Chunk by line ranges and upload
   const recordChunks: GraphNode[][] = await pinecone.chunkRecords(nodes); // Input: GraphNode[], Output: GraphNode[][]
-
+  logger.info(`[EMBEDDER_WRAPPER] Record chunks: ${recordChunks.length}`);
   let totalUploaded = 0;
   for (const recordChunk of recordChunks) {
     try {
@@ -52,7 +52,7 @@ async function embedAndUpsertToPinecone(
           const truncatedCode = code.length > 5000 ? code.substring(0, 5000) + "..." : code;
           
           if (code.length > 5000) {
-            logger.info(`Truncating large code chunk for ${chunk.path} (${code.length} → 5000 chars)`);
+            // logger.info(`Truncating large code chunk for ${chunk.path} (${code.length} → 5000 chars)`);
           }
           
           // Truncate other potentially large fields too
@@ -76,7 +76,7 @@ async function embedAndUpsertToPinecone(
           // Log record size for debugging
           const recordSize = JSON.stringify(record).length;
           if (recordSize > 35000) { // Log if approaching 40KB limit
-            logger.warn(`Large record detected: ${chunk.path} (${recordSize} bytes) - ID: ${chunk.id}, codeLength: ${code.length}`);
+            // logger.warn(`Large record detected: ${chunk.path} (${recordSize} bytes) - ID: ${chunk.id}, codeLength: ${code.length}`);
           }
 
           return record;
@@ -96,8 +96,7 @@ async function embedAndUpsertToPinecone(
       // Continue processing other chunks instead of throwing
     }
   }
-
-  logger.info(`Embedded and uploaded ${totalUploaded} chunks to Pinecone`);
+  logger.info(`[EMBEDDER_WRAPPER] Embedded and uploaded ${totalUploaded} chunks to Pinecone`);
   return totalUploaded;
 }
 

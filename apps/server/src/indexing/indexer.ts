@@ -120,7 +120,7 @@ async function indexRepo(
   } = options;
 
   logger.info(
-    `Indexing ${repoName}${paths ? " (filtered)" : ""}${embed ? " + embeddings" : ""}`
+    `[INDEXER] Indexing ${repoName}${paths ? " (filtered)" : ""}${embed ? " + embeddings" : ""}`
   );
 
   let files: Array<{ path: string; content: string; type: string }> = [];
@@ -170,7 +170,7 @@ async function indexRepo(
       ];
       
       if (excludedExtensions.includes(ext)) {
-        logger.info(`Skipping excluded file type: ${file.path}`);
+        // logger.info(`Skipping excluded file type: ${file.path}`);
         continue;
       }
       
@@ -181,7 +181,7 @@ async function indexRepo(
       if (!shouldUseTreeSitter) {
         // Create chunks directly for embedding without adding to graph
         await createUnsupportedFileChunks(file, repoId, maxLines, graph);
-        logger.info(`Directly embedding unsupported file: ${file.path}`);
+        // logger.info(`Directly embedding unsupported file: ${file.path}`);
         continue;
       }
 
@@ -486,17 +486,17 @@ async function indexRepo(
     // Output is the graph with nodes, adjacencies and inverted index
     // Only the nodes get embedded
     if (embed) {
-      logger.info("Embedding and uploading to Pinecone...");
+      logger.info("[INDEXER] Embedding and uploading to Pinecone...");
       await embedAndUpsertToPinecone(
         Array.from(graph.nodes.values()),
         repoName,
         clearNamespace
       );
     } else {
-      logger.info("Embedding skipped (embed=false).");
+      logger.info("[INDEXER] Embedding skipped (embed=false).");
     }
 
-    logger.info(`Indexed ${graph.nodes.size} nodes.`);
+    logger.info(`[INDEXER] Indexed ${graph.nodes.size} nodes.`);
     return {
       graph,
       graphJSON: graph.graphToJSON(),
