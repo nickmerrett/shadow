@@ -1,5 +1,5 @@
 import { IndexRepoOptions } from "@/indexing/indexer";
-import { startBackgroundIndexing } from "../initialization/background-indexing";
+import { startBackgroundIndexing, getIndexingPromise } from "../initialization/background-indexing";
 import express from "express";
 import { isValidRepo } from "./utils/repository";
 import { shallowwikiRouter } from "./shallowwiki/routes";
@@ -30,15 +30,23 @@ router.post(
     }
 
     try {
-      // Start background indexing (non-blocking)
+      // Start background indexing
       await startBackgroundIndexing(repo, taskId, {
         embed: options.embed ?? true,
         clearNamespace: clearNamespace ?? true,
         force: true // Allow manual indexing to override recent indexing
       });
       
+      // Wait for the indexing to complete
+      const indexingPromise = getIndexingPromise(repo);
+      if (indexingPromise) {
+        console.log(`[INDEXING_API] Waiting for indexing to complete for ${repo}`);
+        await indexingPromise;
+        console.log(`[INDEXING_API] Indexing completed for ${repo}`);
+      }
+      
       res.json({ 
-        message: "Background indexing started",
+        message: "Indexing completed successfully",
         repoFullName: repo,
         taskId: taskId
       });

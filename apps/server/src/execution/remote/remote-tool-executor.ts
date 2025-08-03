@@ -23,6 +23,7 @@ import {
 } from "@repo/types";
 import { CommandResult } from "../interfaces/types";
 import { performSemanticSearch } from "@/utils/semantic-search";
+import { isCurrentlyIndexing } from "@/initialization/background-indexing";
 
 /**
  * RemoteToolExecutor executes tools in remote VMs via sidecar API
@@ -319,6 +320,33 @@ export class RemoteToolExecutor implements ToolExecutor {
     repo: string,
     _options?: SearchOptions
   ): Promise<SemanticSearchToolResult> {
+    // Check if repository is currently being indexed
+    if (isCurrentlyIndexing(repo)) {
+      console.log(`[SEMANTIC_SEARCH] Repository ${repo} is currently being indexed, using grep fallback immediately`);
+      
+      // Use grep fallback immediately during indexing
+      const fallbackResult = await this.grepSearch(query);
+      
+      // Convert GrepResult to SemanticSearchToolResult format
+      return {
+        success: fallbackResult.success,
+        results: fallbackResult.matches.map((match, i) => ({
+          id: i + 1,
+          content: match,
+          relevance: 0.8,
+          filePath: "",
+          lineStart: 0,
+          lineEnd: 0,
+          language: "",
+          kind: "",
+        })),
+        query: fallbackResult.query,
+        searchTerms: fallbackResult.query.split(/\s+/),
+        message: `Repository is currently being indexed. ${fallbackResult.message} (using grep search)`,
+        error: fallbackResult.error,
+      };
+    }
+
     try {
       return await performSemanticSearch({ query, repo });
     } catch (error) {

@@ -83,23 +83,17 @@ class PineconeHandler {
             return null;
           }
           
-          // Create metadata without fullCode to avoid size limits
-          const { fullCode, ...metadataWithoutFullCode } = record.metadata;
-          
           const finalRecord = {
             _id: record.id,
             text: text,
-            ...metadataWithoutFullCode,
+            ...record.metadata,
           };
           
           // Log metadata size for debugging
-          // const metadataSize = JSON.stringify(metadataWithoutFullCode).length;
-          // const textSize = text.length;
           const totalSize = JSON.stringify(finalRecord).length;
           
           if (totalSize > 35000) { // Log large records
-            // logger.warn(`[PINECONE_SERVICE] Large record ${record.id}: metadata=${metadataSize}B, text=${textSize}B, total=${totalSize}B`);
-            // logger.warn(`[PINECONE_SERVICE] Metadata keys: ${Object.keys(metadataWithoutFullCode).join(', ')}`);
+            // logger.warn(`[PINECONE_SERVICE] Large record ${record.id}: total=${totalSize}B`);
           }
           
           return finalRecord;

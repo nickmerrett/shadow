@@ -96,6 +96,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
 
   const [isIndexing, setIsIndexing] = useState(false);
+  const [indexingError, setIndexingError] = useState<string | null>(null);
 
   const completedTodos = useMemo(
     () => todos.filter((todo) => todo.status === "COMPLETED").length,
@@ -236,12 +237,18 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
               onClick={async () => {
                 setIsIndexing(true);
+                setIndexingError(null);
                 try {
                   await fetchIndexApi({
                     repoFullName: task.repoFullName,
                     taskId: task.id,
                     clearNamespace: true,
                   });
+                  console.log("Repository indexing completed successfully");
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : "Failed to index repository";
+                  setIndexingError(errorMessage);
+                  console.error("Indexing failed:", error);
                 } finally {
                   setIsIndexing(false);
                 }
@@ -251,6 +258,13 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               <span>{isIndexing ? "Indexing..." : "Index Repo"}</span>
             </Button>
           </SidebarMenuItem>
+          {indexingError && (
+            <SidebarMenuItem>
+              <div className="px-2 text-xs text-red-400">
+                {indexingError}
+              </div>
+            </SidebarMenuItem>
+          )}
         </SidebarGroupContent>
       </SidebarGroup>
 
