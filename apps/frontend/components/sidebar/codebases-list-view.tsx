@@ -7,8 +7,6 @@ import {
 } from "@/components/ui/sidebar";
 import { SidebarCodebase } from "@/lib/db-operations/get-codebases";
 import { LayoutGrid, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export function SidebarCodebasesListView({
   codebases,
