@@ -40,11 +40,7 @@ export function GeneralSettings() {
   };
 
   if (isLoading) {
-    return (
-      <div className="text-muted-foreground">
-        Loading settings...
-      </div>
-    );
+    return <div className="text-muted-foreground">Loading settings...</div>;
   }
 
   return (
@@ -63,9 +59,9 @@ export function GeneralSettings() {
             </Label>
           </div>
           <p className="text-muted-foreground text-sm">
-            When enabled, Shadow will automatically generate comprehensive codebase documentation 
-            during task initialization. This includes file summaries, directory overviews, and 
-            architectural insights powered by AI analysis.
+            When enabled, Shadow will automatically generate comprehensive
+            codebase documentation during task initialization. This includes
+            file summaries, directory overviews, and architectural insights.
           </p>
         </div>
       </div>
@@ -73,7 +69,8 @@ export function GeneralSettings() {
       <div className="text-muted-foreground flex w-full flex-col gap-1 border-t pt-4 text-xs">
         <span>Settings are saved locally in your browser.</span>
         <span>
-          Deep Wiki generation may increase initialization time but provides richer context for the AI agent.
+          Deep Wiki generation may increase initialization time but provides
+          richer context for the AI agent.
         </span>
       </div>
     </>
