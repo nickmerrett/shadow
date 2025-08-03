@@ -28,7 +28,6 @@ import {
   cancelTaskCleanup,
 } from "../utils/task-status";
 import { createToolExecutor } from "../execution";
-import { memoryService } from "@/services/memory-service";
 
 export class ChatService {
   private llmService: LLMService;

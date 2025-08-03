@@ -14,24 +14,22 @@ import {
   FolderGit2,
   GitBranch,
   ListTodo,
-  RefreshCcw,
   Square,
   SquareCheck,
   SquareX,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { statusColorsConfig } from "./status";
 import { FileExplorer } from "@/components/agent-environment/file-explorer";
 import { FileNode } from "@repo/types";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { Button } from "@/components/ui/button";
-import { fetchIndexApi } from "@/lib/actions/index-repo";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
 import { GithubLogo } from "../graphics/github/github-logo";
 import { useCreatePR } from "@/hooks/use-create-pr";
 import { useTaskSocket } from "@/hooks/socket";
-import { Loader2, GitPullRequest } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 const todoStatusConfig = {
   PENDING: { icon: Square, className: "text-muted-foreground" },
@@ -99,7 +97,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { isStreaming } = useTaskSocket(taskId);
   const createPRMutation = useCreatePR();
 
-  const [isIndexing, setIsIndexing] = useState(false);
 
   const completedTodos = useMemo(
     () => todos.filter((todo) => todo.status === "COMPLETED").length,
