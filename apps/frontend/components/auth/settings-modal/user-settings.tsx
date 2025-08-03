@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Loader2, X } from "lucide-react";
 import Image from "next/image";
 import { authClient } from "@/lib/auth/auth-client";
