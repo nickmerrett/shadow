@@ -51,7 +51,7 @@ npm run docker:up
 
 # Build individual services  
 npm run docker:server    # Backend server
-npm run docker:sidecar   # Sidecar service for Firecracker mode
+npm run docker:sidecar   # Sidecar service for remote mode
 
 # Individual Docker operations
 npm run docker:down      # Stop all services
@@ -76,7 +76,7 @@ This is a Turborepo monorepo for Shadow - an AI coding agent platform that allow
 **Apps:**
 - `frontend/` - Next.js application with real-time chat interface, terminal emulator, and task management
 - `server/` - Node.js orchestrator handling LLM integration, WebSocket communication, and API endpoints
-- `sidecar/` - Express.js service providing REST APIs for file operations within Firecracker VMs
+- `sidecar/` - Express.js service providing REST APIs for file operations within Kata QEMU containers
 - `indexing/` - Code embedding and semantic search system (optional)
 
 **Packages:**
@@ -90,11 +90,11 @@ This is a Turborepo monorepo for Shadow - an AI coding agent platform that allow
 The system supports two primary execution modes via an abstraction layer:
 
 1. **Local Mode** (Development): Direct filesystem execution on the host machine
-2. **Firecracker Mode** (Production): Hardware-isolated execution in Firecracker microVMs
+2. **Remote Mode** (Production): Hardware-isolated execution in Kata QEMU containers
 
 **Mode Selection:**
 - Development: Local mode (fast iteration, direct file access)
-- Production: Firecracker mode (true isolation, security, scalability)
+- Production: Remote mode (true isolation, security, scalability)
 - Configuration via `NODE_ENV` and `AGENT_MODE` environment variables
 
 ### Key Data Flow
@@ -112,7 +112,7 @@ The system supports two primary execution modes via an abstraction layer:
 - `ChatMessage` - Conversation history with structured parts (text, tool-call, tool-result)
 - `Todo` - Task management within sessions
 - `TerminalCommand` - Command execution history
-- `TaskSession` - VM/pod session tracking for Firecracker mode
+- `TaskSession` - VM/pod session tracking for remote mode
 - `User/Account/Session` - Authentication via Better Auth
 
 **Message Storage Architecture:**
@@ -129,9 +129,9 @@ The system supports two primary execution modes via an abstraction layer:
 **Local Mode Steps:**
 - `PREPARE_WORKSPACE` - Create local directory and clone repository
 
-**Firecracker Mode Steps:**
-- `CREATE_VM` - Create Firecracker VM pod in Kubernetes
-- `WAIT_VM_READY` - Wait for VM boot and sidecar service health
+**Remote Mode Steps:**
+- `CREATE_VM` - Create Kata QEMU container pod in Kubernetes
+- `WAIT_VM_READY` - Wait for container startup and sidecar service health
 - `VERIFY_VM_WORKSPACE` - Confirm repository cloned and workspace ready
 
 **Real-time Progress:** WebSocket events stream initialization progress to frontend
@@ -140,7 +140,7 @@ The system supports two primary execution modes via an abstraction layer:
 
 **Factory Pattern:** Mode-agnostic tool execution through common interfaces
 ```typescript
-// Automatically selects local or firecracker mode based on config
+// Automatically selects local or remote mode based on config
 const executor = createToolExecutor(taskId, workspacePath);
 const workspaceManager = createWorkspaceManager();
 ```
@@ -154,10 +154,10 @@ const workspaceManager = createWorkspaceManager();
 - Command execution through child processes
 - File watching for real-time updates
 
-**Firecracker Implementation:**
-- HTTP API calls to sidecar service within Kata Container VMs
-- Kubernetes pod management with kata-fc RuntimeClass
-- VM lifecycle orchestration via Kata Containers runtime
+**Remote Implementation:**
+- HTTP API calls to sidecar service within Kata QEMU containers
+- Kubernetes pod management with kata-qemu RuntimeClass
+- Container lifecycle orchestration via Kata Containers runtime
 
 ### Tool System (`apps/server/src/tools/`)
 
@@ -220,16 +220,16 @@ const workspaceManager = createWorkspaceManager();
 
 ## Security & Isolation
 
-### Firecracker MicroVMs
+### Kata QEMU Containers
 
 **Hardware-Level Isolation:**
-- True VM isolation via Firecracker hypervisor
-- Minimal attack surface with purpose-built kernel
+- True VM isolation via QEMU hypervisor
+- Minimal attack surface with lightweight containers
 - Resource limits (CPU, memory, storage)
 - Network isolation with controlled egress
 
 **Sidecar Architecture:**
-- Express.js API service within each VM
+- Express.js API service within each container
 - Path traversal protection
 - Workspace boundary enforcement
 - Secure file operations and command execution
@@ -243,50 +243,50 @@ const workspaceManager = createWorkspaceManager();
 
 ## Infrastructure & Deployment
 
-### Firecracker Infrastructure (Production)
+### Remote Infrastructure (Production)
 
 **EKS Cluster Configuration:**
-- AWS EKS with Amazon Linux 2023 nodes (required for glibc 2.34 compatibility)
+- AWS EKS with Amazon Linux 2023 nodes (required for Kata Containers compatibility)
 - Bare metal instances (c5.metal) for nested virtualization support
-- Kata Containers + Firecracker for VM-level isolation
-- GitHub Container Registry integration for VM images
+- Kata Containers + QEMU for hardware-level isolation
+- GitHub Container Registry integration for container images
 
 **Deployment Scripts:**
 ```bash
-# Deploy full EKS cluster with Firecracker support
-./scripts/deploy-firecracker-infrastructure.sh
+# Deploy full EKS cluster with Kata QEMU support
+./scripts/deploy-remote-infrastructure.sh
 
-# Deploy ECS backend + Firecracker infrastructure  
+# Deploy ECS backend + remote infrastructure  
 ./scripts/deploy-full-infrastructure.sh
 
-# Build and deploy VM images via GitHub Actions
-# Triggered by: .github/workflows/build-vm-images.yml
+# Build and deploy container images via GitHub Actions
+# Triggered by: .github/workflows/build.yml
 ```
 
 **Infrastructure Components:**
 - **EKS Control Plane**: Kubernetes API and scheduling
-- **Firecracker Nodes**: c5.metal instances with KVM/nested virtualization
+- **Remote Nodes**: c5.metal instances with KVM/nested virtualization
 - **System Nodes**: m5.large instances for cluster services
-- **VM Image Registry**: GitHub Container Registry (ghcr.io)
-- **Kata Containers**: Runtime for Firecracker VM orchestration
+- **Container Registry**: GitHub Container Registry (ghcr.io)
+- **Kata Containers**: Runtime for QEMU container orchestration
 
-### Kubernetes Integration (Firecracker Mode)
+### Kubernetes Integration (Remote Mode)
 
 **Pod Management:**
-- Dynamic VM pod creation for each task using `kata-fc` RuntimeClass
-- Resource allocation and limits per Firecracker VM
+- Dynamic container pod creation for each task using `kata-qemu` RuntimeClass
+- Resource allocation and limits per Kata QEMU container
 - Health monitoring and automatic cleanup
-- Service discovery for sidecar communication within VMs
+- Service discovery for sidecar communication within containers
 
-**VM Configuration:**
+**Container Configuration:**
 ```yaml
-# Pod template with Firecracker runtime
+# Pod template with Kata QEMU runtime
 spec:
-  runtimeClassName: kata-fc
+  runtimeClassName: kata-qemu
   nodeSelector:
-    firecracker: "true"
+    remote: "true"
   tolerations:
-  - key: firecracker.shadow.ai/dedicated
+  - key: remote.shadow.ai/dedicated
     value: "true"
     effect: NoSchedule
   containers:
@@ -303,7 +303,7 @@ spec:
 **Multi-Service Architecture:**
 - Frontend: Next.js application
 - Server: Node.js API and orchestrator
-- Sidecar: File operations service for VMs
+- Sidecar: File operations service for containers
 - Database: PostgreSQL with connection pooling
 
 **Development Environment:**
@@ -330,7 +330,7 @@ docker-compose up -d  # Full stack locally
 ### Environment Setup
 - Local mode for development (fast iteration)
 - Docker Compose for full stack testing
-- Kubernetes for production Firecracker deployment
+- Kubernetes for production remote deployment
 
 ### Code Organization
 - Turborepo monorepo with shared packages
@@ -340,11 +340,11 @@ docker-compose up -d  # Full stack locally
 
 ### Important Notes
 - Do NOT run npm run dev anywhere
-- Always test both local and Firecracker modes for production features
+- Always test both local and remote modes for production features
 - Keep initialization steps mode-aware and properly abstracted
 - Maintain WebSocket event compatibility across frontend/backend changes
-- **Firecracker mode requires Amazon Linux 2023 nodes** for Kata Containers compatibility
-- Use `kata-fc` RuntimeClass for Firecracker VM isolation, not direct firecracker runtime
+- **Remote mode requires Amazon Linux 2023 nodes** for Kata Containers compatibility
+- Use `kata-qemu` RuntimeClass for Kata QEMU container isolation, not direct firecracker runtime
 
 ### Working with Tool Calls
 
