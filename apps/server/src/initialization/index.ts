@@ -49,12 +49,6 @@ const STEP_DEFINITIONS: Record<
     name: "Generating Deep Wiki",
     description: "Generate comprehensive codebase documentation",
   },
-
-  // Cleanup step (firecracker only)
-  CLEANUP_WORKSPACE: {
-    name: "Cleaning Up",
-    description: "Clean up workspace and resources",
-  },
   ACTIVE: {
     name: "Ready",
     description: "Task is ready for execution",
@@ -210,11 +204,6 @@ export class TaskInitializationEngine {
       // Deep wiki generation step (both modes, optional)
       case "GENERATE_DEEP_WIKI":
         await this.executeGenerateDeepWiki(taskId);
-        break;
-
-      // Cleanup step (firecracker only)
-      case "CLEANUP_WORKSPACE":
-        await this.executeCleanupWorkspace(taskId);
         break;
 
       case "INACTIVE":
