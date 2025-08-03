@@ -136,11 +136,30 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         });
       }
 
+      const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
+      const modelProvider = model.includes("claude") ? "anthropic" : "openai";
+      if (!userApiKeys[modelProvider]) {
+        const providerName =
+          modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
+
+        await updateTaskStatus(taskId, "FAILED", "INIT");
+
+        return res.status(400).json({
+          error: `${providerName} API key required`,
+          details: `Please configure your ${providerName} API key in settings to use ${model}.`,
+        });
+      }
+
       await updateTaskStatus(taskId, "INITIALIZING", "INIT");
 
       const initSteps =
         await initializationEngine.getDefaultStepsForTask(userId);
-      await initializationEngine.initializeTask(taskId, initSteps, userId);
+      await initializationEngine.initializeTask(
+        taskId,
+        initSteps,
+        userId,
+        userApiKeys
+      );
 
       // Get updated task with workspace info
       const updatedTask = await prisma.task.findUnique({
@@ -155,17 +174,6 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 
       // Process the message with the agent using the task workspace
       // Skip saving user message since it's already saved in the server action
-
-      const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
-      const modelProvider = model.includes("claude") ? "anthropic" : "openai";
-      if (!userApiKeys[modelProvider]) {
-        const providerName =
-          modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
-        return res.status(400).json({
-          error: `${providerName} API key required`,
-          details: `Please configure your ${providerName} API key in settings to use ${model}.`,
-        });
-      }
 
       console.log("\n\n[TASK_INITIATE] PROCESSING USER MESSAGE\n\n");
 

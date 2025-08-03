@@ -721,6 +721,7 @@ export class ChatService {
     const assistantParts: AssistantMessagePart[] = [];
     let usageMetadata: MessageMetadata["usage"];
     let finishReason: MessageMetadata["finishReason"];
+    let hasError = false;
 
     // Map to track tool call sequences as they're created
     const toolCallSequences = new Map<string, number>();
@@ -946,6 +947,7 @@ export class ChatService {
             chunk.error
           );
           finishReason = chunk.finishReason || "error";
+          hasError = true;
 
           // Add error part to assistant message parts
           const errorPart: ErrorPart = {
@@ -1037,7 +1039,10 @@ export class ChatService {
       console.log(`[CHAT] Tool calls executed: ${toolCallSequences.size}`);
 
       // Update task status and schedule cleanup based on how stream ended
-      if (wasStoppedEarly) {
+      if (hasError) {
+        // Error already handled above, just ensure cleanup happens
+        await scheduleTaskCleanup(taskId, 10);
+      } else if (wasStoppedEarly) {
         await updateTaskStatus(taskId, "STOPPED", "CHAT");
         await scheduleTaskCleanup(taskId, 10);
       } else {
