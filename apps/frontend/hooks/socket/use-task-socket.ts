@@ -300,9 +300,47 @@ export function useTaskSocket(taskId: string | undefined) {
       }
     }
 
-    function onStreamState(state: { content: string; isStreaming: boolean }) {
+    function onStreamState(state: { 
+      chunks: StreamChunk[]; 
+      isStreaming: boolean; 
+      totalChunks: number; 
+    }) {
       console.log("Received stream state:", state);
       setIsStreaming(state.isStreaming);
+      
+      // Replay chunks to reconstruct streamingAssistantParts
+      if (state.chunks && state.chunks.length > 0) {
+        const parts: AssistantMessagePart[] = [];
+        
+        state.chunks.forEach(chunk => {
+          if (chunk.type === "content" && chunk.content) {
+            const textPart: TextPart = {
+              type: "text",
+              text: chunk.content,
+            };
+            parts.push(textPart);
+          } else if (chunk.type === "tool-call" && chunk.toolCall) {
+            const toolCallPart: ToolCallPart = {
+              type: "tool-call",
+              toolCallId: chunk.toolCall.id,
+              toolName: chunk.toolCall.name,
+              args: chunk.toolCall.args,
+            };
+            parts.push(toolCallPart);
+          } else if (chunk.type === "tool-result" && chunk.toolResult) {
+            const toolResultPart: ToolResultPart = {
+              type: "tool-result",
+              toolCallId: chunk.toolResult.id,
+              toolName: "", // Will be filled by existing message processing logic
+              result: chunk.toolResult.result,
+            };
+            parts.push(toolResultPart);
+          }
+        });
+        
+        setStreamingAssistantParts(parts);
+        console.log(`[STREAM_STATE] Reconstructed ${parts.length} parts from ${state.chunks.length} chunks`);
+      }
     }
 
     function onStreamChunk(chunk: StreamChunk) {

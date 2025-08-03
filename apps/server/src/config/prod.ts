@@ -1,10 +1,6 @@
 import dotenv from "dotenv";
 import { z } from "zod";
-import {
-  sharedConfigSchema,
-  sharedValidationRules,
-  createSharedConfig,
-} from "./shared";
+import { sharedConfigSchema, createSharedConfig } from "./shared";
 
 // Only load .env.production if environment variables aren't already set
 if (!process.env.VM_IMAGE_REGISTRY) {
@@ -37,7 +33,6 @@ const prodConfigSchema = sharedConfigSchema.extend({
   // Memory allocated per VM in megabytes (512MB - 16GB)
   VM_MEMORY_SIZE_MB: z.coerce.number().min(512).max(16384).default(512),
 
-
   // === KUBERNETES CLUSTER CONFIGURATION ===
   // Namespace where Kata QEMU pods are deployed
   KUBERNETES_NAMESPACE: z.string().default("shadow"),
@@ -54,7 +49,7 @@ const prodConfigSchema = sharedConfigSchema.extend({
   // Pod restart policy (Never = single-use pods, OnFailure = retry on crashes)
   POD_RESTART_POLICY: z.string().default("Never"),
   // Service account for pod security and RBAC permissions
-  POD_SERVICE_ACCOUNT: z.string().default("shadow-firecracker-vm-sa"),
+  POD_SERVICE_ACCOUNT: z.string().default("shadow-remote-vm-sa"),
   // Runtime class for Kata QEMU container execution
   RUNTIME_CLASS: z.string().default("kata-qemu"),
   // Enable privileged containers (required for VM creation)
@@ -230,16 +225,6 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-// Apply shared validation rules
-const sharedValidation = sharedValidationRules(parsed.data);
-if (!sharedValidation.success) {
-  console.error(
-    "Production config shared validation failed:",
-    sharedValidation.error
-  );
-  process.exit(1);
-}
-
 // Apply production-specific validation rules
 const prodValidation = prodValidationRules(parsed.data);
 if (!prodValidation.success) {
@@ -249,7 +234,7 @@ if (!prodValidation.success) {
 
 /**
  * Production configuration object
- * Combines shared config with production-specific Firecracker settings
+ * Combines shared config with production-specific remote execution settings
  */
 const prodConfig = {
   ...createSharedConfig(parsed.data),
@@ -265,7 +250,6 @@ const prodConfig = {
   vmImageTag: parsed.data.VM_IMAGE_TAG,
   vmCpuCount: parsed.data.VM_CPU_COUNT,
   vmMemorySizeMB: parsed.data.VM_MEMORY_SIZE_MB,
-
 
   // Kubernetes configuration
   kubernetesNamespace: parsed.data.KUBERNETES_NAMESPACE,

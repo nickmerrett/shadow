@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Shadow Backend ECS Deployment Script
-# Deploys the Node.js backend server to AWS ECS in the same VPC as Firecracker K8s cluster
+# Deploys the Node.js backend server to AWS ECS in the same VPC as remote execution K8s cluster
 
 set -euo pipefail
 
@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Configuration
-CLUSTER_NAME="${EKS_CLUSTER_NAME:-shadow-firecracker}"
+CLUSTER_NAME="${EKS_CLUSTER_NAME:-shadow-remote}"
 ECS_CLUSTER_NAME="${ECS_CLUSTER_NAME:-shadow-ecs-cluster}"
 ECR_REPO_NAME="${ECR_REPO_NAME:-shadow-server}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
@@ -81,8 +81,30 @@ get_vpc_info() {
     # Get VPC ID
     VPC_ID=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'cluster.resourcesVpcConfig.vpcId' --output text)
     
-    # Get subnet IDs
-    SUBNET_IDS=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'cluster.resourcesVpcConfig.subnetIds' --output text | tr '\t' ',')
+    # Get all subnet IDs from EKS cluster
+    ALL_SUBNET_IDS=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'cluster.resourcesVpcConfig.subnetIds' --output text)
+    
+    # Filter subnets to get one per unique Availability Zone for ALB
+    log "Filtering subnets to unique Availability Zones for Load Balancer..."
+    UNIQUE_SUBNETS=""
+    SEEN_AZS=""
+    
+    for subnet_id in $ALL_SUBNET_IDS; do
+        # Get AZ for this subnet
+        AZ=$(aws ec2 describe-subnets --subnet-ids "$subnet_id" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'Subnets[0].AvailabilityZone' --output text)
+        
+        # Check if we've seen this AZ before
+        if [[ ! " $SEEN_AZS " =~ " $AZ " ]]; then
+            SEEN_AZS="$SEEN_AZS $AZ"
+            if [[ -n "$UNIQUE_SUBNETS" ]]; then
+                UNIQUE_SUBNETS="$UNIQUE_SUBNETS,$subnet_id"
+            else
+                UNIQUE_SUBNETS="$subnet_id"
+            fi
+        fi
+    done
+    
+    SUBNET_IDS="$UNIQUE_SUBNETS"
     
     # Get cluster security group
     CLUSTER_SG=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'cluster.resourcesVpcConfig.clusterSecurityGroupId' --output text)
@@ -277,37 +299,132 @@ EOF
     log "IAM roles created successfully"
 }
 
-# Store K8s token in Systems Manager
-store_k8s_token() {
-    log "Storing K8s service account token..."
+# Store secrets in Systems Manager Parameter Store
+store_secrets() {
+    log "Storing application secrets in Parameter Store..."
     
-    # Check if .env.production exists
+    # Check if .env.production exists, recreate from initial if missing
     if [[ ! -f ".env.production" ]]; then
-        error ".env.production not found. Run deploy-remote-infrastructure.sh first"
+        if [[ ! -f ".env.production.initial" ]]; then
+            error ".env.production.initial not found. This file is required for ECS deployment"
+        fi
+        
+        warn ".env.production not found, regenerating from .env.production.initial..."
+        cp ".env.production.initial" ".env.production"
+        
+        # Add placeholder for K8s token (will be skipped since it's empty)
+        echo "K8S_SERVICE_ACCOUNT_TOKEN=" >> ".env.production"
     fi
     
-    # Extract token from config file
+    # Extract secrets from config file
     K8S_TOKEN=$(grep "K8S_SERVICE_ACCOUNT_TOKEN=" .env.production | cut -d'=' -f2)
+    DATABASE_URL=$(grep "DATABASE_URL=" .env.production | cut -d'=' -f2 | tr -d '"')
+    PINECONE_API_KEY=$(grep "PINECONE_API_KEY=" .env.production | cut -d'=' -f2 | tr -d '"')
+    PINECONE_INDEX_NAME=$(grep "PINECONE_INDEX_NAME=" .env.production | cut -d'=' -f2 | tr -d '"')
+    GITHUB_CLIENT_ID=$(grep "GITHUB_CLIENT_ID=" .env.production | cut -d'=' -f2)
+    GITHUB_CLIENT_SECRET=$(grep "GITHUB_CLIENT_SECRET=" .env.production | cut -d'=' -f2)
+    GITHUB_WEBHOOK_SECRET=$(grep "GITHUB_WEBHOOK_SECRET=" .env.production | cut -d'=' -f2)
     
+    # Validate required secrets
     if [[ -z "$K8S_TOKEN" ]]; then
-        error "K8S service account token not found in .env.production"
+        warn "K8S service account token not found - you may need to run deploy-remote-infrastructure.sh first if using remote mode"
+        warn "Proceeding without K8s token - ensure you have an existing K8s token in Parameter Store or run remote deployment first"
     fi
     
-    # Store in Parameter Store
+    if [[ -z "$DATABASE_URL" ]]; then
+        error "DATABASE_URL not found in .env.production"
+    fi
+    
+    # Store all secrets in Parameter Store
+    if [[ -n "$K8S_TOKEN" ]]; then
+        log "Storing K8s service account token..."
+        aws ssm put-parameter \
+            --name "/shadow/k8s-token" \
+            --value "$K8S_TOKEN" \
+            --type "SecureString" \
+            --overwrite \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE"
+    fi
+    
+    log "Storing database URL..."
     aws ssm put-parameter \
-        --name "/shadow/k8s-token" \
-        --value "$K8S_TOKEN" \
+        --name "/shadow/database-url" \
+        --value "$DATABASE_URL" \
         --type "SecureString" \
         --overwrite \
         --region "$AWS_REGION" \
         --profile "$AWS_PROFILE"
     
-    log "K8s token stored in Parameter Store"
+    if [[ -n "$PINECONE_API_KEY" ]]; then
+        log "Storing Pinecone API key..."
+        aws ssm put-parameter \
+            --name "/shadow/pinecone-api-key" \
+            --value "$PINECONE_API_KEY" \
+            --type "SecureString" \
+            --overwrite \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE"
+    fi
+    
+    if [[ -n "$PINECONE_INDEX_NAME" ]]; then
+        log "Storing Pinecone index name..."
+        aws ssm put-parameter \
+            --name "/shadow/pinecone-index-name" \
+            --value "$PINECONE_INDEX_NAME" \
+            --type "String" \
+            --overwrite \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE"
+    fi
+    
+    if [[ -n "$GITHUB_CLIENT_ID" ]]; then
+        log "Storing GitHub client ID..."
+        aws ssm put-parameter \
+            --name "/shadow/github-client-id" \
+            --value "$GITHUB_CLIENT_ID" \
+            --type "String" \
+            --overwrite \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE"
+    fi
+    
+    if [[ -n "$GITHUB_CLIENT_SECRET" ]]; then
+        log "Storing GitHub client secret..."
+        aws ssm put-parameter \
+            --name "/shadow/github-client-secret" \
+            --value "$GITHUB_CLIENT_SECRET" \
+            --type "SecureString" \
+            --overwrite \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE"
+    fi
+    
+    if [[ -n "$GITHUB_WEBHOOK_SECRET" ]]; then
+        log "Storing GitHub webhook secret..."
+        aws ssm put-parameter \
+            --name "/shadow/github-webhook-secret" \
+            --value "$GITHUB_WEBHOOK_SECRET" \
+            --type "SecureString" \
+            --overwrite \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE"
+    fi
+    
+    log "All secrets stored in Parameter Store successfully"
 }
 
 # Create ECS cluster
 create_ecs_cluster() {
     log "Creating ECS cluster..."
+    
+    # Create ECS service-linked role if it doesn't exist
+    if ! aws iam get-role --role-name AWSServiceRoleForECS --profile "$AWS_PROFILE" &> /dev/null; then
+        log "Creating ECS service-linked role..."
+        aws iam create-service-linked-role --aws-service-name ecs.amazonaws.com --profile "$AWS_PROFILE" || true
+        # Wait a moment for role to propagate
+        sleep 10
+    fi
     
     # Check if cluster exists
     if aws ecs describe-clusters --clusters "$ECS_CLUSTER_NAME" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'clusters[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
@@ -430,7 +547,13 @@ create_task_definition() {
         {"name": "KUBERNETES_SERVICE_PORT", "value": "443"}
       ],
       "secrets": [
-        {"name": "K8S_SERVICE_ACCOUNT_TOKEN", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/k8s-token"}
+        {"name": "K8S_SERVICE_ACCOUNT_TOKEN", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/k8s-token"},
+        {"name": "DATABASE_URL", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/database-url"},
+        {"name": "PINECONE_API_KEY", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/pinecone-api-key"},
+        {"name": "PINECONE_INDEX_NAME", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/pinecone-index-name"},
+        {"name": "GITHUB_CLIENT_ID", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-client-id"},
+        {"name": "GITHUB_CLIENT_SECRET", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-client-secret"},
+        {"name": "GITHUB_WEBHOOK_SECRET", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-webhook-secret"}
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
@@ -574,7 +697,7 @@ main() {
     build_and_push_image
     create_security_group
     create_iam_roles
-    store_k8s_token
+    store_secrets
     create_ecs_cluster
     create_load_balancer
     create_task_definition
@@ -587,7 +710,7 @@ main() {
     log "Next steps:"
     log "1. Update your frontend to use: http://$ALB_DNS"
     log "2. Test WebSocket connections"
-    log "3. Verify Firecracker VM communication"
+    log "3. Verify remote VM communication"
     log ""
     log "Useful commands:"
     log "- Check service: aws ecs describe-services --cluster $ECS_CLUSTER_NAME --services $SERVICE_NAME"

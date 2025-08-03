@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Shadow Production Start Script
-# Builds the application and starts server in Firecracker production mode
+# Builds the application and starts server in remote production mode
 
 set -e  # Exit on any error
 
