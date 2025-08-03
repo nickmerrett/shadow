@@ -229,6 +229,9 @@ install_kata_runtime() {
 setup_kubernetes_resources() {
     log "Setting up Kubernetes resources..."
     
+    # Update kubeconfig to ensure access
+    aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME" --profile ID
+    
     # Create namespace
     kubectl apply -f "$PROJECT_ROOT/apps/server/src/execution/k8s/namespace.yaml"
     
