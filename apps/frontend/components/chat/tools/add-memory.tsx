@@ -1,19 +1,20 @@
 import type { Message } from "@repo/types";
 import { Brain } from "lucide-react";
-import { ToolType } from "@repo/types";
+import { ToolTypes, getToolResult } from "@repo/types";
 import { ToolComponent } from "./collapsible-tool";
 
 export function AddMemoryTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
-  const { args, result, status } = toolMeta;
+  const { args, status } = toolMeta;
   const content = args.content as string;
+  const result = getToolResult(toolMeta, "add_memory");
 
   return (
     <ToolComponent
       icon={<Brain />}
-      type={ToolType.ADD_MEMORY}
+      type={ToolTypes.ADD_MEMORY}
       title={`"${content}"`}
       collapsible
     >
@@ -22,7 +23,7 @@ export function AddMemoryTool({ message }: { message: Message }) {
           {result.success ? (
             <div>✓ Memory added</div>
           ) : (
-            <div>Error: {(result as any).error}</div>
+            <div>Error: {result.error}</div>
           )}
         </div>
       )}
