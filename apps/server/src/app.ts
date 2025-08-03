@@ -5,7 +5,7 @@ import cors from "cors";
 import express from "express";
 import http from "http";
 import { z } from "zod";
-import { ChatService } from "./ai/chat";
+import { ChatService } from "./agent/chat";
 import { TaskInitializationEngine } from "./initialization";
 import { errorHandler } from "./middleware/error-handler";
 import { createSocketServer } from "./socket";
@@ -39,13 +39,19 @@ app.use(
 );
 
 // Special raw body handling for webhook endpoints (before JSON parsing)
-app.use('/api/webhooks', express.raw({ type: 'application/json' }));
+app.use("/api/webhooks", express.raw({ type: "application/json" }));
 
 app.use(express.json());
 
 /* ROUTES */
 app.get("/", (_req, res) => {
   res.send("<h1>Hello world</h1>");
+});
+
+app.get("/health", (_req, res) => {
+  res
+    .status(200)
+    .json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
 // Indexing routes
@@ -130,10 +136,30 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         });
       }
 
+      const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
+      const modelProvider = model.includes("claude") ? "anthropic" : "openai";
+      if (!userApiKeys[modelProvider]) {
+        const providerName =
+          modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
+
+        await updateTaskStatus(taskId, "FAILED", "INIT");
+
+        return res.status(400).json({
+          error: `${providerName} API key required`,
+          details: `Please configure your ${providerName} API key in settings to use ${model}.`,
+        });
+      }
+
       await updateTaskStatus(taskId, "INITIALIZING", "INIT");
 
-      const initSteps = initializationEngine.getDefaultStepsForTask();
-      await initializationEngine.initializeTask(taskId, initSteps, userId);
+      const initSteps =
+        await initializationEngine.getDefaultStepsForTask(userId);
+      await initializationEngine.initializeTask(
+        taskId,
+        initSteps,
+        userId,
+        userApiKeys
+      );
 
       // Get updated task with workspace info
       const updatedTask = await prisma.task.findUnique({
@@ -148,17 +174,6 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 
       // Process the message with the agent using the task workspace
       // Skip saving user message since it's already saved in the server action
-
-      const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
-      const modelProvider = model.includes("claude") ? "anthropic" : "openai";
-      if (!userApiKeys[modelProvider]) {
-        const providerName =
-          modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
-        return res.status(400).json({
-          error: `${providerName} API key required`,
-          details: `Please configure your ${providerName} API key in settings to use ${model}.`,
-        });
-      }
 
       console.log("\n\n[TASK_INITIATE] PROCESSING USER MESSAGE\n\n");
 
@@ -332,6 +347,127 @@ app.delete("/api/tasks/:taskId/cleanup", async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to cleanup task",
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+// Create PR for a task
+app.post("/api/tasks/:taskId/pull-request", async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { userId } = req.body;
+
+    console.log(`[PR_CREATION] Creating PR for task ${taskId}`);
+
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        id: true,
+        userId: true,
+        repoFullName: true,
+        shadowBranch: true,
+        baseBranch: true,
+        title: true,
+        status: true,
+        repoUrl: true,
+        pullRequestNumber: true,
+        workspacePath: true,
+      },
+    });
+
+    if (!task) {
+      console.warn(`[PR_CREATION] Task ${taskId} not found`);
+      return res.status(404).json({
+        success: false,
+        error: "Task not found",
+      });
+    }
+
+    if (task.userId !== userId) {
+      console.warn(`[PR_CREATION] User ${userId} does not own task ${taskId}`);
+      return res.status(403).json({
+        success: false,
+        error: "Unauthorized",
+      });
+    }
+
+    if (task.pullRequestNumber) {
+      console.log(
+        `[PR_CREATION] Task ${taskId} already has PR #${task.pullRequestNumber}`
+      );
+      return res.json({
+        success: true,
+        prNumber: task.pullRequestNumber,
+        prUrl: `${task.repoUrl}/pull/${task.pullRequestNumber}`,
+        message: "Pull request already exists",
+      });
+    }
+
+    // Find the most recent assistant message for this task
+    const latestAssistantMessage = await prisma.chatMessage.findFirst({
+      where: {
+        taskId,
+        role: "ASSISTANT",
+      },
+      orderBy: {
+        sequence: "desc",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!latestAssistantMessage) {
+      console.warn(
+        `[PR_CREATION] No assistant messages found for task ${taskId}`
+      );
+      return res.status(400).json({
+        success: false,
+        error:
+          "No assistant messages found. Cannot create PR without agent responses.",
+      });
+    }
+
+    const userApiKeys = parseApiKeysFromCookies(req.headers.cookie || "");
+
+    await chatService.createPRIfNeeded(
+      taskId,
+      task.workspacePath || undefined,
+      latestAssistantMessage.id,
+      userApiKeys
+    );
+
+    const updatedTask = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        pullRequestNumber: true,
+        repoUrl: true,
+      },
+    });
+
+    if (!updatedTask?.pullRequestNumber) {
+      throw new Error("PR creation completed but no PR number found");
+    }
+
+    console.log(
+      `[PR_CREATION] Successfully created PR #${updatedTask.pullRequestNumber} for task ${taskId}`
+    );
+
+    res.json({
+      success: true,
+      prNumber: updatedTask.pullRequestNumber,
+      prUrl: `${updatedTask.repoUrl}/pull/${updatedTask.pullRequestNumber}`,
+      messageId: latestAssistantMessage.id,
+    });
+  } catch (error) {
+    console.error(
+      `[PR_CREATION] Error creating PR for task ${req.params.taskId}:`,
+      error
+    );
+    res.status(500).json({
+      success: false,
+      error: "Failed to create pull request",
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }

@@ -252,6 +252,7 @@ enum InitStatus {
   WAIT_VM_READY
   VERIFY_VM_WORKSPACE
   INDEX_REPOSITORY
+  GENERATE_DEEP_WIKI
   ACTIVE
 }
 
@@ -259,6 +260,7 @@ model UserSettings {
   id              String   @id @default(cuid())
   userId          String   @unique
   autoPullRequest Boolean  @default(false)
+  enableDeepWiki  Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)

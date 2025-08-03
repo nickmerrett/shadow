@@ -8,12 +8,14 @@ This project uses [Turborepo](https://turborepo.com/docs) to manage its dependen
 
 - `frontend`: Next.js app (UI, chat, terminal, task flows)
 - `server`: Node.js backend (orchestrator, API, LLM, sockets)
-- `indexing`: Code embedding/indexing tools (Pinecone, chunking, retrieval)
+- `sidecar`: Express.js service for file operations in isolated containers
+- `website`: Marketing/landing page
 
 **Packages:**
 
 - `db`: Prisma/Postgres client & schema
 - `types`: Shared TypeScript types
+- `command-security`: Security utilities for command validation
 - `eslint-config`: Shared lint rules
 - `typescript-config`: Shared tsconfig
 
@@ -21,13 +23,16 @@ This project uses [Turborepo](https://turborepo.com/docs) to manage its dependen
 .
 ├── apps/
 │   ├── frontend/
-│   └── server/
+│   ├── server/
+│   ├── sidecar/
+│   └── website/
 ├── packages/
+│   ├── command-security/
 │   ├── db/
 │   ├── eslint-config/
 │   ├── types/
 │   └── typescript-config/
-└── research/
+└── scripts/
 ```
 
 ## Development
@@ -38,37 +43,7 @@ Install dependencies:
 npm install
 ```
 
-Fill out environment variables:
-
-**apps/frontend/.env.local**
-
-```
-NEXT_PUBLIC_API_URL=http://localhost:4000
-NEXT_PUBLIC_SOCKET_URL=http://localhost:4001
-
-BETTER_AUTH_SECRET=
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
-```
-
-**apps/server/.env**
-Note: The database URL is only needed here if you want to run the terminal agent for local workspace testing. Use the same values as the DB package, see the next section for more details.
-
-```
-ANTHROPIC_API_KEY=
-OPENAI_API_KEY=
-
-WORKSPACE_DIR=
-DEBUG=
-
-DATABASE_URL=
-```
-
-**packages/db/.env**
-
-```
-DATABASE_URL=
-```
+Fill out environment variables using the template files in each app and package.
 
 To develop all apps and packages, ensure you have [turbo installed globally](<(https://turborepo.com/docs/getting-started/installation#global-installation)>).
 
@@ -154,11 +129,11 @@ Shadow supports multiple deployment options depending on your infrastructure nee
 
 ### Deployment Scripts Overview
 
-- **`deploy-firecracker-infrastructure.sh`** - Deploys only the EKS cluster with Firecracker/Kata Containers for VM isolation
+- **`deploy-remote-infrastructure.sh`** - Deploys only the EKS cluster with Kata Containers/QEMU for hardware isolation
 - **`deploy-backend-ecs.sh`** - Deploys only the Shadow backend service on ECS with ALB
 - **`deploy-full-infrastructure.sh`** - Deploys complete infrastructure (combines both scripts above)
 
-### Firecracker Mode (AWS EKS + Kata Containers)
+### Remote Mode (AWS EKS + Kata Containers)
 
 Deploy VM-isolated execution environment on AWS:
 
@@ -167,7 +142,7 @@ Deploy VM-isolated execution environment on AWS:
 aws configure sso --profile=ID
 
 # 2. Deploy infrastructure (25-35 minutes)
-./scripts/deploy-firecracker-infrastructure.sh
+./scripts/deploy-remote-infrastructure.sh
 
 # 3. Deploy Shadow application
 npm run start:prod
@@ -180,13 +155,13 @@ npm run start:prod
 
 **What this deploys:**
 - EKS cluster with Amazon Linux 2023 nodes
-- Kata Containers with QEMU runtime for VM isolation
-- VM images deployed to cluster nodes
+- Kata Containers with QEMU runtime for hardware isolation
+- Container images pulled from GitHub Container Registry
 - Network policies and RBAC for security
 
 ### Full Infrastructure (EKS + ECS)
 
-Deploy complete Shadow platform with both Firecracker cluster and backend service:
+Deploy complete Shadow platform with both remote execution cluster and backend service:
 
 ```bash
 # 1. Configure AWS SSO
@@ -197,6 +172,6 @@ aws configure sso --profile=ID
 ```
 
 **What this deploys:**
-- Complete Firecracker infrastructure (from above)
+- Complete remote execution infrastructure (from above)
 - ECS backend service with Application Load Balancer
 - Complete Shadow platform ready for production use

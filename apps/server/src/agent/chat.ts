@@ -10,7 +10,7 @@ import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../../packages/db/src/client";
 import { LLMService } from "./llm";
-import { systemPrompt } from "./system-prompt";
+import { getSystemPrompt, getDeepWikiMessage } from "./system-prompt";
 import { GitManager } from "../services/git-manager";
 import { PRManager } from "../services/pr-manager";
 
@@ -105,6 +105,26 @@ export class ChatService {
         completionTokens: usage?.completionTokens,
         totalTokens: usage?.totalTokens,
         finishReason: metadata?.finishReason,
+      },
+    });
+  }
+
+  async saveSystemMessage(
+    taskId: string,
+    content: string,
+    llmModel: string,
+    sequence: number,
+    metadata?: MessageMetadata
+  ): Promise<ChatMessage> {
+    return await prisma.chatMessage.create({
+      data: {
+        taskId,
+        content,
+        role: "SYSTEM",
+        llmModel,
+        sequence,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        metadata: (metadata as any) || undefined,
       },
     });
   }
@@ -220,7 +240,7 @@ export class ChatService {
   /**
    * Create a PR if needed after changes are committed
    */
-  private async createPRIfNeeded(
+  async createPRIfNeeded(
     taskId: string,
     workspacePath?: string,
     messageId?: string,
@@ -264,16 +284,19 @@ export class ChatService {
         return;
       }
 
-      await prManager.createPRIfNeeded({
-        taskId,
-        repoFullName: task.repoFullName,
-        shadowBranch: task.shadowBranch,
-        baseBranch: task.baseBranch,
-        userId: task.userId,
-        taskTitle: task.title,
-        wasTaskCompleted: task.status === "COMPLETED",
-        messageId,
-      }, userApiKeys);
+      await prManager.createPRIfNeeded(
+        {
+          taskId,
+          repoFullName: task.repoFullName,
+          shadowBranch: task.shadowBranch,
+          baseBranch: task.baseBranch,
+          userId: task.userId,
+          taskTitle: task.title,
+          wasTaskCompleted: task.status === "COMPLETED",
+          messageId,
+        },
+        userApiKeys
+      );
     } catch (error) {
       console.error(`[CHAT] Failed to create PR for task ${taskId}:`, error);
       // Non-blocking - don't throw
@@ -294,12 +317,12 @@ export class ChatService {
 
       const task = await prisma.task.findUnique({
         where: { id: taskId },
-        include: { 
+        include: {
           user: {
             include: {
-              userSettings: true
-            }
-          }
+              userSettings: true,
+            },
+          },
         },
       });
 
@@ -310,18 +333,30 @@ export class ChatService {
 
       // Check if user has auto-PR enabled (default to true if no settings exist)
       const autoPREnabled = task.user.userSettings?.autoPullRequest ?? true;
-      
+
       if (!autoPREnabled) {
-        console.log(`[CHAT] Auto-PR disabled for user ${task.userId}, skipping PR creation`);
+        console.log(
+          `[CHAT] Auto-PR disabled for user ${task.userId}, skipping PR creation`
+        );
         return;
       }
 
-      console.log(`[CHAT] Auto-PR enabled for user ${task.userId}, creating PR`);
-      
+      console.log(
+        `[CHAT] Auto-PR enabled for user ${task.userId}, creating PR`
+      );
+
       // Use the existing createPRIfNeeded method
-      await this.createPRIfNeeded(taskId, workspacePath, messageId, userApiKeys);
+      await this.createPRIfNeeded(
+        taskId,
+        workspacePath,
+        messageId,
+        userApiKeys
+      );
     } catch (error) {
-      console.error(`[CHAT] Failed to check user auto-PR setting for task ${taskId}:`, error);
+      console.error(
+        `[CHAT] Failed to check user auto-PR setting for task ${taskId}:`,
+        error
+      );
       // Non-blocking - don't throw
     }
   }
@@ -582,16 +617,48 @@ export class ChatService {
     // Filter out tool messages since they're embedded in assistant messages as parts
     const messages: Message[] = history
       .slice(0, -1) // Remove the last message (the one we just saved)
-      .filter((msg) => msg.role === "user" || msg.role === "assistant")
-      .concat([
-        {
+      .filter(
+        (msg) =>
+          msg.role === "user" ||
+          msg.role === "assistant" ||
+          msg.role === "system"
+      );
+
+    // Check if deep wiki system message already exists in conversation
+    const hasDeepWikiMessage = history.some((msg) => msg.role === "system");
+
+    // Add deep wiki content as the first system message only if no system messages exist yet
+    if (!hasDeepWikiMessage) {
+      const deepWikiContent = await getDeepWikiMessage(taskId);
+      if (deepWikiContent) {
+        // Save the deep wiki as a system message in the database
+        const deepWikiSequence = await this.getNextSequence(taskId);
+        await this.saveSystemMessage(
+          taskId,
+          deepWikiContent,
+          llmModel,
+          deepWikiSequence
+        );
+
+        // Insert at the beginning, right after system prompt
+        messages.unshift({
           id: randomUUID(),
-          role: "user",
-          content: userMessage,
+          role: "system",
+          content: deepWikiContent,
           createdAt: new Date().toISOString(),
           llmModel,
-        },
-      ]);
+        });
+      }
+    }
+
+    // Add the current user message last
+    messages.push({
+      id: randomUUID(),
+      role: "user",
+      content: userMessage,
+      createdAt: new Date().toISOString(),
+      llmModel,
+    });
 
     console.log(
       `[CHAT] Processing message for task ${taskId} with ${messages.length} context messages`
@@ -613,13 +680,17 @@ export class ChatService {
     const assistantParts: AssistantMessagePart[] = [];
     let usageMetadata: MessageMetadata["usage"];
     let finishReason: MessageMetadata["finishReason"];
+    let hasError = false;
 
     // Map to track tool call sequences as they're created
     const toolCallSequences = new Map<string, number>();
 
+    // Get clean system prompt (deep wiki content is now in messages array)
+    const taskSystemPrompt = await getSystemPrompt();
+
     try {
       for await (const chunk of this.llmService.createMessageStream(
-        systemPrompt,
+        taskSystemPrompt,
         messages,
         llmModel,
         userApiKeys,
@@ -835,6 +906,7 @@ export class ChatService {
             chunk.error
           );
           finishReason = chunk.finishReason || "error";
+          hasError = true;
 
           // Add error part to assistant message parts
           const errorPart: ErrorPart = {
@@ -926,7 +998,10 @@ export class ChatService {
       console.log(`[CHAT] Tool calls executed: ${toolCallSequences.size}`);
 
       // Update task status and schedule cleanup based on how stream ended
-      if (wasStoppedEarly) {
+      if (hasError) {
+        // Error already handled above, just ensure cleanup happens
+        await scheduleTaskCleanup(taskId, 10);
+      } else if (wasStoppedEarly) {
         await updateTaskStatus(taskId, "STOPPED", "CHAT");
         await scheduleTaskCleanup(taskId, 10);
       } else {

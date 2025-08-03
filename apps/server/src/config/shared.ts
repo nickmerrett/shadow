@@ -7,7 +7,6 @@ import { z } from "zod";
 export const sharedConfigSchema = z.object({
   // Server configuration
   API_PORT: z.coerce.number().default(4000),
-  SOCKET_PORT: z.coerce.number().default(4001),
   CLIENT_URL: z.string().default("http://localhost:3000"),
   API_URL: z.string().default("http://localhost:4000"),
 
@@ -20,15 +19,8 @@ export const sharedConfigSchema = z.object({
     .optional()
     .transform((val) => val === "true"),
 
-  // LLM API Keys (at least one required)
-  ANTHROPIC_API_KEY: z.string().optional(),
-  OPENAI_API_KEY: z.string().optional(),
+  // LLM API Keys
   EXA_API_KEY: z.string().optional(),
-
-  // Enable semantic search
-  ENABLE_SEMANTIC_SEARCH: z
-    .union([z.boolean(), z.string().transform((val) => val === "true")])
-    .default(false),
 
   // GitHub integration (required for all environments)
   GITHUB_CLIENT_ID: z.string(),
@@ -42,7 +34,7 @@ export const sharedConfigSchema = z.object({
   PINECONE_API_KEY: z.string().optional(),
   PINECONE_INDEX_NAME: z.string().default("shadow"),
   EMBEDDING_MODEL: z.string().default("llama-text-embed-v2"),
-  // ShallowWiki model and concurrency settings
+  // DeepWiki model and concurrency settings
   CONCURRENCY: z.coerce.number().default(4),
   MODEL: z.string().default("gpt-4o"),
   MODEL_MINI: z.string().default("gpt-4o-mini"),
@@ -52,25 +44,6 @@ export const sharedConfigSchema = z.object({
 });
 
 /**
- * Shared validation rule: At least one LLM API key must be provided
- */
-export const sharedValidationRules = (
-  data: z.infer<typeof sharedConfigSchema>
-) => {
-  if (!data.ANTHROPIC_API_KEY && !data.OPENAI_API_KEY) {
-    return {
-      success: false,
-      error: {
-        message:
-          "At least one API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) must be provided",
-        path: ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
-      },
-    };
-  }
-  return { success: true };
-};
-
-/**
  * Create config object from parsed shared data
  */
 export const createSharedConfig = (
@@ -78,15 +51,12 @@ export const createSharedConfig = (
 ) => ({
   // Server
   apiPort: data.API_PORT,
-  socketPort: data.SOCKET_PORT,
   clientUrl: data.CLIENT_URL,
   apiUrl: data.API_URL,
   nodeEnv: data.NODE_ENV,
   debug: data.DEBUG,
 
   // LLM APIs
-  anthropicApiKey: data.ANTHROPIC_API_KEY,
-  openaiApiKey: data.OPENAI_API_KEY,
   exaApiKey: data.EXA_API_KEY,
 
   // GitHub
@@ -101,7 +71,7 @@ export const createSharedConfig = (
   pineconeApiKey: data.PINECONE_API_KEY,
   pineconeIndexName: data.PINECONE_INDEX_NAME,
   embeddingModel: data.EMBEDDING_MODEL,
-  // ShallowWiki settings
+  // DeepWiki settings
   concurrency: data.CONCURRENCY,
   model: data.MODEL,
   modelMini: data.MODEL_MINI,

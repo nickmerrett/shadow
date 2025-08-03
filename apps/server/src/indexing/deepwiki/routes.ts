@@ -1,21 +1,32 @@
 import express from "express";
 import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
-import { runShallowWiki } from "./core";
+import { runDeepWiki } from "./core";
 import { CodebaseUnderstandingStorage } from "./db-storage";
 import fs from "fs";
 import { db } from "@repo/db";
+import { ModelType } from "@repo/types";
+import { parseApiKeysFromCookies } from "@/utils/cookie-parser";
 
-const shallowwikiRouter = express.Router();
+const deepwikiRouter = express.Router();
 
 /**
  * Generate codebase understanding summary for a task
- * POST /api/indexing/shallowwiki/generate/:taskId
+ * POST /api/indexing/deepwiki/generate/:taskId
  */
-shallowwikiRouter.post("/generate/:taskId", async (req, res, next) => {
+deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
   const { taskId } = req.params;
-  const { forceRefresh = false } = req.body;
+  const { forceRefresh = false, model, modelMini } = req.body;
 
   try {
+    // Extract API keys from cookies
+    const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
+
+    if (!userApiKeys.openai && !userApiKeys.anthropic) {
+      return res.status(400).json({
+        error:
+          "No API keys found. Please configure your OpenAI or Anthropic API key in settings.",
+      });
+    }
     // Get task details
     const task = await db.task.findUnique({
       where: { id: taskId },
@@ -29,7 +40,7 @@ shallowwikiRouter.post("/generate/:taskId", async (req, res, next) => {
     // Check if summary already exists and no force refresh
     const storage = new CodebaseUnderstandingStorage(taskId);
     const hasExisting = await storage.hasExistingSummary();
-    
+
     if (hasExisting && !forceRefresh) {
       return res.json({
         message: "Summary already exists. Use forceRefresh=true to regenerate.",
@@ -43,24 +54,25 @@ shallowwikiRouter.post("/generate/:taskId", async (req, res, next) => {
     const workspaceDir = workspaceManager.getWorkspacePath(taskId);
 
     if (!fs.existsSync(workspaceDir)) {
-      return res.status(404).json({ 
-        error: "Workspace directory not found. Task may not be initialized." 
+      return res.status(404).json({
+        error: "Workspace directory not found. Task may not be initialized.",
       });
     }
 
-    console.log(`[SHALLOW-WIKI] Analyzing workspace directly: ${workspaceDir}`);
+    console.log(`[DEEP-WIKI] Analyzing workspace directly: ${workspaceDir}`);
 
-    // Run shallow wiki analysis directly on workspace
-    const result = await runShallowWiki(
+    // Run deep wiki analysis directly on workspace
+    const result = await runDeepWiki(
       workspaceDir,
       taskId,
       task.repoFullName,
       task.repoUrl,
       task.userId,
+      userApiKeys,
       {
         concurrency: 12,
-        model: "gpt-4o",
-        modelMini: "gpt-4o-mini",
+        model: model as ModelType,
+        modelMini: modelMini as ModelType,
       }
     );
 
@@ -76,4 +88,4 @@ shallowwikiRouter.post("/generate/:taskId", async (req, res, next) => {
   }
 });
 
-export { shallowwikiRouter };
+export { deepwikiRouter };

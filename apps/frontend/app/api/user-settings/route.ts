@@ -38,18 +38,33 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { autoPullRequest } = body;
+    const { autoPullRequest, enableDeepWiki } = body;
 
-    if (typeof autoPullRequest !== "boolean") {
+    // Validate autoPullRequest if provided
+    if (autoPullRequest !== undefined && typeof autoPullRequest !== "boolean") {
       return NextResponse.json(
         { error: "autoPullRequest must be a boolean" },
         { status: 400 }
       );
     }
 
-    const settings = await updateUserSettings(session.user.id, {
-      autoPullRequest,
-    });
+    // Validate enableDeepWiki if provided
+    if (enableDeepWiki !== undefined && typeof enableDeepWiki !== "boolean") {
+      return NextResponse.json(
+        { error: "enableDeepWiki must be a boolean" },
+        { status: 400 }
+      );
+    }
+
+    // Build update object with only provided fields
+    const updateData: { autoPullRequest?: boolean; enableDeepWiki?: boolean } =
+      {};
+    if (autoPullRequest !== undefined)
+      updateData.autoPullRequest = autoPullRequest;
+    if (enableDeepWiki !== undefined)
+      updateData.enableDeepWiki = enableDeepWiki;
+
+    const settings = await updateUserSettings(session.user.id, updateData);
 
     return NextResponse.json({ success: true, settings });
   } catch (error) {

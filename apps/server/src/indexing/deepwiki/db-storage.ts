@@ -44,15 +44,25 @@ export class CodebaseUnderstandingStorage {
           },
         });
       } else {
-        // Create new
-        codebaseUnderstanding = await db.codebaseUnderstanding.create({
-          data: {
-            repoFullName,
-            repoUrl,
-            content: summaryContent,
-            userId,
-          },
+        // Check if a CodebaseUnderstanding already exists for this repo
+        const existing = await db.codebaseUnderstanding.findUnique({
+          where: { repoFullName },
         });
+
+        if (existing) {
+          // Just use the existing record - no need to update content
+          codebaseUnderstanding = existing;
+        } else {
+          // Create new
+          codebaseUnderstanding = await db.codebaseUnderstanding.create({
+            data: {
+              repoFullName,
+              repoUrl,
+              content: summaryContent,
+              userId,
+            },
+          });
+        }
 
         // Link to task
         await db.task.update({

@@ -2,12 +2,12 @@ import { IndexRepoOptions } from "@repo/types";
 import { startBackgroundIndexing, getIndexingPromise } from "../initialization/background-indexing";
 import express from "express";
 import { isValidRepo } from "./utils/repository";
-import { shallowwikiRouter } from "./shallowwiki/routes";
+import { deepwikiRouter } from "./deepwiki/routes";
 
 const router = express.Router();
 
-// Mount the ShallowWiki router
-router.use("/shallowwiki", shallowwikiRouter);
+// Mount the DeepWiki router
+router.use("/deepwiki", deepwikiRouter);
 
 router.post(
   "/index",

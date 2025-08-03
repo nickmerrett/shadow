@@ -1,4 +1,4 @@
-import { ModelType } from "@repo/types";
+import { ModelType, AvailableModels } from "@repo/types";
 
 export class ModelTypes {
   /**
@@ -11,11 +11,11 @@ export class ModelTypes {
     const models: ModelType[] = [];
 
     if (userApiKeys.anthropic) {
-      models.push("claude-sonnet-4-20250514", "claude-opus-4-20250514");
+      models.push(AvailableModels.CLAUDE_SONNET_4, AvailableModels.CLAUDE_OPUS_4);
     }
 
     if (userApiKeys.openai) {
-      models.push("gpt-4o", "o3", "gpt-4.1-2025-04-14");
+      models.push(AvailableModels.GPT_4O, AvailableModels.O3, AvailableModels.GPT_4_1);
     }
 
     return models;
