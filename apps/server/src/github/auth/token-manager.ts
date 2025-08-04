@@ -49,7 +49,9 @@ export class GitHubTokenManager {
 
     const data = (await response.json()) as GitHubTokenResponse;
     if (!data.access_token || !data.refresh_token) {
-      throw new Error("GitHub token refresh failed: missing access or refresh token");
+      throw new Error(
+        "GitHub token refresh failed: missing access or refresh token"
+      );
     }
 
     return data;
@@ -183,7 +185,7 @@ export class GitHubTokenManager {
       // Check if token is expiring soon
       if (this.isTokenExpiringSoon(account.accessTokenExpiresAt)) {
         console.log(
-          `[TOKEN_MANAGER] Token expiring soon for user ${userId}, attempting refresh`
+          `[TOKEN_MANAGER] Token expiring soon for user ${userId} (time: ${account.accessTokenExpiresAt}), attempting refresh`
         );
 
         const refreshResult = await this.refreshUserTokens(userId);
