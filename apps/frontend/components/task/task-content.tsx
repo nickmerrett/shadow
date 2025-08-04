@@ -7,12 +7,12 @@ import { useTaskMessages } from "@/hooks/use-task-messages";
 import { useTaskSocket } from "@/hooks/socket";
 import { useParams } from "next/navigation";
 import { ScrollToBottom } from "./scroll-to-bottom";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, memo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ModelType } from "@repo/types";
 import { useTaskStatus } from "@/hooks/use-task-status";
 
-export function TaskPageContent() {
+function TaskPageContent() {
   const { taskId } = useParams<{ taskId: string }>();
 
   const queryClient = useQueryClient();
@@ -67,7 +67,11 @@ export function TaskPageContent() {
     if (streamingAssistantParts.length > 0 || isStreaming) {
       const lastMsg = msgs[msgs.length - 1];
 
-      if (lastMsg && lastMsg.role.toLowerCase() === "assistant") {
+      if (
+        lastMsg &&
+        (lastMsg.role.toLowerCase() === "assistant" ||
+          lastMsg.role.toLowerCase() === "tool")
+      ) {
         // Merge existing parts with streaming parts
         const existingParts = lastMsg.metadata?.parts || [];
         const mergedParts = [...existingParts, ...streamingAssistantParts];
@@ -119,9 +123,12 @@ export function TaskPageContent() {
             onFocus={() => {
               queryClient.setQueryData(["edit-message-id", taskId], null);
             }}
+            isInitializing={status === "INITIALIZING"}
           />
         </>
       )}
     </div>
   );
 }
+
+export const MemoizedTaskPageContent = memo(TaskPageContent);

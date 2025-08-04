@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Loader2, X } from "lucide-react";
 import Image from "next/image";
 import { authClient } from "@/lib/auth/auth-client";
@@ -36,6 +35,10 @@ export function UserSettings() {
 
   const handleAutoPRToggle = (checked: boolean) => {
     updateUserSettings.mutate({ autoPullRequest: checked });
+  };
+
+  const handleDeepWikiToggle = (checked: boolean) => {
+    updateUserSettings.mutate({ enableDeepWiki: checked });
   };
 
   return (
@@ -94,6 +97,20 @@ export function UserSettings() {
                 id="auto-pr"
                 checked={userSettings?.autoPullRequest ?? false}
                 onCheckedChange={handleAutoPRToggle}
+                disabled={isLoadingSettings || updateUserSettings.isPending}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label htmlFor="deep-wiki" className="flex flex-col gap-0">
+                <div className="text-sm font-normal">Enable Deep Wiki</div>
+                <div className="text-muted-foreground text-[11px]">
+                  Generate comprehensive codebase understanding for AI context
+                </div>
+              </label>
+              <Checkbox
+                id="deep-wiki"
+                checked={userSettings?.enableDeepWiki ?? true}
+                onCheckedChange={handleDeepWikiToggle}
                 disabled={isLoadingSettings || updateUserSettings.isPending}
               />
             </div>

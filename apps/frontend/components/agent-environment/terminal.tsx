@@ -3,15 +3,18 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as XTerm } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
+import "./terminal.css";
 import { useEffect, useRef } from "react";
 import { useTerminalSocket } from "@/hooks/socket";
 import { useParams } from "next/navigation";
 import type { TerminalEntry } from "@repo/types";
+import { useAgentEnvironment } from "./agent-environment-context";
 
 export default function Terminal() {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const isFirstRender = useRef(true);
 
   const params = useParams();
   const taskId = params?.taskId as string;
@@ -23,6 +26,9 @@ export default function Terminal() {
     clearTerminal: _clearTerminal,
   } = useTerminalSocket(taskId);
 
+  // Get terminal resize trigger from context
+  const { terminalResizeTrigger } = useAgentEnvironment();
+
   // Terminal entry formatting with ANSI colors
   const writeToTerminal = (entry: TerminalEntry) => {
     const xterm = xtermRef.current;
@@ -30,12 +36,12 @@ export default function Terminal() {
 
     switch (entry.type) {
       case "command":
-        // Green bold for commands
-        xterm.write(`\x1b[1;32m$ ${entry.data}\x1b[0m\r\n`);
+        // Gray for commands
+        xterm.write(`\x1b[90m$ ${entry.data}\x1b[0m\r\n`);
         break;
       case "stdout":
         // Normal white text for stdout
-        xterm.write(entry.data);
+        xterm.write(entry.data + "\r\n");
         break;
       case "stderr":
         // Red text for errors
@@ -55,17 +61,18 @@ export default function Terminal() {
 
     // Create xterm instance
     const xterm = new XTerm({
-      fontFamily: '"Departure Mono", "Fira Code", "Courier New", monospace',
+      fontFamily: '"Geist Mono", "Fira Code", "Courier New", monospace',
       fontSize: 13,
+      fontWeight: 400,
       lineHeight: 1.2,
       cursorBlink: true,
       cursorStyle: "block",
       theme: {
-        background: "#0a0a0a",
+        background: "#151515",
         foreground: "#ffffff",
         cursor: "#ffffff",
-        cursorAccent: "#0a0a0a",
-        black: "#0a0a0a",
+        cursorAccent: "#151515",
+        black: "#151515",
         red: "#ff5555",
         green: "#50fa7b",
         yellow: "#f1fa8c",
@@ -73,7 +80,7 @@ export default function Terminal() {
         magenta: "#ff79c6",
         cyan: "#8be9fd",
         white: "#f8f8f2",
-        brightBlack: "#44475a",
+        brightBlack: "#A1A1A1",
         brightRed: "#ff5555",
         brightGreen: "#50fa7b",
         brightYellow: "#f1fa8c",
@@ -119,6 +126,18 @@ export default function Terminal() {
     };
   }, []);
 
+  // Handle panel resize triggers from context
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    if (fitAddonRef.current) {
+      fitAddonRef.current.fit();
+    }
+  }, [terminalResizeTrigger]);
+
   // Write terminal entries to xterm when they change
   useEffect(() => {
     if (xtermRef.current && terminalEntries.length > 0) {
@@ -133,7 +152,7 @@ export default function Terminal() {
   }, [terminalEntries]);
 
   return (
-    <div className="bg-background relative flex-1 overflow-hidden p-2">
+    <div className="bg-background relative flex-1 overflow-hidden">
       {/* Connection status indicator */}
       <div className="absolute right-4 top-4 z-10">
         <div

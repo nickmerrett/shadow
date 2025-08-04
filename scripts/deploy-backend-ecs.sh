@@ -8,6 +8,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Create logs directory
+LOGS_DIR="$SCRIPT_DIR/logs"
+mkdir -p "$LOGS_DIR"
+LOG_FILE="$LOGS_DIR/ecs-deploy-$(date +%Y%m%d-%H%M%S).log"
+
 # Configuration
 CLUSTER_NAME="${EKS_CLUSTER_NAME:-shadow-remote}"
 ECS_CLUSTER_NAME="${ECS_CLUSTER_NAME:-shadow-ecs-cluster}"
@@ -16,7 +21,7 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 AWS_PROFILE="${AWS_PROFILE:-ID}"
 SERVICE_NAME="${SERVICE_NAME:-shadow-backend-service}"
 TASK_FAMILY="${TASK_FAMILY:-shadow-server-task}"
-DESIRED_COUNT="${DESIRED_COUNT:-2}"
+DESIRED_COUNT="${DESIRED_COUNT:-1}"
 
 # Resource Configuration
 TASK_CPU="${TASK_CPU:-1024}"
@@ -32,6 +37,7 @@ NC='\033[0m' # No Color
 
 log() {
     echo -e "${GREEN}[ECS-DEPLOY]${NC} $1"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
 warn() {
@@ -147,10 +153,15 @@ build_and_push_image() {
     aws ecr get-login-password --region "$AWS_REGION" --profile "$AWS_PROFILE" | \
         docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
     
-    # Build image
-    log "Building Docker image..."
+    # Build image for amd64 architecture using buildx (required for ECS Fargate on Apple Silicon)
+    log "Building Docker image for amd64 architecture using buildx..."
     cd "$PROJECT_ROOT"
-    docker build -f apps/server/Dockerfile -t "$ECR_REPO_NAME:latest" .
+    
+    # Ensure buildx builder exists and is active
+    docker buildx create --use --name shadow-builder 2>/dev/null || docker buildx use shadow-builder 2>/dev/null || true
+    
+    # Build with buildx for true cross-platform support
+    docker buildx build --platform linux/amd64 -f apps/server/Dockerfile -t "$ECR_REPO_NAME:latest" . --load
     
     # Tag image for ECR
     docker tag "$ECR_REPO_NAME:latest" "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:latest"
@@ -182,6 +193,15 @@ create_security_group() {
         --profile "$AWS_PROFILE" \
         --query 'GroupId' \
         --output text)
+    
+    # Allow inbound HTTP traffic from internet to ALB on port 80
+    aws ec2 authorize-security-group-ingress \
+        --group-id "$ECS_SG" \
+        --protocol tcp \
+        --port 80 \
+        --cidr 0.0.0.0/0 \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" || true
     
     # Allow inbound traffic on container port from ALB
     aws ec2 authorize-security-group-ingress \
@@ -253,6 +273,57 @@ EOF
             --role-name shadowECSExecutionRole \
             --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy \
             --profile "$AWS_PROFILE"
+        
+        # Add SSM Parameter Store permissions for secrets
+        cat > ssm-policy.json << EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameters",
+        "ssm:GetParameter"
+      ],
+      "Resource": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/*"
+    }
+  ]
+}
+EOF
+        
+        aws iam put-role-policy \
+            --role-name shadowECSExecutionRole \
+            --policy-name shadowSSMAccess \
+            --policy-document file://ssm-policy.json \
+            --profile "$AWS_PROFILE"
+            
+        rm -f ssm-policy.json
+    else
+        # Role exists, but ensure SSM permissions are added
+        log "ECS execution role exists, adding SSM permissions..."
+        cat > ssm-policy.json << EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameters",
+        "ssm:GetParameter"
+      ],
+      "Resource": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/*"
+    }
+  ]
+}
+EOF
+        
+        aws iam put-role-policy \
+            --role-name shadowECSExecutionRole \
+            --policy-name shadowSSMAccess \
+            --policy-document file://ssm-policy.json \
+            --profile "$AWS_PROFILE" || true
+            
+        rm -f ssm-policy.json
     fi
     
     # Create task role with K8s permissions
@@ -304,26 +375,40 @@ store_secrets() {
     log "Storing application secrets in Parameter Store..."
     
     # Check if .env.production exists, recreate from initial if missing
-    if [[ ! -f ".env.production" ]]; then
-        if [[ ! -f ".env.production.initial" ]]; then
-            error ".env.production.initial not found. This file is required for ECS deployment"
+    if [[ ! -f "$PROJECT_ROOT/.env.production" ]]; then
+        if [[ ! -f "$PROJECT_ROOT/.env.production.initial" ]]; then
+            error ".env.production.initial not found in project root. This file is required for ECS deployment"
         fi
         
         warn ".env.production not found, regenerating from .env.production.initial..."
-        cp ".env.production.initial" ".env.production"
+        cp "$PROJECT_ROOT/.env.production.initial" "$PROJECT_ROOT/.env.production"
         
         # Add placeholder for K8s token (will be skipped since it's empty)
-        echo "K8S_SERVICE_ACCOUNT_TOKEN=" >> ".env.production"
+        echo "K8S_SERVICE_ACCOUNT_TOKEN=" >> "$PROJECT_ROOT/.env.production"
     fi
     
-    # Extract secrets from config file
-    K8S_TOKEN=$(grep "K8S_SERVICE_ACCOUNT_TOKEN=" .env.production | cut -d'=' -f2)
-    DATABASE_URL=$(grep "DATABASE_URL=" .env.production | cut -d'=' -f2 | tr -d '"')
-    PINECONE_API_KEY=$(grep "PINECONE_API_KEY=" .env.production | cut -d'=' -f2 | tr -d '"')
-    PINECONE_INDEX_NAME=$(grep "PINECONE_INDEX_NAME=" .env.production | cut -d'=' -f2 | tr -d '"')
-    GITHUB_CLIENT_ID=$(grep "GITHUB_CLIENT_ID=" .env.production | cut -d'=' -f2)
-    GITHUB_CLIENT_SECRET=$(grep "GITHUB_CLIENT_SECRET=" .env.production | cut -d'=' -f2)
-    GITHUB_WEBHOOK_SECRET=$(grep "GITHUB_WEBHOOK_SECRET=" .env.production | cut -d'=' -f2)
+    # Extract secrets from config file (temporarily disable exit on error for debugging)
+    set +e
+    K8S_TOKEN=$(grep "K8S_SERVICE_ACCOUNT_TOKEN=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2)
+    DATABASE_URL=$(grep "DATABASE_URL=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    PINECONE_API_KEY=$(grep "PINECONE_API_KEY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    PINECONE_INDEX_NAME=$(grep "PINECONE_INDEX_NAME=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    GITHUB_CLIENT_ID=$(grep "GITHUB_CLIENT_ID=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    GITHUB_CLIENT_SECRET=$(grep "GITHUB_CLIENT_SECRET=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    GITHUB_WEBHOOK_SECRET=$(grep "GITHUB_WEBHOOK_SECRET=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    VM_IMAGE_REGISTRY=$(grep "VM_IMAGE_REGISTRY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    set -e
+    
+    # Debug: Show extracted values (first 20 chars for sensitive data)
+    log "Debug - Extracted values:"
+    log "  K8S_TOKEN: ${K8S_TOKEN:0:20}${K8S_TOKEN:+...}"
+    log "  DATABASE_URL: ${DATABASE_URL:0:30}${DATABASE_URL:+...}"
+    log "  PINECONE_API_KEY: ${PINECONE_API_KEY:0:20}${PINECONE_API_KEY:+...}"
+    log "  PINECONE_INDEX_NAME: $PINECONE_INDEX_NAME"
+    log "  GITHUB_CLIENT_ID: $GITHUB_CLIENT_ID"
+    log "  GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:0:10}${GITHUB_CLIENT_SECRET:+...}"
+    log "  GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:0:10}${GITHUB_WEBHOOK_SECRET:+...}"
+    log "  VM_IMAGE_REGISTRY: $VM_IMAGE_REGISTRY"
     
     # Validate required secrets
     if [[ -z "$K8S_TOKEN" ]]; then
@@ -331,9 +416,25 @@ store_secrets() {
         warn "Proceeding without K8s token - ensure you have an existing K8s token in Parameter Store or run remote deployment first"
     fi
     
+    # Validate critical secrets
     if [[ -z "$DATABASE_URL" ]]; then
-        error "DATABASE_URL not found in .env.production"
+        error "DATABASE_URL extraction failed - check .env.production format and contents"
     fi
+    
+    if [[ -z "$GITHUB_CLIENT_ID" ]]; then
+        error "GITHUB_CLIENT_ID extraction failed - check .env.production format and contents"
+    fi
+    
+    if [[ -z "$GITHUB_CLIENT_SECRET" ]]; then
+        error "GITHUB_CLIENT_SECRET extraction failed - check .env.production format and contents"
+    fi
+    
+    if [[ -z "$VM_IMAGE_REGISTRY" ]]; then
+        warn "VM_IMAGE_REGISTRY not found - using default ghcr.io/ishaan1013/shadow"
+        VM_IMAGE_REGISTRY="ghcr.io/ishaan1013/shadow"
+    fi
+    
+    log "Secret extraction and validation completed successfully"
     
     # Store all secrets in Parameter Store
     if [[ -n "$K8S_TOKEN" ]]; then
@@ -348,23 +449,27 @@ store_secrets() {
     fi
     
     log "Storing database URL..."
-    aws ssm put-parameter \
+    if ! aws ssm put-parameter \
         --name "/shadow/database-url" \
         --value "$DATABASE_URL" \
         --type "SecureString" \
         --overwrite \
         --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE"
+        --profile "$AWS_PROFILE"; then
+        error "Failed to store database URL in Parameter Store. Check AWS permissions for ssm:PutParameter on /shadow/* path"
+    fi
     
     if [[ -n "$PINECONE_API_KEY" ]]; then
         log "Storing Pinecone API key..."
-        aws ssm put-parameter \
+        if ! aws ssm put-parameter \
             --name "/shadow/pinecone-api-key" \
             --value "$PINECONE_API_KEY" \
             --type "SecureString" \
             --overwrite \
             --region "$AWS_REGION" \
-            --profile "$AWS_PROFILE"
+            --profile "$AWS_PROFILE"; then
+            error "Failed to store Pinecone API key in Parameter Store. Check AWS permissions for ssm:PutParameter on /shadow/* path"
+        fi
     fi
     
     if [[ -n "$PINECONE_INDEX_NAME" ]]; then
@@ -409,6 +514,17 @@ store_secrets() {
             --overwrite \
             --region "$AWS_REGION" \
             --profile "$AWS_PROFILE"
+    fi
+    
+    log "Storing VM image registry..."
+    if ! aws ssm put-parameter \
+        --name "/shadow/vm-image-registry" \
+        --value "$VM_IMAGE_REGISTRY" \
+        --type "String" \
+        --overwrite \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE"; then
+        error "Failed to store VM image registry in Parameter Store. Check AWS permissions for ssm:PutParameter on /shadow/* path"
     fi
     
     log "All secrets stored in Parameter Store successfully"
@@ -490,23 +606,28 @@ create_load_balancer() {
         --query 'TargetGroups[0].TargetGroupArn' \
         --output text)
     
-    # Enable sticky sessions for WebSocket (with timeout)
-    log "Enabling sticky sessions on target group..."
-    timeout 30s aws elbv2 modify-target-group-attributes \
-        --target-group-arn "$TG_ARN" \
-        --attributes Key=stickiness.enabled,Value=true Key=stickiness.type,Value=lb_cookie Key=stickiness.lb_cookie.duration_seconds,Value=86400 \
-        --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE" || warn "Target group attribute modification timed out or failed, continuing..."
+    # Enable sticky sessions for WebSocket (check if already enabled first)
+    log "Checking sticky sessions on target group..."
+    if aws elbv2 describe-target-group-attributes --target-group-arn "$TG_ARN" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'Attributes[?Key==`stickiness.enabled`].Value' --output text | grep -q "true"; then
+        log "Sticky sessions already enabled"
+    else
+        log "Enabling sticky sessions on target group..."
+        aws elbv2 modify-target-group-attributes \
+            --target-group-arn "$TG_ARN" \
+            --attributes Key=stickiness.enabled,Value=true Key=stickiness.type,Value=lb_cookie Key=stickiness.lb_cookie.duration_seconds,Value=86400 \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE" || warn "Failed to enable sticky sessions, continuing..."
+    fi
     
-    # Create listener (with timeout)
+    # Create listener
     log "Creating ALB listener..."
-    timeout 30s aws elbv2 create-listener \
+    aws elbv2 create-listener \
         --load-balancer-arn "$ALB_ARN" \
         --protocol HTTP \
         --port 80 \
         --default-actions Type=forward,TargetGroupArn="$TG_ARN" \
         --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE" 2>/dev/null || warn "Listener creation timed out or already exists, continuing..."
+        --profile "$AWS_PROFILE" 2>/dev/null || warn "Listener creation failed or already exists, continuing..."
     
     log "Load balancer and target group configured"
 }
@@ -527,6 +648,10 @@ create_task_definition() {
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "$TASK_CPU",
   "memory": "$TASK_MEMORY",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
   "executionRoleArn": "arn:aws:iam::$ACCOUNT_ID:role/shadowECSExecutionRole",
   "taskRoleArn": "arn:aws:iam::$ACCOUNT_ID:role/shadowECSTaskRole",
   "containerDefinitions": [
@@ -555,7 +680,8 @@ create_task_definition() {
         {"name": "PINECONE_INDEX_NAME", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/pinecone-index-name"},
         {"name": "GITHUB_CLIENT_ID", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-client-id"},
         {"name": "GITHUB_CLIENT_SECRET", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-client-secret"},
-        {"name": "GITHUB_WEBHOOK_SECRET", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-webhook-secret"}
+        {"name": "GITHUB_WEBHOOK_SECRET", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-webhook-secret"},
+        {"name": "VM_IMAGE_REGISTRY", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/vm-image-registry"}
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
@@ -578,16 +704,42 @@ create_task_definition() {
 }
 EOF
     
-    # Register task definition (with timeout)
+    # Check if identical task definition already exists
+    log "Checking for existing task definition..."
+    if aws ecs describe-task-definition --task-definition "$TASK_FAMILY" --region "$AWS_REGION" --profile "$AWS_PROFILE" &> /dev/null; then
+        # Get current task definition content (excluding metadata)
+        CURRENT_TASK_DEF=$(aws ecs describe-task-definition --task-definition "$TASK_FAMILY" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'taskDefinition.{family:family,networkMode:networkMode,requiresCompatibilities:requiresCompatibilities,cpu:cpu,memory:memory,runtimePlatform:runtimePlatform,executionRoleArn:executionRoleArn,taskRoleArn:taskRoleArn,containerDefinitions:containerDefinitions}' --output json)
+        NEW_TASK_DEF=$(cat task-definition.json)
+        
+        # Compare definitions (basic check - could be enhanced)
+        if echo "$CURRENT_TASK_DEF" | jq -S . > current_def.json && echo "$NEW_TASK_DEF" | jq -S . > new_def.json; then
+            if cmp -s current_def.json new_def.json; then
+                log "Task definition is identical to existing version, skipping registration"
+                rm -f current_def.json new_def.json
+                # Clean up and return early
+                rm -f task-definition.json
+                log "Task definition creation completed (no changes)"
+                return 0
+            else
+                log "Task definition has changes, registering new revision..."
+                rm -f current_def.json new_def.json
+            fi
+        else
+            log "Could not compare task definitions, proceeding with registration..."
+        fi
+    fi
+    
+    # Register task definition
     log "Registering ECS task definition..."
-    if timeout 60s aws ecs register-task-definition \
+    log "Detailed output streaming to: $LOG_FILE"
+    if aws ecs register-task-definition \
         --cli-input-json file://task-definition.json \
         --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE"; then
+        --profile "$AWS_PROFILE" >> "$LOG_FILE" 2>&1; then
         log "Task definition registered successfully"
     else
-        warn "Task definition registration timed out or failed, checking if it exists..."
-        # Check if task definition was created despite timeout
+        warn "Task definition registration failed, checking if it exists..."
+        # Check if task definition was created despite failure
         if aws ecs describe-task-definition --task-definition "$TASK_FAMILY" --region "$AWS_REGION" --profile "$AWS_PROFILE" &> /dev/null; then
             log "Task definition exists, continuing..."
         else
@@ -646,7 +798,7 @@ get_service_info() {
     log "Load Balancer DNS: http://$ALB_DNS"
     
     # Save configuration
-    cat > ecs-deployment-config.env << EOF
+    cat > .env.ecs-result << EOF
 # Shadow ECS Deployment Configuration
 # Generated on: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 
@@ -668,7 +820,7 @@ ECS_SECURITY_GROUP=$ECS_SG
 ECR_REPOSITORY_URI=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME
 EOF
     
-    log "Configuration saved to: ecs-deployment-config.env"
+    log "Configuration saved to: .env.ecs-result"
 }
 
 # Verify deployment

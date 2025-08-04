@@ -47,6 +47,7 @@ export function PromptForm({
   onBlur,
   initialGitCookieState,
   initialSelectedModel,
+  isInitializing = false,
 }: {
   onSubmit?: (message: string, model: ModelType, queue: boolean) => void;
   onStopStream?: () => void;
@@ -59,6 +60,7 @@ export function PromptForm({
     branch: { name: string; commitSha: string } | null;
   } | null;
   initialSelectedModel?: ModelType | null;
+  isInitializing?: boolean;
 }) {
   const { taskId } = useParams<{ taskId: string }>();
 
@@ -381,6 +383,25 @@ export function PromptForm({
     });
   };
 
+  const isSubmitButtonDisabled = useMemo(
+    () =>
+      isMessageOptionsOpen ||
+      isPending ||
+      !selectedModel ||
+      isInitializing ||
+      (isHome && (!repo || !branch || !message.trim())),
+    [
+      isMessageOptionsOpen,
+      isPending,
+      selectedModel,
+      isInitializing,
+      isHome,
+      repo,
+      branch,
+      message.trim,
+    ]
+  );
+
   return (
     <>
       <form
@@ -511,12 +532,7 @@ export function PromptForm({
                   <Button
                     type="submit"
                     size="iconSm"
-                    disabled={
-                      isMessageOptionsOpen ||
-                      isPending ||
-                      !selectedModel ||
-                      (isHome && (!repo || !branch || !message.trim()))
-                    }
+                    disabled={isSubmitButtonDisabled}
                     className="focus-visible:ring-primary focus-visible:ring-offset-input rounded-full focus-visible:ring-2 focus-visible:ring-offset-2"
                   >
                     {isPending ? (

@@ -10,7 +10,7 @@ import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../../packages/db/src/client";
 import { LLMService } from "./llm";
-import { systemPrompt } from "./system-prompt";
+import { getSystemPrompt, getDeepWikiMessage } from "./system-prompt";
 import { GitManager } from "../services/git-manager";
 import { PRManager } from "../services/pr-manager";
 
@@ -105,6 +105,26 @@ export class ChatService {
         completionTokens: usage?.completionTokens,
         totalTokens: usage?.totalTokens,
         finishReason: metadata?.finishReason,
+      },
+    });
+  }
+
+  async saveSystemMessage(
+    taskId: string,
+    content: string,
+    llmModel: string,
+    sequence: number,
+    metadata?: MessageMetadata
+  ): Promise<ChatMessage> {
+    return await prisma.chatMessage.create({
+      data: {
+        taskId,
+        content,
+        role: "SYSTEM",
+        llmModel,
+        sequence,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        metadata: (metadata as any) || undefined,
       },
     });
   }
@@ -597,16 +617,48 @@ export class ChatService {
     // Filter out tool messages since they're embedded in assistant messages as parts
     const messages: Message[] = history
       .slice(0, -1) // Remove the last message (the one we just saved)
-      .filter((msg) => msg.role === "user" || msg.role === "assistant")
-      .concat([
-        {
+      .filter(
+        (msg) =>
+          msg.role === "user" ||
+          msg.role === "assistant" ||
+          msg.role === "system"
+      );
+
+    // Check if deep wiki system message already exists in conversation
+    const hasDeepWikiMessage = history.some((msg) => msg.role === "system");
+
+    // Add deep wiki content as the first system message only if no system messages exist yet
+    if (!hasDeepWikiMessage) {
+      const deepWikiContent = await getDeepWikiMessage(taskId);
+      if (deepWikiContent) {
+        // Save the deep wiki as a system message in the database
+        const deepWikiSequence = await this.getNextSequence(taskId);
+        await this.saveSystemMessage(
+          taskId,
+          deepWikiContent,
+          llmModel,
+          deepWikiSequence
+        );
+
+        // Insert at the beginning, right after system prompt
+        messages.unshift({
           id: randomUUID(),
-          role: "user",
-          content: userMessage,
+          role: "system",
+          content: deepWikiContent,
           createdAt: new Date().toISOString(),
           llmModel,
-        },
-      ]);
+        });
+      }
+    }
+
+    // Add the current user message last
+    messages.push({
+      id: randomUUID(),
+      role: "user",
+      content: userMessage,
+      createdAt: new Date().toISOString(),
+      llmModel,
+    });
 
     console.log(
       `[CHAT] Processing message for task ${taskId} with ${messages.length} context messages`
@@ -615,8 +667,7 @@ export class ChatService {
       `[CHAT] Using model: ${llmModel}, Tools enabled: ${enableTools}`
     );
 
-    // Start streaming
-    startStream();
+    startStream(taskId);
 
     // Create AbortController for this stream
     const abortController = new AbortController();
@@ -628,13 +679,15 @@ export class ChatService {
     const assistantParts: AssistantMessagePart[] = [];
     let usageMetadata: MessageMetadata["usage"];
     let finishReason: MessageMetadata["finishReason"];
+    let hasError = false;
 
-    // Map to track tool call sequences as they're created
     const toolCallSequences = new Map<string, number>();
+
+    const taskSystemPrompt = await getSystemPrompt();
 
     try {
       for await (const chunk of this.llmService.createMessageStream(
-        systemPrompt,
+        taskSystemPrompt,
         messages,
         llmModel,
         userApiKeys,
@@ -643,13 +696,11 @@ export class ChatService {
         workspacePath, // Pass workspace path for tool operations
         abortController.signal
       )) {
-        // If a stop was requested, break out of the loop immediately
         if (this.stopRequested.has(taskId)) {
           console.log(`[CHAT] Stop requested during stream for task ${taskId}`);
           break;
         }
 
-        // Emit the chunk directly to clients
         emitStreamChunk(chunk, taskId);
 
         // Handle text content chunks
@@ -850,6 +901,7 @@ export class ChatService {
             chunk.error
           );
           finishReason = chunk.finishReason || "error";
+          hasError = true;
 
           // Add error part to assistant message parts
           const errorPart: ErrorPart = {
@@ -941,7 +993,10 @@ export class ChatService {
       console.log(`[CHAT] Tool calls executed: ${toolCallSequences.size}`);
 
       // Update task status and schedule cleanup based on how stream ended
-      if (wasStoppedEarly) {
+      if (hasError) {
+        // Error already handled above, just ensure cleanup happens
+        await scheduleTaskCleanup(taskId, 10);
+      } else if (wasStoppedEarly) {
         await updateTaskStatus(taskId, "STOPPED", "CHAT");
         await scheduleTaskCleanup(taskId, 10);
       } else {
@@ -1164,5 +1219,33 @@ export class ChatService {
       workspacePath,
       queue: false,
     });
+  }
+
+  /**
+   * Clean up task-related memory structures
+   */
+  cleanupTask(taskId: string): void {
+    console.log(`[CHAT] Cleaning up ChatService memory for task ${taskId}`);
+
+    try {
+      // Clean up active streams
+      const abortController = this.activeStreams.get(taskId);
+      if (abortController) {
+        abortController.abort();
+        this.activeStreams.delete(taskId);
+      }
+
+      // Clean up queued messages
+      this.queuedMessages.delete(taskId);
+
+      console.log(
+        `[CHAT] Successfully cleaned up ChatService memory for task ${taskId}`
+      );
+    } catch (error) {
+      console.error(
+        `[CHAT] Error cleaning up ChatService memory for task ${taskId}:`,
+        error
+      );
+    }
   }
 }

@@ -36,7 +36,7 @@ export function CodebasePageContent() {
     setIsGenerating(true);
     try {
       const response = await fetch(
-        `/api/indexing/shallowwiki/generate/${codebase.tasks[0].id}`,
+        `/api/indexing/deepwiki/generate/${codebase.tasks[0].id}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

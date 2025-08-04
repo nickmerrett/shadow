@@ -7,7 +7,6 @@ import { z } from "zod";
 export const sharedConfigSchema = z.object({
   // Server configuration
   API_PORT: z.coerce.number().default(4000),
-  SOCKET_PORT: z.coerce.number().default(4001),
   CLIENT_URL: z.string().default("http://localhost:3000"),
   API_URL: z.string().default("http://localhost:4000"),
 
@@ -32,7 +31,7 @@ export const sharedConfigSchema = z.object({
   PINECONE_API_KEY: z.string().optional(),
   PINECONE_INDEX_NAME: z.string().default("shadow"),
   EMBEDDING_MODEL: z.string().default("llama-text-embed-v2"),
-  // ShallowWiki model and concurrency settings
+  // DeepWiki model and concurrency settings
   CONCURRENCY: z.coerce.number().default(4),
   MODEL: z.string().default("gpt-4o"),
   MODEL_MINI: z.string().default("gpt-4o-mini"),
@@ -49,7 +48,6 @@ export const createSharedConfig = (
 ) => ({
   // Server
   apiPort: data.API_PORT,
-  socketPort: data.SOCKET_PORT,
   clientUrl: data.CLIENT_URL,
   apiUrl: data.API_URL,
   nodeEnv: data.NODE_ENV,
@@ -67,7 +65,7 @@ export const createSharedConfig = (
   pineconeApiKey: data.PINECONE_API_KEY,
   pineconeIndexName: data.PINECONE_INDEX_NAME,
   embeddingModel: data.EMBEDDING_MODEL,
-  // ShallowWiki settings
+  // DeepWiki settings
   concurrency: data.CONCURRENCY,
   model: data.MODEL,
   modelMini: data.MODEL_MINI,
