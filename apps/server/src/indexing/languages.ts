@@ -1,7 +1,7 @@
 import logger from "@/indexing/logger";
 import path from "path";
 
-interface LanguageSpec {
+export interface LanguageSpec {
   id: string;
   pkg: string;
   symbols: string[];

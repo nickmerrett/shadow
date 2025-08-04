@@ -1,6 +1,6 @@
 import { nodeLoc } from "./base";
 
-interface Definition {
+export interface Definition {
   node: any;
   name: string;
   loc: {
@@ -13,7 +13,7 @@ interface Definition {
   };
 }
 
-interface Import {
+export interface Import {
   node: any;
   loc: {
     startLine: number;
@@ -25,7 +25,7 @@ interface Import {
   };
 }
 
-interface Call {
+export interface Call {
   node: any;
   loc: {
     startLine: number;
@@ -37,7 +37,7 @@ interface Call {
   };
 }
 
-interface Doc {
+export interface Doc {
   node: any;
   loc: {
     startLine: number;
@@ -49,7 +49,7 @@ interface Doc {
   };
 }
 
-interface LanguageSpec {
+export interface LanguageSpec {
   symbols: string[];
   imports: string[];
   calls?: string[];

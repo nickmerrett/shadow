@@ -1,13 +1,20 @@
 import { chunkSymbol } from "@/indexing/chunker";
-import { extractGeneric } from "@/indexing/extractors/generic";
+import {
+  extractGeneric,
+  Definition,
+  Import,
+  Call,
+  Doc,
+} from "@/indexing/extractors/generic";
 import {
   Graph,
   GraphEdge,
   GraphEdgeKind,
+  GraphJSON,
   GraphNode,
   GraphNodeKind,
 } from "@/indexing/graph";
-import { getLanguageForPath } from "@/indexing/languages";
+import { getLanguageForPath, LanguageSpec } from "@/indexing/languages";
 import logger from "@/indexing/logger";
 import { getHash, getNodeHash } from "@/indexing/utils/hash";
 import { sliceByLoc } from "@/indexing/utils/text";
@@ -96,9 +103,9 @@ async function indexRepo(
   options: IndexRepoOptions
 ): Promise<{
   graph: Graph;
-  graphJSON: any;
-  invertedIndex: any;
-  embeddings?: { index: any; binary: Buffer };
+  graphJSON: GraphJSON;
+  invertedIndex: Record<string, string[]>;
+  embeddings?: { index: Record<string, unknown>; binary: Buffer };
 }> {
   const { clearNamespace = true } = options;
 
@@ -155,8 +162,8 @@ async function indexRepo(
       }
 
       let parser: TreeSitter | null = null;
-      let tree: any = null;
-      let rootNode: any = null;
+      let tree: TreeSitter.Tree | null = null;
+      let rootNode: TreeSitter.Tree["rootNode"] | null = null;
 
       // Try to parse with tree-sitter
       try {
@@ -197,10 +204,10 @@ async function indexRepo(
 
       // ================================ START OF THIS CODE SHOULD NOT BE CHANGED ================================ //
       // Extract - only for supported languages with tree-sitter parsing
-      let defs: any[] = [];
-      let imports: any[] = [];
-      let calls: any[] = [];
-      let docs: any[] = [];
+      let defs: Definition[] = [];
+      let imports: Import[] = [];
+      let calls: Call[] = [];
+      let docs: Doc[] = [];
 
       // Extract symbols, imports, calls, and docs
       ({ defs, imports, calls, docs } = extractGeneric(
@@ -473,7 +480,7 @@ async function indexRepo(
   }
   return {
     graph: new Graph(repoName),
-    graphJSON: {},
+    graphJSON: { repoId: repoName, nodes: [], edges: [] },
     invertedIndex: {},
     embeddings: undefined,
   };
@@ -482,7 +489,7 @@ async function indexRepo(
 // Quick signature to see what a function does
 function buildSignatureFromNode(
   node: { startIndex: number; endIndex: number } | undefined,
-  _spec: any,
+  _spec: LanguageSpec,
   sourceText: string | undefined
 ): string {
   if (!node || !sourceText) return "";
@@ -535,7 +542,7 @@ function buildInvertedInMemory(graph: Graph): Record<string, string[]> {
 
 function buildEmbeddingsInMemory(
   graph: Graph
-): { index: any; binary: Buffer } | undefined {
+): { index: Record<string, unknown>; binary: Buffer } | undefined {
   const chunks = Array.from(graph.nodes.values()).filter(
     (node): node is GraphNode & { embedding: Float32Array } =>
       node.kind === GraphNodeKind.CHUNK &&
