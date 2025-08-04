@@ -194,6 +194,15 @@ create_security_group() {
         --query 'GroupId' \
         --output text)
     
+    # Allow inbound HTTP traffic from internet to ALB on port 80
+    aws ec2 authorize-security-group-ingress \
+        --group-id "$ECS_SG" \
+        --protocol tcp \
+        --port 80 \
+        --cidr 0.0.0.0/0 \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" || true
+    
     # Allow inbound traffic on container port from ALB
     aws ec2 authorize-security-group-ingress \
         --group-id "$ECS_SG" \
@@ -366,27 +375,40 @@ store_secrets() {
     log "Storing application secrets in Parameter Store..."
     
     # Check if .env.production exists, recreate from initial if missing
-    if [[ ! -f ".env.production" ]]; then
-        if [[ ! -f ".env.production.initial" ]]; then
-            error ".env.production.initial not found. This file is required for ECS deployment"
+    if [[ ! -f "$PROJECT_ROOT/.env.production" ]]; then
+        if [[ ! -f "$PROJECT_ROOT/.env.production.initial" ]]; then
+            error ".env.production.initial not found in project root. This file is required for ECS deployment"
         fi
         
         warn ".env.production not found, regenerating from .env.production.initial..."
-        cp ".env.production.initial" ".env.production"
+        cp "$PROJECT_ROOT/.env.production.initial" "$PROJECT_ROOT/.env.production"
         
         # Add placeholder for K8s token (will be skipped since it's empty)
-        echo "K8S_SERVICE_ACCOUNT_TOKEN=" >> ".env.production"
+        echo "K8S_SERVICE_ACCOUNT_TOKEN=" >> "$PROJECT_ROOT/.env.production"
     fi
     
-    # Extract secrets from config file
-    K8S_TOKEN=$(grep "K8S_SERVICE_ACCOUNT_TOKEN=" .env.production | cut -d'=' -f2)
-    DATABASE_URL=$(grep "DATABASE_URL=" .env.production | cut -d'=' -f2 | tr -d '"')
-    PINECONE_API_KEY=$(grep "PINECONE_API_KEY=" .env.production | cut -d'=' -f2 | tr -d '"')
-    PINECONE_INDEX_NAME=$(grep "PINECONE_INDEX_NAME=" .env.production | cut -d'=' -f2 | tr -d '"')
-    GITHUB_CLIENT_ID=$(grep "GITHUB_CLIENT_ID=" .env.production | cut -d'=' -f2)
-    GITHUB_CLIENT_SECRET=$(grep "GITHUB_CLIENT_SECRET=" .env.production | cut -d'=' -f2)
-    GITHUB_WEBHOOK_SECRET=$(grep "GITHUB_WEBHOOK_SECRET=" .env.production | cut -d'=' -f2)
-    VM_IMAGE_REGISTRY=$(grep "VM_IMAGE_REGISTRY=" .env.production | cut -d'=' -f2 | tr -d '"')
+    # Extract secrets from config file (temporarily disable exit on error for debugging)
+    set +e
+    K8S_TOKEN=$(grep "K8S_SERVICE_ACCOUNT_TOKEN=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2)
+    DATABASE_URL=$(grep "DATABASE_URL=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    PINECONE_API_KEY=$(grep "PINECONE_API_KEY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    PINECONE_INDEX_NAME=$(grep "PINECONE_INDEX_NAME=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    GITHUB_CLIENT_ID=$(grep "GITHUB_CLIENT_ID=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    GITHUB_CLIENT_SECRET=$(grep "GITHUB_CLIENT_SECRET=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    GITHUB_WEBHOOK_SECRET=$(grep "GITHUB_WEBHOOK_SECRET=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    VM_IMAGE_REGISTRY=$(grep "VM_IMAGE_REGISTRY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    set -e
+    
+    # Debug: Show extracted values (first 20 chars for sensitive data)
+    log "Debug - Extracted values:"
+    log "  K8S_TOKEN: ${K8S_TOKEN:0:20}${K8S_TOKEN:+...}"
+    log "  DATABASE_URL: ${DATABASE_URL:0:30}${DATABASE_URL:+...}"
+    log "  PINECONE_API_KEY: ${PINECONE_API_KEY:0:20}${PINECONE_API_KEY:+...}"
+    log "  PINECONE_INDEX_NAME: $PINECONE_INDEX_NAME"
+    log "  GITHUB_CLIENT_ID: $GITHUB_CLIENT_ID"
+    log "  GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:0:10}${GITHUB_CLIENT_SECRET:+...}"
+    log "  GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:0:10}${GITHUB_WEBHOOK_SECRET:+...}"
+    log "  VM_IMAGE_REGISTRY: $VM_IMAGE_REGISTRY"
     
     # Validate required secrets
     if [[ -z "$K8S_TOKEN" ]]; then
@@ -394,14 +416,25 @@ store_secrets() {
         warn "Proceeding without K8s token - ensure you have an existing K8s token in Parameter Store or run remote deployment first"
     fi
     
+    # Validate critical secrets
     if [[ -z "$DATABASE_URL" ]]; then
-        error "DATABASE_URL not found in .env.production"
+        error "DATABASE_URL extraction failed - check .env.production format and contents"
+    fi
+    
+    if [[ -z "$GITHUB_CLIENT_ID" ]]; then
+        error "GITHUB_CLIENT_ID extraction failed - check .env.production format and contents"
+    fi
+    
+    if [[ -z "$GITHUB_CLIENT_SECRET" ]]; then
+        error "GITHUB_CLIENT_SECRET extraction failed - check .env.production format and contents"
     fi
     
     if [[ -z "$VM_IMAGE_REGISTRY" ]]; then
         warn "VM_IMAGE_REGISTRY not found - using default ghcr.io/ishaan1013/shadow"
         VM_IMAGE_REGISTRY="ghcr.io/ishaan1013/shadow"
     fi
+    
+    log "Secret extraction and validation completed successfully"
     
     # Store all secrets in Parameter Store
     if [[ -n "$K8S_TOKEN" ]]; then
@@ -416,23 +449,27 @@ store_secrets() {
     fi
     
     log "Storing database URL..."
-    aws ssm put-parameter \
+    if ! aws ssm put-parameter \
         --name "/shadow/database-url" \
         --value "$DATABASE_URL" \
         --type "SecureString" \
         --overwrite \
         --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE"
+        --profile "$AWS_PROFILE"; then
+        error "Failed to store database URL in Parameter Store. Check AWS permissions for ssm:PutParameter on /shadow/* path"
+    fi
     
     if [[ -n "$PINECONE_API_KEY" ]]; then
         log "Storing Pinecone API key..."
-        aws ssm put-parameter \
+        if ! aws ssm put-parameter \
             --name "/shadow/pinecone-api-key" \
             --value "$PINECONE_API_KEY" \
             --type "SecureString" \
             --overwrite \
             --region "$AWS_REGION" \
-            --profile "$AWS_PROFILE"
+            --profile "$AWS_PROFILE"; then
+            error "Failed to store Pinecone API key in Parameter Store. Check AWS permissions for ssm:PutParameter on /shadow/* path"
+        fi
     fi
     
     if [[ -n "$PINECONE_INDEX_NAME" ]]; then
@@ -480,13 +517,15 @@ store_secrets() {
     fi
     
     log "Storing VM image registry..."
-    aws ssm put-parameter \
+    if ! aws ssm put-parameter \
         --name "/shadow/vm-image-registry" \
         --value "$VM_IMAGE_REGISTRY" \
         --type "String" \
         --overwrite \
         --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE"
+        --profile "$AWS_PROFILE"; then
+        error "Failed to store VM image registry in Parameter Store. Check AWS permissions for ssm:PutParameter on /shadow/* path"
+    fi
     
     log "All secrets stored in Parameter Store successfully"
 }
