@@ -20,7 +20,6 @@ import {
   SquareX,
 } from "lucide-react";
 import { useCallback, useMemo } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { statusColorsConfig } from "./status";
 import { FileExplorer } from "@/components/agent-environment/file-explorer";
 import { FileNode } from "@repo/types";
@@ -32,7 +31,9 @@ import { Badge } from "../ui/badge";
 import { GithubLogo } from "../graphics/github/github-logo";
 import { useCreatePR } from "@/hooks/use-create-pr";
 import { useTaskSocket } from "@/hooks/socket";
-import { Loader2, GitPullRequest } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { useIndexingStatus } from "@/hooks/use-indexing-status";
+import { useQueryClient } from "@tanstack/react-query";
 
 const todoStatusConfig = {
   PENDING: { icon: Square, className: "text-muted-foreground" },
@@ -99,12 +100,10 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
   const { isStreaming } = useTaskSocket(taskId);
   const createPRMutation = useCreatePR();
+  const queryClient = useQueryClient();
 
-  const indexMutation = useMutation({
-    mutationFn: fetchIndexApi,
-    onSuccess: () => console.log("Repository indexing completed successfully"),
-    onError: (error) => console.error("Repository indexing failed:", error),
-  });
+  // Use indexing status hook for unified status tracking
+  const { data: indexingStatus } = useIndexingStatus(task?.repoFullName || "");
 
   const completedTodos = useMemo(
     () => todos.filter((todo) => todo.status === "COMPLETED").length,
@@ -142,9 +141,49 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
     }
   }, [task?.id, createPRMutation]);
 
+  const handleIndexRepo = useCallback(async () => {
+    if (!task?.repoFullName || !task?.id) return;
+
+    // Optimistic update - immediately show "indexing" state
+    queryClient.setQueryData(["indexing-status", task.repoFullName], {
+      status: "indexing",
+      lastIndexedAt: null,
+      lastCommitSha: null,
+    });
+
+    try {
+      fetchIndexApi({
+        repoFullName: task.repoFullName,
+        taskId: task.id,
+        clearNamespace: true,
+      }).catch((error) => {
+        queryClient.invalidateQueries({
+          queryKey: ["indexing-status", task.repoFullName],
+        });
+        console.error("Indexing failed:", error);
+      });
+    } catch (error) {
+      queryClient.invalidateQueries({
+        queryKey: ["indexing-status", task.repoFullName],
+      });
+      console.error("Failed to start indexing:", error);
+    }
+  }, [task?.repoFullName, task?.id, queryClient]);
+
   // Determine if we should show create PR button
   const showCreatePR = !task?.pullRequestNumber && fileChanges.length > 0;
   const isCreatePRDisabled = isStreaming || createPRMutation.isPending;
+
+  // Indexing button state logic
+  const isIndexing = indexingStatus?.status === "indexing";
+  const isIndexingDisabled = isIndexing;
+
+  const getIndexingButtonText = () => {
+    if (isIndexing) return "Indexing...";
+    if (indexingStatus?.status === "completed") return "Re-index Repo";
+    if (indexingStatus?.status === "failed") return "Retry Indexing";
+    return "Index Repo";
+  };
 
   return (
     <>
@@ -281,30 +320,15 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
             <Button
               variant="ghost"
               className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
-              onClick={() =>
-                indexMutation.mutate({
-                  repoFullName: task.repoFullName,
-                  taskId: task.id,
-                  clearNamespace: true,
-                })
-              }
-              disabled={indexMutation.isPending}
+              onClick={handleIndexRepo}
+              disabled={isIndexingDisabled}
             >
-              <RefreshCcw className="size-4 shrink-0" />
-              <span>
-                {indexMutation.isPending ? "Indexing..." : "Index Repo"}
-              </span>
+              <RefreshCcw
+                className={`size-4 shrink-0 ${isIndexing ? "animate-spin" : ""}`}
+              />
+              <span>{getIndexingButtonText()}</span>
             </Button>
           </SidebarMenuItem>
-          {indexMutation.error && (
-            <SidebarMenuItem>
-              <div className="px-2 text-xs text-red-400">
-                {indexMutation.error instanceof Error
-                  ? indexMutation.error.message
-                  : "Failed to index repository"}
-              </div>
-            </SidebarMenuItem>
-          )}
         </SidebarGroupContent>
       </SidebarGroup>
 

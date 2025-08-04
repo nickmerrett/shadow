@@ -15,6 +15,7 @@ import { createWorkspaceManager } from "./execution";
 import { filesRouter } from "./file-routes";
 import { parseApiKeysFromCookies } from "./utils/cookie-parser";
 import { handleGitHubWebhook } from "./webhooks/github-webhook";
+import { getIndexingStatus } from "./routes/indexing-status";
 
 const app = express();
 export const chatService = new ChatService();
@@ -62,6 +63,19 @@ app.use("/api/tasks", filesRouter);
 
 // GitHub webhook endpoint
 app.post("/api/webhooks/github/pull-request", handleGitHubWebhook);
+
+// Indexing status endpoint
+app.get("/api/indexing-status/:repoFullName", async (req, res) => {
+  try {
+    const { repoFullName } = req.params;
+    const decodedRepoFullName = decodeURIComponent(repoFullName);
+    const status = await getIndexingStatus(decodedRepoFullName);
+    res.json(status);
+  } catch (error) {
+    console.error("Error fetching indexing status:", error);
+    res.status(500).json({ error: "Failed to fetch indexing status" });
+  }
+});
 
 // Get task details
 app.get("/api/tasks/:taskId", async (req, res) => {
