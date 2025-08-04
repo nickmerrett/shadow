@@ -104,6 +104,18 @@ model Task {
   codebaseUnderstanding   CodebaseUnderstanding? @relation(fields: [codebaseUnderstandingId], references: [id])
 }
 
+model RepositoryIndex {
+  id            String   @id @default(cuid())
+  repoFullName  String   @unique
+  lastIndexedAt DateTime @default(now())
+  lastCommitSha String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([repoFullName])
+  @@map("repository_index")
+}
+
 model Todo {
   id        String     @default(cuid())
   content   String

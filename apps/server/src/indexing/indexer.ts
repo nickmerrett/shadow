@@ -1,13 +1,20 @@
 import { chunkSymbol } from "@/indexing/chunker";
-import { extractGeneric } from "@/indexing/extractors/generic";
+import {
+  extractGeneric,
+  Definition,
+  Import,
+  Call,
+  Doc,
+} from "@/indexing/extractors/generic";
 import {
   Graph,
   GraphEdge,
   GraphEdgeKind,
+  GraphJSON,
   GraphNode,
   GraphNodeKind,
 } from "@/indexing/graph";
-import { getLanguageForPath } from "@/indexing/languages";
+import { getLanguageForPath, LanguageSpec } from "@/indexing/languages";
 import logger from "@/indexing/logger";
 import { getHash, getNodeHash } from "@/indexing/utils/hash";
 import { sliceByLoc } from "@/indexing/utils/text";
@@ -16,19 +23,64 @@ import TreeSitter from "tree-sitter";
 import { embedAndUpsertToPinecone } from "./embedderWrapper";
 import { getOwnerFromRepo, isValidRepo } from "./utils/repository";
 import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
+import { IndexRepoOptions } from "@repo/types";
+import { DEFAULT_MAX_LINES_PER_CHUNK } from "./constants";
+import { EXCLUDED_EXTENSIONS } from "@repo/types";
 
-export interface FileContentResponse {
-  content: string;
-  path: string;
-  type: string;
-}
+async function createUnsupportedFileChunks(
+  file: { path: string; content: string; type: string },
+  repoId: string,
+  graph: Graph
+): Promise<void> {
+  if (!file.content.trim()) return;
 
-export interface IndexRepoOptions {
-  clearNamespace: boolean;
-  maxLines?: number;
-  embed?: boolean;
-  outDir?: string;
-  paths?: string[] | null;
+  const lines = file.content.split("\n");
+  const chunkSize = DEFAULT_MAX_LINES_PER_CHUNK;
+  let chunkIndex = 0;
+
+  for (let startLine = 0; startLine < lines.length; startLine += chunkSize) {
+    const endLine = Math.min(startLine + chunkSize - 1, lines.length - 1);
+    const chunkContent = lines.slice(startLine, endLine + 1).join("\n");
+
+    if (chunkContent.trim()) {
+      const chunkId = getNodeHash(
+        repoId,
+        file.path,
+        "CHUNK",
+        `unknown-chunk-${chunkIndex}`,
+        {
+          startLine,
+          endLine,
+          startCol: 0,
+          endCol: 0,
+          byteStart: 0,
+          byteEnd: chunkContent.length,
+        }
+      );
+
+      const chunkNode = new GraphNode({
+        id: chunkId,
+        kind: GraphNodeKind.CHUNK,
+        name: `${file.path}#${chunkIndex}`,
+        path: file.path,
+        lang: "unknown",
+        loc: {
+          startLine,
+          endLine,
+          startCol: 0,
+          endCol: 0,
+          byteStart: 0,
+          byteEnd: chunkContent.length,
+        },
+        code: chunkContent,
+        meta: { strategy: "unknown-file", isUnsupported: true },
+      });
+
+      // Add to graph for embedding but don't create file/symbol structure
+      graph.addNode(chunkNode);
+      chunkIndex++;
+    }
+  }
 }
 
 // Add GitHub API helper
@@ -51,20 +103,13 @@ async function indexRepo(
   options: IndexRepoOptions
 ): Promise<{
   graph: Graph;
-  graphJSON: any;
-  invertedIndex: any;
-  embeddings?: { index: any; binary: Buffer };
+  graphJSON: GraphJSON;
+  invertedIndex: Record<string, string[]>;
+  embeddings?: { index: Record<string, unknown>; binary: Buffer };
 }> {
-  const {
-    maxLines = 200,
-    embed = false,
-    paths = null,
-    clearNamespace = true,
-  } = options;
+  const { clearNamespace = true } = options;
 
-  logger.info(
-    `Indexing ${repoName}${paths ? " (filtered)" : ""}${embed ? " + embeddings" : ""}`
-  );
+  logger.info(`[INDEXER] Indexing ${repoName} + embeddings`);
 
   let files: Array<{ path: string; content: string; type: string }> = [];
   let repoId: string;
@@ -99,35 +144,38 @@ async function indexRepo(
     logger.info(`Number of nodes in the graph: ${graph.nodes.size}`);
 
     for (const file of files) {
+      // Skip binary/excluded file types
+      const ext = file.path.split(".").pop()?.toLowerCase() || "";
+
+      if (EXCLUDED_EXTENSIONS.includes(ext)) {
+        continue;
+      }
+
       const spec = await getLanguageForPath(file.path);
-      if (!spec || !spec.language) {
-        logger.warn(`Skipping unsupported: ${file.path}`);
+      const shouldUseTreeSitter = spec && spec.language;
+
+      // For unsupported files, skip graph creation but still create chunks for embedding
+      if (!shouldUseTreeSitter) {
+        // Create chunks directly for embedding without adding to graph
+        await createUnsupportedFileChunks(file, repoId, graph);
         continue;
       }
 
-      const parser = new TreeSitter();
-      try {
-        if (spec.language && typeof spec.language === "object") {
-          parser.setLanguage(spec.language);
-        } else {
-          logger.warn(`Invalid language object for ${file.path}`);
-          continue;
-        }
-      } catch (error) {
-        logger.warn(
-          `Failed to set language for ${file.path}: ${error instanceof Error ? error.message : String(error)}`
-        );
-        continue;
-      }
+      let parser: TreeSitter | null = null;
+      let tree: TreeSitter.Tree | null = null;
+      let rootNode: TreeSitter.Tree["rootNode"] | null = null;
 
-      let tree, rootNode;
+      // Try to parse with tree-sitter
       try {
+        parser = new TreeSitter();
+        parser.setLanguage(spec!.language);
         tree = parser.parse(file.content);
         rootNode = tree.rootNode;
       } catch (error) {
         logger.warn(
-          `Failed to parse ${file.path}: ${error instanceof Error ? error.message : String(error)}`
+          `Failed to parse ${file.path} with tree-sitter: ${error instanceof Error ? error.message : String(error)}`
         );
+        // Skip files that fail to parse
         continue;
       }
 
@@ -141,7 +189,7 @@ async function indexRepo(
         kind: GraphNodeKind.FILE,
         name: file.path,
         path: file.path,
-        lang: spec.id,
+        lang: spec!.id,
         meta: { mtime: stat.mtimeMs, source: repoName },
       });
       graph.addNode(fileNode);
@@ -155,27 +203,31 @@ async function indexRepo(
       );
 
       // ================================ START OF THIS CODE SHOULD NOT BE CHANGED ================================ //
-      // Extract
-      const { defs, imports, calls, docs } = extractGeneric(
+      // Extract - only for supported languages with tree-sitter parsing
+      let defs: Definition[] = [];
+      let imports: Import[] = [];
+      let calls: Call[] = [];
+      let docs: Doc[] = [];
+
+      // Extract symbols, imports, calls, and docs
+      ({ defs, imports, calls, docs } = extractGeneric(
         rootNode,
-        spec,
+        spec!,
         file.content
-      );
+      ));
+
       const symNodes: GraphNode[] = [];
-      logger.info(
-        `File ${file.path}: Found ${defs.length} definitions, ${imports.length} imports, ${calls.length} calls, ${docs.length} docs`
-      );
 
       // SYMBOL defs
       for (const d of defs) {
-        const sig = buildSignatureFromNode(d.node, spec, file.content);
+        const sig = buildSignatureFromNode(d.node, spec!, file.content);
         const id = getNodeHash(repoId, file.path, "SYMBOL", d.name, d.loc);
         const symNode = new GraphNode({
           id,
           kind: GraphNodeKind.SYMBOL,
           name: d.name,
           path: file.path,
-          lang: spec.id,
+          lang: spec!.id,
           loc: d.loc,
           signature: sig,
         }); // omit full code to avoid redundancy; chunks will hold code
@@ -210,7 +262,7 @@ async function indexRepo(
           kind: GraphNodeKind.COMMENT,
           name: `doc@${file.path}:${ds.loc.startLine}`,
           path: file.path,
-          lang: spec.id,
+          lang: spec!.id,
           loc: ds.loc,
           code: docCode,
           doc: docCode,
@@ -248,7 +300,7 @@ async function indexRepo(
           kind: GraphNodeKind.IMPORT,
           name,
           path: file.path,
-          lang: spec.id,
+          lang: spec!.id,
           loc: im.loc,
           code: imText,
         });
@@ -275,9 +327,9 @@ async function indexRepo(
           repoId,
           fileNode: symNode,
           sym: d,
-          lang: spec.id,
+          lang: spec!.id,
           sourceText: file.content,
-          maxLines,
+          maxLines: DEFAULT_MAX_LINES_PER_CHUNK,
         });
         let prev: GraphNode | null = null;
         for (const ch of chunks) {
@@ -307,7 +359,7 @@ async function indexRepo(
       // If no symbols found, create file-level chunks for the entire file content
       if (!hasChunks && file.content.trim()) {
         const lines = file.content.split("\n");
-        const chunkSize = maxLines;
+        const chunkSize = DEFAULT_MAX_LINES_PER_CHUNK;
         let chunkIndex = 0;
 
         for (
@@ -319,6 +371,9 @@ async function indexRepo(
           const chunkContent = lines.slice(startLine, endLine + 1).join("\n");
 
           if (chunkContent.trim()) {
+            logger.info(
+              `[INDEXER] Creating file chunk for ${file.path}: lines ${startLine}-${endLine} (${chunkContent.length} chars)`
+            );
             const chunkId = getNodeHash(
               repoId,
               file.path,
@@ -339,7 +394,7 @@ async function indexRepo(
               kind: GraphNodeKind.CHUNK,
               name: `${file.path}#${chunkIndex}`,
               path: file.path,
-              lang: spec.id,
+              lang: spec!.id,
               loc: {
                 startLine,
                 endLine,
@@ -410,18 +465,12 @@ async function indexRepo(
 
     // Output is the graph with nodes, adjacencies and inverted index
     // Only the nodes get embedded
-    if (embed) {
-      logger.info("Embedding and uploading to Pinecone...");
-      await embedAndUpsertToPinecone(
-        Array.from(graph.nodes.values()),
-        repoName,
-        clearNamespace
-      );
-    } else {
-      logger.info("Embedding skipped (embed=false).");
-    }
+    logger.info("[INDEXER] Embedding and uploading to Pinecone...");
+    await embedAndUpsertToPinecone(Array.from(graph.nodes.values()), repoName, {
+      clearNamespace,
+    });
 
-    logger.info(`Indexed ${graph.nodes.size} nodes.`);
+    logger.info(`[INDEXER] Indexed ${graph.nodes.size} nodes.`);
     return {
       graph,
       graphJSON: graph.graphToJSON(),
@@ -431,7 +480,7 @@ async function indexRepo(
   }
   return {
     graph: new Graph(repoName),
-    graphJSON: {},
+    graphJSON: { repoId: repoName, nodes: [], edges: [] },
     invertedIndex: {},
     embeddings: undefined,
   };
@@ -440,7 +489,7 @@ async function indexRepo(
 // Quick signature to see what a function does
 function buildSignatureFromNode(
   node: { startIndex: number; endIndex: number } | undefined,
-  _spec: any,
+  _spec: LanguageSpec,
   sourceText: string | undefined
 ): string {
   if (!node || !sourceText) return "";
@@ -493,7 +542,7 @@ function buildInvertedInMemory(graph: Graph): Record<string, string[]> {
 
 function buildEmbeddingsInMemory(
   graph: Graph
-): { index: any; binary: Buffer } | undefined {
+): { index: Record<string, unknown>; binary: Buffer } | undefined {
   const chunks = Array.from(graph.nodes.values()).filter(
     (node): node is GraphNode & { embedding: Float32Array } =>
       node.kind === GraphNodeKind.CHUNK &&

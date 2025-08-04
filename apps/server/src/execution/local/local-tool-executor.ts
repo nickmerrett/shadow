@@ -469,7 +469,7 @@ export class LocalToolExecutor implements ToolExecutor {
       };
     } catch (error) {
       // ripgrep returns exit code 1 when no matches found, which is normal
-      if (error instanceof Error && error.message.includes("exit code 1")) {
+      if (error instanceof Error && (error.message.includes("exit code 1") || error.message.includes("Command failed: rg"))) {
         return {
           success: true,
           matches: [],
@@ -506,26 +506,14 @@ export class LocalToolExecutor implements ToolExecutor {
         error
       );
 
-      // Fallback to grep search if indexing service is unavailable
-      const fallbackResult = await this.grepSearch(query);
-      
-      // Convert GrepResult to SemanticSearchToolResult format
+      // Return error result
       return {
-        success: fallbackResult.success,
-        results: fallbackResult.matches.map((match, i) => ({
-          id: i + 1,
-          content: match,
-          relevance: 0.8,
-          filePath: "",
-          lineStart: 0,
-          lineEnd: 0,
-          language: "",
-          kind: "",
-        })),
-        query: fallbackResult.query,
-        searchTerms: fallbackResult.query.split(/\s+/),
-        message: fallbackResult.message + " (fallback to grep)",
-        error: fallbackResult.error,
+        success: false,
+        results: [],
+        query: query,
+        searchTerms: query.split(/\s+/).filter(term => term.length > 0),
+        message: `Semantic search failed for "${query}"`,
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }

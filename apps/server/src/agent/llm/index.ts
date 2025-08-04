@@ -1,4 +1,5 @@
 import { Message, ModelType, StreamChunk } from "@repo/types";
+import type { ToolSet } from "ai";
 import { ModelTypes } from "./models/model-types";
 import { StreamProcessor } from "./streaming/stream-processor";
 import { PRGenerator } from "./pr-generation/pr-generator";
@@ -17,9 +18,10 @@ export class LLMService {
     model: ModelType,
     userApiKeys: { openai?: string; anthropic?: string },
     enableTools: boolean = true,
-    taskId?: string,
+    taskId: string,
     workspacePath?: string,
-    abortSignal?: AbortSignal
+    abortSignal?: AbortSignal,
+    preCreatedTools?: ToolSet
   ): AsyncGenerator<StreamChunk> {
     yield* this.streamProcessor.createMessageStream(
       systemPrompt,
@@ -29,7 +31,8 @@ export class LLMService {
       enableTools,
       taskId,
       workspacePath,
-      abortSignal
+      abortSignal,
+      preCreatedTools
     );
   }
 

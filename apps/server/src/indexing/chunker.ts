@@ -1,5 +1,6 @@
 import { GraphNode, GraphNodeKind, Location, makeId } from "@/indexing/graph";
 import { sliceByLoc } from "@/indexing/utils/text";
+import { DEFAULT_MAX_LINES_PER_CHUNK } from "./constants";
 
 interface Symbol {
   name: string;
@@ -26,7 +27,7 @@ export function chunkSymbol({
   sym,
   lang,
   sourceText,
-  maxLines = 200,
+  maxLines = DEFAULT_MAX_LINES_PER_CHUNK,
 }: ChunkOptions): GraphNode[] {
   const lines = sourceText.split("\n");
   const len = sym.loc.endLine - sym.loc.startLine + 1;

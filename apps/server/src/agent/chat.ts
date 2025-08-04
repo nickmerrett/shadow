@@ -11,6 +11,8 @@ import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import { getSystemPrompt, getDeepWikiMessage } from "./system-prompt";
+import { createTools } from "./tools";
+import type { ToolSet } from "ai";
 import { GitManager } from "../services/git-manager";
 import { PRManager } from "../services/pr-manager";
 
@@ -683,7 +685,14 @@ export class ChatService {
 
     const toolCallSequences = new Map<string, number>();
 
-    const taskSystemPrompt = await getSystemPrompt();
+    // Create tools first so we can generate system prompt based on available tools
+    let availableTools: ToolSet | undefined;
+    if (enableTools && taskId) {
+      availableTools = await createTools(taskId, workspacePath);
+    }
+
+    // Get system prompt with available tools context
+    const taskSystemPrompt = await getSystemPrompt(availableTools);
 
     try {
       for await (const chunk of this.llmService.createMessageStream(
@@ -694,7 +703,8 @@ export class ChatService {
         enableTools,
         taskId, // Pass taskId to enable todo tool context
         workspacePath, // Pass workspace path for tool operations
-        abortController.signal
+        abortController.signal,
+        availableTools
       )) {
         if (this.stopRequested.has(taskId)) {
           console.log(`[CHAT] Stop requested during stream for task ${taskId}`);

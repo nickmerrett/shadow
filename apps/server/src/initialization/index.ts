@@ -12,6 +12,7 @@ import {
   setTaskFailed,
   clearTaskProgress,
 } from "../utils/task-status";
+import { startBackgroundIndexing } from "./background-indexing";
 import { runDeepWiki } from "../indexing/deepwiki/core";
 
 // Helper for async delays
@@ -204,6 +205,7 @@ export class TaskInitializationEngine {
 
       // Repository indexing step (both modes)
       case "INDEX_REPOSITORY":
+        await this.executeIndexRepository(taskId);
         // Indexing is handled during deep wiki generation
         break;
 
@@ -543,9 +545,49 @@ export class TaskInitializationEngine {
         `[TASK_INIT] ${taskId}: Failed to generate deep wiki:`,
         error
       );
-      throw error;
+      // Don't throw error - we don't want indexing failures to block task startup
+      console.log(
+        `[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`
+      );
     }
   }
+  
+  /**
+   * Index repository step - Start background indexing (non-blocking)
+   */
+  private async executeIndexRepository(taskId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Starting background repository indexing`);
+
+    try {
+      // Get task info
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { repoFullName: true },
+      });
+
+      if (!task) {
+        throw new Error(`Task not found: ${taskId}`);
+      }
+
+      // Start background indexing (non-blocking)
+      await startBackgroundIndexing(task.repoFullName, taskId, {
+        clearNamespace: true,
+        force: false
+      });
+
+      console.log(
+        `[TASK_INIT] ${taskId}: Background indexing started for repository ${task.repoFullName}`
+      );
+    } catch (error) {
+      console.error(
+        `[TASK_INIT] ${taskId}: Failed to start background indexing:`,
+        error
+      );
+      // Don't throw error - we don't want indexing failures to block task startup
+      console.log(`[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`);
+    }
+  }
+
 
   /**
    * Emit progress events via WebSocket
