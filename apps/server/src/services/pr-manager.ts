@@ -107,7 +107,7 @@ export class PRManager {
     // Generate updated description using AI
     const newDescription = await this.generateUpdatedDescription(
       latestSnapshot?.description || "",
-      await this.gitManager.getDiff(),
+      await this.gitManager.getDiffAgainstBase(options.baseBranch),
       options.taskTitle,
       userApiKeys
     );
@@ -133,7 +133,7 @@ export class PRManager {
     userApiKeys?: { openai?: string; anthropic?: string }
   ): Promise<PRMetadata> {
     try {
-      const diff = await this.gitManager.getDiff();
+      const diff = await this.gitManager.getDiffAgainstBase(options.baseBranch);
       const commitMessages = await this.getRecentCommitMessages();
 
       const metadata = await this.llmService.generatePRMetadata(

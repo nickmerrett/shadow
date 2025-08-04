@@ -1,9 +1,8 @@
 import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { AvailableModels, ApiKeys } from "@repo/types";
+import { ModelProvider } from "@/agent/llm/models/model-provider";
 
 const execAsync = promisify(exec);
 
@@ -14,9 +13,9 @@ export interface GitUser {
 
 export interface CommitOptions {
   user: GitUser;
-  coAuthor?: GitUser;
+  coAuthor: GitUser;
+  userApiKeys: ApiKeys;
   message?: string;
-  userApiKeys?: ApiKeys;
 }
 
 export class GitManager {
@@ -123,11 +122,27 @@ export class GitManager {
   }
 
   /**
+   * Get git diff against a base branch (for PR generation)
+   */
+  async getDiffAgainstBase(baseBranch: string = "main"): Promise<string> {
+    try {
+      const { stdout: diff } = await this.execGit(`diff ${baseBranch}...HEAD`);
+      return diff;
+    } catch (error) {
+      console.error(
+        `[GIT_MANAGER] Failed to get diff against ${baseBranch}:`,
+        error
+      );
+      return "";
+    }
+  }
+
+  /**
    * Generate a commit message using AI based on the git diff
    */
   async generateCommitMessage(
     diff: string,
-    userApiKeys?: ApiKeys
+    userApiKeys: ApiKeys
   ): Promise<string> {
     try {
       // If no API keys provided, use fallback
@@ -138,15 +153,12 @@ export class GitManager {
         return "Update code via Shadow agent";
       }
 
-      // Choose model based on available API keys (same pattern as pr-generator)
       const modelChoice = userApiKeys.openai
         ? AvailableModels.GPT_4O_MINI
         : AvailableModels.CLAUDE_HAIKU_3_5;
 
-      // Create model instance based on provider
-      const model = userApiKeys.openai
-        ? openai(modelChoice)
-        : anthropic(modelChoice);
+      const modelProvider = new ModelProvider();
+      const model = modelProvider.getModel(modelChoice, userApiKeys);
 
       const { text } = await generateText({
         model,
@@ -319,7 +331,8 @@ Commit message:`,
    */
   async commitChangesIfAny(
     user: GitUser,
-    coAuthor?: GitUser
+    coAuthor: GitUser,
+    userApiKeys: ApiKeys
   ): Promise<boolean> {
     try {
       const hasChanges = await this.hasChanges();
@@ -331,6 +344,7 @@ Commit message:`,
       await this.commitChanges({
         user,
         coAuthor,
+        userApiKeys,
       });
 
       // Try to push the changes

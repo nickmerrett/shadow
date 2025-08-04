@@ -1,5 +1,6 @@
 import { prisma } from "@repo/db";
 import {
+  ApiKeys,
   AssistantMessagePart,
   ErrorPart,
   Message,
@@ -167,6 +168,7 @@ export class ChatService {
    */
   private async commitChangesIfAny(
     taskId: string,
+    userApiKeys: ApiKeys,
     workspacePath?: string
   ): Promise<boolean> {
     try {
@@ -217,7 +219,8 @@ export class ChatService {
           {
             name: "Shadow",
             email: "noreply@shadowrealm.ai",
-          }
+          },
+          userApiKeys
         );
 
         if (committed) {
@@ -228,7 +231,7 @@ export class ChatService {
 
         return committed;
       } else {
-        return await this.commitChangesRemoteMode(taskId, task);
+        return await this.commitChangesRemoteMode(taskId, task, userApiKeys);
       }
     } catch (error) {
       console.error(
@@ -371,7 +374,8 @@ export class ChatService {
     task: {
       user: { name: string; email: string };
       shadowBranch: string | null;
-    }
+    },
+    userApiKeys: ApiKeys
   ): Promise<boolean> {
     try {
       console.log(
@@ -406,7 +410,8 @@ export class ChatService {
         // Generate commit message using server-side GitManager (which has AI integration)
         const tempGitManager = new GitManager("");
         commitMessage = await tempGitManager.generateCommitMessage(
-          diffResponse.diff
+          diffResponse.diff,
+          userApiKeys
         );
       }
 
@@ -1020,6 +1025,7 @@ export class ChatService {
         try {
           const changesCommitted = await this.commitChangesIfAny(
             taskId,
+            userApiKeys,
             workspacePath
           );
 
