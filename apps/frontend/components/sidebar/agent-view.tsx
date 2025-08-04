@@ -8,6 +8,7 @@ import {
 import { useTask } from "@/hooks/use-task";
 import { cn } from "@/lib/utils";
 import {
+  BookOpenText,
   CircleDashed,
   FileDiff,
   Folder,
@@ -34,6 +35,13 @@ import { useTaskSocket } from "@/hooks/socket";
 import { Loader2 } from "lucide-react";
 import { useIndexingStatus } from "@/hooks/use-indexing-status";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const todoStatusConfig = {
   PENDING: { icon: Square, className: "text-muted-foreground" },
@@ -180,7 +188,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   const getIndexingButtonText = () => {
     if (isIndexing) return "Indexing...";
-    if (indexingStatus?.status === "completed") return "Re-index Repo";
+    if (indexingStatus?.status === "completed") return "Re-Index Repo";
     if (indexingStatus?.status === "failed") return "Retry Indexing";
     return "Index Repo";
   };
@@ -240,16 +248,55 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       <SidebarGroup>
         <SidebarGroupContent className="flex flex-col gap-0.5">
           <SidebarMenuItem>
-            <Button
-              variant="ghost"
-              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
-              asChild
-            >
-              <Link href={`${task.repoUrl}`} target="_blank">
-                <Folder className="size-4 shrink-0" />
-                <span className="truncate">{task.repoFullName}</span>
-              </Link>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+                >
+                  <Folder className="size-4 shrink-0" />
+                  <span className="truncate">{task.repoFullName}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="bg-sidebar-accent border-sidebar-border w-[var(--radix-dropdown-menu-trigger-width)]"
+              >
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={`${task.repoUrl}`}
+                    target="_blank"
+                    className="hover:bg-sidebar-border!"
+                  >
+                    <GithubLogo className="text-foreground size-4 shrink-0" />
+                    <span>Open in GitHub</span>
+                  </Link>
+                </DropdownMenuItem>
+                {task.codebaseUnderstandingId && (
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href={`/codebases/${task.codebaseUnderstandingId}`}
+                      target="_blank"
+                      className="hover:bg-sidebar-border!"
+                    >
+                      <BookOpenText className="text-foreground size-4 shrink-0" />
+                      <span>Codebase Wiki</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator className="bg-sidebar-border" />
+                <DropdownMenuItem
+                  onClick={handleIndexRepo}
+                  disabled={isIndexingDisabled}
+                  className="hover:bg-sidebar-border!"
+                >
+                  <RefreshCcw
+                    className={`text-foreground size-4 shrink-0 ${isIndexing ? "animate-spin" : ""}`}
+                  />
+                  <span>{getIndexingButtonText()}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
@@ -311,24 +358,6 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               </div>
             </SidebarMenuItem>
           )}
-        </SidebarGroupContent>
-      </SidebarGroup>
-
-      <SidebarGroup>
-        <SidebarGroupContent>
-          <SidebarMenuItem>
-            <Button
-              variant="ghost"
-              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
-              onClick={handleIndexRepo}
-              disabled={isIndexingDisabled}
-            >
-              <RefreshCcw
-                className={`size-4 shrink-0 ${isIndexing ? "animate-spin" : ""}`}
-              />
-              <span>{getIndexingButtonText()}</span>
-            </Button>
-          </SidebarMenuItem>
         </SidebarGroupContent>
       </SidebarGroup>
 
