@@ -11,6 +11,8 @@ import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import { getSystemPrompt, getDeepWikiMessage } from "./system-prompt";
+import { createTools } from "./tools";
+import type { ToolSet } from "ai";
 import { GitManager } from "../services/git-manager";
 import { PRManager } from "../services/pr-manager";
 
@@ -685,8 +687,14 @@ export class ChatService {
     // Map to track tool call sequences as they're created
     const toolCallSequences = new Map<string, number>();
 
-    // Get clean system prompt (deep wiki content is now in messages array)
-    const taskSystemPrompt = await getSystemPrompt();
+    // Create tools first so we can generate system prompt based on available tools
+    let availableTools: ToolSet | undefined;
+    if (enableTools && taskId) {
+      availableTools = await createTools(taskId, workspacePath);
+    }
+
+    // Get system prompt with available tools context
+    const taskSystemPrompt = await getSystemPrompt(availableTools);
 
     try {
       for await (const chunk of this.llmService.createMessageStream(
@@ -697,7 +705,8 @@ export class ChatService {
         enableTools,
         taskId, // Pass taskId to enable todo tool context
         workspacePath, // Pass workspace path for tool operations
-        abortController.signal
+        abortController.signal,
+        availableTools
       )) {
         // If a stop was requested, break out of the loop immediately
         if (this.stopRequested.has(taskId)) {

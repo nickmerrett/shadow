@@ -85,7 +85,6 @@ export async function createTools(taskId: string, workspacePath?: string) {
           `[TOOLS] Failed to start filesystem watcher for task ${taskId}:`,
           error
         );
-        // Continue without filesystem watching - not critical for basic operation
       }
     }
   }
@@ -97,18 +96,22 @@ export async function createTools(taskId: string, workspacePath?: string) {
       where: { id: taskId },
       select: { repoUrl: true },
     });
-    
+
     if (task) {
-      // eslint-disable-next-line no-useless-escape
       const repoMatch = task.repoUrl.match(/github\.com\/([^/]+\/[^/]+)/);
       const repo = repoMatch ? repoMatch[1] : null;
       if (repo) {
         includeSemanticSearch = await isIndexingComplete(repo);
-        console.log(`[TOOLS] Semantic search ${includeSemanticSearch ? 'enabled' : 'disabled'} for repo ${repo} (indexing ${includeSemanticSearch ? 'complete' : 'incomplete'})`);
+        console.log(
+          `[TOOLS] Semantic search ${includeSemanticSearch ? "enabled" : "disabled"} for repo ${repo} (indexing ${includeSemanticSearch ? "complete" : "incomplete"})`
+        );
       }
     }
   } catch (error) {
-    console.error(`[TOOLS] Failed to check indexing status for task ${taskId}:`, error);
+    console.error(
+      `[TOOLS] Failed to check indexing status for task ${taskId}:`,
+      error
+    );
   }
 
   const baseTools = {
@@ -424,8 +427,10 @@ export async function createTools(taskId: string, workspacePath?: string) {
               success: grepResult.success,
               results,
               query: query,
-              searchTerms: query.split(/\s+/).filter(term => term.length > 0),
-              message: (grepResult.message || 'Failed to search') + " (fallback to grep)",
+              searchTerms: query.split(/\s+/).filter((term) => term.length > 0),
+              message:
+                (grepResult.message || "Failed to search") +
+                " (fallback to grep)",
               error: grepResult.error,
             };
           } else {
@@ -486,20 +491,28 @@ export function getFileSystemWatcherStats() {
 // Default tools export for backward compatibility (without todo_write)
 // Made lazy to avoid circular dependencies
 let _defaultTools: Awaited<ReturnType<typeof createTools>> | undefined;
-let _defaultToolsPromise: Promise<Awaited<ReturnType<typeof createTools>>> | undefined;
+let _defaultToolsPromise:
+  | Promise<Awaited<ReturnType<typeof createTools>>>
+  | undefined;
 
 export const tools = new Proxy({} as Awaited<ReturnType<typeof createTools>>, {
   get(_target, prop) {
     if (!_defaultTools && !_defaultToolsPromise) {
-      _defaultToolsPromise = createTools("placeholder-task-id").then(tools => {
-        _defaultTools = tools;
-        return tools;
-      });
+      _defaultToolsPromise = createTools("placeholder-task-id").then(
+        (tools) => {
+          _defaultTools = tools;
+          return tools;
+        }
+      );
     }
     if (_defaultTools) {
-      return _defaultTools[prop as keyof Awaited<ReturnType<typeof createTools>>];
+      return _defaultTools[
+        prop as keyof Awaited<ReturnType<typeof createTools>>
+      ];
     }
     // If tools aren't ready yet, throw an error indicating they need to be awaited
-    throw new Error("Tools are not ready yet. Use createTools() directly for async initialization.");
+    throw new Error(
+      "Tools are not ready yet. Use createTools() directly for async initialization."
+    );
   },
 });

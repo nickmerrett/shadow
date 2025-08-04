@@ -32,9 +32,10 @@ export class StreamProcessor {
     model: ModelType,
     userApiKeys: { openai?: string; anthropic?: string },
     enableTools: boolean = true,
-    taskId?: string,
+    taskId: string,
     workspacePath?: string,
-    abortSignal?: AbortSignal
+    abortSignal?: AbortSignal,
+    preCreatedTools?: ToolSet
   ): AsyncGenerator<StreamChunk> {
     try {
       const modelInstance = this.modelProvider.getModel(model, userApiKeys);
@@ -44,8 +45,9 @@ export class StreamProcessor {
 
       console.log("coreMessages", coreMessages);
 
-      // Create tools with task context if taskId is provided
-      const tools = taskId ? await createTools(taskId, workspacePath) : undefined;
+      // Use pre-created tools if provided, otherwise create tools with task context if taskId is provided
+      const tools =
+        preCreatedTools || (await createTools(taskId, workspacePath));
 
       // For Anthropic models, add system prompt as first message with cache control
       // For other providers, use the system parameter
