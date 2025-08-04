@@ -170,6 +170,11 @@ class PineconeHandler {
 
           chunks.push([subRecord]);
           subChunkIndex++;
+
+          // Yield control every 10 sub-chunks to prevent event loop blocking
+          if (subChunkIndex % 10 === 0) {
+            await new Promise(resolve => setImmediate(resolve));
+          }
         }
 
         continue; // Skip the normal processing for this record
