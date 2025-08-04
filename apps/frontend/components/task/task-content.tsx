@@ -67,7 +67,11 @@ function TaskPageContent() {
     if (streamingAssistantParts.length > 0 || isStreaming) {
       const lastMsg = msgs[msgs.length - 1];
 
-      if (lastMsg && lastMsg.role.toLowerCase() === "assistant") {
+      if (
+        lastMsg &&
+        (lastMsg.role.toLowerCase() === "assistant" ||
+          lastMsg.role.toLowerCase() === "tool")
+      ) {
         // Merge existing parts with streaming parts
         const existingParts = lastMsg.metadata?.parts || [];
         const mergedParts = [...existingParts, ...streamingAssistantParts];
