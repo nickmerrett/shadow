@@ -28,6 +28,7 @@ export interface ServerToClientEvents {
   "chat-history": (data: {
     taskId: string;
     messages: Message[];
+    mostRecentMessageModel: ModelType | null;
     queuedMessage: string | null;
   }) => void;
   "chat-history-error": (data: { error: string }) => void;

@@ -65,24 +65,20 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
   },
 };
 
-// Helper to get model provider
 export function getModelProvider(model: ModelType): "anthropic" | "openai" {
   return ModelInfos[model].provider;
 }
 
-// Helper to get model info
 export function getModelInfo(model: ModelType): ModelInfo {
   return ModelInfos[model];
 }
 
-// Helper to get the appropriate mini model based on user's main model choice
 export function getMiniModelForProvider(mainModel: ModelType): ModelType {
   const provider = getModelProvider(mainModel);
 
   if (provider === "openai") {
     return AvailableModels.GPT_4O_MINI;
   } else {
-    // For Anthropic models, use Claude Haiku 3.5
     return AvailableModels.CLAUDE_HAIKU_3_5;
   }
 }
