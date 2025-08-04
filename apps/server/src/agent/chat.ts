@@ -669,8 +669,7 @@ export class ChatService {
       `[CHAT] Using model: ${llmModel}, Tools enabled: ${enableTools}`
     );
 
-    // Start streaming
-    startStream();
+    startStream(taskId);
 
     // Create AbortController for this stream
     const abortController = new AbortController();
@@ -684,7 +683,6 @@ export class ChatService {
     let finishReason: MessageMetadata["finishReason"];
     let hasError = false;
 
-    // Map to track tool call sequences as they're created
     const toolCallSequences = new Map<string, number>();
 
     // Create tools first so we can generate system prompt based on available tools
@@ -708,13 +706,11 @@ export class ChatService {
         abortController.signal,
         availableTools
       )) {
-        // If a stop was requested, break out of the loop immediately
         if (this.stopRequested.has(taskId)) {
           console.log(`[CHAT] Stop requested during stream for task ${taskId}`);
           break;
         }
 
-        // Emit the chunk directly to clients
         emitStreamChunk(chunk, taskId);
 
         // Handle text content chunks
@@ -1233,5 +1229,33 @@ export class ChatService {
       workspacePath,
       queue: false,
     });
+  }
+
+  /**
+   * Clean up task-related memory structures
+   */
+  cleanupTask(taskId: string): void {
+    console.log(`[CHAT] Cleaning up ChatService memory for task ${taskId}`);
+
+    try {
+      // Clean up active streams
+      const abortController = this.activeStreams.get(taskId);
+      if (abortController) {
+        abortController.abort();
+        this.activeStreams.delete(taskId);
+      }
+
+      // Clean up queued messages
+      this.queuedMessages.delete(taskId);
+
+      console.log(
+        `[CHAT] Successfully cleaned up ChatService memory for task ${taskId}`
+      );
+    } catch (error) {
+      console.error(
+        `[CHAT] Error cleaning up ChatService memory for task ${taskId}:`,
+        error
+      );
+    }
   }
 }
