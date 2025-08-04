@@ -2,6 +2,10 @@ import { prisma } from "@repo/db";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 
+const baseURL = process.env.NEXT_PUBLIC_VERCEL_URL
+  ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+  : "http://localhost:3000";
+
 export const auth: ReturnType<typeof betterAuth> = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -13,7 +17,7 @@ export const auth: ReturnType<typeof betterAuth> = betterAuth({
     },
   },
   secret: process.env.BETTER_AUTH_SECRET as string,
-  trustedOrigins: ["http://localhost:3000"],
+  trustedOrigins: [baseURL],
   callbacks: {
     redirect: {
       signInRedirect: "/",
