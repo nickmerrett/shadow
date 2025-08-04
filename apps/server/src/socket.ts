@@ -275,7 +275,11 @@ export function createSocketServer(
     // Send current stream state to new connections
     if (connectionState.taskId) {
       const streamState = taskStreamStates.get(connectionState.taskId);
-      if (streamState && streamState.isStreaming && streamState.chunks.length > 0) {
+      if (
+        streamState &&
+        streamState.isStreaming &&
+        streamState.chunks.length > 0
+      ) {
         console.log(
           `[SOCKET] Sending stream state to ${connectionId} for task ${connectionState.taskId}:`,
           streamState.chunks.length
@@ -378,7 +382,8 @@ export function createSocketServer(
         // Validate that user has the required API key for the selected model
         if (!modelContext.validateAccess()) {
           const provider = modelContext.getProvider();
-          const providerName = provider === "anthropic" ? "Anthropic" : "OpenAI";
+          const providerName =
+            provider === "anthropic" ? "Anthropic" : "OpenAI";
           socket.emit("message-error", {
             error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
           });
@@ -438,20 +443,20 @@ export function createSocketServer(
         // Validate that user has the required API key for the selected model
         if (!modelContext.validateAccess()) {
           const provider = modelContext.getProvider();
-          const providerName = provider === "anthropic" ? "Anthropic" : "OpenAI";
+          const providerName =
+            provider === "anthropic" ? "Anthropic" : "OpenAI";
           socket.emit("message-error", {
             error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
           });
           return;
         }
 
-        // TODO: Create editUserMessageWithContext method in ChatService
         await chatService.editUserMessage({
           taskId: data.taskId,
           messageId: data.messageId,
           newContent: data.message,
           newModel: data.llmModel,
-          userApiKeys: modelContext.getApiKeys(),
+          context: modelContext,
           workspacePath: task?.workspacePath || undefined,
         });
       } catch (error) {

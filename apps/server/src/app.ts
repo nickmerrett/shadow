@@ -151,11 +151,15 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         });
       }
 
-      const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
-      const modelProvider = model.includes("claude") ? "anthropic" : "openai";
-      if (!userApiKeys[modelProvider]) {
-        const providerName =
-          modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
+      const initContext = await modelContextService.createContext(
+        taskId,
+        req.headers.cookie,
+        model as ModelType
+      );
+
+      if (!initContext.validateAccess()) {
+        const provider = initContext.getProvider();
+        const providerName = provider === "anthropic" ? "Anthropic" : "OpenAI";
 
         await updateTaskStatus(taskId, "FAILED", "INIT");
 
@@ -173,7 +177,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         taskId,
         initSteps,
         userId,
-        userApiKeys
+        initContext
       );
 
       // Get updated task with workspace info
@@ -192,17 +196,10 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 
       console.log("\n\n[TASK_INITIATE] PROCESSING USER MESSAGE\n\n");
 
-      // Create model context for this task
-      const modelContext = await modelContextService.createContext(
-        taskId,
-        req.headers.cookie,
-        model as ModelType
-      );
-
       await chatService.processUserMessage({
         taskId,
         userMessage: message,
-        context: modelContext,
+        context: initContext,
         enableTools: true,
         skipUserMessageSave: true,
         workspacePath: updatedTask?.workspacePath || undefined,

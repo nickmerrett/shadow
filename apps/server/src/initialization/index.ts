@@ -14,6 +14,7 @@ import {
 } from "../utils/task-status";
 import { startBackgroundIndexing } from "./background-indexing";
 import { runDeepWiki } from "../indexing/deepwiki/core";
+import { TaskModelContext } from "../services/task-model-context";
 
 // Helper for async delays
 const delay = (ms: number) =>
@@ -74,7 +75,7 @@ export class TaskInitializationEngine {
     taskId: string,
     steps: InitStatus[] = ["PREPARE_WORKSPACE"],
     userId: string,
-    userApiKeys: { openai?: string; anthropic?: string }
+    context: TaskModelContext
   ): Promise<void> {
     console.log(
       `[TASK_INIT] Starting initialization for task ${taskId} with steps: ${steps.join(", ")}`
@@ -118,7 +119,7 @@ export class TaskInitializationEngine {
           );
 
           // Execute the step
-          await this.executeStep(taskId, step, userId, userApiKeys);
+          await this.executeStep(taskId, step, userId, context);
 
           // Mark step as completed
           await setInitStatus(taskId, step);
@@ -182,7 +183,7 @@ export class TaskInitializationEngine {
     taskId: string,
     step: InitStatus,
     userId: string,
-    userApiKeys: { openai?: string; anthropic?: string }
+    context: TaskModelContext
   ): Promise<void> {
     switch (step) {
       // Local mode step
@@ -211,7 +212,7 @@ export class TaskInitializationEngine {
 
       // Deep wiki generation step (both modes, optional)
       case "GENERATE_DEEP_WIKI":
-        await this.executeGenerateDeepWiki(taskId, userApiKeys);
+        await this.executeGenerateDeepWiki(taskId, context);
         break;
 
       case "INACTIVE":
@@ -469,7 +470,7 @@ export class TaskInitializationEngine {
    */
   private async executeGenerateDeepWiki(
     taskId: string,
-    userApiKeys: { openai?: string; anthropic?: string }
+    context: TaskModelContext
   ): Promise<void> {
     console.log(`[TASK_INIT] ${taskId}: Starting deep wiki generation`);
 
@@ -522,17 +523,14 @@ export class TaskInitializationEngine {
         `[TASK_INIT] ${taskId}: Generating new deep wiki for ${task.repoFullName}`
       );
 
-      // TODO: This should be migrated to use TaskModelContext, but during initialization
-      // we may not have a proper context yet. For now, continue using userApiKeys.
-      // This is acceptable since deep wiki generation during initialization is optional.
-      
+      // Use TaskModelContext for deep wiki generation during initialization
       const result = await runDeepWiki(
         task.workspacePath,
         taskId,
         task.repoFullName,
         task.repoUrl,
         task.userId,
-        userApiKeys, // Keep legacy parameter for initialization
+        context, // Now using TaskModelContext
         {
           concurrency: 12,
           model: AvailableModels.GPT_4O,

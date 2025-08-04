@@ -41,9 +41,8 @@ export class ChatService {
     string,
     {
       message: string;
-      model: ModelType;
+      context: TaskModelContext;
       workspacePath?: string;
-      userApiKeys: { openai?: string; anthropic?: string };
     }
   > = new Map();
 
@@ -655,9 +654,8 @@ export class ChatService {
         // Override the existing queued message if it exists
         this.queuedMessages.set(taskId, {
           message: userMessage,
-          model: context.getMainModel(),
+          context,
           workspacePath,
-          userApiKeys: context.getApiKeys(),
         });
         return;
       }
@@ -1158,17 +1156,11 @@ export class ChatService {
     console.log(`[CHAT] Processing queued message for task ${taskId}`);
 
     try {
-      // Create TaskModelContext from queued message data
-      const context = new TaskModelContext(
-        taskId,
-        queuedMessage.model,
-        queuedMessage.userApiKeys
-      );
-
+      // Use the stored TaskModelContext directly
       await this.processUserMessage({
         taskId,
         userMessage: queuedMessage.message,
-        context,
+        context: queuedMessage.context,
         enableTools: true,
         skipUserMessageSave: false,
         workspacePath: queuedMessage.workspacePath,
@@ -1219,14 +1211,14 @@ export class ChatService {
     messageId,
     newContent,
     newModel,
-    userApiKeys,
+    context,
     workspacePath,
   }: {
     taskId: string;
     messageId: string;
     newContent: string;
     newModel: ModelType;
-    userApiKeys: { openai?: string; anthropic?: string };
+    context: TaskModelContext;
     workspacePath?: string;
   }): Promise<void> {
     console.log(`[CHAT] Editing user message ${messageId} in task ${taskId}`);
@@ -1297,18 +1289,31 @@ export class ChatService {
     );
 
     // Start streaming from the edited message
-    // Create TaskModelContext from parameters
-    const context = new TaskModelContext(taskId, newModel, userApiKeys);
-    
-    await this.processUserMessage({
-      taskId,
-      userMessage: newContent,
-      context,
-      enableTools: true,
-      skipUserMessageSave: true, // Don't save again, already updated
-      workspacePath,
-      queue: false,
-    });
+    // Update context with new model if it has changed
+    if (context.getMainModel() !== newModel) {
+      // Create new context with updated model
+      const updatedContext = new TaskModelContext(taskId, newModel, context.getApiKeys());
+      await this.processUserMessage({
+        taskId,
+        userMessage: newContent,
+        context: updatedContext,
+        enableTools: true,
+        skipUserMessageSave: true, // Don't save again, already updated
+        workspacePath,
+        queue: false,
+      });
+    } else {
+      // Use existing context
+      await this.processUserMessage({
+        taskId,
+        userMessage: newContent,
+        context,
+        enableTools: true,
+        skipUserMessageSave: true, // Don't save again, already updated
+        workspacePath,
+        queue: false,
+      });
+    }
   }
 
   /**
