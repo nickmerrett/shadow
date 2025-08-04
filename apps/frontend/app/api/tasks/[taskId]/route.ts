@@ -1,4 +1,5 @@
 import { getTaskWithDetails } from "@/lib/db-operations/get-task-with-details";
+import { verifyTaskOwnership } from "@/lib/auth/verify-task-ownership";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -7,7 +8,12 @@ export async function GET(
 ) {
   try {
     const { taskId } = await params;
-    const { task, todos, fileChanges, diffStats } = await getTaskWithDetails(taskId);
+
+    const { error, user: _user } = await verifyTaskOwnership(taskId);
+    if (error) return error;
+
+    const { task, todos, fileChanges, diffStats } =
+      await getTaskWithDetails(taskId);
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });

@@ -1,12 +1,17 @@
 import { getTaskMessages } from "@/lib/db-operations/get-task-messages";
+import { verifyTaskOwnership } from "@/lib/auth/verify-task-ownership";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
     const { taskId } = await params;
+
+    const { error, user: _user } = await verifyTaskOwnership(taskId);
+    if (error) return error;
+
     const { messages, mostRecentMessageModel } = await getTaskMessages(taskId);
 
     return NextResponse.json({ messages, mostRecentMessageModel });
