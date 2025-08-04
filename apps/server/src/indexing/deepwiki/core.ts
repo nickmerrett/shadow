@@ -106,8 +106,74 @@ const LANGUAGES = {
 
 const sha1 = (data: string) => createHash("sha1").update(data).digest("hex");
 
+// Check if a file is parseable by tree-sitter
+function isParseableFile(src: string, filePath: string): boolean {
+  // Check if source is valid
+  if (!src || src.trim().length === 0) {
+    return false;
+  }
+
+  // Skip extremely large files (>1MB) to avoid memory issues
+  if (src.length > 1_000_000) {
+    console.warn(
+      `[DEEP-WIKI] Skipping large file ${filePath} (${src.length} chars)`
+    );
+    return false;
+  }
+
+  // Check for binary content (null bytes indicate binary)
+  if (src.includes("\0")) {
+    return false;
+  }
+
+  // Check file extension against known parseable types
+  const ext = path.extname(filePath).toLowerCase();
+  const parseableExtensions = [
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".cjs",
+    ".ts",
+    ".tsx",
+    ".mts",
+    ".cts",
+    ".py",
+    ".java",
+    ".go",
+    ".rs",
+    ".cpp",
+    ".c",
+    ".h",
+    ".hpp",
+    ".php",
+    ".rb",
+  ];
+
+  return parseableExtensions.includes(ext);
+}
+
 // Extract symbols using tree-sitter
-function extractSymbols(src: string, langSpec: any): Symbols {
+function extractSymbols(
+  src: string,
+  langSpec: any,
+  filePath: string = "unknown"
+): Symbols {
+  const emptySymbols: Symbols = {
+    defs: new Set(),
+    calls: new Set(),
+    imports: new Set(),
+  };
+
+  // Pre-validation - skip if not parseable
+  if (!isParseableFile(src, filePath)) {
+    console.debug(`[DEEP-WIKI] Skipping unparseable file: ${filePath}`);
+    return emptySymbols;
+  }
+
+  console.debug(
+    `[DEEP-WIKI] Parsing ${filePath} (${src.length} chars, ${path.extname(filePath)})`
+  );
+
   const format = (n: Parser.SyntaxNode) => {
     const name = src.slice(n.startIndex, n.endIndex);
     const lineStart = n.startPosition.row + 1;
@@ -115,27 +181,92 @@ function extractSymbols(src: string, langSpec: any): Symbols {
     return `${name} (L${lineStart}-${lineEnd})`;
   };
 
-  const tree = langSpec.parser.parse(src);
-  const out: Symbols = {
-    defs: new Set(),
-    calls: new Set(),
-    imports: new Set(),
-  };
+  try {
+    const tree = langSpec.parser.parse(src);
 
-  for (const m of langSpec.queryDefs.matches(tree.rootNode)) {
-    m.captures.forEach((cap: any) => out.defs.add(format(cap.node)));
-  }
-  for (const m of langSpec.queryCalls.matches(tree.rootNode)) {
-    m.captures.forEach((cap: any) => out.calls.add(format(cap.node)));
-  }
-  for (const m of langSpec.queryImports.matches(tree.rootNode)) {
-    m.captures.forEach((cap: any) =>
-      out.imports.add(
-        src.slice(cap.node.startIndex, cap.node.endIndex).replace(/['"`]/g, "")
-      )
+    // Validate parse result
+    if (!tree || !tree.rootNode) {
+      console.warn(`[DEEP-WIKI] Invalid parse tree for ${filePath}`);
+      return emptySymbols;
+    }
+
+    // Check for parse errors
+    if (tree.rootNode.hasError()) {
+      console.warn(
+        `[DEEP-WIKI] Parse errors detected in ${filePath}, using partial results`
+      );
+    }
+
+    const out: Symbols = {
+      defs: new Set(),
+      calls: new Set(),
+      imports: new Set(),
+    };
+
+    // Safe query execution with individual try/catch for each query type
+    try {
+      for (const m of langSpec.queryDefs.matches(tree.rootNode)) {
+        m.captures.forEach((cap: any) => {
+          try {
+            out.defs.add(format(cap.node));
+          } catch (e) {
+            // Skip individual problematic nodes
+          }
+        });
+      }
+    } catch (error) {
+      console.debug(
+        `[DEEP-WIKI] Defs query failed for ${filePath}:`,
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+
+    try {
+      for (const m of langSpec.queryCalls.matches(tree.rootNode)) {
+        m.captures.forEach((cap: any) => {
+          try {
+            out.calls.add(format(cap.node));
+          } catch (e) {
+            // Skip individual problematic nodes
+          }
+        });
+      }
+    } catch (error) {
+      console.debug(
+        `[DEEP-WIKI] Calls query failed for ${filePath}:`,
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+
+    try {
+      for (const m of langSpec.queryImports.matches(tree.rootNode)) {
+        m.captures.forEach((cap: any) => {
+          try {
+            out.imports.add(
+              src
+                .slice(cap.node.startIndex, cap.node.endIndex)
+                .replace(/['"`]/g, "")
+            );
+          } catch (e) {
+            // Skip individual problematic nodes
+          }
+        });
+      }
+    } catch (error) {
+      console.debug(
+        `[DEEP-WIKI] Imports query failed for ${filePath}:`,
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+
+    return out;
+  } catch (error) {
+    console.warn(
+      `[DEEP-WIKI] Tree-sitter parse failed for ${filePath}:`,
+      error instanceof Error ? error.message : String(error)
     );
+    return emptySymbols;
   }
-  return out;
 }
 
 function symbolsToMarkdown(sym: Symbols): string {
@@ -247,12 +378,57 @@ async function summarizeFile(
   modelMini: ModelType
 ): Promise<string> {
   const abs = path.join(rootPath, rel);
-  const src = readFileSync(abs, "utf8");
+
+  // Safe file reading with error handling
+  let src: string;
+  try {
+    src = readFileSync(abs, "utf8");
+  } catch (error) {
+    console.warn(
+      `[DEEP-WIKI] Failed to read ${rel}:`,
+      error instanceof Error ? error.message : String(error)
+    );
+    return "_(unreadable file)_";
+  }
+
+  // Early filtering for known data/documentation files
+  const fileExt = path.extname(rel).toLowerCase();
+  const dataFileExtensions = [
+    ".json",
+    ".yaml",
+    ".yml",
+    ".md",
+    ".txt",
+    ".csv",
+    ".xml",
+  ];
+  const isDataFile = dataFileExtensions.includes(fileExt);
+
+  // For data files, skip tree-sitter and go straight to LLM analysis
+  if (isDataFile && src.trim().length > 0) {
+    const emptySymbols: Symbols = {
+      defs: new Set(),
+      calls: new Set(),
+      imports: new Set(),
+    };
+    return await analyzeFileWithLLM(
+      rel,
+      src,
+      emptySymbols,
+      modelProvider,
+      userApiKeys,
+      modelMini
+    );
+  }
+
+  // Pre-check if file is parseable before language detection
+  if (!isParseableFile(src, rel)) {
+    console.debug(`[DEEP-WIKI] Skipping non-parseable file: ${rel}`);
+    return "_(binary or unsupported file type)_";
+  }
 
   // Determine the language based on file extension
-  const fileExt = path.extname(rel);
   let langSpec = LANGUAGES.js; // default
-
   for (const [_key, lang] of Object.entries(LANGUAGES)) {
     if (lang.extensions.includes(fileExt)) {
       langSpec = lang;
@@ -260,12 +436,12 @@ async function summarizeFile(
     }
   }
 
-  // Extract symbols using Tree-sitter
-  const symbols = extractSymbols(src, langSpec);
+  // Extract symbols using Tree-sitter with enhanced error handling
+  const symbols = extractSymbols(src, langSpec, rel);
   const needsDeepAnalysis = analyzeFileComplexity(symbols, src.length);
 
   if (needsDeepAnalysis) {
-    // Use GPT for complex files
+    // Use LLM for complex files
     return await analyzeFileWithLLM(
       rel,
       src,
@@ -276,7 +452,8 @@ async function summarizeFile(
     );
   } else {
     // Use basic symbol extraction
-    return symbolsToMarkdown(symbols) || "_(no symbols found)_";
+    const markdown = symbolsToMarkdown(symbols);
+    return markdown || "_(no symbols found)_";
   }
 }
 

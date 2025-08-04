@@ -29,10 +29,27 @@ interface ConnectionState {
 
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
+interface TaskStreamState {
+  chunks: StreamChunk[];
+  isStreaming: boolean;
+}
+
 const connectionStates = new Map<string, ConnectionState>();
-let currentStreamChunks: StreamChunk[] = [];
-let isStreaming = false;
+const taskStreamStates = new Map<string, TaskStreamState>();
 let io: Server<ClientToServerEvents, ServerToClientEvents>;
+
+// Helper functions for task stream state management
+function getOrCreateTaskStreamState(taskId: string): TaskStreamState {
+  if (!taskStreamStates.has(taskId)) {
+    taskStreamStates.set(taskId, { chunks: [], isStreaming: false });
+  }
+  return taskStreamStates.get(taskId)!;
+}
+
+function cleanupTaskStreamState(taskId: string): void {
+  taskStreamStates.delete(taskId);
+  console.log(`[SOCKET] Cleaned up stream state for task ${taskId}`);
+}
 
 async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
   try {
@@ -255,17 +272,27 @@ export function createSocketServer(
     });
 
     // Send current stream state to new connections
-    if (isStreaming && currentStreamChunks.length > 0) {
-      console.log(
-        `[SOCKET] Sending stream state to ${connectionId}:`,
-        currentStreamChunks.length
-      );
-      socket.emit("stream-state", {
-        chunks: currentStreamChunks,
-        isStreaming: true,
-        totalChunks: currentStreamChunks.length,
-      });
+    if (connectionState.taskId) {
+      const streamState = taskStreamStates.get(connectionState.taskId);
+      if (streamState && streamState.isStreaming && streamState.chunks.length > 0) {
+        console.log(
+          `[SOCKET] Sending stream state to ${connectionId} for task ${connectionState.taskId}:`,
+          streamState.chunks.length
+        );
+        socket.emit("stream-state", {
+          chunks: streamState.chunks,
+          isStreaming: true,
+          totalChunks: streamState.chunks.length,
+        });
+      } else {
+        socket.emit("stream-state", {
+          chunks: [],
+          isStreaming: false,
+          totalChunks: 0,
+        });
+      }
     } else {
+      // No task associated yet, send empty state
       socket.emit("stream-state", {
         chunks: [],
         isStreaming: false,
@@ -557,18 +584,19 @@ export function createSocketServer(
         }
 
         // Send structured chunks instead of positional content
-        if (currentStreamChunks.length > 0) {
+        const streamState = taskStreamStates.get(data.taskId);
+        if (streamState && streamState.chunks.length > 0) {
           // Send all chunks - let frontend handle deduplication
           socket.emit("stream-state", {
-            chunks: currentStreamChunks,
-            isStreaming: isStreaming,
-            totalChunks: currentStreamChunks.length,
+            chunks: streamState.chunks,
+            isStreaming: streamState.isStreaming,
+            totalChunks: streamState.chunks.length,
           });
         }
 
         socket.emit("history-complete", {
           taskId: data.taskId,
-          totalLength: currentStreamChunks.length,
+          totalLength: streamState?.chunks.length || 0,
         });
       } catch (error) {
         console.error(
@@ -609,23 +637,29 @@ export function createSocketServer(
   return io;
 }
 
-export function startStream() {
-  currentStreamChunks = [];
-  isStreaming = true;
+export function startStream(taskId: string) {
+  const streamState = getOrCreateTaskStreamState(taskId);
+  streamState.chunks = [];
+  streamState.isStreaming = true;
+  console.log(`[SOCKET] Started stream for task ${taskId}`);
 }
 
 export function endStream(taskId: string) {
-  isStreaming = false;
+  const streamState = getOrCreateTaskStreamState(taskId);
+  streamState.isStreaming = false;
   if (io) {
     emitToTask(taskId, "stream-complete", undefined);
   }
+  console.log(`[SOCKET] Ended stream for task ${taskId}`);
 }
 
 export function handleStreamError(error: unknown, taskId: string) {
-  isStreaming = false;
+  const streamState = getOrCreateTaskStreamState(taskId);
+  streamState.isStreaming = false;
   if (io) {
     emitToTask(taskId, "stream-error", error);
   }
+  console.log(`[SOCKET] Stream error for task ${taskId}:`, error);
 }
 
 export async function emitTaskStatusUpdate(
@@ -666,7 +700,8 @@ export async function emitTaskStatusUpdate(
 export function emitStreamChunk(chunk: StreamChunk, taskId: string) {
   // Store the chunk for state recovery (exclude complete/error chunks from state)
   if (chunk.type !== "complete" && chunk.type !== "error") {
-    currentStreamChunks.push(chunk);
+    const streamState = getOrCreateTaskStreamState(taskId);
+    streamState.chunks.push(chunk);
   }
 
   if (io) {
@@ -683,3 +718,9 @@ export function emitTerminalOutput(taskId: string, entry: TerminalEntry) {
     emitToTask(taskId, "terminal-output", { taskId, entry });
   }
 }
+
+// Export cleanup functions for task memory management
+export { cleanupTaskStreamState };
+
+// Also export terminal polling cleanup (already exists)
+export { stopTerminalPolling };

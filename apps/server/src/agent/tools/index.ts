@@ -24,8 +24,16 @@ import type { TerminalEntry } from "@repo/types";
 // Map to track active filesystem watchers by task ID
 const activeFileSystemWatchers = new Map<string, LocalFileSystemWatcher>();
 
-// Terminal entry counter for unique IDs
-let terminalEntryId = 1;
+// Terminal entry counters for unique IDs per task
+const taskTerminalCounters = new Map<string, number>();
+
+// Helper function to get next terminal entry ID for a task
+function getNextTerminalEntryId(taskId: string): number {
+  const currentId = taskTerminalCounters.get(taskId) || 0;
+  const nextId = currentId + 1;
+  taskTerminalCounters.set(taskId, nextId);
+  return nextId;
+}
 
 // Helper function to create and emit terminal entries
 function createAndEmitTerminalEntry(
@@ -35,7 +43,7 @@ function createAndEmitTerminalEntry(
   processId?: number
 ): void {
   const entry: TerminalEntry = {
-    id: terminalEntryId++,
+    id: getNextTerminalEntryId(taskId),
     timestamp: Date.now(),
     data,
     type,
@@ -680,6 +688,14 @@ export function getFileSystemWatcherStats() {
     activeWatchers: activeFileSystemWatchers.size,
     watcherDetails: stats,
   };
+}
+
+/**
+ * Clean up terminal counter for a specific task
+ */
+export function cleanupTaskTerminalCounters(taskId: string): void {
+  taskTerminalCounters.delete(taskId);
+  console.log(`[TOOLS] Cleaned up terminal counters for task ${taskId}`);
 }
 
 // Default tools export for backward compatibility (without todo_write)

@@ -1,5 +1,6 @@
 import { prisma } from "@repo/db";
 import { createWorkspaceManager, getAgentMode } from "../execution";
+import { MemoryCleanupService } from "./memory-cleanup";
 
 export class TaskCleanupService {
   private interval: NodeJS.Timeout | null = null;
@@ -98,6 +99,9 @@ export class TaskCleanupService {
       // Get workspace manager for cleanup operations
       const workspaceManager = createWorkspaceManager();
 
+      // Clean up server memory structures first
+      MemoryCleanupService.cleanupTaskMemory(taskId);
+      
       // Cleanup workspace/VM resources
       await workspaceManager.cleanupWorkspace(taskId);
 
