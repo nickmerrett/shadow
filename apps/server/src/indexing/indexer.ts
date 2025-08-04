@@ -324,7 +324,7 @@ async function indexRepo(
           sym: d,
           lang: spec!.id,
           sourceText: file.content,
-          maxLines: DEFAULT_MAX_LINES_PER_CHUNK,
+          maxLines: options.maxLines ?? DEFAULT_MAX_LINES_PER_CHUNK,
         });
         let prev: GraphNode | null = null;
         for (const ch of chunks) {
