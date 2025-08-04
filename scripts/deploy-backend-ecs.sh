@@ -395,70 +395,28 @@ EOF
 }
 
 # Fetch K8s service account token
-fetch_k8s_token() {
-    log "Fetching K8s service account token..."
-    
-    # Check if kubectl is available
-    if ! command -v kubectl &> /dev/null; then
-        warn "kubectl not found - skipping K8s token fetch. Remote mode may not work without this token."
-        return 0
-    fi
-    
-    # Check if the secret exists
-    if ! kubectl get secret -n shadow-agents shadow-service-account-token &> /dev/null; then
-        warn "K8s service account token secret not found. Run deploy-remote-infrastructure.sh first for remote mode."
-        return 0
-    fi
-    
-    # Fetch the token
-    K8S_TOKEN_FETCHED=$(kubectl get secret -n shadow-agents shadow-service-account-token -o jsonpath='{.data.token}' | base64 -d)
-    
-    if [[ -n "$K8S_TOKEN_FETCHED" ]]; then
-        log "K8s service account token fetched successfully"
-        
-        # Update .env.production with the fetched token
-        if [[ -f "$PROJECT_ROOT/.env.production" ]]; then
-            # Remove existing K8S_SERVICE_ACCOUNT_TOKEN line if it exists
-            sed -i.bak '/^K8S_SERVICE_ACCOUNT_TOKEN=/d' "$PROJECT_ROOT/.env.production"
-            rm -f "$PROJECT_ROOT/.env.production.bak"
-        fi
-        
-        # Add the fetched token
-        echo "K8S_SERVICE_ACCOUNT_TOKEN=$K8S_TOKEN_FETCHED" >> "$PROJECT_ROOT/.env.production"
-        log "K8s token updated in .env.production"
-    else
-        warn "Failed to fetch K8s service account token"
-    fi
-}
+# fetch_k8s_token function removed - now handled by setup-production-env.sh
 
 # Store secrets in Systems Manager Parameter Store
 store_secrets() {
     log "Storing application secrets in Parameter Store..."
     
-    # Check if .env.production exists, recreate from initial if missing
+    # Verify .env.production exists (should be created by setup-production-env.sh)
     if [[ ! -f "$PROJECT_ROOT/.env.production" ]]; then
-        if [[ ! -f "$PROJECT_ROOT/.env.production.initial" ]]; then
-            error ".env.production.initial not found in project root. This file is required for ECS deployment"
-        fi
-        
-        warn ".env.production not found, regenerating from .env.production.initial..."
-        cp "$PROJECT_ROOT/.env.production.initial" "$PROJECT_ROOT/.env.production"
-        
-        # Add placeholder for K8s token (will be updated by fetch_k8s_token)
-        echo "K8S_SERVICE_ACCOUNT_TOKEN=" >> "$PROJECT_ROOT/.env.production"
+        error ".env.production not found. The setup-production-env.sh script should have created this file."
     fi
     
     # Extract secrets from config file (temporarily disable exit on error for debugging)
     set +e
-    K8S_TOKEN=$(grep "K8S_SERVICE_ACCOUNT_TOKEN=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2)
-    DATABASE_URL=$(grep "DATABASE_URL=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
-    DIRECT_URL=$(grep "DIRECT_URL=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
-    PINECONE_API_KEY=$(grep "PINECONE_API_KEY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
-    PINECONE_INDEX_NAME=$(grep "PINECONE_INDEX_NAME=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
-    GITHUB_CLIENT_ID=$(grep "GITHUB_CLIENT_ID=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
-    GITHUB_CLIENT_SECRET=$(grep "GITHUB_CLIENT_SECRET=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
-    GITHUB_WEBHOOK_SECRET=$(grep "GITHUB_WEBHOOK_SECRET=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
-    VM_IMAGE_REGISTRY=$(grep "VM_IMAGE_REGISTRY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    K8S_TOKEN=$(grep "^K8S_SERVICE_ACCOUNT_TOKEN=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2-)
+    DATABASE_URL=$(grep "^DATABASE_URL=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+    DIRECT_URL=$(grep "^DIRECT_URL=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+    PINECONE_API_KEY=$(grep "^PINECONE_API_KEY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+    PINECONE_INDEX_NAME=$(grep "^PINECONE_INDEX_NAME=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+    GITHUB_CLIENT_ID=$(grep "^GITHUB_CLIENT_ID=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+    GITHUB_CLIENT_SECRET=$(grep "^GITHUB_CLIENT_SECRET=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+    GITHUB_WEBHOOK_SECRET=$(grep "^GITHUB_WEBHOOK_SECRET=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+    VM_IMAGE_REGISTRY=$(grep "^VM_IMAGE_REGISTRY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
     set -e
     
     # Debug: Show extracted values (first 20 chars for sensitive data)
@@ -981,13 +939,24 @@ main() {
     log "ECS Cluster: $ECS_CLUSTER_NAME"
     log "Region: $AWS_REGION"
     
+    # Setup production environment configuration first
+    log "Setting up production environment configuration..."
+    "$SCRIPT_DIR/setup-production-env.sh"
+    
+    # Load SSL_CERTIFICATE_ARN from .env.production if not already set
+    if [[ -z "$SSL_CERTIFICATE_ARN" && -f "$PROJECT_ROOT/.env.production" ]]; then
+        SSL_CERTIFICATE_ARN=$(grep "^SSL_CERTIFICATE_ARN=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+        if [[ -n "$SSL_CERTIFICATE_ARN" ]]; then
+            log "SSL certificate ARN loaded from .env.production"
+        fi
+    fi
+    
     check_prerequisites
     get_vpc_info
     create_ecr_repository
     build_and_push_image
     create_security_group
     create_iam_roles
-    fetch_k8s_token
     store_secrets
     create_ecs_cluster
     create_load_balancer
