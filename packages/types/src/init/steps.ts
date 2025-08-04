@@ -11,7 +11,7 @@ export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
   VERIFY_VM_WORKSPACE: "Verifying Workspace",
   INDEX_REPOSITORY: "Indexing Repository",
   ACTIVE: "Active",
-  GENERATE_DEEP_WIKI: "Generating Deep Wiki",
+  GENERATE_DEEP_WIKI: "Understanding Your Codebase",
 };
 
 /**
@@ -25,24 +25,20 @@ export function getStepsForMode(
   const enableDeepWiki = options?.enableDeepWiki ?? true; // Default to true
 
   if (mode === "remote") {
-    steps.push(
-      "CREATE_VM",
-      "WAIT_VM_READY",
-      "VERIFY_VM_WORKSPACE"
-    );
-    
+    steps.push("CREATE_VM", "WAIT_VM_READY", "VERIFY_VM_WORKSPACE");
+
     if (enableDeepWiki) {
       steps.push("GENERATE_DEEP_WIKI");
     }
-    
+
     steps.push("INDEX_REPOSITORY");
   } else {
     steps.push("PREPARE_WORKSPACE");
-    
+
     if (enableDeepWiki) {
       steps.push("GENERATE_DEEP_WIKI");
     }
-    
+
     steps.push("INDEX_REPOSITORY");
   }
 
