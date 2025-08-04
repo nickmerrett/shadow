@@ -141,7 +141,6 @@ async function indexRepo(
       const ext = file.path.split(".").pop()?.toLowerCase() || "";
 
       if (EXCLUDED_EXTENSIONS.includes(ext)) {
-        // logger.info(`Skipping excluded file type: ${file.path}`);
         continue;
       }
 
@@ -152,7 +151,6 @@ async function indexRepo(
       if (!shouldUseTreeSitter) {
         // Create chunks directly for embedding without adding to graph
         await createUnsupportedFileChunks(file, repoId, graph);
-        // logger.info(`Directly embedding unsupported file: ${file.path}`);
         continue;
       }
 
@@ -324,7 +322,7 @@ async function indexRepo(
           sym: d,
           lang: spec!.id,
           sourceText: file.content,
-          maxLines: options.maxLines ?? DEFAULT_MAX_LINES_PER_CHUNK,
+          maxLines: DEFAULT_MAX_LINES_PER_CHUNK,
         });
         let prev: GraphNode | null = null;
         for (const ch of chunks) {
