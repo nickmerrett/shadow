@@ -100,7 +100,7 @@ export async function createTools(taskId: string, workspacePath?: string) {
     
     if (task) {
       // eslint-disable-next-line no-useless-escape
-      const repoMatch = task.repoUrl.match(/github\.com\/([^\/]+\/[^\/]+)/);
+      const repoMatch = task.repoUrl.match(/github\.com\/([^/]+\/[^/]+)/);
       const repo = repoMatch ? repoMatch[1] : null;
       if (repo) {
         includeSemanticSearch = await isIndexingComplete(repo);
