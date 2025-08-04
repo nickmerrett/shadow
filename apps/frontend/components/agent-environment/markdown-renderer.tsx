@@ -2,6 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import { ShikiCode } from "@/components/ui/shiki-code";
 
 interface ComponentClassNames {
   wrapper?: string;
@@ -120,33 +121,21 @@ export function MarkdownRenderer({
               {children}
             </p>
           ),
-          // Style code blocks
+          // Style code blocks with Shiki syntax highlighting
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          code: ({ inline, children, ...props }: any) => {
-            const isInline = inline ?? !props.className;
-            if (isInline) {
-              return (
-                <code
-                  className={cn(
-                    "bg-muted text-muted-foreground inline rounded px-1 py-0.5 font-mono text-sm",
-                    componentProps?.inlineCode
-                  )}
-                  {...props}
-                >
-                  {children}
-                </code>
-              );
-            }
+          code: ({ inline, children, className, ...props }: any) => {
+            const isInline = inline ?? !className;
             return (
-              <code
+              <ShikiCode
+                inline={isInline}
                 className={cn(
-                  "bg-muted text-muted-foreground block overflow-x-auto rounded-md p-3 font-mono text-sm",
-                  componentProps?.code
+                  isInline ? componentProps?.inlineCode : componentProps?.code
                 )}
+                {...(className && { className })}
                 {...props}
               >
-                {children}
-              </code>
+                {String(children).replace(/\n$/, "")}
+              </ShikiCode>
             );
           },
           // Style pre blocks
