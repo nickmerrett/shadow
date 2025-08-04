@@ -614,27 +614,22 @@ export class ChatService {
 
     const history = await this.getChatHistory(taskId);
 
-    // Prepare messages for LLM (exclude the user message we just saved to avoid duplication)
-    // Filter out tool messages and system messages since:
-    // - tool messages are embedded in assistant messages as parts
-    // - system messages (deepwiki/memories) are regenerated fresh each time
     const messages: Message[] = history
-      .slice(0, -1) // Remove the last message (the one we just saved)
+      .slice(0, -1)
       .filter(
         (msg) =>
           msg.role === "user" ||
-          msg.role === "assistant"
+          msg.role === "assistant" ||
+          msg.role === "system"
       );
 
-    // Always add context system messages at the beginning (they're regenerated each time)
-    {
-      // Collect system messages to add at the beginning
+    const isFirstMessage = !messages.some(msg => msg.role === "system");
+
+    if (isFirstMessage) {
       const systemMessagesToAdd: Message[] = [];
 
-      // Add deep wiki content first
       const deepWikiContent = await getDeepWikiMessage(taskId);
       if (deepWikiContent) {
-        // Save the deep wiki as a system message in the database
         const deepWikiSequence = await this.getNextSequence(taskId);
         await this.saveSystemMessage(
           taskId,
@@ -652,7 +647,6 @@ export class ChatService {
         });
       }
 
-      // Check if user has memories enabled (default true if no settings exist)
       const task = await prisma.task.findUnique({
         where: { id: taskId },
         include: {
@@ -666,13 +660,11 @@ export class ChatService {
 
       const memoriesEnabled = task?.user.userSettings?.memoriesEnabled ?? true;
 
-      // Add memory content second
       if (memoriesEnabled) {
         const memoryContext = await memoryService.getMemoriesForTask(taskId);
         if (memoryContext && memoryContext.memories.length > 0) {
           const memoryContent = memoryService.formatMemoriesForPrompt(memoryContext);
           
-          // Save the memories as a system message in the database
           const memorySequence = await this.getNextSequence(taskId);
           await this.saveSystemMessage(
             taskId,
@@ -691,11 +683,9 @@ export class ChatService {
         }
       }
 
-      // Add all system messages at the beginning in order: deepwiki first, then memories
       messages.unshift(...systemMessagesToAdd);
     }
 
-    // Add the current user message last
     messages.push({
       id: randomUUID(),
       role: "user",
@@ -729,8 +719,8 @@ export class ChatService {
     // Map to track tool call sequences as they're created
     const toolCallSequences = new Map<string, number>();
 
-    // Get clean system prompt (deep wiki content is now in messages array)
     const taskSystemPrompt = await getSystemPrompt();
+
 
     try {
       for await (const chunk of this.llmService.createMessageStream(

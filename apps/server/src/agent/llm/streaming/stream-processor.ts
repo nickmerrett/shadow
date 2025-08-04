@@ -42,26 +42,32 @@ export class StreamProcessor {
       // Convert our messages to AI SDK CoreMessage format
       const coreMessages: CoreMessage[] = messages.map(toCoreMessage);
 
-      console.log("coreMessages", coreMessages);
 
       // Create tools with task context if taskId is provided
       const tools = taskId ? createTools(taskId, workspacePath) : undefined;
 
-      // For Anthropic models, add system prompt as first message with cache control
-      // For other providers, use the system parameter
       const isAnthropicModel = getModelProvider(model) === "anthropic";
-      const finalMessages: CoreMessage[] = isAnthropicModel
-        ? [
-            {
-              role: "system",
-              content: systemPrompt,
-              providerOptions: {
-                anthropic: { cacheControl: { type: "ephemeral" } },
-              },
-            } as CoreMessage,
-            ...coreMessages,
-          ]
-        : coreMessages;
+      
+      let finalMessages: CoreMessage[];
+      if (isAnthropicModel) {
+        const systemMessages = coreMessages.filter(msg => msg.role === 'system');
+        const nonSystemMessages = coreMessages.filter(msg => msg.role !== 'system');
+        
+        finalMessages = [
+          {
+            role: "system",
+            content: systemPrompt,
+            providerOptions: {
+              anthropic: { cacheControl: { type: "ephemeral" } },
+            },
+          } as CoreMessage,
+          ...systemMessages,
+          ...nonSystemMessages,
+        ];
+      } else {
+        finalMessages = coreMessages;
+      }
+
 
       const streamConfig = {
         model: modelInstance,
