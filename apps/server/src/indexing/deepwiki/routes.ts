@@ -5,7 +5,7 @@ import { CodebaseUnderstandingStorage } from "./db-storage";
 import fs from "fs";
 import { db } from "@repo/db";
 import { ModelType } from "@repo/types";
-import { parseApiKeysFromCookies } from "@/utils/cookie-parser";
+import { modelContextService } from "@/services/model-context-service";
 
 const deepwikiRouter = express.Router();
 
@@ -18,13 +18,25 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
   const { forceRefresh = false, model, modelMini } = req.body;
 
   try {
-    // Extract API keys from cookies
-    const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
+    // Get or create model context for this task
+    const modelContext = await modelContextService.refreshContext(
+      taskId,
+      req.headers.cookie
+    );
 
-    if (!userApiKeys.openai && !userApiKeys.anthropic) {
+    if (!modelContext) {
       return res.status(400).json({
         error:
           "No API keys found. Please configure your OpenAI or Anthropic API key in settings.",
+      });
+    }
+
+    // Validate that user has required API keys
+    if (!modelContext.validateAccess()) {
+      const provider = modelContext.getProvider();
+      const providerName = provider === "anthropic" ? "Anthropic" : "OpenAI";
+      return res.status(400).json({
+        error: `${providerName} API key required. Please configure your API key in settings.`,
       });
     }
     // Get task details
@@ -68,7 +80,7 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
       task.repoFullName,
       task.repoUrl,
       task.userId,
-      userApiKeys,
+      modelContext,
       {
         concurrency: 12,
         model: model as ModelType,

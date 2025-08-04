@@ -16,6 +16,7 @@ import { filesRouter } from "./file-routes";
 import { parseApiKeysFromCookies } from "./utils/cookie-parser";
 import { handleGitHubWebhook } from "./webhooks/github-webhook";
 import { getIndexingStatus } from "./routes/indexing-status";
+import { modelContextService } from "./services/model-context-service";
 
 const app = express();
 export const chatService = new ChatService();
@@ -150,11 +151,15 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         });
       }
 
-      const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
-      const modelProvider = model.includes("claude") ? "anthropic" : "openai";
-      if (!userApiKeys[modelProvider]) {
-        const providerName =
-          modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
+      const initContext = await modelContextService.createContext(
+        taskId,
+        req.headers.cookie,
+        model as ModelType
+      );
+
+      if (!initContext.validateAccess()) {
+        const provider = initContext.getProvider();
+        const providerName = provider === "anthropic" ? "Anthropic" : "OpenAI";
 
         await updateTaskStatus(taskId, "FAILED", "INIT");
 
@@ -172,7 +177,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         taskId,
         initSteps,
         userId,
-        userApiKeys
+        initContext
       );
 
       // Get updated task with workspace info
@@ -194,8 +199,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       await chatService.processUserMessage({
         taskId,
         userMessage: message,
-        llmModel: model as ModelType,
-        userApiKeys,
+        context: initContext,
         enableTools: true,
         skipUserMessageSave: true,
         workspacePath: updatedTask?.workspacePath || undefined,
@@ -443,14 +447,27 @@ app.post("/api/tasks/:taskId/pull-request", async (req, res) => {
       });
     }
 
-    const userApiKeys = parseApiKeysFromCookies(req.headers.cookie || "");
-
-    await chatService.createPRIfNeeded(
+    // Get or refresh model context for PR creation
+    const modelContext = await modelContextService.refreshContext(
       taskId,
-      task.workspacePath || undefined,
-      latestAssistantMessage.id,
-      userApiKeys
+      req.headers.cookie
     );
+
+    if (modelContext) {
+      await chatService.createPRIfNeeded(
+        taskId,
+        task.workspacePath || undefined,
+        latestAssistantMessage.id,
+        modelContext
+      );
+    } else {
+      // Fallback if context unavailable
+      await chatService.createPRIfNeeded(
+        taskId,
+        task.workspacePath || undefined,
+        latestAssistantMessage.id
+      );
+    }
 
     const updatedTask = await prisma.task.findUnique({
       where: { id: taskId },

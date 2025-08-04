@@ -1,8 +1,8 @@
 import { generateText } from "ai";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { AvailableModels, ApiKeys } from "@repo/types";
 import { ModelProvider } from "@/agent/llm/models/model-provider";
+import { TaskModelContext } from "./task-model-context";
 
 const execAsync = promisify(exec);
 
@@ -14,7 +14,7 @@ export interface GitUser {
 export interface CommitOptions {
   user: GitUser;
   coAuthor: GitUser;
-  userApiKeys: ApiKeys;
+  context: TaskModelContext;
   message?: string;
 }
 
@@ -142,26 +142,23 @@ export class GitManager {
    */
   async generateCommitMessage(
     diff: string,
-    userApiKeys: ApiKeys
+    context: TaskModelContext
   ): Promise<string> {
     try {
-      // If no API keys provided, use fallback
-      if (!userApiKeys?.openai && !userApiKeys?.anthropic) {
-        console.warn(
-          "[GIT_MANAGER] No API keys provided for commit message generation"
-        );
+      // Use mini model for commit message generation (cost optimization)
+      const model = context.getModelForOperation("commit-msg");
+      const apiKey = context.getApiKeyForOperation("commit-msg");
+
+      if (!apiKey) {
+        console.warn("[GIT_MANAGER] No API key available for commit message generation");
         return "Update code via Shadow agent";
       }
 
-      const modelChoice = userApiKeys.openai
-        ? AvailableModels.GPT_4O_MINI
-        : AvailableModels.CLAUDE_HAIKU_3_5;
-
       const modelProvider = new ModelProvider();
-      const model = modelProvider.getModel(modelChoice, userApiKeys);
+      const modelInstance = modelProvider.getModel(model, context.getApiKeys());
 
       const { text } = await generateText({
-        model,
+        model: modelInstance,
         temperature: 0.3,
         maxTokens: 100,
         prompt: `Generate a concise git commit message for these changes. Focus on what was changed, not how. Use imperative mood (e.g., "Add", "Fix", "Update"). Keep it under 50 characters.
@@ -182,6 +179,7 @@ Commit message:`,
     }
   }
 
+
   /**
    * Stage all changes and commit with the given options
    */
@@ -197,7 +195,7 @@ Commit message:`,
         if (diff) {
           commitMessage = await this.generateCommitMessage(
             diff,
-            options.userApiKeys
+            options.context
           );
         } else {
           commitMessage = "Update code via Shadow agent";
@@ -219,6 +217,7 @@ Commit message:`,
       throw error;
     }
   }
+
 
   /**
    * Push the current branch to remote
@@ -332,7 +331,7 @@ Commit message:`,
   async commitChangesIfAny(
     user: GitUser,
     coAuthor: GitUser,
-    userApiKeys: ApiKeys
+    context: TaskModelContext
   ): Promise<boolean> {
     try {
       const hasChanges = await this.hasChanges();
@@ -344,7 +343,7 @@ Commit message:`,
       await this.commitChanges({
         user,
         coAuthor,
-        userApiKeys,
+        context,
       });
 
       // Try to push the changes
@@ -365,6 +364,7 @@ Commit message:`,
       throw error;
     }
   }
+
 }
 
 export default GitManager;
