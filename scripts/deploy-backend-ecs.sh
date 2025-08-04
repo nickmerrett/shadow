@@ -370,6 +370,43 @@ EOF
     log "IAM roles created successfully"
 }
 
+# Fetch K8s service account token
+fetch_k8s_token() {
+    log "Fetching K8s service account token..."
+    
+    # Check if kubectl is available
+    if ! command -v kubectl &> /dev/null; then
+        warn "kubectl not found - skipping K8s token fetch. Remote mode may not work without this token."
+        return 0
+    fi
+    
+    # Check if the secret exists
+    if ! kubectl get secret -n shadow-agents shadow-service-account-token &> /dev/null; then
+        warn "K8s service account token secret not found. Run deploy-remote-infrastructure.sh first for remote mode."
+        return 0
+    fi
+    
+    # Fetch the token
+    K8S_TOKEN_FETCHED=$(kubectl get secret -n shadow-agents shadow-service-account-token -o jsonpath='{.data.token}' | base64 -d)
+    
+    if [[ -n "$K8S_TOKEN_FETCHED" ]]; then
+        log "K8s service account token fetched successfully"
+        
+        # Update .env.production with the fetched token
+        if [[ -f "$PROJECT_ROOT/.env.production" ]]; then
+            # Remove existing K8S_SERVICE_ACCOUNT_TOKEN line if it exists
+            sed -i.bak '/^K8S_SERVICE_ACCOUNT_TOKEN=/d' "$PROJECT_ROOT/.env.production"
+            rm -f "$PROJECT_ROOT/.env.production.bak"
+        fi
+        
+        # Add the fetched token
+        echo "K8S_SERVICE_ACCOUNT_TOKEN=$K8S_TOKEN_FETCHED" >> "$PROJECT_ROOT/.env.production"
+        log "K8s token updated in .env.production"
+    else
+        warn "Failed to fetch K8s service account token"
+    fi
+}
+
 # Store secrets in Systems Manager Parameter Store
 store_secrets() {
     log "Storing application secrets in Parameter Store..."
@@ -383,7 +420,7 @@ store_secrets() {
         warn ".env.production not found, regenerating from .env.production.initial..."
         cp "$PROJECT_ROOT/.env.production.initial" "$PROJECT_ROOT/.env.production"
         
-        # Add placeholder for K8s token (will be skipped since it's empty)
+        # Add placeholder for K8s token (will be updated by fetch_k8s_token)
         echo "K8S_SERVICE_ACCOUNT_TOKEN=" >> "$PROJECT_ROOT/.env.production"
     fi
     
@@ -862,6 +899,7 @@ main() {
     build_and_push_image
     create_security_group
     create_iam_roles
+    fetch_k8s_token
     store_secrets
     create_ecs_cluster
     create_load_balancer
