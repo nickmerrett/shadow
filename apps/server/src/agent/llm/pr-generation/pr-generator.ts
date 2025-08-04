@@ -1,13 +1,17 @@
-import { generateText } from "ai";
+import { generateObject } from "ai";
+import { z } from "zod";
 import { ModelProvider } from "../models/model-provider";
 import { PRPrompts } from "./pr-prompts";
-import { PRParser } from "./pr-parser";
 import { AvailableModels, ApiKeys } from "@repo/types";
+
+const prMetadataSchema = z.object({
+  title: z.string().max(50),
+  description: z.string(),
+});
 
 export class PRGenerator {
   private modelProvider = new ModelProvider();
   private prPrompts = new PRPrompts();
-  private prParser = new PRParser();
 
   /**
    * Generate PR metadata using LLM based on task context and git changes
@@ -32,14 +36,18 @@ export class PRGenerator {
         ? AvailableModels.GPT_4O_MINI
         : AvailableModels.CLAUDE_HAIKU_3_5;
 
-      const { text } = await generateText({
+      const { object } = await generateObject({
         model: this.modelProvider.getModel(prModel, userApiKeys),
         temperature: 0.3,
         maxTokens: 1000,
+        schema: prMetadataSchema,
         prompt,
       });
 
-      const result = this.prParser.parsePRMetadata(text);
+      const result = {
+        ...object,
+        isDraft: true,
+      };
 
       console.log(`[LLM] Generated PR metadata:`, {
         title: result.title,

@@ -35,19 +35,9 @@ export class PRPrompts {
     }
 
     sections.push(
-      "Please respond with JSON in this exact format:",
-      "```json",
-      "{",
-      '  "title": "Concise PR title (max 50 chars)",',
-      '  "description": "• Bullet point description\\n• What was changed\\n• Key files modified",',
-      `  "isDraft": ${!options.wasTaskCompleted}`,
-      "}",
-      "```",
-      "",
       "Guidelines:",
-      "- Title should be concise and action-oriented (e.g., 'Add user authentication', 'Fix API error handling')",
+      "- Title should be concise and action-oriented (max 50 chars) (e.g., 'Add user authentication', 'Fix API error handling')",
       "- Description should use bullet points and be informative but concise",
-      "- Set isDraft to true only if the task was not fully completed",
       "- Focus on what was implemented, not implementation details"
     );
 
