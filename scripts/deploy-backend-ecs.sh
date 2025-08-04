@@ -23,6 +23,9 @@ SERVICE_NAME="${SERVICE_NAME:-shadow-backend-service}"
 TASK_FAMILY="${TASK_FAMILY:-shadow-server-task}"
 DESIRED_COUNT="${DESIRED_COUNT:-1}"
 
+# SSL Configuration
+SSL_CERTIFICATE_ARN="${SSL_CERTIFICATE_ARN:-}"  # Required for HTTPS support
+
 # Resource Configuration
 TASK_CPU="${TASK_CPU:-1024}"
 TASK_MEMORY="${TASK_MEMORY:-2048}"
@@ -75,6 +78,18 @@ check_prerequisites() {
     # Check if EKS cluster exists
     if ! aws eks describe-cluster --name "$CLUSTER_NAME" --region "$AWS_REGION" --profile "$AWS_PROFILE" &> /dev/null; then
         error "EKS cluster '$CLUSTER_NAME' not found. Run deploy-remote-infrastructure.sh first"
+    fi
+    
+    # Validate SSL certificate ARN if provided
+    if [[ -n "$SSL_CERTIFICATE_ARN" ]]; then
+        log "Validating SSL certificate ARN..."
+        if ! aws acm describe-certificate --certificate-arn "$SSL_CERTIFICATE_ARN" --region "$AWS_REGION" --profile "$AWS_PROFILE" &> /dev/null; then
+            error "SSL certificate ARN '$SSL_CERTIFICATE_ARN' not found or invalid"
+        fi
+        log "SSL certificate validated: $SSL_CERTIFICATE_ARN"
+    else
+        warn "No SSL certificate provided - deployment will use HTTP only"
+        warn "For production use, set SSL_CERTIFICATE_ARN environment variable"
     fi
     
     log "Prerequisites check passed"
@@ -199,6 +214,15 @@ create_security_group() {
         --group-id "$ECS_SG" \
         --protocol tcp \
         --port 80 \
+        --cidr 0.0.0.0/0 \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" || true
+    
+    # Allow inbound HTTPS traffic from internet to ALB on port 443
+    aws ec2 authorize-security-group-ingress \
+        --group-id "$ECS_SG" \
+        --protocol tcp \
+        --port 443 \
         --cidr 0.0.0.0/0 \
         --region "$AWS_REGION" \
         --profile "$AWS_PROFILE" || true
@@ -428,6 +452,7 @@ store_secrets() {
     set +e
     K8S_TOKEN=$(grep "K8S_SERVICE_ACCOUNT_TOKEN=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2)
     DATABASE_URL=$(grep "DATABASE_URL=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
+    DIRECT_URL=$(grep "DIRECT_URL=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
     PINECONE_API_KEY=$(grep "PINECONE_API_KEY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
     PINECONE_INDEX_NAME=$(grep "PINECONE_INDEX_NAME=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
     GITHUB_CLIENT_ID=$(grep "GITHUB_CLIENT_ID=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2 | tr -d '"')
@@ -440,6 +465,7 @@ store_secrets() {
     log "Debug - Extracted values:"
     log "  K8S_TOKEN: ${K8S_TOKEN:0:20}${K8S_TOKEN:+...}"
     log "  DATABASE_URL: ${DATABASE_URL:0:30}${DATABASE_URL:+...}"
+    log "  DIRECT_URL: ${DIRECT_URL:0:30}${DIRECT_URL:+...}"
     log "  PINECONE_API_KEY: ${PINECONE_API_KEY:0:20}${PINECONE_API_KEY:+...}"
     log "  PINECONE_INDEX_NAME: $PINECONE_INDEX_NAME"
     log "  GITHUB_CLIENT_ID: $GITHUB_CLIENT_ID"
@@ -471,6 +497,12 @@ store_secrets() {
         VM_IMAGE_REGISTRY="ghcr.io/ishaan1013/shadow"
     fi
     
+    # Use DATABASE_URL as DIRECT_URL if DIRECT_URL is not provided (backward compatibility)
+    if [[ -z "$DIRECT_URL" ]]; then
+        log "DIRECT_URL not found - using DATABASE_URL for direct connection (backward compatibility)"
+        DIRECT_URL="$DATABASE_URL"
+    fi
+    
     log "Secret extraction and validation completed successfully"
     
     # Store all secrets in Parameter Store
@@ -494,6 +526,17 @@ store_secrets() {
         --region "$AWS_REGION" \
         --profile "$AWS_PROFILE"; then
         error "Failed to store database URL in Parameter Store. Check AWS permissions for ssm:PutParameter on /shadow/* path"
+    fi
+    
+    log "Storing direct database URL..."
+    if ! aws ssm put-parameter \
+        --name "/shadow/direct-url" \
+        --value "$DIRECT_URL" \
+        --type "SecureString" \
+        --overwrite \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE"; then
+        error "Failed to store direct URL in Parameter Store. Check AWS permissions for ssm:PutParameter on /shadow/* path"
     fi
     
     if [[ -n "$PINECONE_API_KEY" ]]; then
@@ -656,15 +699,45 @@ create_load_balancer() {
             --profile "$AWS_PROFILE" || warn "Failed to enable sticky sessions, continuing..."
     fi
     
-    # Create listener
-    log "Creating ALB listener..."
-    aws elbv2 create-listener \
-        --load-balancer-arn "$ALB_ARN" \
-        --protocol HTTP \
-        --port 80 \
-        --default-actions Type=forward,TargetGroupArn="$TG_ARN" \
-        --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE" 2>/dev/null || warn "Listener creation failed or already exists, continuing..."
+    # Create HTTP listener (for redirect or direct access)
+    log "Creating HTTP listener..."
+    if [[ -n "$SSL_CERTIFICATE_ARN" ]]; then
+        # If SSL certificate is provided, redirect HTTP to HTTPS
+        aws elbv2 create-listener \
+            --load-balancer-arn "$ALB_ARN" \
+            --protocol HTTP \
+            --port 80 \
+            --default-actions Type=redirect,RedirectConfig='{Protocol=HTTPS,Port=443,StatusCode=HTTP_301}' \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE" 2>/dev/null || warn "HTTP listener creation failed or already exists, continuing..."
+    else
+        # If no SSL certificate, create standard HTTP listener
+        aws elbv2 create-listener \
+            --load-balancer-arn "$ALB_ARN" \
+            --protocol HTTP \
+            --port 80 \
+            --default-actions Type=forward,TargetGroupArn="$TG_ARN" \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE" 2>/dev/null || warn "HTTP listener creation failed or already exists, continuing..."
+    fi
+    
+    # Create HTTPS listener if SSL certificate is provided
+    if [[ -n "$SSL_CERTIFICATE_ARN" ]]; then
+        log "Creating HTTPS listener with SSL certificate..."
+        aws elbv2 create-listener \
+            --load-balancer-arn "$ALB_ARN" \
+            --protocol HTTPS \
+            --port 443 \
+            --certificates CertificateArn="$SSL_CERTIFICATE_ARN" \
+            --default-actions Type=forward,TargetGroupArn="$TG_ARN" \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE" 2>/dev/null || warn "HTTPS listener creation failed or already exists, continuing..."
+        
+        log "HTTPS listener configured with certificate: $SSL_CERTIFICATE_ARN"
+    else
+        warn "No SSL certificate ARN provided - HTTPS listener not created"
+        warn "To enable HTTPS, set SSL_CERTIFICATE_ARN environment variable and re-run"
+    fi
     
     log "Load balancer and target group configured"
 }
@@ -713,6 +786,7 @@ create_task_definition() {
       "secrets": [
         {"name": "K8S_SERVICE_ACCOUNT_TOKEN", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/k8s-token"},
         {"name": "DATABASE_URL", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/database-url"},
+        {"name": "DIRECT_URL", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/direct-url"},
         {"name": "PINECONE_API_KEY", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/pinecone-api-key"},
         {"name": "PINECONE_INDEX_NAME", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/pinecone-index-name"},
         {"name": "GITHUB_CLIENT_ID", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-client-id"},
@@ -830,9 +904,22 @@ get_service_info() {
     # Get running tasks count
     RUNNING_TASKS=$(aws ecs describe-services --cluster "$ECS_CLUSTER_NAME" --services "$SERVICE_NAME" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'services[0].runningCount' --output text)
     
-    log "Service Status: $SERVICE_STATUS"
-    log "Running Tasks: $RUNNING_TASKS"
-    log "Load Balancer DNS: http://$ALB_DNS"
+    # Determine the correct protocol and URL
+    if [[ -n "$SSL_CERTIFICATE_ARN" ]]; then
+        BACKEND_PROTOCOL="https"
+        BACKEND_URL="https://$ALB_DNS"
+        log "Service Status: $SERVICE_STATUS"
+        log "Running Tasks: $RUNNING_TASKS"
+        log "Load Balancer DNS (HTTPS): https://$ALB_DNS"
+        log "Load Balancer DNS (HTTP): http://$ALB_DNS (redirects to HTTPS)"
+    else
+        BACKEND_PROTOCOL="http"
+        BACKEND_URL="http://$ALB_DNS"
+        log "Service Status: $SERVICE_STATUS"
+        log "Running Tasks: $RUNNING_TASKS"
+        log "Load Balancer DNS (HTTP): http://$ALB_DNS"
+        warn "HTTPS not configured - add SSL_CERTIFICATE_ARN for production use"
+    fi
     
     # Save configuration
     cat > .env.ecs-result << EOF
@@ -846,7 +933,8 @@ TASK_FAMILY=$TASK_FAMILY
 
 # Load Balancer
 ALB_DNS_NAME=$ALB_DNS
-BACKEND_URL=http://$ALB_DNS
+BACKEND_URL=$BACKEND_URL
+BACKEND_PROTOCOL=$BACKEND_PROTOCOL
 
 # AWS Configuration
 AWS_REGION=$AWS_REGION
@@ -911,8 +999,14 @@ main() {
     log "🎉 Shadow backend deployed to ECS successfully!"
     log ""
     log "Next steps:"
-    log "1. Update your frontend to use: http://$ALB_DNS"
-    log "2. Test WebSocket connections"
+    if [[ -n "$SSL_CERTIFICATE_ARN" ]]; then
+        log "1. Update your frontend to use: https://$ALB_DNS"
+        log "2. Test HTTPS/WSS connections (WebSocket Secure)"
+    else
+        log "1. Update your frontend to use: http://$ALB_DNS"
+        log "2. ⚠️  For production, configure SSL certificate with SSL_CERTIFICATE_ARN"
+        log "3. Test HTTP/WS connections"
+    fi
     log "3. Verify remote VM communication"
     log ""
     log "Useful commands:"

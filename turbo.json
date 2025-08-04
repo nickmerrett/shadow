@@ -1,15 +1,10 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
-  "globalEnv": [
-    "NODE_ENV",
-    "DATABASE_URL"
-  ],
+  "globalEnv": ["NODE_ENV", "DATABASE_URL", "DIRECT_URL"],
   "tasks": {
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
+      "dependsOn": ["^build"],
       "env": [
         "BETTER_AUTH_SECRET",
         "GITHUB_CLIENT_ID",
@@ -39,26 +34,14 @@
         "HEALTH_CHECK_*",
         "MAX_*"
       ],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        ".env*"
-      ],
-      "outputs": [
-        "dist/**",
-        ".next/**",
-        "!.next/cache/**",
-        "generated/**"
-      ]
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "generated/**"]
     },
     "lint": {
-      "dependsOn": [
-        "^lint"
-      ]
+      "dependsOn": ["^lint"]
     },
     "check-types": {
-      "dependsOn": [
-        "^check-types"
-      ]
+      "dependsOn": ["^check-types"]
     },
     "dev": {
       "cache": false,
@@ -106,13 +89,9 @@
       "cache": false
     },
     "generate": {
-      "dependsOn": [
-        "^generate"
-      ],
+      "dependsOn": ["^generate"],
       "cache": false,
-      "env": [
-        "DATABASE_URL"
-      ]
+      "env": ["DATABASE_URL", "DIRECT_URL"]
     }
   }
 }
