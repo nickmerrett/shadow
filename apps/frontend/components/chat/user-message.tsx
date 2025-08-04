@@ -80,27 +80,38 @@ export function UserMessage({
     }
   };
 
+  const handleSubmit = useCallback(() => {
+    if (!editValue.trim()) {
+      handleStopEditing();
+      return;
+    }
+
+    editMessageMutation.mutate({
+      taskId,
+      messageId: message.id,
+      newContent: editValue.trim(),
+      newModel: selectedModel,
+    });
+  }, [
+    editValue,
+    message.content,
+    message.id,
+    selectedModel,
+    taskId,
+    editMessageMutation,
+    handleStopEditing,
+  ]);
+
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
 
-        if (!editValue.trim()) {
-          handleStopEditing();
-          return;
-        }
-
-        // Submit the edit
-        editMessageMutation.mutate({
-          taskId,
-          messageId: message.id,
-          newContent: editValue.trim(),
-          newModel: selectedModel,
-        });
+        handleSubmit();
       }
     },
-    [editValue, message.content, message.id, selectedModel, taskId]
+    [handleSubmit]
   );
 
   useEffect(() => {
@@ -184,7 +195,7 @@ export function UserMessage({
 
               <div className="flex items-center gap-2">
                 <Button
-                  type="submit"
+                  onClick={handleSubmit}
                   size="iconSm"
                   disabled={
                     !editValue.trim() ||
