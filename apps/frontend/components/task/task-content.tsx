@@ -123,6 +123,7 @@ function TaskPageContent() {
             onFocus={() => {
               queryClient.setQueryData(["edit-message-id", taskId], null);
             }}
+            isInitializing={status === "INITIALIZING"}
           />
         </>
       )}
