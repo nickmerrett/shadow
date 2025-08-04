@@ -13,7 +13,6 @@ import {
   WriteResult,
   SearchReplaceResult,
   SemanticSearchToolResult,
-  WebSearchResult,
   GitStatusResponse,
   GitDiffResponse,
   GitCommitResponse,
@@ -335,34 +334,6 @@ export class RemoteToolExecutor implements ToolExecutor {
         searchTerms: query.split(/\s+/).filter(term => term.length > 0),
         message: `Semantic search failed for "${query}"`,
         error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  }
-
-  /**
-   * Perform web search (delegated to VM sidecar)
-   */
-  async webSearch(query: string, domain?: string): Promise<WebSearchResult> {
-    try {
-      const response = await this.makeSidecarRequest<WebSearchResult>(
-        `/api/search/web`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            query,
-            domain,
-          }),
-        }
-      );
-
-      return response;
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        query,
-        results: [],
-        message: `Failed to search web: ${query}`,
       };
     }
   }

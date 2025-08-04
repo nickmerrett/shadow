@@ -45,9 +45,6 @@ ${readToolInstructions("delete_file")}
 
 ### semantic_search
 ${readToolInstructions("semantic_search")}
-
-### web_search
-${readToolInstructions("web_search")}
 </tool_guidance>`;
 
 /**
@@ -71,7 +68,6 @@ export function generateToolGuidance(availableTools?: ToolSet): string {
     "search_replace",
     "file_search",
     "delete_file",
-    "web_search",
   ];
 
   for (const toolName of coreTools) {

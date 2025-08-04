@@ -19,9 +19,6 @@ export const sharedConfigSchema = z.object({
     .optional()
     .transform((val) => val === "true"),
 
-  // LLM API Keys
-  EXA_API_KEY: z.string().optional(),
-
   // GitHub integration (required for all environments)
   GITHUB_CLIENT_ID: z.string(),
   GITHUB_CLIENT_SECRET: z.string(),
@@ -55,9 +52,6 @@ export const createSharedConfig = (
   apiUrl: data.API_URL,
   nodeEnv: data.NODE_ENV,
   debug: data.DEBUG,
-
-  // LLM APIs
-  exaApiKey: data.EXA_API_KEY,
 
   // GitHub
   githubClientId: data.GITHUB_CLIENT_ID,
