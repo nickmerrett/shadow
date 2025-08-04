@@ -1,3 +1,4 @@
+import { getUser } from "@/lib/auth/get-user";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -5,6 +6,11 @@ export async function GET(
   { params }: { params: Promise<{ repoFullName: string }> }
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { repoFullName } = await params;
     const decodedRepoFullName = decodeURIComponent(repoFullName);
 
