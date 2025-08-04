@@ -615,21 +615,23 @@ export class ChatService {
     const history = await this.getChatHistory(taskId);
 
     // Prepare messages for LLM (exclude the user message we just saved to avoid duplication)
-    // Filter out tool messages since they're embedded in assistant messages as parts
+    // Filter out tool messages and system messages since:
+    // - tool messages are embedded in assistant messages as parts
+    // - system messages (deepwiki/memories) are regenerated fresh each time
     const messages: Message[] = history
       .slice(0, -1) // Remove the last message (the one we just saved)
       .filter(
         (msg) =>
           msg.role === "user" ||
-          msg.role === "assistant" ||
-          msg.role === "system"
+          msg.role === "assistant"
       );
 
-    // Check if deep wiki system message already exists in conversation
-    const hasDeepWikiMessage = history.some((msg) => msg.role === "system");
+    // Always add context system messages at the beginning (they're regenerated each time)
+    {
+      // Collect system messages to add at the beginning
+      const systemMessagesToAdd: Message[] = [];
 
-    // Add deep wiki content as the first system message only if no system messages exist yet
-    if (!hasDeepWikiMessage) {
+      // Add deep wiki content first
       const deepWikiContent = await getDeepWikiMessage(taskId);
       if (deepWikiContent) {
         // Save the deep wiki as a system message in the database
@@ -641,8 +643,7 @@ export class ChatService {
           deepWikiSequence
         );
 
-        // Insert at the beginning, right after system prompt
-        messages.unshift({
+        systemMessagesToAdd.push({
           id: randomUUID(),
           role: "system",
           content: deepWikiContent,
@@ -665,7 +666,7 @@ export class ChatService {
 
       const memoriesEnabled = task?.user.userSettings?.memoriesEnabled ?? true;
 
-      // Add memory content as a system message if memories are enabled
+      // Add memory content second
       if (memoriesEnabled) {
         const memoryContext = await memoryService.getMemoriesForTask(taskId);
         if (memoryContext && memoryContext.memories.length > 0) {
@@ -680,8 +681,7 @@ export class ChatService {
             memorySequence
           );
 
-          // Insert after deep wiki content, before user messages
-          messages.push({
+          systemMessagesToAdd.push({
             id: randomUUID(),
             role: "system",
             content: memoryContent,
@@ -690,6 +690,9 @@ export class ChatService {
           });
         }
       }
+
+      // Add all system messages at the beginning in order: deepwiki first, then memories
+      messages.unshift(...systemMessagesToAdd);
     }
 
     // Add the current user message last
