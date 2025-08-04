@@ -7,8 +7,9 @@ import JavaScript from "tree-sitter-javascript";
 import { CodebaseUnderstandingStorage } from "./db-storage";
 import TS from "tree-sitter-typescript";
 import { ModelProvider } from "@/agent/llm/models/model-provider";
-import { ModelType, getModelProvider } from "@repo/types";
+import { ModelType } from "@repo/types";
 import { generateText } from "ai";
+import { TaskModelContext } from "@/services/task-model-context";
 
 // Configuration
 const TEMP = 0.15;
@@ -374,7 +375,7 @@ async function summarizeFile(
   rootPath: string,
   rel: string,
   modelProvider: ModelProvider,
-  userApiKeys: { openai?: string; anthropic?: string },
+  context: TaskModelContext,
   modelMini: ModelType
 ): Promise<string> {
   const abs = path.join(rootPath, rel);
@@ -416,7 +417,7 @@ async function summarizeFile(
       src,
       emptySymbols,
       modelProvider,
-      userApiKeys,
+      context,
       modelMini
     );
   }
@@ -447,7 +448,7 @@ async function summarizeFile(
       src,
       symbols,
       modelProvider,
-      userApiKeys,
+      context,
       modelMini
     );
   } else {
@@ -463,7 +464,7 @@ async function analyzeFileWithLLM(
   src: string,
   symbols: Symbols,
   modelProvider: ModelProvider,
-  userApiKeys: { openai?: string; anthropic?: string },
+  context: TaskModelContext,
   modelMini: ModelType
 ): Promise<string> {
   const ext = path.extname(rel).toLowerCase();
@@ -491,7 +492,7 @@ File: ${path.basename(rel)}`;
   ];
 
   try {
-    const model = modelProvider.getModel(modelMini, userApiKeys);
+    const model = modelProvider.getModel(modelMini, context.getApiKeys());
 
     const { text } = await generateText({
       model,
@@ -512,10 +513,10 @@ async function chat(
   messages: any[],
   budget: number,
   modelProvider: ModelProvider,
-  userApiKeys: { openai?: string; anthropic?: string },
+  context: TaskModelContext,
   model: ModelType
 ): Promise<string> {
-  const modelInstance = modelProvider.getModel(model, userApiKeys);
+  const modelInstance = modelProvider.getModel(model, context.getApiKeys());
 
   const { text } = await generateText({
     model: modelInstance,
@@ -532,7 +533,7 @@ async function summarizeDir(
   node: TreeNode,
   childSummaries: string[],
   modelProvider: ModelProvider,
-  userApiKeys: { openai?: string; anthropic?: string },
+  context: TaskModelContext,
   model: ModelType
 ): Promise<string> {
   const budget = Math.min(800, 200 + childSummaries.length * 40);
@@ -550,7 +551,7 @@ Use bullet points, fragments, abbreviations. Directory: ${node.relPath}`;
     { role: "user" as const, content: childSummaries.join("\n---\n") },
   ];
 
-  return chat(messages, budget, modelProvider, userApiKeys, model);
+  return chat(messages, budget, modelProvider, context, model);
 }
 
 // Summarize root
@@ -558,7 +559,7 @@ async function summarizeRoot(
   node: TreeNode,
   childSummaries: string[],
   modelProvider: ModelProvider,
-  userApiKeys: { openai?: string; anthropic?: string },
+  context: TaskModelContext,
   model: ModelType
 ): Promise<string> {
   const budget = Math.min(500, 150 + childSummaries.length * 30);
@@ -577,11 +578,12 @@ Use bullet points and fragments. Ultra-concise technical descriptions only.`;
     { role: "user" as const, content: childSummaries.join("\n---\n") },
   ];
 
-  return chat(messages, budget, modelProvider, userApiKeys, model);
+  return chat(messages, budget, modelProvider, context, model);
 }
 
 /**
  * Main function to run deep wiki analysis and store in database
+ * Overloaded to support both TaskModelContext and legacy userApiKeys for backward compatibility
  */
 export async function runDeepWiki(
   repoPath: string,
@@ -589,7 +591,7 @@ export async function runDeepWiki(
   repoFullName: string,
   repoUrl: string,
   userId: string,
-  userApiKeys: { openai?: string; anthropic?: string },
+  contextOrApiKeys: TaskModelContext | { openai?: string; anthropic?: string },
   options: {
     concurrency?: number;
     model?: ModelType;
@@ -598,7 +600,18 @@ export async function runDeepWiki(
 ): Promise<{ codebaseUnderstandingId: string; stats: ProcessingStats }> {
   console.log(`[DEEP-WIKI] Analyzing ${repoPath} for task ${taskId}`);
 
-  // Determine which models to use based on available API keys
+  // Determine if we have TaskModelContext or legacy userApiKeys
+  let context: TaskModelContext;
+  if (contextOrApiKeys instanceof TaskModelContext) {
+    context = contextOrApiKeys;
+  } else {
+    // Legacy mode: create a temporary context from userApiKeys
+    // Use default models for backward compatibility
+    const defaultModel = contextOrApiKeys.openai ? "gpt-4o" : "claude-sonnet-4-20250514";
+    context = new TaskModelContext(taskId, defaultModel as ModelType, contextOrApiKeys);
+  }
+
+  // Determine which models to use based on provided options or context defaults
   let mainModel: ModelType;
   let miniModel: ModelType;
 
@@ -607,40 +620,15 @@ export async function runDeepWiki(
     mainModel = options.model;
     miniModel = options.modelMini;
   } else {
-    // Auto-select based on available API keys
-    if (userApiKeys.openai) {
-      mainModel = "gpt-4o" as ModelType;
-      miniModel = "gpt-4o-mini" as ModelType;
-    } else if (userApiKeys.anthropic) {
-      mainModel = "claude-sonnet-4-20250514" as ModelType;
-      miniModel = "claude-3-5-haiku-latest" as ModelType;
-    } else {
-      throw new Error(
-        "No API keys provided. Please configure either OpenAI or Anthropic API key."
-      );
-    }
+    // Use context-aware model selection
+    mainModel = context.getModelForOperation("pr-gen"); // Use PR generation model for main analysis
+    miniModel = context.getModelForOperation("commit-msg"); // Use commit message model for mini analysis
   }
 
-  // Validate that we have the required API key for the selected models
-  const mainProvider = getModelProvider(mainModel);
-  const miniProvider = getModelProvider(miniModel);
-
-  if (mainProvider === "openai" && !userApiKeys.openai) {
+  // Validate that we have the required API keys through context
+  if (!context.validateAccess()) {
     throw new Error(
-      "OpenAI API key required for selected model but not provided."
-    );
-  }
-  if (mainProvider === "anthropic" && !userApiKeys.anthropic) {
-    throw new Error(
-      "Anthropic API key required for selected model but not provided."
-    );
-  }
-  if (miniProvider === "openai" && !userApiKeys.openai) {
-    throw new Error("OpenAI API key required for mini model but not provided.");
-  }
-  if (miniProvider === "anthropic" && !userApiKeys.anthropic) {
-    throw new Error(
-      "Anthropic API key required for mini model but not provided."
+      "Required API keys not available. Please configure your API keys in settings."
     );
   }
 
@@ -670,7 +658,7 @@ export async function runDeepWiki(
           repoPath,
           rel,
           modelProvider,
-          userApiKeys,
+          context,
           miniModel
         ).then((summary) => {
           fileCache[rel] = summary;
@@ -710,7 +698,7 @@ export async function runDeepWiki(
       node,
       blocks,
       modelProvider,
-      userApiKeys,
+      context,
       mainModel
     );
     stats.directoriesProcessed++;
@@ -727,7 +715,7 @@ export async function runDeepWiki(
     root,
     topBlocks,
     modelProvider,
-    userApiKeys,
+    context,
     mainModel
   );
 

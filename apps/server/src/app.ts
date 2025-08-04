@@ -16,6 +16,7 @@ import { filesRouter } from "./file-routes";
 import { parseApiKeysFromCookies } from "./utils/cookie-parser";
 import { handleGitHubWebhook } from "./webhooks/github-webhook";
 import { getIndexingStatus } from "./routes/indexing-status";
+import { modelContextService } from "./services/model-context-service";
 
 const app = express();
 export const chatService = new ChatService();
@@ -191,11 +192,17 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 
       console.log("\n\n[TASK_INITIATE] PROCESSING USER MESSAGE\n\n");
 
+      // Create model context for this task
+      const modelContext = await modelContextService.createContext(
+        taskId,
+        req.headers.cookie,
+        model as ModelType
+      );
+
       await chatService.processUserMessage({
         taskId,
         userMessage: message,
-        llmModel: model as ModelType,
-        userApiKeys,
+        context: modelContext,
         enableTools: true,
         skipUserMessageSave: true,
         workspacePath: updatedTask?.workspacePath || undefined,
@@ -443,14 +450,27 @@ app.post("/api/tasks/:taskId/pull-request", async (req, res) => {
       });
     }
 
-    const userApiKeys = parseApiKeysFromCookies(req.headers.cookie || "");
-
-    await chatService.createPRIfNeeded(
+    // Get or refresh model context for PR creation
+    const modelContext = await modelContextService.refreshContext(
       taskId,
-      task.workspacePath || undefined,
-      latestAssistantMessage.id,
-      userApiKeys
+      req.headers.cookie
     );
+
+    if (modelContext) {
+      await chatService.createPRIfNeeded(
+        taskId,
+        task.workspacePath || undefined,
+        latestAssistantMessage.id,
+        modelContext
+      );
+    } else {
+      // Fallback if context unavailable
+      await chatService.createPRIfNeeded(
+        taskId,
+        task.workspacePath || undefined,
+        latestAssistantMessage.id
+      );
+    }
 
     const updatedTask = await prisma.task.findUnique({
       where: { id: taskId },

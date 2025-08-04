@@ -1,6 +1,5 @@
 import { db } from "@repo/db";
 import { ModelType, type Message } from "@repo/types";
-import { getMostRecentMessageModel } from "../utils/model-utils";
 
 export type TaskMessages = {
   messages: Message[];
@@ -9,16 +8,23 @@ export type TaskMessages = {
 
 export async function getTaskMessages(taskId: string): Promise<TaskMessages> {
   try {
-    const messages = await db.chatMessage.findMany({
-      where: { taskId },
-      include: {
-        pullRequestSnapshot: true,
-      },
-      orderBy: [
-        { sequence: "asc" }, // Primary ordering by sequence for correct conversation flow
-        { createdAt: "asc" }, // Fallback ordering by timestamp
-      ],
-    });
+    // Fetch both messages and task's mainModel in parallel for efficiency
+    const [messages, task] = await Promise.all([
+      db.chatMessage.findMany({
+        where: { taskId },
+        include: {
+          pullRequestSnapshot: true,
+        },
+        orderBy: [
+          { sequence: "asc" }, // Primary ordering by sequence for correct conversation flow
+          { createdAt: "asc" }, // Fallback ordering by timestamp
+        ],
+      }),
+      db.task.findUnique({
+        where: { id: taskId },
+        select: { mainModel: true },
+      }),
+    ]);
 
     const finalMessages: Message[] = messages.map((msg) => ({
       id: msg.id,
@@ -31,7 +37,8 @@ export async function getTaskMessages(taskId: string): Promise<TaskMessages> {
       pullRequestSnapshot: msg.pullRequestSnapshot || undefined,
     }));
 
-    const mostRecentMessageModel = getMostRecentMessageModel(finalMessages);
+    // Use the mainModel field directly instead of scanning through all messages
+    const mostRecentMessageModel = task?.mainModel as ModelType | null;
 
     return { messages: finalMessages, mostRecentMessageModel };
   } catch (err) {

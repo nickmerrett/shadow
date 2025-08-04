@@ -15,6 +15,7 @@ import { updateTaskStatus } from "./utils/task-status";
 import { createToolExecutor } from "./execution";
 import { setupSidecarNamespace } from "./services/sidecar-socket-handler";
 import { parseApiKeysFromCookies } from "./utils/cookie-parser";
+import { modelContextService } from "./services/model-context-service";
 
 interface ConnectionState {
   lastSeen: number;
@@ -367,29 +368,27 @@ export function createSocketServer(
           select: { workspacePath: true },
         });
 
-        const connectionState = connectionStates.get(connectionId);
-        const userApiKeys = connectionState?.apiKeys || {};
+        // Create or get model context for this task
+        const modelContext = await modelContextService.createContext(
+          data.taskId,
+          socket.handshake.headers.cookie,
+          data.llmModel as ModelType
+        );
 
         // Validate that user has the required API key for the selected model
-        if (data.llmModel) {
-          const modelProvider = data.llmModel.includes("claude")
-            ? "anthropic"
-            : "openai";
-          if (!userApiKeys[modelProvider]) {
-            const providerName =
-              modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
-            socket.emit("message-error", {
-              error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
-            });
-            return;
-          }
+        if (!modelContext.validateAccess()) {
+          const provider = modelContext.getProvider();
+          const providerName = provider === "anthropic" ? "Anthropic" : "OpenAI";
+          socket.emit("message-error", {
+            error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
+          });
+          return;
         }
 
         await chatService.processUserMessage({
           taskId: data.taskId,
           userMessage: data.message,
-          llmModel: data.llmModel as ModelType,
-          userApiKeys,
+          context: modelContext,
           workspacePath: task?.workspacePath || undefined,
           queue: data.queue || false,
         });
@@ -429,30 +428,30 @@ export function createSocketServer(
           select: { workspacePath: true },
         });
 
-        const connectionState = connectionStates.get(connectionId);
-        const userApiKeys = connectionState?.apiKeys || {};
+        // Create or get model context for this task
+        const modelContext = await modelContextService.createContext(
+          data.taskId,
+          socket.handshake.headers.cookie,
+          data.llmModel as ModelType
+        );
 
         // Validate that user has the required API key for the selected model
-        if (data.llmModel) {
-          const modelProvider = data.llmModel.includes("claude")
-            ? "anthropic"
-            : "openai";
-          if (!userApiKeys[modelProvider]) {
-            const providerName =
-              modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
-            socket.emit("message-error", {
-              error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
-            });
-            return;
-          }
+        if (!modelContext.validateAccess()) {
+          const provider = modelContext.getProvider();
+          const providerName = provider === "anthropic" ? "Anthropic" : "OpenAI";
+          socket.emit("message-error", {
+            error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
+          });
+          return;
         }
 
+        // TODO: Create editUserMessageWithContext method in ChatService
         await chatService.editUserMessage({
           taskId: data.taskId,
           messageId: data.messageId,
           newContent: data.message,
           newModel: data.llmModel,
-          userApiKeys,
+          userApiKeys: modelContext.getApiKeys(),
           workspacePath: task?.workspacePath || undefined,
         });
       } catch (error) {

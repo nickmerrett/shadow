@@ -522,15 +522,18 @@ export class TaskInitializationEngine {
         `[TASK_INIT] ${taskId}: Generating new deep wiki for ${task.repoFullName}`
       );
 
+      // TODO: This should be migrated to use TaskModelContext, but during initialization
+      // we may not have a proper context yet. For now, continue using userApiKeys.
+      // This is acceptable since deep wiki generation during initialization is optional.
+      
       const result = await runDeepWiki(
         task.workspacePath,
         taskId,
         task.repoFullName,
         task.repoUrl,
         task.userId,
-        userApiKeys,
+        userApiKeys, // Keep legacy parameter for initialization
         {
-          // migrate to better abstraction for userApiKeys
           concurrency: 12,
           model: AvailableModels.GPT_4O,
           modelMini: AvailableModels.GPT_4O_MINI,
