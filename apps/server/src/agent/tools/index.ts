@@ -13,7 +13,6 @@ import {
   FileSearchParamsSchema,
   DeleteFileParamsSchema,
   SemanticSearchParamsSchema,
-  WebSearchParamsSchema,
 } from "@repo/types";
 import { createToolExecutor, isLocalMode } from "../../execution";
 import { LocalFileSystemWatcher } from "../../services/local-filesystem-watcher";
@@ -404,15 +403,6 @@ export function createTools(taskId: string, workspacePath?: string) {
           const result = await executor.semanticSearch(query, repo);
           return result;
         }
-      },
-    }),
-    web_search: tool({
-      description: readDescription("web_search"),
-      parameters: WebSearchParamsSchema,
-      execute: async ({ query, domain, explanation }) => {
-        console.log(`[WEB_SEARCH] ${explanation}`);
-        const result = await executor.webSearch(query, domain);
-        return result;
       },
     }),
   };

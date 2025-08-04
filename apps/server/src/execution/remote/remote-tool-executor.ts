@@ -13,7 +13,6 @@ import {
   WriteResult,
   SearchReplaceResult,
   SemanticSearchToolResult,
-  WebSearchResult,
   GitStatusResponse,
   GitDiffResponse,
   GitCommitResponse,
@@ -347,34 +346,6 @@ export class RemoteToolExecutor implements ToolExecutor {
         searchTerms: fallbackResult.query.split(/\s+/),
         message: fallbackResult.message + " (fallback to grep)",
         error: fallbackResult.error,
-      };
-    }
-  }
-
-  /**
-   * Perform web search (delegated to VM sidecar)
-   */
-  async webSearch(query: string, domain?: string): Promise<WebSearchResult> {
-    try {
-      const response = await this.makeSidecarRequest<WebSearchResult>(
-        `/api/search/web`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            query,
-            domain,
-          }),
-        }
-      );
-
-      return response;
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        query,
-        results: [],
-        message: `Failed to search web: ${query}`,
       };
     }
   }
