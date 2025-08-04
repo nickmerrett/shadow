@@ -46,7 +46,8 @@
       "outputs": [
         "dist/**",
         ".next/**",
-        "!.next/cache/**"
+        "!.next/cache/**",
+        "generated/**"
       ]
     },
     "lint": {
