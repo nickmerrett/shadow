@@ -52,8 +52,14 @@ export default async function RootLayout({
   if (process.env.VERCEL_ENV === "production") {
     const user = await getUser();
     console.log("User:", user?.email);
-    if (user?.email !== "ishaan1013@gmail.com") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (user && user.email !== "ishaan1013@gmail.com") {
+      return (
+        <html>
+          <body>
+            <div>Unauthorized</div>
+          </body>
+        </html>
+      );
     }
   }
 
