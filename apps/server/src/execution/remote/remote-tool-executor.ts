@@ -49,6 +49,13 @@ export class RemoteToolExecutor implements ToolExecutor {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+    console.log(`[REMOTE_TOOL_EXECUTOR] Making request to: ${url}`);
+    console.log(`[REMOTE_TOOL_EXECUTOR] Request options:`, {
+      method: options.method || 'GET',
+      headers: options.headers,
+      body: options.body
+    });
+
     try {
       const response = await fetch(url, {
         ...options,
@@ -60,17 +67,24 @@ export class RemoteToolExecutor implements ToolExecutor {
       });
 
       clearTimeout(timeoutId);
+      
+      console.log(`[REMOTE_TOOL_EXECUTOR] Response status: ${response.status} ${response.statusText}`);
+      console.log(`[REMOTE_TOOL_EXECUTOR] Response headers:`, Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.log(`[REMOTE_TOOL_EXECUTOR] Error response body:`, errorText);
         throw new Error(
           `VM Sidecar API error ${response.status}: ${response.statusText}. ${errorText}`
         );
       }
 
-      return (await response.json()) as T;
+      const responseData = await response.json() as T;
+      console.log(`[REMOTE_TOOL_EXECUTOR] Response data:`, JSON.stringify(responseData, null, 2));
+      return responseData;
     } catch (error) {
       clearTimeout(timeoutId);
+      console.log(`[REMOTE_TOOL_EXECUTOR] Request failed:`, error);
       throw error;
     }
   }

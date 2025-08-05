@@ -376,6 +376,12 @@ export class TaskInitializationEngine {
           // Test sidecar connectivity AND verify workspace has content
           const listing = await executor.listDirectory(".");
 
+          // Debug logging to understand the response
+          console.log(
+            `[TASK_INIT] ${taskId}: listDirectory response (attempt ${attempt}):`,
+            JSON.stringify(listing, null, 2)
+          );
+
           // Check that both sidecar is responding AND workspace has content
           if (
             listing.success &&
@@ -387,7 +393,9 @@ export class TaskInitializationEngine {
             );
             return;
           } else {
-            throw new Error("Sidecar responding but workspace appears empty");
+            throw new Error(
+              `Sidecar responding but workspace appears empty. Response: ${JSON.stringify(listing)}`
+            );
           }
         } catch (error) {
           if (attempt === maxRetries) {
