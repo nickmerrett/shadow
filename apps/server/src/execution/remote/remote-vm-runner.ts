@@ -156,14 +156,14 @@ export class RemoteVMRunner {
         },
       },
       spec: {
-        serviceAccountName: "shadow-firecracker-vm-sa",
+        serviceAccountName: "shadow-remote-vm-sa",
         runtimeClassName: "kata-qemu",
         nodeSelector: {
           remote: "true", // Updated to match current infrastructure
         },
         tolerations: [
           {
-            key: "firecracker.shadow.ai/dedicated",
+            key: "remote.shadow.ai/dedicated",
             operator: "Equal",
             value: "true",
             effect: "NoSchedule",
