@@ -222,9 +222,17 @@ function emitToTask(
 export function createSocketServer(
   server: http.Server
 ): Server<ClientToServerEvents, ServerToClientEvents> {
+  // Determine Socket.IO CORS origins based on environment (same as main app)
+  const socketCorsOrigins =
+    process.env.NODE_ENV === "production"
+      ? ["https://shadow-agent-dev.vercel.app", "https://shadowrealm.ai"]
+      : ["http://localhost:3000"];
+
+  console.log(`[SOCKET] Allowing origins:`, socketCorsOrigins);
+
   io = new Server(server, {
     cors: {
-      origin: config.clientUrl,
+      origin: socketCorsOrigins,
       methods: ["GET", "POST"],
       credentials: true,
     },
