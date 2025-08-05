@@ -60,6 +60,11 @@ export interface ServerToClientEvents {
   "terminal-error": (data: { error: string }) => void;
 
   "task-status-updated": (data: TaskStatusUpdateEvent) => void;
+  "stacked-pr-created": (data: {
+    parentTaskId: string;
+    newTaskId: string;
+    message: string;
+  }) => void;
 }
 
 export interface ClientToServerEvents {
@@ -82,6 +87,12 @@ export interface ClientToServerEvents {
   "stop-stream": (data: { taskId: string }) => void;
   "request-history": (data: { taskId: string; fromPosition?: number }) => void;
   "clear-queued-message": (data: { taskId: string }) => void;
+  "create-stacked-pr": (data: {
+    taskId: string;
+    message: string;
+    llmModel: ModelType;
+    queue?: boolean;
+  }) => void;
 
   "get-terminal-history": (data: { taskId: string }) => void;
   "clear-terminal": (data: { taskId: string }) => void;

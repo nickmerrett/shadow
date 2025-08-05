@@ -40,6 +40,7 @@ import { generateIssuePrompt } from "@/lib/github/issue-prompt";
 
 export function PromptForm({
   onSubmit,
+  onCreateStackedPR,
   onStopStream,
   isStreaming = false,
   isHome = false,
@@ -50,6 +51,11 @@ export function PromptForm({
   isInitializing = false,
 }: {
   onSubmit?: (message: string, model: ModelType, queue: boolean) => void;
+  onCreateStackedPR?: (
+    message: string,
+    model: ModelType,
+    queue: boolean
+  ) => void;
   onStopStream?: () => void;
   isStreaming?: boolean;
   isHome?: boolean;
@@ -127,8 +133,8 @@ export function PromptForm({
         toast.error("Please select a model first");
         return;
       }
-      console.log("stack-pr (NOT IMPLEMENTED)");
-      onSubmit?.(message, selectedModel, queue);
+      console.log("Creating stacked PR");
+      onCreateStackedPR?.(message, selectedModel, queue);
       setMessage("");
     };
 
