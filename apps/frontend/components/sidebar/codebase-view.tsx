@@ -22,7 +22,7 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
     const repoSummaries = summaries.filter((s) => s.type === "repo_summary");
     const fileSummaries = summaries.filter((s) => s.type === "file_summary");
     const directorySummaries = summaries.filter(
-      (s) => s.type === "directory_summary"
+      (s) => s.type === "directory_summary",
     );
     return { repoSummaries, fileSummaries, directorySummaries };
   }, [summaries]);

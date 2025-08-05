@@ -9,9 +9,14 @@ interface UserSettingsResponse {
 
 async function fetchUserSettings(): Promise<UserSettings> {
   const response = await fetch("/api/user-settings");
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch user settings: ${response.status}`);
+  }
+
   const data: UserSettingsResponse = await response.json();
 
-  if (!response.ok || !data.success) {
+  if (!data.success) {
     throw new Error(data.error || "Failed to fetch user settings");
   }
 
@@ -20,6 +25,7 @@ async function fetchUserSettings(): Promise<UserSettings> {
 
 async function updateUserSettingsAPI(settings: {
   autoPullRequest?: boolean;
+  memoriesEnabled?: boolean;
   enableDeepWiki?: boolean;
 }): Promise<UserSettings> {
   const response = await fetch("/api/user-settings", {

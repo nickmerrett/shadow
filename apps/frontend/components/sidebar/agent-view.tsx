@@ -26,7 +26,6 @@ import { FileExplorer } from "@/components/agent-environment/file-explorer";
 import { FileNode } from "@repo/types";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { Button } from "@/components/ui/button";
-import { fetchIndexApi } from "@/lib/actions/index-repo";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
 import { GithubLogo } from "../graphics/github/github-logo";
@@ -35,6 +34,7 @@ import { useTaskSocket } from "@/hooks/socket";
 import { Loader2 } from "lucide-react";
 import { useIndexingStatus } from "@/hooks/use-indexing-status";
 import { useQueryClient } from "@tanstack/react-query";
+import { fetchIndexApi } from "@/lib/actions/index-repo";
 import {
   DropdownMenu,
   DropdownMenuContent,

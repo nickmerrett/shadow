@@ -35,6 +35,7 @@ import {
   cancelTaskCleanup,
 } from "../utils/task-status";
 import { createToolExecutor } from "../execution";
+import { memoryService } from "../services/memory-service";
 
 export class ChatService {
   private llmService: LLMService;
@@ -698,11 +699,8 @@ export class ChatService {
 
     const history = await this.getChatHistory(taskId);
 
-    // Prepare messages for LLM (exclude the user message we just saved to avoid duplication)
-    // Filter out tool messages since they're embedded in assistant messages as parts
-    // Also filter out stacked-PR messages (UI control commands, not conversation content)
     const messages: Message[] = history
-      .slice(0, -1) // Remove the last message (the one we just saved)
+      .slice(0, -1)
       .filter(
         (msg) =>
           (msg.role === "user" && !msg.stackedTaskId) ||
@@ -710,14 +708,13 @@ export class ChatService {
           msg.role === "system"
       );
 
-    // Check if deep wiki system message already exists in conversation
-    const hasDeepWikiMessage = history.some((msg) => msg.role === "system");
+    const isFirstMessage = !messages.some(msg => msg.role === "system");
 
-    // Add deep wiki content as the first system message only if no system messages exist yet
-    if (!hasDeepWikiMessage) {
+    if (isFirstMessage) {
+      const systemMessagesToAdd: Message[] = [];
+
       const deepWikiContent = await getDeepWikiMessage(taskId);
       if (deepWikiContent) {
-        // Save the deep wiki as a system message in the database
         const deepWikiSequence = await this.getNextSequence(taskId);
         await this.saveSystemMessage(
           taskId,
@@ -726,8 +723,7 @@ export class ChatService {
           deepWikiSequence
         );
 
-        // Insert at the beginning, right after system prompt
-        messages.unshift({
+        systemMessagesToAdd.push({
           id: randomUUID(),
           role: "system",
           content: deepWikiContent,
@@ -735,9 +731,46 @@ export class ChatService {
           llmModel: context.getMainModel(),
         });
       }
+
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        include: {
+          user: {
+            include: {
+              userSettings: true,
+            },
+          },
+        },
+      });
+
+      const memoriesEnabled = task?.user.userSettings?.memoriesEnabled ?? true;
+
+      if (memoriesEnabled) {
+        const memoryContext = await memoryService.getMemoriesForTask(taskId);
+        if (memoryContext && memoryContext.memories.length > 0) {
+          const memoryContent = memoryService.formatMemoriesForPrompt(memoryContext);
+          
+          const memorySequence = await this.getNextSequence(taskId);
+          await this.saveSystemMessage(
+            taskId,
+            memoryContent,
+            context.getMainModel(),
+            memorySequence
+          );
+
+          systemMessagesToAdd.push({
+            id: randomUUID(),
+            role: "system",
+            content: memoryContent,
+            createdAt: new Date().toISOString(),
+            llmModel: context.getMainModel(),
+          });
+        }
+      }
+
+      messages.unshift(...systemMessagesToAdd);
     }
 
-    // Add the current user message last
     messages.push({
       id: randomUUID(),
       role: "user",
@@ -777,6 +810,7 @@ export class ChatService {
 
     // Get system prompt with available tools context
     const taskSystemPrompt = await getSystemPrompt(availableTools);
+
 
     try {
       for await (const chunk of this.llmService.createMessageStream(

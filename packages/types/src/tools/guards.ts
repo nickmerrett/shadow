@@ -12,6 +12,9 @@ import type {
   SemanticSearchToolResult,
   WebSearchResult,
   CommandResult,
+  AddMemoryResult,
+  ListMemoriesResult,
+  RemoveMemoryResult,
 } from "./schemas";
 import { ToolResultSchemas } from "./schemas";
 import { z } from "zod";
@@ -81,6 +84,18 @@ export function getToolResult(
   toolMeta: MessageMetadata["tool"] | undefined,
   toolName: "delete_file"
 ): DeleteResult | null;
+export function getToolResult(
+  toolMeta: MessageMetadata["tool"] | undefined,
+  toolName: "add_memory"
+): AddMemoryResult | null;
+export function getToolResult(
+  toolMeta: MessageMetadata["tool"] | undefined,
+  toolName: "list_memories"
+): ListMemoriesResult | null;
+export function getToolResult(
+  toolMeta: MessageMetadata["tool"] | undefined,
+  toolName: "remove_memory"
+): RemoveMemoryResult | null;
 // Implementation - accepts any tool name but overloads provide the typing
 
 export function getToolResult(
@@ -166,6 +181,18 @@ export function validateToolResult(
   result: unknown,
   toolName: "delete_file"
 ): ValidationResult<DeleteResult>;
+export function validateToolResult(
+  result: unknown,
+  toolName: "add_memory"
+): ValidationResult<AddMemoryResult>;
+export function validateToolResult(
+  result: unknown,
+  toolName: "list_memories"
+): ValidationResult<ListMemoriesResult>;
+export function validateToolResult(
+  result: unknown,
+  toolName: "remove_memory"
+): ValidationResult<RemoveMemoryResult>;
 export function validateToolResult(result: unknown, toolName: ToolName) {
   const schema = ToolResultSchemas[toolName];
   if (!schema) {

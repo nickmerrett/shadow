@@ -39,8 +39,6 @@ export class ModelProvider {
           );
         }
 
-        console.log("Creating OpenAI client with API key", userApiKeys.openai);
-
         const openaiClient = createOpenAI({ apiKey: userApiKeys.openai });
         return openaiClient(modelId);
       }

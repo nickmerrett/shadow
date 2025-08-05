@@ -65,7 +65,7 @@ export function SettingsModal() {
       case "github":
         return <GitHubSettings />;
       default:
-        return <GitHubSettings />;
+        return <UserSettings />;
     }
   };
 

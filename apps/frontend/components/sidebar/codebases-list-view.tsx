@@ -36,36 +36,36 @@ export function SidebarCodebasesListView({
       {!loading && !error && codebases.length > 0 ? (
         <SidebarGroup>
           <SidebarGroupContent>
-            {codebases.map((codebase) => {
-              return (
-                <SidebarMenuItem key={codebase.id}>
-                  <SidebarMenuButton
-                    className="flex h-auto flex-col items-start gap-0"
-                    asChild
-                  >
-                    <a href={`/codebases/${codebase.id}`}>
-                      <div className="flex w-full items-center gap-1.5">
-                        <div className="line-clamp-1 flex-1">
-                          {codebase.repoFullName}
-                        </div>
+            {codebases.map((codebase) => (
+              <SidebarMenuItem key={codebase.id}>
+                <SidebarMenuButton
+                  className="flex h-auto flex-col items-start gap-0"
+                  asChild
+                >
+                  <a href={`/codebases/${codebase.id}`}>
+                    <div className="flex w-full items-center gap-1.5">
+                      <div className="line-clamp-1 flex-1">
+                        {codebase.repoFullName}
                       </div>
-                      <div className="text-muted-foreground flex items-center gap-1 text-xs">
-                        <LayoutGrid className="size-3 shrink-0" />
-                        <span>{codebase.tasks.length} Tasks</span>
-                        <Clock className="size-3 shrink-0" />
-                        <span>{new Date(codebase.updatedAt).toLocaleDateString()}</span>
-                      </div>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            })}
+                    </div>
+                    <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                      <LayoutGrid className="size-3 shrink-0" />
+                      <span>{codebase.tasks.length} Tasks</span>
+                      <Clock className="size-3 shrink-0" />
+                      <span>
+                        {new Date(codebase.updatedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarGroupContent>
         </SidebarGroup>
       ) : (
         <SidebarGroup>
           <SidebarGroupLabel className="text-muted-foreground hover:text-muted-foreground h-auto px-0 pt-2 leading-tight">
-            No codebases documented. Start a new task to document a codebase.
+            No repositories found. Start a new task to see repositories here.
           </SidebarGroupLabel>
         </SidebarGroup>
       )}
