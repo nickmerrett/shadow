@@ -51,9 +51,9 @@ export class RemoteToolExecutor implements ToolExecutor {
 
     console.log(`[REMOTE_TOOL_EXECUTOR] Making request to: ${url}`);
     console.log(`[REMOTE_TOOL_EXECUTOR] Request options:`, {
-      method: options.method || 'GET',
+      method: options.method || "GET",
       headers: options.headers,
-      body: options.body
+      body: options.body,
     });
 
     try {
@@ -67,9 +67,9 @@ export class RemoteToolExecutor implements ToolExecutor {
       });
 
       clearTimeout(timeoutId);
-      
-      console.log(`[REMOTE_TOOL_EXECUTOR] Response status: ${response.status} ${response.statusText}`);
-      console.log(`[REMOTE_TOOL_EXECUTOR] Response headers:`, Object.fromEntries(response.headers.entries()));
+
+      // console.log(`[REMOTE_TOOL_EXECUTOR] Response status: ${response.status} ${response.statusText}`);
+      // console.log(`[REMOTE_TOOL_EXECUTOR] Response headers:`, Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -79,8 +79,11 @@ export class RemoteToolExecutor implements ToolExecutor {
         );
       }
 
-      const responseData = await response.json() as T;
-      console.log(`[REMOTE_TOOL_EXECUTOR] Response data:`, JSON.stringify(responseData, null, 2));
+      const responseData = (await response.json()) as T;
+      console.log(
+        `[REMOTE_TOOL_EXECUTOR] Response data:`,
+        JSON.stringify(responseData, null, 2).slice(0, 10)
+      );
       return responseData;
     } catch (error) {
       clearTimeout(timeoutId);
@@ -326,7 +329,6 @@ export class RemoteToolExecutor implements ToolExecutor {
     }
   }
 
-
   async semanticSearch(
     query: string,
     repo: string,
@@ -345,7 +347,7 @@ export class RemoteToolExecutor implements ToolExecutor {
         success: false,
         results: [],
         query: query,
-        searchTerms: query.split(/\s+/).filter(term => term.length > 0),
+        searchTerms: query.split(/\s+/).filter((term) => term.length > 0),
         message: `Semantic search failed for "${query}"`,
         error: error instanceof Error ? error.message : "Unknown error",
       };
