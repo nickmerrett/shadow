@@ -19,8 +19,90 @@ export class RemoteVMRunner {
 
     // Initialize Kubernetes client
     this.k8sConfig = new k8s.KubeConfig();
-    this.k8sConfig.loadFromDefault();
+
+    // Configure for ECS environment using explicit configuration
+    this.configureKubernetesClient(options);
     this.coreV1Api = this.k8sConfig.makeApiClient(k8s.CoreV1Api);
+  }
+
+  /**
+   * Configure Kubernetes client for ECS environment
+   * Uses environment variables provided by ECS task definition
+   */
+  private configureKubernetesClient(options: {
+    k8sApiUrl?: string;
+    token?: string;
+  }) {
+    // Get configuration from environment variables (set by ECS task definition)
+    const k8sHost =
+      options.k8sApiUrl ||
+      config.kubernetesServiceHost ||
+      process.env.KUBERNETES_SERVICE_HOST;
+    const k8sPort =
+      config.kubernetesServicePort ||
+      process.env.KUBERNETES_SERVICE_PORT ||
+      "443";
+    const serviceAccountToken =
+      options.token ||
+      config.k8sServiceAccountToken ||
+      process.env.K8S_SERVICE_ACCOUNT_TOKEN;
+
+    console.log(`[REMOTE_VM_RUNNER] Configuring Kubernetes client`, {
+      host: k8sHost,
+      port: k8sPort,
+      namespace: this.namespace,
+      hasToken: !!serviceAccountToken,
+    });
+
+    // Validate required configuration
+    if (!k8sHost) {
+      throw new Error(
+        "Kubernetes host not configured. Set KUBERNETES_SERVICE_HOST environment variable or provide k8sApiUrl option."
+      );
+    }
+
+    if (!serviceAccountToken) {
+      throw new Error(
+        "Kubernetes service account token not configured. Set K8S_SERVICE_ACCOUNT_TOKEN environment variable or provide token option."
+      );
+    }
+
+    // Build the cluster server URL
+    const serverUrl = k8sHost.startsWith("https://")
+      ? k8sHost
+      : `https://${k8sHost}:${k8sPort}`;
+
+    console.log(
+      `[REMOTE_VM_RUNNER] Connecting to Kubernetes cluster: ${serverUrl}`
+    );
+
+    // Manually configure kubeconfig structure
+    // This creates the complete cluster + user + context configuration
+    this.k8sConfig.clusters = [
+      {
+        name: "shadow-cluster",
+        server: serverUrl,
+        skipTLSVerify: true,
+      },
+    ];
+
+    this.k8sConfig.users = [
+      {
+        name: "shadow-service-account",
+        token: serviceAccountToken,
+      },
+    ];
+
+    this.k8sConfig.contexts = [
+      {
+        name: "shadow-context",
+        cluster: "shadow-cluster",
+        user: "shadow-service-account",
+      },
+    ];
+
+    // Set current context
+    this.k8sConfig.currentContext = "shadow-context";
   }
 
   /**
