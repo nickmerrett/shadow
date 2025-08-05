@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "@repo/db";
 import { FILE_SIZE_LIMITS, FileNode } from "@repo/types";
 import type { ToolExecutor } from "./execution/interfaces/tool-executor";
-import { createToolExecutor } from "./execution";
+import { createWorkspaceManager } from "./execution";
 import { getFileChanges, hasGitRepository } from "./utils/git-operations";
 
 const router = Router();
@@ -106,7 +106,8 @@ router.get("/:taskId/files/tree", async (req, res) => {
     }
 
     // Use execution abstraction layer to get file tree
-    const executor = createToolExecutor(taskId, task.workspacePath);
+    const workspaceManager = createWorkspaceManager();
+    const executor = await workspaceManager.getExecutor(taskId);
 
     const tree = await buildFileTree(executor);
 
@@ -166,7 +167,8 @@ router.get("/:taskId/files/content", async (req, res) => {
     const targetPath = filePath.startsWith("/") ? filePath.slice(1) : filePath;
 
     // 1. Get file stats and check size
-    const executor = createToolExecutor(taskId, task.workspacePath);
+    const workspaceManager = createWorkspaceManager();
+    const executor = await workspaceManager.getExecutor(taskId);
     const statsResult = await executor.getFileStats(targetPath);
 
     if (!statsResult.success) {
