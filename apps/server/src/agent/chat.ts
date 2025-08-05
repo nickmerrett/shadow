@@ -740,7 +740,7 @@ export class ChatService {
           await this.saveSystemMessage(
             taskId,
             memoryContent,
-            llmModel,
+            context.getMainModel(),
             memorySequence
           );
 
@@ -749,7 +749,7 @@ export class ChatService {
             role: "system",
             content: memoryContent,
             createdAt: new Date().toISOString(),
-            llmModel,
+            llmModel: context.getMainModel(),
           });
         }
       }
