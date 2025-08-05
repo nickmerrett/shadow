@@ -26,10 +26,11 @@ RUN npm install
 
 # Copy source files and build
 COPY --from=builder /app/out/full/ .
-# Remove any local Prisma generated files AND compiled TypeScript files that may have hard-coded paths
+
 RUN rm -rf packages/db/generated/ packages/db/dist/
-# Generate Prisma client fresh in container with correct paths
 RUN npm run generate --filter=@repo/db
+RUN npx turbo build --filter=@repo/db
+
 # Build the server with Docker-specific config
 WORKDIR /app/apps/server
 RUN npx tsc
