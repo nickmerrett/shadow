@@ -369,104 +369,6 @@ export async function createTools(taskId: string, workspacePath?: string) {
         return result;
       },
     }),
-  };
-
-  // Conditionally add semantic search tool if indexing is complete
-  if (includeSemanticSearch) {
-    return {
-      ...baseTools,
-      semantic_search: tool({
-        description: readDescription("semantic_search"),
-        parameters: SemanticSearchParamsSchema,
-        execute: async ({ query, explanation }) => {
-          console.log(`[SEMANTIC_SEARCH] ${explanation}`);
-
-          const task = await prisma.task.findUnique({
-            where: { id: taskId },
-            select: { repoUrl: true },
-          });
-
-          if (!task) {
-            throw new Error(`Task ${taskId} not found`);
-          }
-
-          // eslint-disable-next-line no-useless-escape
-          const repoMatch = task.repoUrl.match(/github\.com\/([^\/]+\/[^\/]+)/);
-          const repo = repoMatch ? repoMatch[1] : task.repoUrl;
-          if (!repo) {
-            console.warn(
-              `[SEMANTIC_SEARCH] No repo found for task ${taskId}, falling back to grep_search`
-            );
-            const grepResult = await executor.grepSearch(query);
-
-            // Convert GrepResult to SemanticSearchToolResult format
-            const results =
-              grepResult.detailedMatches?.map((match, i) => ({
-                id: i + 1,
-                content: match.content,
-                relevance: 0.8,
-                filePath: match.file,
-                lineStart: match.lineNumber,
-                lineEnd: match.lineNumber,
-                language: "",
-                kind: "",
-              })) ||
-              (grepResult.matches || []).map((match, i) => ({
-                id: i + 1,
-                content: match,
-                relevance: 0.8,
-                filePath: "",
-                lineStart: 0,
-                lineEnd: 0,
-                language: "",
-                kind: "",
-              }));
-
-            return {
-              success: grepResult.success,
-              results,
-              query: query,
-              searchTerms: query.split(/\s+/).filter((term) => term.length > 0),
-              message:
-                (grepResult.message || "Failed to search") +
-                " (fallback to grep)",
-              error: grepResult.error,
-            };
-          } else {
-            console.log(`[SEMANTIC_SEARCH] Using repo: ${repo}`);
-            const result = await executor.semanticSearch(query, repo);
-            return result;
-          }
-        },
-      }),
-    };
-  }
-
-  return baseTools;
-          return {
-            success: grepResult.success,
-            results,
-            query: grepResult.query,
-            searchTerms: grepResult.query.split(/\s+/),
-            message: grepResult.message + " (fallback to grep)",
-            error: grepResult.error,
-          };
-        } else {
-          console.log(`[SEMANTIC_SEARCH] Using repo: ${repo}`);
-          const result = await executor.semanticSearch(query, repo);
-          return result;
-        }
-      },
-    }),
-    web_search: tool({
-      description: readDescription("web_search"),
-      parameters: WebSearchParamsSchema,
-      execute: async ({ query, domain, explanation }) => {
-        console.log(`[WEB_SEARCH] ${explanation}`);
-        const result = await executor.webSearch(query, domain);
-        return result;
-      },
-    }),
 
     add_memory: tool({
       description: readDescription("add_memory"),
@@ -697,6 +599,79 @@ export async function createTools(taskId: string, workspacePath?: string) {
       },
     }),
   };
+
+  // Conditionally add semantic search tool if indexing is complete
+  if (includeSemanticSearch) {
+    return {
+      ...baseTools,
+      semantic_search: tool({
+        description: readDescription("semantic_search"),
+        parameters: SemanticSearchParamsSchema,
+        execute: async ({ query, explanation }) => {
+          console.log(`[SEMANTIC_SEARCH] ${explanation}`);
+
+          const task = await prisma.task.findUnique({
+            where: { id: taskId },
+            select: { repoUrl: true },
+          });
+
+          if (!task) {
+            throw new Error(`Task ${taskId} not found`);
+          }
+
+          // eslint-disable-next-line no-useless-escape
+          const repoMatch = task.repoUrl.match(/github\.com\/([^\/]+\/[^\/]+)/);
+          const repo = repoMatch ? repoMatch[1] : task.repoUrl;
+          if (!repo) {
+            console.warn(
+              `[SEMANTIC_SEARCH] No repo found for task ${taskId}, falling back to grep_search`
+            );
+            const grepResult = await executor.grepSearch(query);
+
+            // Convert GrepResult to SemanticSearchToolResult format
+            const results =
+              grepResult.detailedMatches?.map((match, i) => ({
+                id: i + 1,
+                content: match.content,
+                relevance: 0.8,
+                filePath: match.file,
+                lineStart: match.lineNumber,
+                lineEnd: match.lineNumber,
+                language: "",
+                kind: "",
+              })) ||
+              (grepResult.matches || []).map((match, i) => ({
+                id: i + 1,
+                content: match,
+                relevance: 0.8,
+                filePath: "",
+                lineStart: 0,
+                lineEnd: 0,
+                language: "",
+                kind: "",
+              }));
+
+            return {
+              success: grepResult.success,
+              results,
+              query: query,
+              searchTerms: query.split(/\s+/).filter((term) => term.length > 0),
+              message:
+                (grepResult.message || "Failed to search") +
+                " (fallback to grep)",
+              error: grepResult.error,
+            };
+          } else {
+            console.log(`[SEMANTIC_SEARCH] Using repo: ${repo}`);
+            const result = await executor.semanticSearch(query, repo);
+            return result;
+          }
+        },
+      }),
+    };
+  }
+
+  return baseTools;
 }
 
 /**
@@ -719,7 +694,7 @@ export function stopAllFileSystemWatchers(): void {
     `[TOOLS] Stopping ${activeFileSystemWatchers.size} active filesystem watchers`
   );
 
-  for (const [taskId, watcher] of activeFileSystemWatchers.entries()) {
+  for (const [taskId, watcher] of Array.from(activeFileSystemWatchers.entries())) {
     watcher.stop();
     console.log(`[TOOLS] Stopped filesystem watcher for task ${taskId}`);
   }
@@ -732,7 +707,7 @@ export function stopAllFileSystemWatchers(): void {
  */
 export function getFileSystemWatcherStats() {
   const stats = [];
-  for (const [_taskId, watcher] of activeFileSystemWatchers.entries()) {
+  for (const [_taskId, watcher] of Array.from(activeFileSystemWatchers.entries())) {
     stats.push(watcher.getStats());
   }
   return {
