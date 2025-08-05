@@ -17,6 +17,7 @@ import { TaskMessages } from "@/lib/db-operations/get-task-messages";
 import { CodebaseTreeResponse } from "../use-codebase-tree";
 import { Task, TodoStatus } from "@repo/db";
 import { TaskStatusData } from "@/lib/db-operations/get-task-status";
+import { toast } from "sonner";
 
 interface FileChange {
   filePath: string;
@@ -299,19 +300,19 @@ export function useTaskSocket(taskId: string | undefined) {
       }
     }
 
-    function onStreamState(state: { 
-      chunks: StreamChunk[]; 
-      isStreaming: boolean; 
-      totalChunks: number; 
+    function onStreamState(state: {
+      chunks: StreamChunk[];
+      isStreaming: boolean;
+      totalChunks: number;
     }) {
       console.log("Received stream state:", state);
       setIsStreaming(state.isStreaming);
-      
+
       // Replay chunks to reconstruct streamingAssistantParts
       if (state.chunks && state.chunks.length > 0) {
         const parts: AssistantMessagePart[] = [];
-        
-        state.chunks.forEach(chunk => {
+
+        state.chunks.forEach((chunk) => {
           if (chunk.type === "content" && chunk.content) {
             const textPart: TextPart = {
               type: "text",
@@ -336,9 +337,11 @@ export function useTaskSocket(taskId: string | undefined) {
             parts.push(toolResultPart);
           }
         });
-        
+
         setStreamingAssistantParts(parts);
-        console.log(`[STREAM_STATE] Reconstructed ${parts.length} parts from ${state.chunks.length} chunks`);
+        console.log(
+          `[STREAM_STATE] Reconstructed ${parts.length} parts from ${state.chunks.length} chunks`
+        );
       }
     }
 
@@ -596,6 +599,17 @@ export function useTaskSocket(taskId: string | undefined) {
       setIsStreaming(false);
     }
 
+    function onStackedPRCreated(data: {
+      parentTaskId: string;
+      newTaskId: string;
+      message: string;
+    }) {
+      // queryClient.invalidateQueries({
+      //   queryKey: ["task-messages", data.parentTaskId],
+      // });
+      toast.success(`Stacked PR created: ${data.newTaskId}`);
+    }
+
     function onTaskStatusUpdate(data: TaskStatusUpdateEvent) {
       if (data.taskId === taskId) {
         console.log(`[TASK_SOCKET] Received task status update:`, data);
@@ -655,6 +669,7 @@ export function useTaskSocket(taskId: string | undefined) {
     socket.on("stream-complete", onStreamComplete);
     socket.on("stream-error", onStreamError);
     socket.on("message-error", onMessageError);
+    socket.on("stacked-pr-created", onStackedPRCreated);
     socket.on("task-status-updated", onTaskStatusUpdate);
 
     return () => {
@@ -666,6 +681,7 @@ export function useTaskSocket(taskId: string | undefined) {
       socket.off("stream-complete", onStreamComplete);
       socket.off("stream-error", onStreamError);
       socket.off("message-error", onMessageError);
+      socket.off("stacked-pr-created", onStackedPRCreated);
       socket.off("task-status-updated", onTaskStatusUpdate);
     };
   }, [socket, taskId, queryClient]);
@@ -700,6 +716,20 @@ export function useTaskSocket(taskId: string | undefined) {
     socket.emit("clear-queued-message", { taskId });
   }, [socket, taskId]);
 
+  const createStackedPR = useCallback(
+    (message: string, model: string, queue: boolean = false) => {
+      if (!socket || !taskId || !message.trim()) return;
+
+      socket.emit("create-stacked-pr", {
+        taskId,
+        message: message.trim(),
+        llmModel: model as ModelType,
+        queue,
+      });
+    },
+    [socket, taskId]
+  );
+
   return {
     isConnected,
     streamingAssistantParts,
@@ -707,5 +737,6 @@ export function useTaskSocket(taskId: string | undefined) {
     sendMessage,
     stopStream,
     clearQueuedMessage,
+    createStackedPR,
   };
 }
