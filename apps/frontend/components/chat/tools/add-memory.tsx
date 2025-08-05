@@ -1,5 +1,7 @@
 import type { Message } from "@repo/types";
 import { Brain } from "lucide-react";
+import { ToolTypes } from "@repo/types";
+import { ToolComponent } from "./collapsible-tool";
 
 export function AddMemoryTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
@@ -9,16 +11,10 @@ export function AddMemoryTool({ message }: { message: Message }) {
   const content = args.content as string;
 
   return (
-    <div className="text-muted-foreground flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-[13px] [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:shrink-0 [&_svg]:opacity-70">
-      <Brain />
-      <div className="flex w-[calc(100%-1.5rem)] items-center gap-1">
-        <div className="whitespace-nowrap opacity-70">
-          Added Memory
-        </div>
-        <div className="truncate">
-          "{content}"
-        </div>
-      </div>
-    </div>
+    <ToolComponent
+      icon={<Brain />}
+      type={ToolTypes.ADD_MEMORY}
+      title={`"${content}"`}
+    />
   );
 }
