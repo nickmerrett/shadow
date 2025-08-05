@@ -12,6 +12,9 @@ import { RunTerminalCmdTool } from "./run-terminal-cmd";
 import { SearchReplaceTool } from "./search-replace";
 import { TodoWriteTool } from "./todo-write";
 import { WebSearchTool } from "./web-search";
+import { AddMemoryTool } from "./add-memory";
+import { ListMemoriesTool } from "./list-memories";
+import { RemoveMemoryTool } from "./remove-memory";
 
 const TOOL_COMPONENTS = {
   todo_write: TodoWriteTool,
@@ -25,6 +28,9 @@ const TOOL_COMPONENTS = {
   file_search: FileSearchTool,
   delete_file: DeleteFileTool,
   web_search: WebSearchTool,
+  add_memory: AddMemoryTool,
+  list_memories: ListMemoriesTool,
+  remove_memory: RemoveMemoryTool,
 } as const;
 
 export type ToolName = keyof typeof TOOL_COMPONENTS;
@@ -67,4 +73,7 @@ export {
   SearchReplaceTool,
   TodoWriteTool,
   WebSearchTool,
+  AddMemoryTool,
+  ListMemoriesTool,
+  RemoveMemoryTool,
 };

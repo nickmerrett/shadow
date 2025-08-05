@@ -21,9 +21,9 @@ interface ModalProviderProps {
 
 export function ModalProvider({ children }: ModalProviderProps) {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [settingsModalTab, setSettingsModalTab] = useState<SettingsTab>("github");
+  const [settingsModalTab, setSettingsModalTab] = useState<SettingsTab>("user");
 
-  const openSettingsModal = (tab: SettingsTab = "github") => {
+  const openSettingsModal = (tab: SettingsTab = "user") => {
     setSettingsModalTab(tab);
     setIsSettingsModalOpen(true);
   };

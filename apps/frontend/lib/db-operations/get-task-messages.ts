@@ -14,6 +14,12 @@ export async function getTaskMessages(taskId: string): Promise<TaskMessages> {
         where: { taskId },
         include: {
           pullRequestSnapshot: true,
+          stackedTask: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
         },
         orderBy: [
           { sequence: "asc" }, // Primary ordering by sequence for correct conversation flow
@@ -35,6 +41,8 @@ export async function getTaskMessages(taskId: string): Promise<TaskMessages> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       metadata: (msg.metadata as any) || { isStreaming: false },
       pullRequestSnapshot: msg.pullRequestSnapshot || undefined,
+      stackedTaskId: msg.stackedTaskId || undefined,
+      stackedTask: msg.stackedTask || undefined,
     }));
 
     // Use the mainModel field directly instead of scanning through all messages

@@ -17,12 +17,15 @@ import { GitManager } from "../services/git-manager";
 import { PRManager } from "../services/pr-manager";
 import { modelContextService } from "../services/model-context-service";
 import { TaskModelContext } from "../services/task-model-context";
-
+import { generateTaskTitleAndBranch } from "../utils/title-generation";
+import { nanoid } from "nanoid";
+import { MessageRole } from "@repo/db";
 import {
   emitStreamChunk,
   endStream,
   handleStreamError,
   startStream,
+  type TypedSocket,
 } from "../socket";
 import config from "../config";
 import {
@@ -32,6 +35,7 @@ import {
   cancelTaskCleanup,
 } from "../utils/task-status";
 import { createToolExecutor } from "../execution";
+import { memoryService } from "../services/memory-service";
 
 export class ChatService {
   private llmService: LLMService;
@@ -43,6 +47,16 @@ export class ChatService {
       message: string;
       context: TaskModelContext;
       workspacePath?: string;
+    }
+  > = new Map();
+  private queuedStackedPRs: Map<
+    string,
+    {
+      parentTaskId: string;
+      message: string;
+      model: ModelType;
+      userId: string;
+      socket: TypedSocket;
     }
   > = new Map();
 
@@ -519,6 +533,7 @@ export class ChatService {
       createdAt: msg.createdAt.toISOString(),
       metadata: msg.metadata as MessageMetadata | undefined,
       pullRequestSnapshot: msg.pullRequestSnapshot || undefined,
+      stackedTaskId: msg.stackedTaskId || undefined,
     }));
   }
 
@@ -684,25 +699,22 @@ export class ChatService {
 
     const history = await this.getChatHistory(taskId);
 
-    // Prepare messages for LLM (exclude the user message we just saved to avoid duplication)
-    // Filter out tool messages since they're embedded in assistant messages as parts
     const messages: Message[] = history
-      .slice(0, -1) // Remove the last message (the one we just saved)
+      .slice(0, -1)
       .filter(
         (msg) =>
-          msg.role === "user" ||
+          (msg.role === "user" && !msg.stackedTaskId) ||
           msg.role === "assistant" ||
           msg.role === "system"
       );
 
-    // Check if deep wiki system message already exists in conversation
-    const hasDeepWikiMessage = history.some((msg) => msg.role === "system");
+    const isFirstMessage = !messages.some(msg => msg.role === "system");
 
-    // Add deep wiki content as the first system message only if no system messages exist yet
-    if (!hasDeepWikiMessage) {
+    if (isFirstMessage) {
+      const systemMessagesToAdd: Message[] = [];
+
       const deepWikiContent = await getDeepWikiMessage(taskId);
       if (deepWikiContent) {
-        // Save the deep wiki as a system message in the database
         const deepWikiSequence = await this.getNextSequence(taskId);
         await this.saveSystemMessage(
           taskId,
@@ -711,8 +723,7 @@ export class ChatService {
           deepWikiSequence
         );
 
-        // Insert at the beginning, right after system prompt
-        messages.unshift({
+        systemMessagesToAdd.push({
           id: randomUUID(),
           role: "system",
           content: deepWikiContent,
@@ -720,9 +731,46 @@ export class ChatService {
           llmModel: context.getMainModel(),
         });
       }
+
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        include: {
+          user: {
+            include: {
+              userSettings: true,
+            },
+          },
+        },
+      });
+
+      const memoriesEnabled = task?.user.userSettings?.memoriesEnabled ?? true;
+
+      if (memoriesEnabled) {
+        const memoryContext = await memoryService.getMemoriesForTask(taskId);
+        if (memoryContext && memoryContext.memories.length > 0) {
+          const memoryContent = memoryService.formatMemoriesForPrompt(memoryContext);
+          
+          const memorySequence = await this.getNextSequence(taskId);
+          await this.saveSystemMessage(
+            taskId,
+            memoryContent,
+            context.getMainModel(),
+            memorySequence
+          );
+
+          systemMessagesToAdd.push({
+            id: randomUUID(),
+            role: "system",
+            content: memoryContent,
+            createdAt: new Date().toISOString(),
+            llmModel: context.getMainModel(),
+          });
+        }
+      }
+
+      messages.unshift(...systemMessagesToAdd);
     }
 
-    // Add the current user message last
     messages.push({
       id: randomUUID(),
       role: "user",
@@ -762,6 +810,7 @@ export class ChatService {
 
     // Get system prompt with available tools context
     const taskSystemPrompt = await getSystemPrompt(availableTools);
+
 
     try {
       for await (const chunk of this.llmService.createMessageStream(
@@ -1118,6 +1167,9 @@ export class ChatService {
 
       // Process any queued message
       await this.processQueuedMessage(taskId);
+
+      // Process any queued stacked PRs
+      await this.processQueuedStackedPRs(taskId);
     } catch (error) {
       console.error("Error processing user message:", error);
 
@@ -1141,6 +1193,9 @@ export class ChatService {
       handleStreamError(error, taskId);
 
       await this.processQueuedMessage(taskId);
+
+      // Process any queued stacked PRs even on error
+      await this.processQueuedStackedPRs(taskId);
       throw error;
     }
   }
@@ -1270,9 +1325,9 @@ export class ChatService {
     const history = await this.getChatHistory(taskId);
 
     // Process the edited message as if it were a new message
-    // Filter out tool messages and use the updated content
+    // Filter out tool messages and stacked-PR messages, use the updated content
     const messages: Message[] = history
-      .filter((msg) => msg.role === "user" || msg.role === "assistant")
+      .filter((msg) => (msg.role === "user" && !msg.stackedTaskId) || msg.role === "assistant")
       .map((msg) => {
         if (msg.id === messageId) {
           return {
@@ -1317,6 +1372,249 @@ export class ChatService {
   }
 
   /**
+   * Create a stacked PR (new task based on current task's shadow branch)
+   */
+  async createStackedPR({
+    parentTaskId,
+    message,
+    model,
+    userId,
+    queue,
+    socket,
+  }: {
+    parentTaskId: string;
+    message: string;
+    model: ModelType;
+    userId: string;
+    queue: boolean;
+    socket: TypedSocket;
+  }): Promise<void> {
+    try {
+      console.log(`[CHAT] Creating stacked PR for parent task ${parentTaskId}`);
+
+      // If there's an active stream and queue is true, queue the stacked PR
+      if (this.activeStreams.has(parentTaskId) && queue) {
+        console.log(
+          `[CHAT] Queuing stacked PR for task ${parentTaskId} (stream in progress)`
+        );
+        this.queuedStackedPRs.set(parentTaskId, {
+          parentTaskId,
+          message,
+          model,
+          userId,
+          socket,
+        });
+        return;
+      }
+
+      // Create the stacked task immediately
+      await this._createStackedTaskInternal({
+        parentTaskId,
+        message,
+        model,
+        userId,
+        socket,
+      });
+    } catch (error) {
+      console.error(`[CHAT] Error creating stacked PR:`, error);
+      socket.emit("message-error", { 
+        error: "Failed to create stacked PR" 
+      });
+    }
+  }
+
+  /**
+   * Internal method to create stacked task
+   */
+  private async _createStackedTaskInternal({
+    parentTaskId,
+    message,
+    model,
+    userId,
+    socket,
+  }: {
+    parentTaskId: string;
+    message: string;
+    model: ModelType;
+    userId: string;
+    socket: TypedSocket;
+  }): Promise<void> {
+    try {
+      // Get parent task details
+      const parentTask = await prisma.task.findUnique({
+        where: { id: parentTaskId },
+        select: {
+          repoFullName: true,
+          repoUrl: true,
+          shadowBranch: true,
+          userId: true,
+        },
+      });
+
+      if (!parentTask) {
+        throw new Error("Parent task not found");
+      }
+
+      if (parentTask.userId !== userId) {
+        throw new Error("Unauthorized to create stacked task");
+      }
+
+      const newTaskId = nanoid();
+
+      // Create TaskModelContext for title generation
+      const context = await modelContextService.createContext(
+        parentTaskId, // Use parent task context for API keys
+        undefined, // No cookies in server context
+        model
+      );
+
+      // Generate title and branch for the new task
+      const { title, shadowBranch } = await generateTaskTitleAndBranch(
+        newTaskId,
+        message,
+        context
+      );
+
+      // Create the new stacked task
+      await prisma.task.create({
+        data: {
+          id: newTaskId,
+          title,
+          repoFullName: parentTask.repoFullName,
+          repoUrl: parentTask.repoUrl,
+          baseBranch: parentTask.shadowBranch, // Use parent's shadow branch as base
+          shadowBranch,
+          baseCommitSha: "pending",
+          status: "INITIALIZING",
+          user: {
+            connect: {
+              id: userId,
+            },
+          },
+          messages: {
+            create: {
+              content: message,
+              role: MessageRole.USER,
+              sequence: 1,
+              llmModel: model,
+            },
+          },
+        },
+      });
+
+      // Create a message in the parent task referencing the stacked task
+      const parentNextSequence = await this.getNextSequence(parentTaskId);
+      await prisma.chatMessage.create({
+        data: {
+          content: message,
+          role: MessageRole.USER,
+          llmModel: model,
+          taskId: parentTaskId,
+          stackedTaskId: newTaskId,
+          sequence: parentNextSequence,
+        },
+      });
+
+      // Trigger task initialization (similar to the backend initiate endpoint)
+      await this.initializeStackedTask(newTaskId, message, model, userId);
+
+      console.log(
+        `[CHAT] Successfully created stacked task ${newTaskId} from parent ${parentTaskId}`
+      );
+
+      // Emit success event to the socket
+      socket.emit("stacked-pr-created", {
+        parentTaskId,
+        newTaskId,
+        message: "Stacked PR created successfully",
+      });
+    } catch (error) {
+      console.error(`[CHAT] Error in _createStackedTaskInternal:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize a stacked task (similar to the backend initiate endpoint)
+   */
+  private async initializeStackedTask(
+    taskId: string,
+    message: string,
+    model: ModelType,
+    _userId: string
+  ): Promise<void> {
+    try {
+      console.log(`[CHAT] Initializing stacked task ${taskId}`);
+
+      // Import the initialization engine
+      const { TaskInitializationEngine } = await import("../initialization/index.js");
+      const initializationEngine = new TaskInitializationEngine();
+
+      // Update task status to RUNNING (similar to backend initiate endpoint)
+      await updateTaskStatus(taskId, "RUNNING", "CHAT");
+
+      // Create model context for the new task
+      const newTaskContext = await modelContextService.createContext(
+        taskId,
+        undefined, // No cookies in server context  
+        model
+      );
+
+      // Start task initialization in background (non-blocking)
+      // This will handle workspace setup, VM creation, etc.
+      initializationEngine.initializeTask(
+        taskId,
+        undefined, // Use default steps
+        _userId,
+        newTaskContext
+      ).catch((error: any) => {
+        console.error(`[CHAT] Failed to initialize stacked task ${taskId}:`, error);
+      });
+
+      // Start the first message processing (similar to backend initiate endpoint)
+      setTimeout(async () => {
+        try {
+          await this.processUserMessage({
+            taskId,
+            userMessage: message,
+            context: newTaskContext,
+            workspacePath: undefined, // Will be set during initialization
+            queue: false,
+          });
+        } catch (error) {
+          console.error(`[CHAT] Failed to process first message for stacked task ${taskId}:`, error);
+        }
+      }, 1000); // Small delay to let initialization start
+
+    } catch (error) {
+      console.error(`[CHAT] Error initializing stacked task ${taskId}:`, error);
+    }
+  }
+
+  /**
+   * Process any queued stacked PRs after stream completion
+   */
+  private async processQueuedStackedPRs(taskId: string): Promise<void> {
+    const queuedStackedPR = this.queuedStackedPRs.get(taskId);
+    if (!queuedStackedPR) {
+      return;
+    }
+
+    this.queuedStackedPRs.delete(taskId);
+
+    console.log(`[CHAT] Processing queued stacked PR for task ${taskId}`);
+
+    try {
+      await this._createStackedTaskInternal(queuedStackedPR);
+    } catch (error) {
+      console.error(
+        `[CHAT] Error processing queued stacked PR for task ${taskId}:`,
+        error
+      );
+    }
+  }
+
+  /**
    * Clean up task-related memory structures
    */
   cleanupTask(taskId: string): void {
@@ -1332,6 +1630,9 @@ export class ChatService {
 
       // Clean up queued messages
       this.queuedMessages.delete(taskId);
+
+      // Clean up queued stacked PRs
+      this.queuedStackedPRs.delete(taskId);
 
       console.log(
         `[CHAT] Successfully cleaned up ChatService memory for task ${taskId}`

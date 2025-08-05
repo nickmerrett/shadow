@@ -52,7 +52,7 @@ const STEP_DEFINITIONS: Record<
 
   // Deep wiki generation step (both modes, optional)
   GENERATE_DEEP_WIKI: {
-    name: "Generating Deep Wiki",
+    name: "Understanding Your Codebase",
     description: "Generate comprehensive codebase documentation",
   },
   ACTIVE: {

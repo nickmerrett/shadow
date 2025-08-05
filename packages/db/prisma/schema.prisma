@@ -22,6 +22,7 @@ model User {
   accounts              Account[]
   sessions              Session[]
   CodebaseUnderstanding CodebaseUnderstanding[]
+  memories              Memory[]
   userSettings          UserSettings?
 
   @@map("user")
@@ -99,11 +100,13 @@ model Task {
   shadowBranch        String
   pullRequestNumber   Int?
   githubIssueId       String?
-  messages            ChatMessage[]
+  messages            ChatMessage[]         @relation("TaskMessages")
   user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions            TaskSession[]
   commands            TerminalCommand[]
   todos               Todo[]
+  memories            Memory[]
+  stackedTaskCreationMessages ChatMessage[]     @relation("StackedTask")
 
   codebaseUnderstandingId String?
   codebaseUnderstanding   CodebaseUnderstanding? @relation(fields: [codebaseUnderstandingId], references: [id])
@@ -150,8 +153,10 @@ model ChatMessage {
   createdAt           DateTime             @default(now())
   editedAt            DateTime?
   taskId              String
-  task                Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task                Task                 @relation("TaskMessages", fields: [taskId], references: [id], onDelete: Cascade)
   pullRequestSnapshot PullRequestSnapshot?
+  stackedTaskId       String?
+  stackedTask         Task?                @relation("StackedTask", fields: [stackedTaskId], references: [id], onDelete: SetNull)
 
   @@index([taskId, sequence])
   @@index([taskId, role, sequence])
@@ -200,6 +205,30 @@ model CodebaseUnderstanding {
   tasks  Task[]
 
   @@index([repoFullName])
+}
+
+model Memory {
+  id       String         @id @default(cuid())
+  content  String
+  category MemoryCategory
+
+  // Repository-specific memories only
+  repoFullName String
+  repoUrl      String
+
+  // User and task context
+  userId String
+  taskId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, repoFullName])
+  @@index([taskId])
+  @@index([category])
 }
 
 model PullRequestSnapshot {
@@ -264,6 +293,7 @@ enum InitStatus {
 model UserSettings {
   id              String   @id @default(cuid())
   userId          String   @unique
+  memoriesEnabled Boolean  @default(true)
   autoPullRequest Boolean  @default(false)
   enableDeepWiki  Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -279,4 +309,17 @@ enum FileOp {
   DELETE
   RENAME
   MOVE
+}
+
+enum MemoryCategory {
+  INFRA
+  SETUP
+  STYLES
+  ARCHITECTURE
+  TESTING
+  PATTERNS
+  BUGS
+  PERFORMANCE
+  CONFIG
+  GENERAL
 }

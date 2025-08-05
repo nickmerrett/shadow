@@ -36,6 +36,11 @@ export type Message = {
   createdAt: string;
   metadata?: MessageMetadata;
   pullRequestSnapshot?: PullRequestSnapshot;
+  stackedTaskId?: string;
+  stackedTask?: {
+    id: string;
+    title: string;
+  };
 };
 
 export interface MessageMetadata {

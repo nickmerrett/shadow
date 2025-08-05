@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { autoPullRequest, enableDeepWiki } = body;
+    const { autoPullRequest, enableDeepWiki, memoriesEnabled } = body;
 
     // Validate autoPullRequest if provided
     if (autoPullRequest !== undefined && typeof autoPullRequest !== "boolean") {
@@ -56,13 +56,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate memoriesEnabled if provided
+    if (memoriesEnabled !== undefined && typeof memoriesEnabled !== "boolean") {
+      return NextResponse.json(
+        { error: "memoriesEnabled must be a boolean" },
+        { status: 400 }
+      );
+    }
+
     // Build update object with only provided fields
-    const updateData: { autoPullRequest?: boolean; enableDeepWiki?: boolean } =
+    const updateData: { autoPullRequest?: boolean; enableDeepWiki?: boolean; memoriesEnabled?: boolean } =
       {};
     if (autoPullRequest !== undefined)
       updateData.autoPullRequest = autoPullRequest;
     if (enableDeepWiki !== undefined)
       updateData.enableDeepWiki = enableDeepWiki;
+    if (memoriesEnabled !== undefined)
+      updateData.memoriesEnabled = memoriesEnabled;
 
     const settings = await updateUserSettings(session.user.id, updateData);
 
