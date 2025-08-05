@@ -1,14 +1,27 @@
 import { getTaskTitle } from "@/lib/db-operations/get-task-title";
 import { updateTaskTitle } from "@/lib/db-operations/update-task-title";
+import { verifyTaskOwnership } from "@/lib/auth/verify-task-ownership";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
-  const { taskId } = await params;
-  const title = await getTaskTitle(taskId);
-  return NextResponse.json({ title });
+  try {
+    const { taskId } = await params;
+
+    const { error, user: _user } = await verifyTaskOwnership(taskId);
+    if (error) return error;
+
+    const title = await getTaskTitle(taskId);
+    return NextResponse.json({ title });
+  } catch (error) {
+    console.error("Error fetching task title:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch task title" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(
@@ -17,6 +30,10 @@ export async function POST(
 ) {
   try {
     const { taskId } = await params;
+
+    const { error, user: _user } = await verifyTaskOwnership(taskId);
+    if (error) return error;
+
     const { title } = await request.json();
 
     if (!title || typeof title !== "string") {

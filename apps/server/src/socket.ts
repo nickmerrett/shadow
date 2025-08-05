@@ -15,6 +15,7 @@ import { updateTaskStatus } from "./utils/task-status";
 import { createToolExecutor } from "./execution";
 import { setupSidecarNamespace } from "./services/sidecar-socket-handler";
 import { parseApiKeysFromCookies } from "./utils/cookie-parser";
+import { modelContextService } from "./services/model-context-service";
 
 interface ConnectionState {
   lastSeen: number;
@@ -221,9 +222,17 @@ function emitToTask(
 export function createSocketServer(
   server: http.Server
 ): Server<ClientToServerEvents, ServerToClientEvents> {
+  // Determine Socket.IO CORS origins based on environment (same as main app)
+  const socketCorsOrigins =
+    process.env.NODE_ENV === "production"
+      ? ["https://shadow-agent-dev.vercel.app", "https://shadowrealm.ai"]
+      : ["http://localhost:3000"];
+
+  console.log(`[SOCKET] Allowing origins:`, socketCorsOrigins);
+
   io = new Server(server, {
     cors: {
-      origin: config.clientUrl,
+      origin: socketCorsOrigins,
       methods: ["GET", "POST"],
       credentials: true,
     },
@@ -274,7 +283,11 @@ export function createSocketServer(
     // Send current stream state to new connections
     if (connectionState.taskId) {
       const streamState = taskStreamStates.get(connectionState.taskId);
-      if (streamState && streamState.isStreaming && streamState.chunks.length > 0) {
+      if (
+        streamState &&
+        streamState.isStreaming &&
+        streamState.chunks.length > 0
+      ) {
         console.log(
           `[SOCKET] Sending stream state to ${connectionId} for task ${connectionState.taskId}:`,
           streamState.chunks.length
@@ -367,29 +380,28 @@ export function createSocketServer(
           select: { workspacePath: true },
         });
 
-        const connectionState = connectionStates.get(connectionId);
-        const userApiKeys = connectionState?.apiKeys || {};
+        // Create or get model context for this task
+        const modelContext = await modelContextService.createContext(
+          data.taskId,
+          socket.handshake.headers.cookie,
+          data.llmModel as ModelType
+        );
 
         // Validate that user has the required API key for the selected model
-        if (data.llmModel) {
-          const modelProvider = data.llmModel.includes("claude")
-            ? "anthropic"
-            : "openai";
-          if (!userApiKeys[modelProvider]) {
-            const providerName =
-              modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
-            socket.emit("message-error", {
-              error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
-            });
-            return;
-          }
+        if (!modelContext.validateAccess()) {
+          const provider = modelContext.getProvider();
+          const providerName =
+            provider === "anthropic" ? "Anthropic" : "OpenAI";
+          socket.emit("message-error", {
+            error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
+          });
+          return;
         }
 
         await chatService.processUserMessage({
           taskId: data.taskId,
           userMessage: data.message,
-          llmModel: data.llmModel as ModelType,
-          userApiKeys,
+          context: modelContext,
           workspacePath: task?.workspacePath || undefined,
           queue: data.queue || false,
         });
@@ -429,22 +441,22 @@ export function createSocketServer(
           select: { workspacePath: true },
         });
 
-        const connectionState = connectionStates.get(connectionId);
-        const userApiKeys = connectionState?.apiKeys || {};
+        // Create or get model context for this task
+        const modelContext = await modelContextService.createContext(
+          data.taskId,
+          socket.handshake.headers.cookie,
+          data.llmModel as ModelType
+        );
 
         // Validate that user has the required API key for the selected model
-        if (data.llmModel) {
-          const modelProvider = data.llmModel.includes("claude")
-            ? "anthropic"
-            : "openai";
-          if (!userApiKeys[modelProvider]) {
-            const providerName =
-              modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
-            socket.emit("message-error", {
-              error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
-            });
-            return;
-          }
+        if (!modelContext.validateAccess()) {
+          const provider = modelContext.getProvider();
+          const providerName =
+            provider === "anthropic" ? "Anthropic" : "OpenAI";
+          socket.emit("message-error", {
+            error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
+          });
+          return;
         }
 
         await chatService.editUserMessage({
@@ -452,7 +464,7 @@ export function createSocketServer(
           messageId: data.messageId,
           newContent: data.message,
           newModel: data.llmModel,
-          userApiKeys,
+          context: modelContext,
           workspacePath: task?.workspacePath || undefined,
         });
       } catch (error) {
@@ -470,10 +482,18 @@ export function createSocketServer(
           return;
         }
 
-        const history = await chatService.getChatHistory(data.taskId);
+        const [history, task] = await Promise.all([
+          chatService.getChatHistory(data.taskId),
+          prisma.task.findUnique({
+            where: { id: data.taskId },
+            select: { mainModel: true },
+          }),
+        ]);
+
         socket.emit("chat-history", {
           taskId: data.taskId,
           messages: history,
+          mostRecentMessageModel: (task?.mainModel as ModelType) || null,
           // If complete is true, the queued message will automatically get sent, so set it to empty string so the frontend removes it from the queue UI
           queuedMessage: data.complete
             ? null

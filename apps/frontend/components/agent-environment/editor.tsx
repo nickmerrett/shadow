@@ -1,11 +1,9 @@
 "use client";
 
 import { patchMonacoWithShiki } from "@/lib/editor/highlighter";
-import { AlertTriangle, ChevronRight, ChevronsRight } from "lucide-react";
+import { AlertTriangle, ChevronRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Fragment, useEffect, useState } from "react";
-import { Button } from "../ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { getLanguageFromPath } from "@repo/types";
 import { LogoHover } from "../graphics/logo/logo-hover";
 import { MarkdownRenderer } from "./markdown-renderer";

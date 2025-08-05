@@ -1,9 +1,8 @@
 import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { AvailableModels, ApiKeys } from "@repo/types";
+import { ModelProvider } from "@/agent/llm/models/model-provider";
+import { TaskModelContext } from "./task-model-context";
 
 const execAsync = promisify(exec);
 
@@ -14,9 +13,9 @@ export interface GitUser {
 
 export interface CommitOptions {
   user: GitUser;
-  coAuthor?: GitUser;
+  coAuthor: GitUser;
+  context: TaskModelContext;
   message?: string;
-  userApiKeys?: ApiKeys;
 }
 
 export class GitManager {
@@ -123,33 +122,43 @@ export class GitManager {
   }
 
   /**
+   * Get git diff against a base branch (for PR generation)
+   */
+  async getDiffAgainstBase(baseBranch: string = "main"): Promise<string> {
+    try {
+      const { stdout: diff } = await this.execGit(`diff ${baseBranch}...HEAD`);
+      return diff;
+    } catch (error) {
+      console.error(
+        `[GIT_MANAGER] Failed to get diff against ${baseBranch}:`,
+        error
+      );
+      return "";
+    }
+  }
+
+  /**
    * Generate a commit message using AI based on the git diff
    */
   async generateCommitMessage(
     diff: string,
-    userApiKeys?: ApiKeys
+    context: TaskModelContext
   ): Promise<string> {
     try {
-      // If no API keys provided, use fallback
-      if (!userApiKeys?.openai && !userApiKeys?.anthropic) {
-        console.warn(
-          "[GIT_MANAGER] No API keys provided for commit message generation"
-        );
+      // Use mini model for commit message generation (cost optimization)
+      const model = context.getModelForOperation("commit-msg");
+      const apiKey = context.getApiKeyForOperation("commit-msg");
+
+      if (!apiKey) {
+        console.warn("[GIT_MANAGER] No API key available for commit message generation");
         return "Update code via Shadow agent";
       }
 
-      // Choose model based on available API keys (same pattern as pr-generator)
-      const modelChoice = userApiKeys.openai
-        ? AvailableModels.GPT_4O_MINI
-        : AvailableModels.CLAUDE_HAIKU_3_5;
-
-      // Create model instance based on provider
-      const model = userApiKeys.openai
-        ? openai(modelChoice)
-        : anthropic(modelChoice);
+      const modelProvider = new ModelProvider();
+      const modelInstance = modelProvider.getModel(model, context.getApiKeys());
 
       const { text } = await generateText({
-        model,
+        model: modelInstance,
         temperature: 0.3,
         maxTokens: 100,
         prompt: `Generate a concise git commit message for these changes. Focus on what was changed, not how. Use imperative mood (e.g., "Add", "Fix", "Update"). Keep it under 50 characters.
@@ -170,6 +179,7 @@ Commit message:`,
     }
   }
 
+
   /**
    * Stage all changes and commit with the given options
    */
@@ -185,7 +195,7 @@ Commit message:`,
         if (diff) {
           commitMessage = await this.generateCommitMessage(
             diff,
-            options.userApiKeys
+            options.context
           );
         } else {
           commitMessage = "Update code via Shadow agent";
@@ -207,6 +217,7 @@ Commit message:`,
       throw error;
     }
   }
+
 
   /**
    * Push the current branch to remote
@@ -319,7 +330,8 @@ Commit message:`,
    */
   async commitChangesIfAny(
     user: GitUser,
-    coAuthor?: GitUser
+    coAuthor: GitUser,
+    context: TaskModelContext
   ): Promise<boolean> {
     try {
       const hasChanges = await this.hasChanges();
@@ -331,6 +343,7 @@ Commit message:`,
       await this.commitChanges({
         user,
         coAuthor,
+        context,
       });
 
       // Try to push the changes
@@ -351,6 +364,7 @@ Commit message:`,
       throw error;
     }
   }
+
 }
 
 export default GitManager;

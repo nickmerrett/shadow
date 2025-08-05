@@ -15,6 +15,8 @@ import { createWorkspaceManager } from "./execution";
 import { filesRouter } from "./file-routes";
 import { parseApiKeysFromCookies } from "./utils/cookie-parser";
 import { handleGitHubWebhook } from "./webhooks/github-webhook";
+import { getIndexingStatus } from "./routes/indexing-status";
+import { modelContextService } from "./services/model-context-service";
 
 const app = express();
 export const chatService = new ChatService();
@@ -31,9 +33,16 @@ const initiateTaskSchema = z.object({
 const socketIOServer = http.createServer(app);
 createSocketServer(socketIOServer);
 
+// Determine CORS origins based on environment
+const corsOrigins = process.env.NODE_ENV === "production" 
+  ? ["https://shadow-agent-dev.vercel.app", "https://shadowrealm.ai"]
+  : ["http://localhost:3000"];
+
+console.log(`[CORS] Allowing origins:`, corsOrigins);
+
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: corsOrigins,
     credentials: true,
   })
 );
@@ -62,6 +71,19 @@ app.use("/api/tasks", filesRouter);
 
 // GitHub webhook endpoint
 app.post("/api/webhooks/github/pull-request", handleGitHubWebhook);
+
+// Indexing status endpoint
+app.get("/api/indexing-status/:repoFullName", async (req, res) => {
+  try {
+    const { repoFullName } = req.params;
+    const decodedRepoFullName = decodeURIComponent(repoFullName);
+    const status = await getIndexingStatus(decodedRepoFullName);
+    res.json(status);
+  } catch (error) {
+    console.error("Error fetching indexing status:", error);
+    res.status(500).json({ error: "Failed to fetch indexing status" });
+  }
+});
 
 // Get task details
 app.get("/api/tasks/:taskId", async (req, res) => {
@@ -136,11 +158,15 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         });
       }
 
-      const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
-      const modelProvider = model.includes("claude") ? "anthropic" : "openai";
-      if (!userApiKeys[modelProvider]) {
-        const providerName =
-          modelProvider === "anthropic" ? "Anthropic" : "OpenAI";
+      const initContext = await modelContextService.createContext(
+        taskId,
+        req.headers.cookie,
+        model as ModelType
+      );
+
+      if (!initContext.validateAccess()) {
+        const provider = initContext.getProvider();
+        const providerName = provider === "anthropic" ? "Anthropic" : "OpenAI";
 
         await updateTaskStatus(taskId, "FAILED", "INIT");
 
@@ -158,7 +184,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         taskId,
         initSteps,
         userId,
-        userApiKeys
+        initContext
       );
 
       // Get updated task with workspace info
@@ -180,8 +206,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       await chatService.processUserMessage({
         taskId,
         userMessage: message,
-        llmModel: model as ModelType,
-        userApiKeys,
+        context: initContext,
         enableTools: true,
         skipUserMessageSave: true,
         workspacePath: updatedTask?.workspacePath || undefined,
@@ -429,14 +454,27 @@ app.post("/api/tasks/:taskId/pull-request", async (req, res) => {
       });
     }
 
-    const userApiKeys = parseApiKeysFromCookies(req.headers.cookie || "");
-
-    await chatService.createPRIfNeeded(
+    // Get or refresh model context for PR creation
+    const modelContext = await modelContextService.refreshContext(
       taskId,
-      task.workspacePath || undefined,
-      latestAssistantMessage.id,
-      userApiKeys
+      req.headers.cookie
     );
+
+    if (modelContext) {
+      await chatService.createPRIfNeeded(
+        taskId,
+        task.workspacePath || undefined,
+        latestAssistantMessage.id,
+        modelContext
+      );
+    } else {
+      // Fallback if context unavailable
+      await chatService.createPRIfNeeded(
+        taskId,
+        task.workspacePath || undefined,
+        latestAssistantMessage.id
+      );
+    }
 
     const updatedTask = await prisma.task.findUnique({
       where: { id: taskId },

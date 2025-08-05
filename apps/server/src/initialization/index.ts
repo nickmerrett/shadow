@@ -12,7 +12,9 @@ import {
   setTaskFailed,
   clearTaskProgress,
 } from "../utils/task-status";
+import { startBackgroundIndexing } from "./background-indexing";
 import { runDeepWiki } from "../indexing/deepwiki/core";
+import { TaskModelContext } from "../services/task-model-context";
 
 // Helper for async delays
 const delay = (ms: number) =>
@@ -73,7 +75,7 @@ export class TaskInitializationEngine {
     taskId: string,
     steps: InitStatus[] = ["PREPARE_WORKSPACE"],
     userId: string,
-    userApiKeys: { openai?: string; anthropic?: string }
+    context: TaskModelContext
   ): Promise<void> {
     console.log(
       `[TASK_INIT] Starting initialization for task ${taskId} with steps: ${steps.join(", ")}`
@@ -117,7 +119,7 @@ export class TaskInitializationEngine {
           );
 
           // Execute the step
-          await this.executeStep(taskId, step, userId, userApiKeys);
+          await this.executeStep(taskId, step, userId, context);
 
           // Mark step as completed
           await setInitStatus(taskId, step);
@@ -181,7 +183,7 @@ export class TaskInitializationEngine {
     taskId: string,
     step: InitStatus,
     userId: string,
-    userApiKeys: { openai?: string; anthropic?: string }
+    context: TaskModelContext
   ): Promise<void> {
     switch (step) {
       // Local mode step
@@ -204,12 +206,13 @@ export class TaskInitializationEngine {
 
       // Repository indexing step (both modes)
       case "INDEX_REPOSITORY":
+        await this.executeIndexRepository(taskId);
         // Indexing is handled during deep wiki generation
         break;
 
       // Deep wiki generation step (both modes, optional)
       case "GENERATE_DEEP_WIKI":
-        await this.executeGenerateDeepWiki(taskId, userApiKeys);
+        await this.executeGenerateDeepWiki(taskId, context);
         break;
 
       case "INACTIVE":
@@ -467,7 +470,7 @@ export class TaskInitializationEngine {
    */
   private async executeGenerateDeepWiki(
     taskId: string,
-    userApiKeys: { openai?: string; anthropic?: string }
+    context: TaskModelContext
   ): Promise<void> {
     console.log(`[TASK_INIT] ${taskId}: Starting deep wiki generation`);
 
@@ -520,15 +523,15 @@ export class TaskInitializationEngine {
         `[TASK_INIT] ${taskId}: Generating new deep wiki for ${task.repoFullName}`
       );
 
+      // Use TaskModelContext for deep wiki generation during initialization
       const result = await runDeepWiki(
         task.workspacePath,
         taskId,
         task.repoFullName,
         task.repoUrl,
         task.userId,
-        userApiKeys,
+        context, // Now using TaskModelContext
         {
-          // migrate to better abstraction for userApiKeys
           concurrency: 12,
           model: AvailableModels.GPT_4O,
           modelMini: AvailableModels.GPT_4O_MINI,
@@ -543,9 +546,49 @@ export class TaskInitializationEngine {
         `[TASK_INIT] ${taskId}: Failed to generate deep wiki:`,
         error
       );
-      throw error;
+      // Don't throw error - we don't want indexing failures to block task startup
+      console.log(
+        `[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`
+      );
     }
   }
+  
+  /**
+   * Index repository step - Start background indexing (non-blocking)
+   */
+  private async executeIndexRepository(taskId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Starting background repository indexing`);
+
+    try {
+      // Get task info
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { repoFullName: true },
+      });
+
+      if (!task) {
+        throw new Error(`Task not found: ${taskId}`);
+      }
+
+      // Start background indexing (non-blocking)
+      await startBackgroundIndexing(task.repoFullName, taskId, {
+        clearNamespace: true,
+        force: false
+      });
+
+      console.log(
+        `[TASK_INIT] ${taskId}: Background indexing started for repository ${task.repoFullName}`
+      );
+    } catch (error) {
+      console.error(
+        `[TASK_INIT] ${taskId}: Failed to start background indexing:`,
+        error
+      );
+      // Don't throw error - we don't want indexing failures to block task startup
+      console.log(`[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`);
+    }
+  }
+
 
   /**
    * Emit progress events via WebSocket

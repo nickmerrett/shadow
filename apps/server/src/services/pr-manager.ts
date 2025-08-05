@@ -2,6 +2,7 @@ import { GitManager } from "./git-manager";
 import { LLMService } from "../agent/llm";
 import { PRService } from "../github/pull-requests";
 import type { PRMetadata, CreatePROptions } from "../github/types";
+import { TaskModelContext } from "./task-model-context";
 
 export class PRManager {
   private prService: PRService;
@@ -18,7 +19,7 @@ export class PRManager {
    */
   async createPRIfNeeded(
     options: CreatePROptions,
-    userApiKeys?: { openai?: string; anthropic?: string }
+    context: TaskModelContext
   ): Promise<void> {
     try {
       console.log(`[PR_MANAGER] Processing PR for task ${options.taskId}`);
@@ -42,14 +43,14 @@ export class PRManager {
 
       if (!existingPRNumber) {
         // Create new PR path
-        await this.createNewPR(options, commitSha, userApiKeys);
+        await this.createNewPR(options, commitSha, context);
       } else {
         // Update existing PR path
         await this.updateExistingPR(
           options,
           existingPRNumber,
           commitSha,
-          userApiKeys
+          context
         );
       }
 
@@ -71,10 +72,10 @@ export class PRManager {
   private async createNewPR(
     options: CreatePROptions,
     commitSha: string,
-    userApiKeys?: { openai?: string; anthropic?: string }
+    context: TaskModelContext
   ): Promise<void> {
-    // Generate PR metadata with AI
-    const metadata = await this.generatePRMetadata(options, userApiKeys);
+    // Generate PR metadata with AI using mini model for cost optimization
+    const metadata = await this.generatePRMetadata(options, context);
 
     // Use PR service to create the PR
     const result = await this.prService.createPR(options, metadata, commitSha);
@@ -91,7 +92,7 @@ export class PRManager {
     options: CreatePROptions,
     prNumber: number,
     commitSha: string,
-    userApiKeys?: { openai?: string; anthropic?: string }
+    context: TaskModelContext
   ): Promise<void> {
     // Get current PR description from most recent snapshot
     const latestSnapshot = await this.prService.getLatestSnapshot(
@@ -104,12 +105,12 @@ export class PRManager {
       );
     }
 
-    // Generate updated description using AI
+    // Generate updated description using AI with mini model
     const newDescription = await this.generateUpdatedDescription(
       latestSnapshot?.description || "",
-      await this.gitManager.getDiff(),
+      await this.gitManager.getDiffAgainstBase(options.baseBranch),
       options.taskTitle,
-      userApiKeys
+      context
     );
 
     // Use PR service to update the PR
@@ -130,12 +131,14 @@ export class PRManager {
    */
   private async generatePRMetadata(
     options: CreatePROptions,
-    userApiKeys?: { openai?: string; anthropic?: string }
+    context: TaskModelContext
   ): Promise<PRMetadata> {
     try {
-      const diff = await this.gitManager.getDiff();
+      const diff = await this.gitManager.getDiffAgainstBase(options.baseBranch);
       const commitMessages = await this.getRecentCommitMessages();
 
+      // Use mini model for PR generation (cost optimization)
+      // TODO: Update LLMService to support model selection parameter
       const metadata = await this.llmService.generatePRMetadata(
         {
           taskTitle: options.taskTitle,
@@ -143,7 +146,7 @@ export class PRManager {
           commitMessages,
           wasTaskCompleted: options.wasTaskCompleted,
         },
-        userApiKeys || {}
+        context.getApiKeys() // Pass full API keys for compatibility
       );
 
       return metadata;
@@ -168,7 +171,7 @@ export class PRManager {
     oldDescription: string,
     newDiff: string,
     taskTitle: string,
-    userApiKeys?: { openai?: string; anthropic?: string }
+    context: TaskModelContext
   ): Promise<string> {
     if (!oldDescription) {
       // If no old description, generate fresh one
@@ -178,6 +181,8 @@ export class PRManager {
     }
 
     try {
+      // Use mini model for PR description updates
+      // TODO: Update LLMService to support model selection parameter
       const result = await this.llmService.generatePRMetadata(
         {
           taskTitle,
@@ -185,7 +190,7 @@ export class PRManager {
           commitMessages: [],
           wasTaskCompleted: true,
         },
-        userApiKeys || {}
+        context.getApiKeys()
       );
 
       return result.description;

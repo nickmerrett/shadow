@@ -14,7 +14,6 @@ import type {
 import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
 import { TaskMessages } from "@/lib/db-operations/get-task-messages";
-import { getMostRecentMessageModel } from "@/lib/utils/model-utils";
 import { CodebaseTreeResponse } from "../use-codebase-tree";
 import { Task, TodoStatus } from "@repo/db";
 import { TaskStatusData } from "@/lib/db-operations/get-task-status";
@@ -282,13 +281,13 @@ export function useTaskSocket(taskId: string | undefined) {
     function onChatHistory(data: {
       taskId: string;
       messages: Message[];
+      mostRecentMessageModel: ModelType | null;
       queuedMessage: string | null;
     }) {
       if (data.taskId === taskId) {
-        const mostRecentMessageModel = getMostRecentMessageModel(data.messages);
         queryClient.setQueryData<TaskMessages>(["task-messages", taskId], {
           messages: data.messages,
-          mostRecentMessageModel,
+          mostRecentMessageModel: data.mostRecentMessageModel,
         });
         queryClient.setQueryData(
           ["queued-message", taskId],

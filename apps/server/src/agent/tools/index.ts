@@ -14,11 +14,11 @@ import {
   FileSearchParamsSchema,
   DeleteFileParamsSchema,
   SemanticSearchParamsSchema,
-  WebSearchParamsSchema,
 } from "@repo/types";
 import { createToolExecutor, isLocalMode } from "../../execution";
 import { LocalFileSystemWatcher } from "../../services/local-filesystem-watcher";
 import { emitTerminalOutput, emitStreamChunk } from "../../socket";
+import { isIndexingComplete } from "../../initialization/background-indexing";
 import type { TerminalEntry } from "@repo/types";
 
 // Map to track active filesystem watchers by task ID
@@ -69,7 +69,7 @@ function readDescription(toolName: string): string {
 }
 
 // Factory function to create tools with task context using abstraction layer
-export function createTools(taskId: string, workspacePath?: string) {
+export async function createTools(taskId: string, workspacePath?: string) {
   console.log(
     `[TOOLS] Creating tools for task ${taskId} with workspace: ${workspacePath || "default"}${workspacePath ? " (task-specific)" : " (fallback)"}`
   );
@@ -93,12 +93,36 @@ export function createTools(taskId: string, workspacePath?: string) {
           `[TOOLS] Failed to start filesystem watcher for task ${taskId}:`,
           error
         );
-        // Continue without filesystem watching - not critical for basic operation
       }
     }
   }
 
-  return {
+  // Check if semantic search should be available
+  let includeSemanticSearch = false;
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { repoUrl: true },
+    });
+
+    if (task) {
+      const repoMatch = task.repoUrl.match(/github\.com\/([^/]+\/[^/]+)/);
+      const repo = repoMatch ? repoMatch[1] : null;
+      if (repo) {
+        includeSemanticSearch = await isIndexingComplete(repo);
+        console.log(
+          `[TOOLS] Semantic search ${includeSemanticSearch ? "enabled" : "disabled"} for repo ${repo} (indexing ${includeSemanticSearch ? "complete" : "incomplete"})`
+        );
+      }
+    }
+  } catch (error) {
+    console.error(
+      `[TOOLS] Failed to check indexing status for task ${taskId}:`,
+      error
+    );
+  }
+
+  const baseTools = {
     todo_write: tool({
       description: readDescription("todo_write"),
       parameters: TodoWriteParamsSchema,
@@ -173,7 +197,7 @@ export function createTools(taskId: string, workspacePath?: string) {
                   status: "COMPLETED",
                 },
               })
-            : todos.filter((t: any) => t.status === "completed").length;
+            : todos.filter((t) => t.status === "completed").length;
 
           const summary = `${merge ? "Merged" : "Replaced"} todos: ${results
             .map((r) => `${r.action} "${r.content}" (${r.status})`)
@@ -184,7 +208,7 @@ export function createTools(taskId: string, workspacePath?: string) {
             {
               type: "todo-update",
               todoUpdate: {
-                todos: todos.map((todo: any, index: number) => ({
+                todos: todos.map((todo, index: number) => ({
                   id: todo.id,
                   content: todo.content,
                   status: todo.status as
@@ -345,53 +369,80 @@ export function createTools(taskId: string, workspacePath?: string) {
         return result;
       },
     }),
-    semantic_search: tool({
-      description: readDescription("semantic_search"),
-      parameters: SemanticSearchParamsSchema,
-      execute: async ({ query, explanation }) => {
-        console.log(`[SEMANTIC_SEARCH] ${explanation}`);
+  };
 
-        const task = await prisma.task.findUnique({
-          where: { id: taskId },
-          select: { repoUrl: true },
-        });
+  // Conditionally add semantic search tool if indexing is complete
+  if (includeSemanticSearch) {
+    return {
+      ...baseTools,
+      semantic_search: tool({
+        description: readDescription("semantic_search"),
+        parameters: SemanticSearchParamsSchema,
+        execute: async ({ query, explanation }) => {
+          console.log(`[SEMANTIC_SEARCH] ${explanation}`);
 
-        if (!task) {
-          throw new Error(`Task ${taskId} not found`);
-        }
+          const task = await prisma.task.findUnique({
+            where: { id: taskId },
+            select: { repoUrl: true },
+          });
 
-        // eslint-disable-next-line no-useless-escape
-        const repoMatch = task.repoUrl.match(/github\.com\/([^\/]+\/[^\/]+)/);
-        const repo = repoMatch ? repoMatch[1] : task.repoUrl;
-        if (!repo) {
-          console.warn(
-            `[SEMANTIC_SEARCH] No repo found for task ${taskId}, falling back to grep_search`
-          );
-          const grepResult = await executor.grepSearch(query);
+          if (!task) {
+            throw new Error(`Task ${taskId} not found`);
+          }
 
-          // Convert GrepResult to SemanticSearchToolResult format
-          const results =
-            grepResult.detailedMatches?.map((match, i) => ({
-              id: i + 1,
-              content: match.content,
-              relevance: 0.8,
-              filePath: match.file,
-              lineStart: match.lineNumber,
-              lineEnd: match.lineNumber,
-              language: "",
-              kind: "",
-            })) ||
-            grepResult.matches.map((match, i) => ({
-              id: i + 1,
-              content: match,
-              relevance: 0.8,
-              filePath: "",
-              lineStart: 0,
-              lineEnd: 0,
-              language: "",
-              kind: "",
-            }));
+          // eslint-disable-next-line no-useless-escape
+          const repoMatch = task.repoUrl.match(/github\.com\/([^\/]+\/[^\/]+)/);
+          const repo = repoMatch ? repoMatch[1] : task.repoUrl;
+          if (!repo) {
+            console.warn(
+              `[SEMANTIC_SEARCH] No repo found for task ${taskId}, falling back to grep_search`
+            );
+            const grepResult = await executor.grepSearch(query);
 
+            // Convert GrepResult to SemanticSearchToolResult format
+            const results =
+              grepResult.detailedMatches?.map((match, i) => ({
+                id: i + 1,
+                content: match.content,
+                relevance: 0.8,
+                filePath: match.file,
+                lineStart: match.lineNumber,
+                lineEnd: match.lineNumber,
+                language: "",
+                kind: "",
+              })) ||
+              (grepResult.matches || []).map((match, i) => ({
+                id: i + 1,
+                content: match,
+                relevance: 0.8,
+                filePath: "",
+                lineStart: 0,
+                lineEnd: 0,
+                language: "",
+                kind: "",
+              }));
+
+            return {
+              success: grepResult.success,
+              results,
+              query: query,
+              searchTerms: query.split(/\s+/).filter((term) => term.length > 0),
+              message:
+                (grepResult.message || "Failed to search") +
+                " (fallback to grep)",
+              error: grepResult.error,
+            };
+          } else {
+            console.log(`[SEMANTIC_SEARCH] Using repo: ${repo}`);
+            const result = await executor.semanticSearch(query, repo);
+            return result;
+          }
+        },
+      }),
+    };
+  }
+
+  return baseTools;
           return {
             success: grepResult.success,
             results,
@@ -700,12 +751,29 @@ export function cleanupTaskTerminalCounters(taskId: string): void {
 
 // Default tools export for backward compatibility (without todo_write)
 // Made lazy to avoid circular dependencies
-let _defaultTools: ReturnType<typeof createTools> | undefined;
-export const tools = new Proxy({} as ReturnType<typeof createTools>, {
+let _defaultTools: Awaited<ReturnType<typeof createTools>> | undefined;
+let _defaultToolsPromise:
+  | Promise<Awaited<ReturnType<typeof createTools>>>
+  | undefined;
+
+export const tools = new Proxy({} as Awaited<ReturnType<typeof createTools>>, {
   get(_target, prop) {
-    if (!_defaultTools) {
-      _defaultTools = createTools("placeholder-task-id");
+    if (!_defaultTools && !_defaultToolsPromise) {
+      _defaultToolsPromise = createTools("placeholder-task-id").then(
+        (tools) => {
+          _defaultTools = tools;
+          return tools;
+        }
+      );
     }
-    return _defaultTools![prop as keyof ReturnType<typeof createTools>];
+    if (_defaultTools) {
+      return _defaultTools[
+        prop as keyof Awaited<ReturnType<typeof createTools>>
+      ];
+    }
+    // If tools aren't ready yet, throw an error indicating they need to be awaited
+    throw new Error(
+      "Tools are not ready yet. Use createTools() directly for async initialization."
+    );
   },
 });

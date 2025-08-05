@@ -7,7 +7,6 @@ import { z } from "zod";
 export const sharedConfigSchema = z.object({
   // Server configuration
   API_PORT: z.coerce.number().default(4000),
-  CLIENT_URL: z.string().default("http://localhost:3000"),
   API_URL: z.string().default("http://localhost:4000"),
 
   // Environment
@@ -18,9 +17,6 @@ export const sharedConfigSchema = z.object({
     .string()
     .optional()
     .transform((val) => val === "true"),
-
-  // LLM API Keys
-  EXA_API_KEY: z.string().optional(),
 
   // GitHub integration (required for all environments)
   GITHUB_CLIENT_ID: z.string(),
@@ -51,13 +47,9 @@ export const createSharedConfig = (
 ) => ({
   // Server
   apiPort: data.API_PORT,
-  clientUrl: data.CLIENT_URL,
   apiUrl: data.API_URL,
   nodeEnv: data.NODE_ENV,
   debug: data.DEBUG,
-
-  // LLM APIs
-  exaApiKey: data.EXA_API_KEY,
 
   // GitHub
   githubClientId: data.GITHUB_CLIENT_ID,

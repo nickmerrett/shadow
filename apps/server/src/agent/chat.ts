@@ -11,8 +11,12 @@ import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import { getSystemPrompt, getDeepWikiMessage } from "./system-prompt";
+import { createTools } from "./tools";
+import type { ToolSet } from "ai";
 import { GitManager } from "../services/git-manager";
 import { PRManager } from "../services/pr-manager";
+import { modelContextService } from "../services/model-context-service";
+import { TaskModelContext } from "../services/task-model-context";
 
 import {
   emitStreamChunk,
@@ -38,9 +42,8 @@ export class ChatService {
     string,
     {
       message: string;
-      model: ModelType;
+      context: TaskModelContext;
       workspacePath?: string;
-      userApiKeys: { openai?: string; anthropic?: string };
     }
   > = new Map();
 
@@ -166,6 +169,7 @@ export class ChatService {
    */
   private async commitChangesIfAny(
     taskId: string,
+    context: TaskModelContext,
     workspacePath?: string
   ): Promise<boolean> {
     try {
@@ -216,7 +220,8 @@ export class ChatService {
           {
             name: "Shadow",
             email: "noreply@shadowrealm.ai",
-          }
+          },
+          context
         );
 
         if (committed) {
@@ -227,7 +232,7 @@ export class ChatService {
 
         return committed;
       } else {
-        return await this.commitChangesRemoteMode(taskId, task);
+        return await this.commitChangesRemoteMode(taskId, task, context);
       }
     } catch (error) {
       console.error(
@@ -245,7 +250,32 @@ export class ChatService {
     taskId: string,
     workspacePath?: string,
     messageId?: string,
-    userApiKeys?: { openai?: string; anthropic?: string }
+    context?: TaskModelContext
+  ): Promise<void> {
+    // Get or create context if not provided
+    let modelContext: TaskModelContext;
+    if (context) {
+      modelContext = context;
+    } else {
+      const taskContext = await modelContextService.getContextForTask(taskId);
+      if (!taskContext) {
+        console.warn(`[CHAT] No model context available for task ${taskId}, skipping PR creation`);
+        return;
+      }
+      modelContext = taskContext;
+    }
+
+    return this._createPRIfNeededInternal(taskId, workspacePath, messageId, modelContext);
+  }
+
+  /**
+   * Internal method for PR creation
+   */
+  private async _createPRIfNeededInternal(
+    taskId: string,
+    workspacePath?: string,
+    messageId?: string,
+    context?: TaskModelContext
   ): Promise<void> {
     try {
       console.log(`[CHAT] Attempting to create PR for task ${taskId}`);
@@ -285,6 +315,11 @@ export class ChatService {
         return;
       }
 
+      if (!context) {
+        console.warn(`[CHAT] No context available for PR creation, skipping PR for task ${taskId}`);
+        return;
+      }
+
       await prManager.createPRIfNeeded(
         {
           taskId,
@@ -296,7 +331,7 @@ export class ChatService {
           wasTaskCompleted: task.status === "COMPLETED",
           messageId,
         },
-        userApiKeys
+        context
       );
     } catch (error) {
       console.error(`[CHAT] Failed to create PR for task ${taskId}:`, error);
@@ -311,7 +346,7 @@ export class ChatService {
     taskId: string,
     workspacePath?: string,
     messageId?: string,
-    userApiKeys?: { openai?: string; anthropic?: string }
+    context?: TaskModelContext
   ): Promise<void> {
     try {
       console.log(`[CHAT] Checking user auto-PR setting for task ${taskId}`);
@@ -351,7 +386,7 @@ export class ChatService {
         taskId,
         workspacePath,
         messageId,
-        userApiKeys
+        context
       );
     } catch (error) {
       console.error(
@@ -370,7 +405,8 @@ export class ChatService {
     task: {
       user: { name: string; email: string };
       shadowBranch: string | null;
-    }
+    },
+    context: TaskModelContext
   ): Promise<boolean> {
     try {
       console.log(
@@ -405,7 +441,8 @@ export class ChatService {
         // Generate commit message using server-side GitManager (which has AI integration)
         const tempGitManager = new GitManager("");
         commitMessage = await tempGitManager.generateCommitMessage(
-          diffResponse.diff
+          diffResponse.diff,
+          context
         );
       }
 
@@ -551,11 +588,13 @@ export class ChatService {
     }
   }
 
+  /**
+   * Process user message using TaskModelContext system
+   */
   async processUserMessage({
     taskId,
     userMessage,
-    llmModel,
-    userApiKeys,
+    context,
     enableTools = true,
     skipUserMessageSave = false,
     workspacePath,
@@ -563,8 +602,41 @@ export class ChatService {
   }: {
     taskId: string;
     userMessage: string;
-    llmModel: ModelType;
-    userApiKeys: { openai?: string; anthropic?: string };
+    context: TaskModelContext;
+    enableTools?: boolean;
+    skipUserMessageSave?: boolean;
+    workspacePath?: string;
+    queue?: boolean;
+  }) {
+    // Update task's mainModel to keep it current
+    await modelContextService.updateTaskMainModel(taskId, context.getMainModel());
+
+    return this._processUserMessageInternal({
+      taskId,
+      userMessage,
+      context,
+      enableTools,
+      skipUserMessageSave,
+      workspacePath,
+      queue,
+    });
+  }
+
+  /**
+   * Internal method for processing user messages
+   */
+  private async _processUserMessageInternal({
+    taskId,
+    userMessage,
+    context,
+    enableTools = true,
+    skipUserMessageSave = false,
+    workspacePath,
+    queue = false,
+  }: {
+    taskId: string;
+    userMessage: string;
+    context: TaskModelContext;
     enableTools?: boolean;
     skipUserMessageSave?: boolean;
     workspacePath?: string;
@@ -583,9 +655,8 @@ export class ChatService {
         // Override the existing queued message if it exists
         this.queuedMessages.set(taskId, {
           message: userMessage,
-          model: llmModel,
+          context,
           workspacePath,
-          userApiKeys,
         });
         return;
       }
@@ -609,7 +680,7 @@ export class ChatService {
 
     // Save user message to database (unless skipped, e.g. on task initialization)
     if (!skipUserMessageSave) {
-      await this.saveUserMessage(taskId, userMessage, llmModel);
+      await this.saveUserMessage(taskId, userMessage, context.getMainModel());
     }
 
     const history = await this.getChatHistory(taskId);
@@ -634,7 +705,7 @@ export class ChatService {
         await this.saveSystemMessage(
           taskId,
           deepWikiContent,
-          llmModel,
+          context.getMainModel(),
           deepWikiSequence
         );
 
@@ -643,7 +714,7 @@ export class ChatService {
           role: "system",
           content: deepWikiContent,
           createdAt: new Date().toISOString(),
-          llmModel,
+          llmModel: context.getMainModel(),
         });
       }
 
@@ -691,14 +762,14 @@ export class ChatService {
       role: "user",
       content: userMessage,
       createdAt: new Date().toISOString(),
-      llmModel,
+      llmModel: context.getMainModel(),
     });
 
     console.log(
       `[CHAT] Processing message for task ${taskId} with ${messages.length} context messages`
     );
     console.log(
-      `[CHAT] Using model: ${llmModel}, Tools enabled: ${enableTools}`
+      `[CHAT] Using model: ${context.getMainModel()}, Tools enabled: ${enableTools}`
     );
 
     startStream(taskId);
@@ -717,19 +788,27 @@ export class ChatService {
 
     const toolCallSequences = new Map<string, number>();
 
-    const taskSystemPrompt = await getSystemPrompt();
+    // Create tools first so we can generate system prompt based on available tools
+    let availableTools: ToolSet | undefined;
+    if (enableTools && taskId) {
+      availableTools = await createTools(taskId, workspacePath);
+    }
+
+    // Get system prompt with available tools context
+    const taskSystemPrompt = await getSystemPrompt(availableTools);
 
 
     try {
       for await (const chunk of this.llmService.createMessageStream(
         taskSystemPrompt,
         messages,
-        llmModel,
-        userApiKeys,
+        context.getMainModel(),
+        context.getApiKeys(),
         enableTools,
         taskId, // Pass taskId to enable todo tool context
         workspacePath, // Pass workspace path for tool operations
-        abortController.signal
+        abortController.signal,
+        availableTools
       )) {
         if (this.stopRequested.has(taskId)) {
           console.log(`[CHAT] Stop requested during stream for task ${taskId}`);
@@ -753,7 +832,7 @@ export class ChatService {
             const assistantMsg = await this.saveAssistantMessage(
               taskId,
               chunk.content, // Still store some content for backward compatibility
-              llmModel,
+              context.getMainModel(),
               assistantSequence,
               {
                 isStreaming: true,
@@ -825,7 +904,7 @@ export class ChatService {
             chunk.toolCall.args,
             "Running...", // Placeholder content
             toolSequence,
-            llmModel,
+            context.getMainModel(),
             {
               tool: {
                 name: chunk.toolCall.name,
@@ -1045,6 +1124,7 @@ export class ChatService {
         try {
           const changesCommitted = await this.commitChangesIfAny(
             taskId,
+            context,
             workspacePath
           );
 
@@ -1054,7 +1134,7 @@ export class ChatService {
               taskId,
               workspacePath,
               assistantMessageId,
-              userApiKeys
+              context
             );
           }
         } catch (error) {
@@ -1111,11 +1191,11 @@ export class ChatService {
     console.log(`[CHAT] Processing queued message for task ${taskId}`);
 
     try {
+      // Use the stored TaskModelContext directly
       await this.processUserMessage({
         taskId,
         userMessage: queuedMessage.message,
-        llmModel: queuedMessage.model,
-        userApiKeys: queuedMessage.userApiKeys,
+        context: queuedMessage.context,
         enableTools: true,
         skipUserMessageSave: false,
         workspacePath: queuedMessage.workspacePath,
@@ -1166,14 +1246,14 @@ export class ChatService {
     messageId,
     newContent,
     newModel,
-    userApiKeys,
+    context,
     workspacePath,
   }: {
     taskId: string;
     messageId: string;
     newContent: string;
     newModel: ModelType;
-    userApiKeys: { openai?: string; anthropic?: string };
+    context: TaskModelContext;
     workspacePath?: string;
   }): Promise<void> {
     console.log(`[CHAT] Editing user message ${messageId} in task ${taskId}`);
@@ -1244,16 +1324,31 @@ export class ChatService {
     );
 
     // Start streaming from the edited message
-    await this.processUserMessage({
-      taskId,
-      userMessage: newContent,
-      llmModel: newModel,
-      userApiKeys,
-      enableTools: true,
-      skipUserMessageSave: true, // Don't save again, already updated
-      workspacePath,
-      queue: false,
-    });
+    // Update context with new model if it has changed
+    if (context.getMainModel() !== newModel) {
+      // Create new context with updated model
+      const updatedContext = new TaskModelContext(taskId, newModel, context.getApiKeys());
+      await this.processUserMessage({
+        taskId,
+        userMessage: newContent,
+        context: updatedContext,
+        enableTools: true,
+        skipUserMessageSave: true, // Don't save again, already updated
+        workspacePath,
+        queue: false,
+      });
+    } else {
+      // Use existing context
+      await this.processUserMessage({
+        taskId,
+        userMessage: newContent,
+        context,
+        enableTools: true,
+        skipUserMessageSave: true, // Don't save again, already updated
+        workspacePath,
+        queue: false,
+      });
+    }
   }
 
   /**

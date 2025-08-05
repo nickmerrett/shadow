@@ -40,3 +40,5 @@ shadow-worktree/*
 bun.lock
 
 internal/
+
+scripts/logs/

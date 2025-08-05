@@ -1,11 +1,13 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/client"
+  provider      = "prisma-client-js"
+  output        = "../generated/client"
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -82,6 +84,9 @@ model Task {
   // Repo URL "https://github.com/owner/repo"
   repoUrl      String
 
+  // User's selected LLM model for this task - updated on each user message
+  // Used for context-aware operations (commits, PR generation, etc.)
+  mainModel           String?
   workspacePath       String?
   initStatus          InitStatus        @default(INACTIVE)
   scheduledCleanupAt  DateTime?
@@ -104,6 +109,18 @@ model Task {
 
   codebaseUnderstandingId String?
   codebaseUnderstanding   CodebaseUnderstanding? @relation(fields: [codebaseUnderstandingId], references: [id])
+}
+
+model RepositoryIndex {
+  id            String   @id @default(cuid())
+  repoFullName  String   @unique
+  lastIndexedAt DateTime @default(now())
+  lastCommitSha String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([repoFullName])
+  @@map("repository_index")
 }
 
 model Todo {

@@ -1,3 +1,4 @@
+import { verifyTaskOwnership } from "@/lib/auth/verify-task-ownership";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -7,9 +8,14 @@ export async function GET(
   try {
     const { taskId } = await params;
 
+    const { error, user: _user } = await verifyTaskOwnership(taskId);
+    if (error) return error;
+
     // Forward to backend server
     const backendUrl = process.env.BACKEND_URL || "http://localhost:4000";
-    const response = await fetch(`${backendUrl}/api/tasks/${taskId}/diff-stats`);
+    const response = await fetch(
+      `${backendUrl}/api/tasks/${taskId}/diff-stats`
+    );
 
     if (!response.ok) {
       return NextResponse.json(

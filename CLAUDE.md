@@ -259,8 +259,28 @@ const workspaceManager = createWorkspaceManager();
 # Deploy ECS backend + remote infrastructure  
 ./scripts/deploy-full-infrastructure.sh
 
+# Deploy ECS backend only (with optional SSL support)
+# For HTTP only:
+./scripts/deploy-backend-ecs.sh
+
+# For HTTPS with SSL certificate:
+SSL_CERTIFICATE_ARN=arn:aws:acm:region:account:certificate/cert-id ./scripts/deploy-backend-ecs.sh
+
 # Build and deploy container images via GitHub Actions
 # Triggered by: .github/workflows/build.yml
+```
+
+**SSL/HTTPS Configuration:**
+```bash
+# 1. Request SSL certificate in AWS Certificate Manager (ACM)
+aws acm request-certificate --domain-name your-domain.com --validation-method DNS
+
+# 2. Deploy with SSL certificate ARN
+SSL_CERTIFICATE_ARN=arn:aws:acm:us-east-1:123456789:certificate/your-cert-id \
+  ./scripts/deploy-backend-ecs.sh
+
+# 3. Update frontend environment
+# Set NEXT_PUBLIC_SERVER_URL=https://your-alb-dns-name in Vercel deployment settings
 ```
 
 **Infrastructure Components:**
