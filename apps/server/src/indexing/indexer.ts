@@ -22,7 +22,8 @@ import { tokenize } from "@/indexing/utils/tokenize";
 import TreeSitter from "tree-sitter";
 import { embedAndUpsertToPinecone } from "./embedderWrapper";
 import { getOwnerFromRepo, isValidRepo } from "./utils/repository";
-import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
+import { createWorkspaceManager } from "@/execution";
+import type { ToolExecutor } from "@/execution/interfaces/tool-executor";
 import { IndexRepoOptions } from "@repo/types";
 import { DEFAULT_MAX_LINES_PER_CHUNK } from "./constants";
 import { EXCLUDED_EXTENSIONS } from "@repo/types";
@@ -83,17 +84,66 @@ async function createUnsupportedFileChunks(
   }
 }
 
+// Utility function to recursively get all files using ToolExecutor
+async function getAllFilesFromExecutor(
+  executor: ToolExecutor,
+  basePath: string = "."
+): Promise<Array<{ path: string; content: string; type: string }>> {
+  const files: Array<{ path: string; content: string; type: string }> = [];
+  
+  async function traverse(currentPath: string) {
+    const listing = await executor.listDirectory(currentPath);
+    if (!listing.success || !listing.contents) {
+      return;
+    }
+    
+    for (const item of listing.contents) {
+      const itemPath = currentPath === "." ? item.name : `${currentPath}/${item.name}`;
+      
+      if (item.isDirectory) {
+        // Skip common directories that shouldn't be indexed
+        if (item.name.startsWith('.') && item.name !== '.github') {
+          continue;
+        }
+        if (['node_modules', 'dist', 'build', '.next', 'coverage'].includes(item.name)) {
+          continue;
+        }
+        
+        // Recursively traverse directory
+        await traverse(itemPath);
+      } else {
+        // Skip files with excluded extensions
+        const extension = item.name.split('.').pop()?.toLowerCase();
+        if (extension && EXCLUDED_EXTENSIONS.includes(extension)) {
+          continue;
+        }
+        
+        // Read file content
+        const fileResult = await executor.readFile(itemPath);
+        if (fileResult.success && fileResult.content) {
+          files.push({
+            path: itemPath,
+            content: fileResult.content,
+            type: "file"
+          });
+        }
+      }
+    }
+  }
+  
+  await traverse(basePath);
+  return files;
+}
+
 // Add GitHub API helper
 async function fetchRepoFiles(
   taskId: string
 ): Promise<Array<{ path: string; content: string; type: string }>> {
-  // For local indexing, we'll use the workspace manager
-  // The repo parameter should be the taskId or we need to map repo to taskId
-
-  // You'll need to get the taskId from the repo name or pass it differently
-
-  const workspaceManager = new LocalWorkspaceManager();
-  return await workspaceManager.getAllFilesFromWorkspace(taskId);
+  // Use execution abstraction layer to work in both local and remote modes
+  const workspaceManager = createWorkspaceManager();
+  const executor = await workspaceManager.getExecutor(taskId);
+  
+  return await getAllFilesFromExecutor(executor);
 }
 
 // Modified indexRepo to accept GitHub repo

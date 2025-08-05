@@ -3,7 +3,53 @@ import path from "path";
 import os from "os";
 import { isValidRepo, getOwnerFromRepo } from "../utils/repository";
 import logger from "../logger";
-import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
+import { createWorkspaceManager } from "@/execution";
+import type { ToolExecutor } from "@/execution/interfaces/tool-executor";
+
+// Utility function to recursively get all files using ToolExecutor
+async function getAllFilesFromExecutor(
+  executor: ToolExecutor,
+  basePath: string = "."
+): Promise<Array<{ path: string; content: string; type: string }>> {
+  const files: Array<{ path: string; content: string; type: string }> = [];
+  
+  async function traverse(currentPath: string) {
+    const listing = await executor.listDirectory(currentPath);
+    if (!listing.success || !listing.contents) {
+      return;
+    }
+    
+    for (const item of listing.contents) {
+      const itemPath = currentPath === "." ? item.name : `${currentPath}/${item.name}`;
+      
+      if (item.isDirectory) {
+        // Skip common directories that shouldn't be indexed
+        if (item.name.startsWith('.') && item.name !== '.github') {
+          continue;
+        }
+        if (['node_modules', 'dist', 'build', '.next', 'coverage'].includes(item.name)) {
+          continue;
+        }
+        
+        // Recursively traverse directory
+        await traverse(itemPath);
+      } else {
+        // Read file content
+        const fileResult = await executor.readFile(itemPath);
+        if (fileResult.success && fileResult.content) {
+          files.push({
+            path: itemPath,
+            content: fileResult.content,
+            type: "file"
+          });
+        }
+      }
+    }
+  }
+  
+  await traverse(basePath);
+  return files;
+}
 
 /**
  * Resolve a repo identifier ("owner/repo" or absolute path) into a local directory path.
@@ -118,16 +164,17 @@ async function resolveFromWorkspace(
 
 /**
  * Fetch repository files using the workspace manager instead of GitHub API.
- * Uses LocalWorkspaceManager to get all files from a workspace.
+ * Uses execution abstraction layer to work in both local and remote modes.
  */
 async function fetchRepositoryFilesFromWorkspace(
   taskId: string,
   destDir: string
 ) {
-  const workspaceManager = new LocalWorkspaceManager();
+  const workspaceManager = createWorkspaceManager();
+  const executor = await workspaceManager.getExecutor(taskId);
 
   try {
-    const files = await workspaceManager.getAllFilesFromWorkspace(taskId);
+    const files = await getAllFilesFromExecutor(executor);
 
     // Skip binary files and very large files
     const skipExtensions = [
