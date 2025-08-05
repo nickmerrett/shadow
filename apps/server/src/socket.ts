@@ -254,7 +254,7 @@ export function createSocketServer(
   // Determine Socket.IO CORS origins based on environment (same as main app)
   const socketCorsOrigins =
     process.env.NODE_ENV === "production"
-      ? ["https://shadow-agent-dev.vercel.app", "https://shadowrealm.ai"]
+      ? ["https://shadow-agent-dev.vercel.app", "https://www.shadowrealm.ai"]
       : ["http://localhost:3000"];
 
   console.log(`[SOCKET] Allowing origins:`, socketCorsOrigins);
