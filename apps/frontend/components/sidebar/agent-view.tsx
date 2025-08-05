@@ -15,6 +15,7 @@ import {
   FolderGit2,
   GitBranch,
   ListTodo,
+  RefreshCcw,
   Square,
   SquareCheck,
   SquareX,
@@ -33,6 +34,7 @@ import { useTaskSocket } from "@/hooks/socket";
 import { Loader2 } from "lucide-react";
 import { useIndexingStatus } from "@/hooks/use-indexing-status";
 import { useQueryClient } from "@tanstack/react-query";
+import { fetchIndexApi } from "@/lib/actions/index-repo";
 import {
   DropdownMenu,
   DropdownMenuContent,
