@@ -31,9 +31,31 @@ RUN rm -rf packages/db/generated/ packages/db/dist/
 RUN npm run generate --filter=@repo/db
 RUN npx turbo build --filter=@repo/db
 
-# Build the server with Docker-specific config
+# Build the server with inline commands (replicating build script logic)
 WORKDIR /app/apps/server
-RUN npx tsc
+RUN rm -rf dist && \
+  echo "📦 Compiling TypeScript..." && \
+  npx tsc && \
+  echo "🔗 Flattening build structure..." && \
+  if [ -d "dist/apps/server/src" ]; then \
+  mkdir -p dist_temp && \
+  mv dist/apps/server/src/* dist_temp/ && \
+  rm -rf dist/apps && \
+  mv dist_temp/* dist/ && \
+  rm -rf dist_temp; \
+  fi && \
+  echo "🔗 Resolving path aliases..." && \
+  npx tsc-alias && \
+  echo "📄 Copying tool instruction files..." && \
+  mkdir -p dist/agent/tools/prompts && \
+  for tool_dir in src/agent/tools/prompts/*/; do \
+  if [ -d "$tool_dir" ]; then \
+  tool_name=$(basename "$tool_dir") && \
+  mkdir -p "dist/agent/tools/prompts/$tool_name" && \
+  cp "$tool_dir"*.md "dist/agent/tools/prompts/$tool_name/" 2>/dev/null || true; \
+  fi; \
+  done && \
+  echo "✅ Server build complete!"
 
 # Runtime stage - minimal production image
 FROM base AS runner
