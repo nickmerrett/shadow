@@ -19,8 +19,103 @@ export class RemoteVMRunner {
 
     // Initialize Kubernetes client
     this.k8sConfig = new k8s.KubeConfig();
-    this.k8sConfig.loadFromDefault();
+
+    // Configure for ECS environment using explicit configuration
+    this.configureKubernetesClient(options);
     this.coreV1Api = this.k8sConfig.makeApiClient(k8s.CoreV1Api);
+  }
+
+  /**
+   * Configure Kubernetes client for ECS environment
+   * Uses environment variables provided by ECS task definition
+   */
+  private configureKubernetesClient(options: {
+    k8sApiUrl?: string;
+    token?: string;
+  }) {
+    // Get configuration from environment variables (set by ECS task definition)
+    const k8sHost =
+      options.k8sApiUrl ||
+      config.kubernetesServiceHost ||
+      process.env.KUBERNETES_SERVICE_HOST;
+    const k8sPort =
+      config.kubernetesServicePort ||
+      process.env.KUBERNETES_SERVICE_PORT ||
+      "443";
+    const serviceAccountToken =
+      options.token ||
+      config.k8sServiceAccountToken ||
+      process.env.K8S_SERVICE_ACCOUNT_TOKEN;
+
+    console.log(`[REMOTE_VM_RUNNER] Configuring Kubernetes client`, {
+      host: k8sHost,
+      port: k8sPort,
+      namespace: this.namespace,
+      hasToken: !!serviceAccountToken,
+    });
+
+    // Validate required configuration
+    if (!k8sHost) {
+      throw new Error(
+        "Kubernetes host not configured. Set KUBERNETES_SERVICE_HOST environment variable or provide k8sApiUrl option."
+      );
+    }
+
+    if (!serviceAccountToken) {
+      throw new Error(
+        "Kubernetes service account token not configured. Set K8S_SERVICE_ACCOUNT_TOKEN environment variable or provide token option."
+      );
+    }
+
+    // Build the cluster server URL
+    const serverUrl = k8sHost.startsWith("https://")
+      ? k8sHost
+      : `https://${k8sHost}:${k8sPort}`;
+
+    console.log(
+      `[REMOTE_VM_RUNNER] Connecting to Kubernetes cluster: ${serverUrl}`
+    );
+
+    // Manually configure kubeconfig structure
+    // This creates the complete cluster + user + context configuration
+    this.k8sConfig.clusters = [
+      {
+        name: "shadow-cluster",
+        server: serverUrl,
+        skipTLSVerify: true,
+      },
+    ];
+
+    this.k8sConfig.users = [
+      {
+        name: "shadow-service-account",
+        token: serviceAccountToken,
+      },
+    ];
+
+    this.k8sConfig.contexts = [
+      {
+        name: "shadow-context",
+        cluster: "shadow-cluster",
+        user: "shadow-service-account",
+      },
+    ];
+
+    // Set current context
+    this.k8sConfig.currentContext = "shadow-context";
+  }
+
+  /**
+   * Sanitize task ID to be Kubernetes DNS-compliant
+   * Kubernetes names must be lowercase RFC 1123 subdomains
+   */
+  private sanitizeTaskIdForK8s(taskId: string): string {
+    return taskId
+      .toLowerCase()                    // Convert to lowercase
+      .replace(/[^a-z0-9-]/g, '-')     // Replace invalid chars with hyphens
+      .replace(/^-+|-+$/g, '')         // Remove leading/trailing hyphens
+      .replace(/-+/g, '-')             // Collapse multiple hyphens
+      .substring(0, 50);               // Limit length (K8s limit is 63 chars)
   }
 
   /**
@@ -36,20 +131,24 @@ export class RemoteVMRunner {
       ? `${config.vmImageRegistry}/shadow-sidecar:${config.vmImageTag || "latest"}`
       : "ghcr.io/ishaan1013/shadow/shadow-sidecar:latest";
 
+    // Sanitize task ID for Kubernetes DNS compliance
+    const sanitizedTaskId = this.sanitizeTaskIdForK8s(taskConfig.id);
+
     return {
       apiVersion: "v1",
       kind: "Pod",
       metadata: {
-        name: `shadow-vm-${taskConfig.id.toLowerCase().replaceAll("_", "-")}`,
+        name: `shadow-vm-${sanitizedTaskId}`,
         namespace: this.namespace,
         labels: {
           app: "shadow-remote",
           component: "vm",
-          "task-id": taskConfig.id,
+          "task-id": sanitizedTaskId,
           "user-id": taskConfig.userId,
         },
         annotations: {
-          "shadow.io/task-id": taskConfig.id,
+          "shadow.io/task-id": taskConfig.id, // Keep original task ID
+          "shadow.io/sanitized-task-id": sanitizedTaskId, // Add sanitized version
           "shadow.io/repo-url": taskConfig.repoUrl,
           "shadow.io/base-branch": taskConfig.baseBranch,
           "shadow.io/shadow-branch": taskConfig.shadowBranch,
@@ -235,7 +334,8 @@ export class RemoteVMRunner {
   }
 
   async deleteVMPod(taskId: string): Promise<void> {
-    const podName = `shadow-vm-${taskId.toLowerCase().replaceAll("_", "-")}`;
+    const sanitizedTaskId = this.sanitizeTaskIdForK8s(taskId);
+    const podName = `shadow-vm-${sanitizedTaskId}`;
 
     try {
       await this.coreV1Api.deleteNamespacedPod({
@@ -256,7 +356,8 @@ export class RemoteVMRunner {
   }
 
   async getVMPodStatus(taskId: string): Promise<k8s.V1Pod> {
-    const podName = `shadow-vm-${taskId.toLowerCase().replaceAll("_", "-")}`;
+    const sanitizedTaskId = this.sanitizeTaskIdForK8s(taskId);
+    const podName = `shadow-vm-${sanitizedTaskId}`;
 
     try {
       const pod = await this.coreV1Api.readNamespacedPod({
@@ -282,7 +383,8 @@ export class RemoteVMRunner {
   ): Promise<void> {
     const startTime = Date.now();
     const pollInterval = 5000; // 5 seconds
-    const podName = `shadow-vm-${taskId.toLowerCase().replaceAll("_", "-")}`;
+    const sanitizedTaskId = this.sanitizeTaskIdForK8s(taskId);
+    const podName = `shadow-vm-${sanitizedTaskId}`;
 
     while (Date.now() - startTime < maxWaitTime) {
       try {

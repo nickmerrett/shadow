@@ -15,7 +15,7 @@ export async function GET(
     const decodedRepoFullName = decodeURIComponent(repoFullName);
 
     const backendUrl =
-      process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+      process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
     const response = await fetch(
       `${backendUrl}/api/indexing-status/${encodeURIComponent(decodedRepoFullName)}`,
       {

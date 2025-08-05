@@ -33,9 +33,16 @@ const initiateTaskSchema = z.object({
 const socketIOServer = http.createServer(app);
 createSocketServer(socketIOServer);
 
+// Determine CORS origins based on environment
+const corsOrigins = process.env.NODE_ENV === "production" 
+  ? ["https://shadow-agent-dev.vercel.app", "https://shadowrealm.ai"]
+  : ["http://localhost:3000"];
+
+console.log(`[CORS] Allowing origins:`, corsOrigins);
+
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: corsOrigins,
     credentials: true,
   })
 );
