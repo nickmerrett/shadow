@@ -22,10 +22,13 @@ export async function saveApiKey(provider: ApiKeyProvider, key: string | null) {
   const cookieName = `${provider}-key`;
 
   if (key) {
+    const isProduction = process.env.NODE_ENV === "production";
+    
     cookieStore.set(cookieName, key, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: isProduction,
+      // Use "none" for production to allow cross-domain cookies, "lax" for development
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 60 * 60 * 24 * 30,
       path: "/",
     });
