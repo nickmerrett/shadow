@@ -106,6 +106,19 @@ export class RemoteVMRunner {
   }
 
   /**
+   * Sanitize task ID to be Kubernetes DNS-compliant
+   * Kubernetes names must be lowercase RFC 1123 subdomains
+   */
+  private sanitizeTaskIdForK8s(taskId: string): string {
+    return taskId
+      .toLowerCase()                    // Convert to lowercase
+      .replace(/[^a-z0-9-]/g, '-')     // Replace invalid chars with hyphens
+      .replace(/^-+|-+$/g, '')         // Remove leading/trailing hyphens
+      .replace(/-+/g, '-')             // Collapse multiple hyphens
+      .substring(0, 50);               // Limit length (K8s limit is 63 chars)
+  }
+
+  /**
    * Create kata-qemu VM pod specification
    * Kata QEMU handles VM lifecycle automatically - no manual VM management needed
    */
@@ -118,20 +131,24 @@ export class RemoteVMRunner {
       ? `${config.vmImageRegistry}/shadow-sidecar:${config.vmImageTag || "latest"}`
       : "ghcr.io/ishaan1013/shadow/shadow-sidecar:latest";
 
+    // Sanitize task ID for Kubernetes DNS compliance
+    const sanitizedTaskId = this.sanitizeTaskIdForK8s(taskConfig.id);
+
     return {
       apiVersion: "v1",
       kind: "Pod",
       metadata: {
-        name: `shadow-vm-${taskConfig.id.toLowerCase().replaceAll("_", "-")}`,
+        name: `shadow-vm-${sanitizedTaskId}`,
         namespace: this.namespace,
         labels: {
           app: "shadow-remote",
           component: "vm",
-          "task-id": taskConfig.id,
+          "task-id": sanitizedTaskId,
           "user-id": taskConfig.userId,
         },
         annotations: {
-          "shadow.io/task-id": taskConfig.id,
+          "shadow.io/task-id": taskConfig.id, // Keep original task ID
+          "shadow.io/sanitized-task-id": sanitizedTaskId, // Add sanitized version
           "shadow.io/repo-url": taskConfig.repoUrl,
           "shadow.io/base-branch": taskConfig.baseBranch,
           "shadow.io/shadow-branch": taskConfig.shadowBranch,
@@ -317,7 +334,8 @@ export class RemoteVMRunner {
   }
 
   async deleteVMPod(taskId: string): Promise<void> {
-    const podName = `shadow-vm-${taskId.toLowerCase().replaceAll("_", "-")}`;
+    const sanitizedTaskId = this.sanitizeTaskIdForK8s(taskId);
+    const podName = `shadow-vm-${sanitizedTaskId}`;
 
     try {
       await this.coreV1Api.deleteNamespacedPod({
@@ -338,7 +356,8 @@ export class RemoteVMRunner {
   }
 
   async getVMPodStatus(taskId: string): Promise<k8s.V1Pod> {
-    const podName = `shadow-vm-${taskId.toLowerCase().replaceAll("_", "-")}`;
+    const sanitizedTaskId = this.sanitizeTaskIdForK8s(taskId);
+    const podName = `shadow-vm-${sanitizedTaskId}`;
 
     try {
       const pod = await this.coreV1Api.readNamespacedPod({
@@ -364,7 +383,8 @@ export class RemoteVMRunner {
   ): Promise<void> {
     const startTime = Date.now();
     const pollInterval = 5000; // 5 seconds
-    const podName = `shadow-vm-${taskId.toLowerCase().replaceAll("_", "-")}`;
+    const sanitizedTaskId = this.sanitizeTaskIdForK8s(taskId);
+    const podName = `shadow-vm-${sanitizedTaskId}`;
 
     while (Date.now() - startTime < maxWaitTime) {
       try {
