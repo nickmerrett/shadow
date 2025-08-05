@@ -1,8 +1,8 @@
 "use server";
 
 import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { anthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import {
   cleanTitle,
   generateShadowBranchName,
@@ -36,8 +36,8 @@ export async function generateTaskTitleAndBranch(
 
     const model =
       modelConfig.provider === "openai"
-        ? openai(modelConfig.modelChoice)
-        : anthropic(modelConfig.modelChoice);
+        ? createOpenAI({ apiKey: apiKeys.openai })(modelConfig.modelChoice)
+        : createAnthropic({ apiKey: apiKeys.anthropic })(modelConfig.modelChoice);
 
     const { text: generatedText } = await generateText({
       model,
