@@ -10,6 +10,7 @@ import { useEditMessageId } from "@/hooks/use-edit-message-id";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { useEditMessage } from "@/hooks/use-edit-message";
+import { StackedPRCard } from "./stacked-pr-card";
 
 const MAX_CONTENT_HEIGHT = 128;
 
@@ -229,6 +230,9 @@ export function UserMessage({
               {message.content}
             </div>
           </div>
+          {message.stackedTask && (
+            <StackedPRCard stackedTask={message.stackedTask} />
+          )}
           <div className="bg-background absolute inset-px -z-10 rounded-[calc(var(--radius)+1px)]" />
         </>
       )}

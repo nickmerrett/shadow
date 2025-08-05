@@ -28,7 +28,7 @@ interface ConnectionState {
   };
 }
 
-type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
+export type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 interface TaskStreamState {
   chunks: StreamChunk[];
@@ -416,6 +416,40 @@ export function createSocketServer(
         chatService.clearQueuedMessage(data.taskId);
       } catch (error) {
         console.error("Error clearing queued message:", error);
+      }
+    });
+
+    socket.on("create-stacked-pr", async (data) => {
+      try {
+        console.log("Received create stacked PR:", data);
+
+        const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
+        if (!hasAccess) {
+          socket.emit("message-error", { error: "Access denied to task" });
+          return;
+        }
+
+        const parentTask = await prisma.task.findUnique({
+          where: { id: data.taskId },
+          select: { userId: true },
+        });
+
+        if (!parentTask) {
+          socket.emit("message-error", { error: "Parent task not found" });
+          return;
+        }
+
+        await chatService.createStackedPR({
+          parentTaskId: data.taskId,
+          message: data.message,
+          model: data.llmModel as ModelType,
+          userId: parentTask.userId,
+          queue: data.queue || false,
+          socket: socket,
+        });
+      } catch (error) {
+        console.error("Error creating stacked PR:", error);
+        socket.emit("message-error", { error: "Failed to create stacked PR" });
       }
     });
 

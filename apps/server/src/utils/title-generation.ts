@@ -1,27 +1,33 @@
-"use server";
-
 import { generateText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import {
   cleanTitle,
   generateShadowBranchName,
   getTitleGenerationModel,
 } from "@repo/types";
-import { getApiKeys } from "./api-keys";
+import { TaskModelContext } from "../services/task-model-context";
 
 export async function generateTaskTitleAndBranch(
   taskId: string,
-  userPrompt: string
-) {
+  userPrompt: string,
+  context?: TaskModelContext
+): Promise<{ title: string; shadowBranch: string }> {
   try {
-    // Get API keys from cookies
-    const apiKeys = await getApiKeys();
+    // Get API keys from context if provided
+    const apiKeys = context?.getApiKeys() || {
+      openai: undefined,
+      anthropic: undefined,
+    };
+
+    // Get the main model to determine provider for mini model selection
+    const fallbackModel = context?.getMainModel();
 
     const modelConfig = getTitleGenerationModel({
       taskId,
       userPrompt,
       apiKeys,
+      fallbackModel,
     });
 
     if (!modelConfig) {
@@ -36,8 +42,8 @@ export async function generateTaskTitleAndBranch(
 
     const model =
       modelConfig.provider === "openai"
-        ? createOpenAI({ apiKey: apiKeys.openai })(modelConfig.modelChoice)
-        : createAnthropic({ apiKey: apiKeys.anthropic })(modelConfig.modelChoice);
+        ? openai(modelConfig.modelChoice)
+        : anthropic(modelConfig.modelChoice);
 
     const { text: generatedText } = await generateText({
       model,

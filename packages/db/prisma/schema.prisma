@@ -100,12 +100,13 @@ model Task {
   shadowBranch        String
   pullRequestNumber   Int?
   githubIssueId       String?
-  messages            ChatMessage[]
+  messages            ChatMessage[]         @relation("TaskMessages")
   user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions            TaskSession[]
   commands            TerminalCommand[]
   todos               Todo[]
   memories            Memory[]
+  stackedTaskCreationMessages ChatMessage[]     @relation("StackedTask")
 
   codebaseUnderstandingId String?
   codebaseUnderstanding   CodebaseUnderstanding? @relation(fields: [codebaseUnderstandingId], references: [id])
@@ -152,8 +153,10 @@ model ChatMessage {
   createdAt           DateTime             @default(now())
   editedAt            DateTime?
   taskId              String
-  task                Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task                Task                 @relation("TaskMessages", fields: [taskId], references: [id], onDelete: Cascade)
   pullRequestSnapshot PullRequestSnapshot?
+  stackedTaskId       String?
+  stackedTask         Task?                @relation("StackedTask", fields: [stackedTaskId], references: [id], onDelete: SetNull)
 
   @@index([taskId, sequence])
   @@index([taskId, role, sequence])
