@@ -2,7 +2,6 @@ import { InitStatus, prisma } from "@repo/db";
 import {
   getStepsForMode,
   InitializationProgress,
-  AvailableModels,
 } from "@repo/types";
 import { emitStreamChunk } from "../socket";
 import { createWorkspaceManager, getAgentMode } from "../execution";
@@ -541,8 +540,8 @@ export class TaskInitializationEngine {
         context, // Now using TaskModelContext
         {
           concurrency: 12,
-          model: AvailableModels.GPT_4O,
-          modelMini: AvailableModels.GPT_4O_MINI,
+          model: context.getMainModel(),
+          modelMini: context.getMiniModel(),
         }
       );
 

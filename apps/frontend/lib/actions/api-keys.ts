@@ -22,8 +22,8 @@ export async function saveApiKey(provider: ApiKeyProvider, key: string | null) {
   const cookieName = `${provider}-key`;
 
   if (key) {
-    const isProduction = process.env.NODE_ENV === "production";
-    
+    const isProduction = process.env.VERCEL_ENV === "production";
+
     cookieStore.set(cookieName, key, {
       httpOnly: true,
       secure: isProduction,
@@ -31,6 +31,8 @@ export async function saveApiKey(provider: ApiKeyProvider, key: string | null) {
       sameSite: isProduction ? "none" : "lax",
       maxAge: 60 * 60 * 24 * 30,
       path: "/",
+      // Allow cookies to be sent to all shadowrealm.ai subdomains (www.shadowrealm.ai and api.shadowrealm.ai)
+      domain: isProduction ? ".shadowrealm.ai" : undefined,
     });
   } else {
     cookieStore.delete(cookieName);

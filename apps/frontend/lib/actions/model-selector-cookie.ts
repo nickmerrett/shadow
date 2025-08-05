@@ -12,7 +12,7 @@ export async function saveModelSelectorCookie(model: ModelType | null) {
       path: "/",
       maxAge: 60 * 60 * 24 * 30, // 30 days
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.VERCEL_ENV === "production",
       httpOnly: true,
     });
   } else {
