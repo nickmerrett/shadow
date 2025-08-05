@@ -43,18 +43,21 @@ export class StreamProcessor {
       // Convert our messages to AI SDK CoreMessage format
       const coreMessages: CoreMessage[] = messages.map(toCoreMessage);
 
-
       // Use pre-created tools if provided, otherwise create tools with task context if taskId is provided
       const tools =
         preCreatedTools || (await createTools(taskId, workspacePath));
 
       const isAnthropicModel = getModelProvider(model) === "anthropic";
-      
+
       let finalMessages: CoreMessage[];
       if (isAnthropicModel) {
-        const systemMessages = coreMessages.filter(msg => msg.role === 'system');
-        const nonSystemMessages = coreMessages.filter(msg => msg.role !== 'system');
-        
+        const systemMessages = coreMessages.filter(
+          (msg) => msg.role === "system"
+        );
+        const nonSystemMessages = coreMessages.filter(
+          (msg) => msg.role !== "system"
+        );
+
         finalMessages = [
           {
             role: "system",
@@ -69,7 +72,6 @@ export class StreamProcessor {
       } else {
         finalMessages = coreMessages;
       }
-
 
       const streamConfig = {
         model: modelInstance,
@@ -154,6 +156,20 @@ export class StreamProcessor {
       const result = streamText(streamConfig);
 
       const toolCallMap = new Map<string, ToolName>(); // toolCallId -> validated toolName
+
+      // Validate fullStream exists before iteration to prevent async iterator errors
+      if (!result.fullStream) {
+        console.error(
+          `[LLM_STREAM_ERROR] fullStream is undefined for task ${taskId}. This indicates a streaming initialization failure.`
+        );
+        yield {
+          type: "error",
+          error:
+            "Stream initialization failed - unable to establish connection with LLM service",
+          finishReason: "error",
+        };
+        return;
+      }
 
       // Use fullStream to get real-time tool calls and results
       for await (const chunk of result.fullStream as AsyncIterable<AIStreamChunk>) {

@@ -73,14 +73,15 @@ async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
 
     if (executor.isRemote()) {
       // Get the sidecar URL from the remote executor
-      const sidecarUrl = 'sidecarUrl' in executor ? (executor as { sidecarUrl: string }).sidecarUrl : undefined;
+      const sidecarUrl =
+        "sidecarUrl" in executor
+          ? (executor as { sidecarUrl: string }).sidecarUrl
+          : undefined;
       if (!sidecarUrl) {
         throw new Error(`Sidecar URL not available for remote task ${taskId}`);
       }
-      
-      const response = await fetch(
-        `${sidecarUrl}/terminal/history?count=100`
-      );
+
+      const response = await fetch(`${sidecarUrl}/terminal/history?count=100`);
       if (!response.ok) {
         throw new Error(`Sidecar terminal API error: ${response.status}`);
       }
@@ -117,11 +118,14 @@ async function clearTerminal(taskId: string): Promise<void> {
 
     if (executor.isRemote()) {
       // Get the sidecar URL from the remote executor
-      const sidecarUrl = 'sidecarUrl' in executor ? (executor as { sidecarUrl: string }).sidecarUrl : undefined;
+      const sidecarUrl =
+        "sidecarUrl" in executor
+          ? (executor as { sidecarUrl: string }).sidecarUrl
+          : undefined;
       if (!sidecarUrl) {
         throw new Error(`Sidecar URL not available for remote task ${taskId}`);
       }
-      
+
       // Call sidecar terminal clear API
       const response = await fetch(`${sidecarUrl}/terminal/clear`, {
         method: "POST",
@@ -172,13 +176,18 @@ function startTerminalPolling(taskId: string) {
 
       if (executor.isRemote()) {
         // Get the sidecar URL from the remote executor
-        const sidecarUrl = 'sidecarUrl' in executor ? (executor as { sidecarUrl: string }).sidecarUrl : undefined;
+        const sidecarUrl =
+          "sidecarUrl" in executor
+            ? (executor as { sidecarUrl: string }).sidecarUrl
+            : undefined;
         if (!sidecarUrl) {
-          console.error(`[SOCKET] Sidecar URL not available for remote task ${taskId}, stopping polling`);
+          console.error(
+            `[SOCKET] Sidecar URL not available for remote task ${taskId}, stopping polling`
+          );
           stopTerminalPolling(taskId);
           return;
         }
-        
+
         // Poll sidecar for new entries
         const response = await fetch(
           `${sidecarUrl}/terminal/history?sinceId=${lastSeenId}`
@@ -251,7 +260,7 @@ export function createSocketServer(
   console.log(`[SOCKET] Allowing origins:`, socketCorsOrigins);
 
   const isProduction = process.env.NODE_ENV === "production";
-  
+
   io = new Server(server, {
     cors: {
       origin: socketCorsOrigins,
@@ -277,9 +286,12 @@ export function createSocketServer(
     const connectionId = socket.id;
 
     const cookieHeader = socket.request.headers.cookie;
-    const apiKeys = parseApiKeysFromCookies(cookieHeader);
 
     console.log(`[SOCKET] User connected: ${connectionId}`);
+    console.log(`[SOCKET] Raw cookie header:`, cookieHeader || "undefined");
+
+    const apiKeys = parseApiKeysFromCookies(cookieHeader);
+
     console.log(`[SOCKET] Parsed API keys:`, {
       hasOpenAI: !!apiKeys.openai,
       hasAnthropic: !!apiKeys.anthropic,
