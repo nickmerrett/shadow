@@ -14,9 +14,16 @@ export function parseApiKeysFromCookies(cookieHeader?: string): ApiKeys {
   const cookies = cookieHeader
     .split(";")
     .reduce((acc: Record<string, string>, cookie) => {
-      const [key, value] = cookie.trim().split("=");
+      const trimmedCookie = cookie.trim();
+      const firstEqualsIndex = trimmedCookie.indexOf("=");
+      if (firstEqualsIndex === -1) return acc;
+
+      const key = trimmedCookie.substring(0, firstEqualsIndex);
+      const value = trimmedCookie.substring(firstEqualsIndex + 1);
+
       if (key && value) {
-        acc[key] = decodeURIComponent(value);
+        // Only decode if the value contains % (URL-encoded)
+        acc[key] = value.includes("%") ? decodeURIComponent(value) : value;
       }
       return acc;
     }, {});
