@@ -22,7 +22,7 @@ export async function getModels(): Promise<ModelInfo[]> {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    return data.models;
+    return data;
   } catch (error) {
     console.error("Error fetching models:", error);
     return [];

@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Box, Layers, Square } from "lucide-react";
 import { useModels } from "@/hooks/use-models";
-import { useApiKeys } from "@/hooks/use-api-keys";
+import { useApiKeys, useApiKeyValidation } from "@/hooks/use-api-keys";
 
 export function ModelSelector({
   isHome,
@@ -30,17 +30,17 @@ export function ModelSelector({
 
   const { data: availableModels = [] } = useModels();
   const { data: apiKeys } = useApiKeys();
+  const { data: validationState } = useApiKeyValidation();
 
-  // Filter models based on available API keys
+  // Filter models based on valid API keys only
   const filteredModels = availableModels.filter((model) => {
     const provider = getModelProvider(model.id as ModelType);
-    if (provider === "openai") {
-      return !!apiKeys?.openai;
-    }
-    if (provider === "anthropic") {
-      return !!apiKeys?.anthropic;
-    }
-    return true;
+    
+    // Check if we have a valid API key for this provider
+    const hasKey = !!apiKeys?.[provider];
+    const isValid = validationState?.[provider]?.isValid === true;
+    
+    return hasKey && isValid;
   });
 
   useEffect(() => {
@@ -100,7 +100,7 @@ export function ModelSelector({
             ))
           ) : (
             <div className="text-muted-foreground p-2 text-left text-sm">
-              No models available. Configure your API keys to begin using
+              No models available. Configure and validate your API keys to begin using
               Shadow.
             </div>
           )}
