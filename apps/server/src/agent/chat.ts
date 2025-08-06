@@ -36,6 +36,7 @@ import {
 } from "../utils/task-status";
 import { createToolExecutor } from "../execution";
 import { memoryService } from "../services/memory-service";
+import { TaskInitializationEngine } from "@/initialization";
 
 export class ChatService {
   private llmService: LLMService;
@@ -272,13 +273,20 @@ export class ChatService {
     } else {
       const taskContext = await modelContextService.getContextForTask(taskId);
       if (!taskContext) {
-        console.warn(`[CHAT] No model context available for task ${taskId}, skipping PR creation`);
+        console.warn(
+          `[CHAT] No model context available for task ${taskId}, skipping PR creation`
+        );
         return;
       }
       modelContext = taskContext;
     }
 
-    return this._createPRIfNeededInternal(taskId, workspacePath, messageId, modelContext);
+    return this._createPRIfNeededInternal(
+      taskId,
+      workspacePath,
+      messageId,
+      modelContext
+    );
   }
 
   /**
@@ -329,7 +337,9 @@ export class ChatService {
       }
 
       if (!context) {
-        console.warn(`[CHAT] No context available for PR creation, skipping PR for task ${taskId}`);
+        console.warn(
+          `[CHAT] No context available for PR creation, skipping PR for task ${taskId}`
+        );
         return;
       }
 
@@ -395,12 +405,7 @@ export class ChatService {
       );
 
       // Use the existing createPRIfNeeded method
-      await this.createPRIfNeeded(
-        taskId,
-        workspacePath,
-        messageId,
-        context
-      );
+      await this.createPRIfNeeded(taskId, workspacePath, messageId, context);
     } catch (error) {
       console.error(
         `[CHAT] Failed to check user auto-PR setting for task ${taskId}:`,
@@ -623,7 +628,10 @@ export class ChatService {
     queue?: boolean;
   }) {
     // Update task's mainModel to keep it current
-    await modelContextService.updateTaskMainModel(taskId, context.getMainModel());
+    await modelContextService.updateTaskMainModel(
+      taskId,
+      context.getMainModel()
+    );
 
     return this._processUserMessageInternal({
       taskId,
@@ -708,7 +716,7 @@ export class ChatService {
           msg.role === "system"
       );
 
-    const isFirstMessage = !messages.some(msg => msg.role === "system");
+    const isFirstMessage = !messages.some((msg) => msg.role === "system");
 
     if (isFirstMessage) {
       const systemMessagesToAdd: Message[] = [];
@@ -748,8 +756,9 @@ export class ChatService {
       if (memoriesEnabled) {
         const memoryContext = await memoryService.getMemoriesForTask(taskId);
         if (memoryContext && memoryContext.memories.length > 0) {
-          const memoryContent = memoryService.formatMemoriesForPrompt(memoryContext);
-          
+          const memoryContent =
+            memoryService.formatMemoriesForPrompt(memoryContext);
+
           const memorySequence = await this.getNextSequence(taskId);
           await this.saveSystemMessage(
             taskId,
@@ -811,6 +820,7 @@ export class ChatService {
     // Get system prompt with available tools context
     const taskSystemPrompt = await getSystemPrompt(availableTools);
 
+    console.log(`[CHAT] Task MODEL:`, context.getMainModel());
 
     try {
       for await (const chunk of this.llmService.createMessageStream(
@@ -1327,7 +1337,11 @@ export class ChatService {
     // Process the edited message as if it were a new message
     // Filter out tool messages and stacked-PR messages, use the updated content
     const messages: Message[] = history
-      .filter((msg) => (msg.role === "user" && !msg.stackedTaskId) || msg.role === "assistant")
+      .filter(
+        (msg) =>
+          (msg.role === "user" && !msg.stackedTaskId) ||
+          msg.role === "assistant"
+      )
       .map((msg) => {
         if (msg.id === messageId) {
           return {
@@ -1347,7 +1361,11 @@ export class ChatService {
     // Update context with new model if it has changed
     if (context.getMainModel() !== newModel) {
       // Create new context with updated model
-      const updatedContext = new TaskModelContext(taskId, newModel, context.getApiKeys());
+      const updatedContext = new TaskModelContext(
+        taskId,
+        newModel,
+        context.getApiKeys()
+      );
       await this.processUserMessage({
         taskId,
         userMessage: newContent,
@@ -1417,8 +1435,8 @@ export class ChatService {
       });
     } catch (error) {
       console.error(`[CHAT] Error creating stacked PR:`, error);
-      socket.emit("message-error", { 
-        error: "Failed to create stacked PR" 
+      socket.emit("message-error", {
+        error: "Failed to create stacked PR",
       });
     }
   }
@@ -1546,30 +1564,32 @@ export class ChatService {
     try {
       console.log(`[CHAT] Initializing stacked task ${taskId}`);
 
-      // Import the initialization engine
-      const { TaskInitializationEngine } = await import("../initialization/index.js");
       const initializationEngine = new TaskInitializationEngine();
 
-      // Update task status to RUNNING (similar to backend initiate endpoint)
       await updateTaskStatus(taskId, "RUNNING", "CHAT");
 
       // Create model context for the new task
       const newTaskContext = await modelContextService.createContext(
         taskId,
-        undefined, // No cookies in server context  
+        undefined, // No cookies in server context
         model
       );
 
       // Start task initialization in background (non-blocking)
       // This will handle workspace setup, VM creation, etc.
-      initializationEngine.initializeTask(
-        taskId,
-        undefined, // Use default steps
-        _userId,
-        newTaskContext
-      ).catch((error: any) => {
-        console.error(`[CHAT] Failed to initialize stacked task ${taskId}:`, error);
-      });
+      initializationEngine
+        .initializeTask(
+          taskId,
+          undefined, // Use default steps
+          _userId,
+          newTaskContext
+        )
+        .catch((error: unknown) => {
+          console.error(
+            `[CHAT] Failed to initialize stacked task ${taskId}:`,
+            error
+          );
+        });
 
       // Start the first message processing (similar to backend initiate endpoint)
       setTimeout(async () => {
@@ -1582,10 +1602,12 @@ export class ChatService {
             queue: false,
           });
         } catch (error) {
-          console.error(`[CHAT] Failed to process first message for stacked task ${taskId}:`, error);
+          console.error(
+            `[CHAT] Failed to process first message for stacked task ${taskId}:`,
+            error
+          );
         }
       }, 1000); // Small delay to let initialization start
-
     } catch (error) {
       console.error(`[CHAT] Error initializing stacked task ${taskId}:`, error);
     }
