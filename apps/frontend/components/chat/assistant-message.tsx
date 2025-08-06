@@ -231,16 +231,22 @@ export function AssistantMessage({
             : !toolResult; // Database: only check result exists
           const status = isInProgress ? "RUNNING" : "COMPLETED";
 
-          // For streaming tool calls, only show if we have useful partial arguments
-          if (
-            isStreamingMessage &&
-            isInProgress &&
-            STREAMING_ENABLED_TOOLS.includes(
-              part.toolName as (typeof STREAMING_ENABLED_TOOLS)[number]
-            ) &&
-            !hasUsefulPartialArgs(part.partialArgs || {}, part.toolName)
-          ) {
-            return null;
+          if (isStreamingMessage && isInProgress) {
+            if (
+              STREAMING_ENABLED_TOOLS.includes(
+                part.toolName as (typeof STREAMING_ENABLED_TOOLS)[number]
+              )
+            ) {
+              if (
+                !hasUsefulPartialArgs(part.partialArgs || {}, part.toolName)
+              ) {
+                return null;
+              }
+            } else {
+              // For all other tools, hide until complete to avoid errors with incomplete data
+              // This can be removed once support is added for streaming all tool calls
+              return null;
+            }
           }
 
           // Create a proper tool message for rendering

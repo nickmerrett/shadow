@@ -91,7 +91,7 @@ export function UserSettings() {
             <div className="flex items-center justify-between">
               <label htmlFor="auto-pr" className="flex flex-col gap-0">
                 <div className="text-sm font-normal">
-                  Auto-create Pull Requests
+                  Auto-Create Pull Requests
                 </div>
                 <div className="text-muted-foreground text-[11px]">
                   Automatically create draft pull requests when tasks complete
