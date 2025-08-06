@@ -248,11 +248,48 @@ export function useTaskSocket(taskId: string | undefined) {
   const { socket, isConnected } = useSocket();
   const queryClient = useQueryClient();
 
-  // All the state that was previously in task-content.tsx
-  const [streamingAssistantParts, setStreamingAssistantParts] = useState<
-    AssistantMessagePart[]
-  >([]);
+  // All the state that was previously in task-content.tsx - optimized with Map storage
+  const [streamingPartsMap, setStreamingPartsMap] = useState<
+    Map<string, AssistantMessagePart>
+  >(new Map());
+  const [streamingPartsOrder, setStreamingPartsOrder] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+
+  // Helper functions for O(1) streaming part operations with performance monitoring
+  const addStreamingPart = useCallback(
+    (part: AssistantMessagePart, id: string) => {
+      const startTime = performance.now();
+
+      setStreamingPartsMap((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(id, part);
+        return newMap;
+      });
+      setStreamingPartsOrder((prev) =>
+        prev.includes(id) ? prev : [...prev, id]
+      );
+
+      const endTime = performance.now();
+      if (endTime - startTime > 1) {
+        // Only log if > 1ms
+        console.log(
+          `[PERF] addStreamingPart took ${(endTime - startTime).toFixed(2)}ms for part type: ${part.type}`
+        );
+      }
+    },
+    []
+  );
+
+  const clearStreamingState = useCallback(() => {
+    const startTime = performance.now();
+    setStreamingPartsMap(new Map());
+    setStreamingPartsOrder([]);
+    setIsStreaming(false);
+    const endTime = performance.now();
+    console.log(
+      `[PERF] clearStreamingState took ${(endTime - startTime).toFixed(2)}ms`
+    );
+  }, []);
 
   // Join/leave task room
   useEffect(() => {
@@ -295,7 +332,9 @@ export function useTaskSocket(taskId: string | undefined) {
           data.queuedMessage
         );
 
-        setStreamingAssistantParts([]);
+        // Clear streaming state with O(1) operations
+        setStreamingPartsMap(new Map());
+        setStreamingPartsOrder([]);
         setIsStreaming(false);
       }
     }
@@ -308,39 +347,55 @@ export function useTaskSocket(taskId: string | undefined) {
       console.log("Received stream state:", state);
       setIsStreaming(state.isStreaming);
 
-      // Replay chunks to reconstruct streamingAssistantParts
+      // Replay chunks to reconstruct streamingAssistantParts with O(1) operations
       if (state.chunks && state.chunks.length > 0) {
-        const parts: AssistantMessagePart[] = [];
+        const newPartsMap = new Map<string, AssistantMessagePart>();
+        const newPartsOrder: string[] = [];
+        let textCounter = 0;
 
         state.chunks.forEach((chunk) => {
           if (chunk.type === "content" && chunk.content) {
+            const partId = `text-${textCounter++}`;
             const textPart: TextPart = {
               type: "text",
               text: chunk.content,
             };
-            parts.push(textPart);
+            newPartsMap.set(partId, textPart);
+            newPartsOrder.push(partId);
           } else if (chunk.type === "tool-call" && chunk.toolCall) {
+            const partId = chunk.toolCall.id;
             const toolCallPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
               toolName: chunk.toolCall.name,
               args: chunk.toolCall.args,
             };
-            parts.push(toolCallPart);
+            newPartsMap.set(partId, toolCallPart);
+            newPartsOrder.push(partId);
           } else if (chunk.type === "tool-result" && chunk.toolResult) {
+            const partId = `${chunk.toolResult.id}-result`;
+            // Find corresponding tool call to get tool name
+            const correspondingCall = newPartsMap.get(chunk.toolResult.id);
+            const toolName =
+              correspondingCall?.type === "tool-call"
+                ? correspondingCall.toolName
+                : "";
+
             const toolResultPart: ToolResultPart = {
               type: "tool-result",
               toolCallId: chunk.toolResult.id,
-              toolName: "", // Will be filled by existing message processing logic
+              toolName,
               result: chunk.toolResult.result,
             };
-            parts.push(toolResultPart);
+            newPartsMap.set(partId, toolResultPart);
+            newPartsOrder.push(partId);
           }
         });
 
-        setStreamingAssistantParts(parts);
+        setStreamingPartsMap(newPartsMap);
+        setStreamingPartsOrder(newPartsOrder);
         console.log(
-          `[STREAM_STATE] Reconstructed ${parts.length} parts from ${state.chunks.length} chunks`
+          `[STREAM_STATE] Reconstructed ${newPartsMap.size} parts from ${state.chunks.length} chunks`
         );
       }
     }
@@ -348,7 +403,7 @@ export function useTaskSocket(taskId: string | undefined) {
     function onStreamChunk(chunk: StreamChunk) {
       setIsStreaming(true);
 
-      // Handle different types of stream chunks
+      // Handle different types of stream chunks with O(1) operations
       switch (chunk.type) {
         case "content":
           if (chunk.content) {
@@ -356,7 +411,7 @@ export function useTaskSocket(taskId: string | undefined) {
               type: "text",
               text: chunk.content,
             };
-            setStreamingAssistantParts((prev) => [...prev, textPart]);
+            addStreamingPart(textPart, `text-${Date.now()}-${Math.random()}`);
           }
           break;
 
@@ -370,7 +425,7 @@ export function useTaskSocket(taskId: string | undefined) {
               toolName: chunk.toolCall.name,
               args: chunk.toolCall.args,
             };
-            setStreamingAssistantParts((prev) => [...prev, toolCallPart]);
+            addStreamingPart(toolCallPart, chunk.toolCall.id);
           }
           break;
 
@@ -378,25 +433,23 @@ export function useTaskSocket(taskId: string | undefined) {
           if (chunk.toolResult) {
             console.log("Tool result:", chunk.toolResult);
 
+            // Find the corresponding tool call with O(1) lookup
+            const correspondingCall = streamingPartsMap.get(
+              chunk.toolResult.id
+            );
+            const toolName =
+              correspondingCall?.type === "tool-call"
+                ? correspondingCall.toolName
+                : "";
+
             const toolResultPart: ToolResultPart = {
               type: "tool-result",
               toolCallId: chunk.toolResult.id,
-              toolName: "", // We'll find the tool name from the corresponding call
+              toolName,
               result: chunk.toolResult.result,
             };
 
-            // Find the corresponding tool call to get the tool name
-            setStreamingAssistantParts((prev) => {
-              const correspondingCall = prev.find(
-                (part) =>
-                  part.type === "tool-call" &&
-                  part.toolCallId === chunk.toolResult!.id
-              );
-              if (correspondingCall && correspondingCall.type === "tool-call") {
-                toolResultPart.toolName = correspondingCall.toolName;
-              }
-              return [...prev, toolResultPart];
-            });
+            addStreamingPart(toolResultPart, `${chunk.toolResult.id}-result`);
           }
           break;
 
@@ -575,7 +628,7 @@ export function useTaskSocket(taskId: string | undefined) {
     }
 
     function onStreamComplete() {
-      setIsStreaming(false);
+      clearStreamingState();
       console.log("Stream completed");
       if (taskId) {
         socket.emit("get-chat-history", { taskId, complete: true });
@@ -588,7 +641,7 @@ export function useTaskSocket(taskId: string | undefined) {
     }
 
     function onStreamError(error: unknown) {
-      setIsStreaming(false);
+      clearStreamingState();
       console.error("Stream error:", error);
       // Legacy stream errors are for unexpected system failures only
       // Don't add error text parts - these errors won't have permanent message parts
@@ -596,7 +649,7 @@ export function useTaskSocket(taskId: string | undefined) {
 
     function onMessageError(data: { error: string }) {
       console.error("Message error:", data.error);
-      setIsStreaming(false);
+      clearStreamingState();
     }
 
     function onStackedPRCreated(data: {
@@ -709,9 +762,8 @@ export function useTaskSocket(taskId: string | undefined) {
 
     console.log("Stopping stream for task:", taskId);
     socket.emit("stop-stream", { taskId });
-    setIsStreaming(false);
-    setStreamingAssistantParts([]);
-  }, [socket, taskId, isStreaming]);
+    clearStreamingState();
+  }, [socket, taskId, isStreaming, clearStreamingState]);
 
   const clearQueuedMessage = useCallback(() => {
     if (!socket || !taskId) return;
@@ -734,7 +786,8 @@ export function useTaskSocket(taskId: string | undefined) {
 
   return {
     isConnected,
-    streamingAssistantParts,
+    streamingPartsMap,
+    streamingPartsOrder,
     isStreaming,
     sendMessage,
     stopStream,
