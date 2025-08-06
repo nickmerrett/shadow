@@ -45,6 +45,10 @@ export function UserSettings() {
     updateUserSettings.mutate({ enableDeepWiki: checked });
   };
 
+  const handleIndexingToggle = (checked: boolean) => {
+    updateUserSettings.mutate({ enableIndexing: checked });
+  };
+
   return (
     <div className="flex w-full flex-col gap-6">
       {isLoadingSession ? (
@@ -129,6 +133,20 @@ export function UserSettings() {
                 id="shadow-wiki"
                 checked={userSettings?.enableDeepWiki ?? true}
                 onCheckedChange={handleShadowWikiToggle}
+                disabled={isLoadingSettings || updateUserSettings.isPending}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label htmlFor="enable-indexing" className="flex flex-col gap-0">
+                <div className="text-sm font-normal">Enable Semantic Search</div>
+                <div className="text-muted-foreground text-[11px]">
+                  Index your code for AI-powered semantic search capabilities
+                </div>
+              </label>
+              <Checkbox
+                id="enable-indexing"
+                checked={userSettings?.enableIndexing ?? false}
+                onCheckedChange={handleIndexingToggle}
                 disabled={isLoadingSettings || updateUserSettings.isPending}
               />
             </div>

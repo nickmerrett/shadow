@@ -4,7 +4,6 @@ import {
   updateUserSettings,
   getOrCreateUserSettings,
 } from "@/lib/db-operations/user-settings";
-import { ModelType } from "@repo/types";
 
 export async function GET(req: NextRequest) {
   try {
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { autoPullRequest, enableDeepWiki, memoriesEnabled, selectedModels } =
+    const { autoPullRequest, enableDeepWiki, memoriesEnabled, selectedModels, enableIndexing } =
       body;
 
     // Validate autoPullRequest if provided
@@ -74,12 +73,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate enableIndexing if provided
+    if (enableIndexing !== undefined && typeof enableIndexing !== "boolean") {
+      return NextResponse.json(
+        { error: "enableIndexing must be a boolean" },
+        { status: 400 }
+      );
+    }
+
     // Build update object with only provided fields
     const updateData: {
       autoPullRequest?: boolean;
       enableDeepWiki?: boolean;
       memoriesEnabled?: boolean;
       selectedModels?: string[];
+      enableIndexing?: boolean;
     } = {};
     if (autoPullRequest !== undefined)
       updateData.autoPullRequest = autoPullRequest;
@@ -89,6 +97,8 @@ export async function POST(request: NextRequest) {
       updateData.memoriesEnabled = memoriesEnabled;
     if (selectedModels !== undefined)
       updateData.selectedModels = selectedModels;
+    if (enableIndexing !== undefined)
+      updateData.enableIndexing = enableIndexing;
 
     const settings = await updateUserSettings(session.user.id, updateData);
 

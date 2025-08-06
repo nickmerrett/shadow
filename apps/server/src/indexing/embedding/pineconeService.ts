@@ -16,10 +16,6 @@ class PineconeHandler {
   private embeddingModel: string;
   private indexName: string;
   private isDisabled: boolean;
-  
-  // Simple circuit breaker
-  private failureCount: number = 0;
-  private readonly maxFailures: number = 3;
 
   // Hardcoded to shadow index for now
   constructor(indexName: string = config.pineconeIndexName) {
@@ -28,18 +24,6 @@ class PineconeHandler {
     this.indexName = indexName; // Constant
     this.client = this.pc.Index(this.indexName); // Client attached to the index
     this.embeddingModel = config.embeddingModel; // Constant
-  }
-
-  private recordFailure(): void {
-    this.failureCount++;
-    if (this.failureCount >= this.maxFailures) {
-      this.isDisabled = true;
-      logger.error(`[PINECONE_SERVICE] Disabled after ${this.failureCount} consecutive failures`);
-    }
-  }
-
-  private recordSuccess(): void {
-    this.failureCount = 0;
   }
 
   async createIndexForModel() {
@@ -76,7 +60,6 @@ class PineconeHandler {
       return 1;
     } catch (err) {
       logger.warn(`[PINECONE_SERVICE] Failed to clear namespace "${namespace}": ${err}`);
-      this.recordFailure();
       return 0;
     }
   }
@@ -126,11 +109,9 @@ class PineconeHandler {
       // Use upsertRecords for auto-embedding
       await this.client.namespace(namespace).upsertRecords(autoEmbedRecords); // Pinecone fn
       // logger.info(`[PINECONE_SERVICE] Upserted ${autoEmbedRecords.length} records to Pinecone`);
-      this.recordSuccess();
       return autoEmbedRecords.length;
     } catch (error) {
       logger.error(`[PINECONE_SERVICE] Error upserting records: ${error}`);
-      this.recordFailure();
       return 0;
     }
   }
@@ -262,11 +243,9 @@ class PineconeHandler {
     }
     */
       const hits = response.result?.hits || [];
-      this.recordSuccess();
       return hits as CodebaseSearchResponse[];
     } catch (error) {
       logger.error(`[PINECONE_SERVICE] Error searching records: ${error}`);
-      this.recordFailure();
       return [];
     }
   }
