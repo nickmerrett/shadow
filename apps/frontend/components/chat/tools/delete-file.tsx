@@ -11,8 +11,6 @@ export function DeleteFileTool({ message }: { message: Message }) {
   const filePath = args.target_file as string;
 
   const isLoading = status === "RUNNING";
-  const loadingText =
-    isLoading && filePath ? `Deleting ${filePath}...` : undefined;
 
   return (
     <ToolComponent
@@ -21,7 +19,6 @@ export function DeleteFileTool({ message }: { message: Message }) {
       title={filePath}
       showFileIcon={filePath}
       isLoading={isLoading}
-      loadingText={loadingText}
     />
   );
 }

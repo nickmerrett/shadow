@@ -2,11 +2,8 @@
 
 import { useSocket } from "./use-socket";
 import { useEffect, useState, useCallback } from "react";
-import {
-  createStreamingPartAdder,
-  createStreamingStateCleaner,
-} from "@/lib/streaming";
 import { extractStreamingArgs } from "@/lib/streaming-args";
+import { useStreamingPartsMap } from "../use-streaming-parts-map";
 import { useQueryClient } from "@tanstack/react-query";
 import type {
   AssistantMessagePart,
@@ -254,23 +251,29 @@ export function useTaskSocket(taskId: string | undefined) {
   const { socket, isConnected } = useSocket();
   const queryClient = useQueryClient();
 
-  // All the state that was previously in task-content.tsx - optimized with Map storage
-  const [streamingPartsMap, setStreamingPartsMap] = useState<
-    Map<string, AssistantMessagePart>
-  >(new Map());
+  const streamingParts = useStreamingPartsMap();
   const [streamingPartsOrder, setStreamingPartsOrder] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
 
-  const addStreamingPart = createStreamingPartAdder(
-    setStreamingPartsMap,
-    setStreamingPartsOrder
+  const addStreamingPart = useCallback(
+    (part: AssistantMessagePart, id: string) => {
+      streamingParts.update((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(id, part);
+        return newMap;
+      });
+      setStreamingPartsOrder((prev) =>
+        prev.includes(id) ? prev : [...prev, id]
+      );
+    },
+    [streamingParts]
   );
 
-  const clearStreamingState = createStreamingStateCleaner(
-    setStreamingPartsMap,
-    setStreamingPartsOrder,
-    setIsStreaming
-  );
+  const clearStreamingState = useCallback(() => {
+    streamingParts.clear();
+    setStreamingPartsOrder([]);
+    setIsStreaming(false);
+  }, [streamingParts]);
 
   // Join/leave task room
   useEffect(() => {
@@ -313,10 +316,7 @@ export function useTaskSocket(taskId: string | undefined) {
           data.queuedMessage
         );
 
-        // Clear streaming state with O(1) operations
-        setStreamingPartsMap(new Map());
-        setStreamingPartsOrder([]);
-        setIsStreaming(false);
+        clearStreamingState();
       }
     }
 
@@ -363,10 +363,8 @@ export function useTaskSocket(taskId: string | undefined) {
               const updatedPart: ToolCallPart = {
                 ...existingPart,
                 streamingState: "streaming",
-                // Note: For v1, keeping args empty for simplicity
               };
               newPartsMap.set(partId, updatedPart);
-              // Don't push to order - already exists
             }
           } else if (chunk.type === "tool-call" && chunk.toolCall) {
             const partId = chunk.toolCall.id;
@@ -405,7 +403,7 @@ export function useTaskSocket(taskId: string | undefined) {
           }
         });
 
-        setStreamingPartsMap(newPartsMap);
+        streamingParts.update(() => newPartsMap);
         setStreamingPartsOrder(newPartsOrder);
         console.log(
           `[STREAM_STATE] Reconstructed ${newPartsMap.size} parts from ${state.chunks.length} chunks`
@@ -447,7 +445,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "tool-call-start":
           if (chunk.toolCallStart) {
-            console.log("Tool call started:", chunk.toolCallStart);
 
             const toolCallStartPart: ToolCallPart = {
               type: "tool-call",
@@ -457,21 +454,17 @@ export function useTaskSocket(taskId: string | undefined) {
               streamingState: "starting",
               argsComplete: false,
             };
+
             // use same id as final tool call
             addStreamingPart(toolCallStartPart, chunk.toolCallStart.id);
-
-            console.log(
-              "streamingPartsMap after tool call start",
-              streamingPartsMap
-            );
           }
           break;
 
         case "tool-call-delta":
           if (chunk.toolCallDelta) {
-            // Update existing part with accumulated args
-            const existingPart = streamingPartsMap.get(chunk.toolCallDelta.id);
-            console.log("Tool call delta:", chunk.toolCallDelta, existingPart);
+            const existingPart = streamingParts.current.get(
+              chunk.toolCallDelta.id
+            );
             if (existingPart?.type === "tool-call") {
               // Accumulate the args text
               const newAccumulatedText =
@@ -497,10 +490,8 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "tool-result":
           if (chunk.toolResult) {
-            console.log("Tool result:", chunk.toolResult);
 
-            // Find the corresponding tool call with O(1) lookup
-            const correspondingCall = streamingPartsMap.get(
+            const correspondingCall = streamingParts.current.get(
               chunk.toolResult.id
             );
             const toolName =
@@ -852,7 +843,7 @@ export function useTaskSocket(taskId: string | undefined) {
 
   return {
     isConnected,
-    streamingPartsMap,
+    streamingPartsMap: streamingParts.map,
     streamingPartsOrder,
     isStreaming,
     sendMessage,

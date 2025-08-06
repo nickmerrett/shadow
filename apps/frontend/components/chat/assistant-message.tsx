@@ -18,6 +18,10 @@ import { MemoizedMarkdown } from "./memoized-markdown";
 import { ToolMessage } from "./tools";
 import { ToolComponent } from "./tools/collapsible-tool";
 import { ValidationErrorTool } from "./tools/validation-error";
+import {
+  hasUsefulPartialArgs,
+  STREAMING_ENABLED_TOOLS,
+} from "@/lib/streaming-args";
 import { PRCard } from "./pr-card";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
@@ -226,6 +230,18 @@ export function AssistantMessage({
             ? !part.argsComplete || !toolResult // Streaming: check both
             : !toolResult; // Database: only check result exists
           const status = isInProgress ? "RUNNING" : "COMPLETED";
+
+          // For streaming tool calls, only show if we have useful partial arguments
+          if (
+            isStreamingMessage &&
+            isInProgress &&
+            STREAMING_ENABLED_TOOLS.includes(
+              part.toolName as (typeof STREAMING_ENABLED_TOOLS)[number]
+            ) &&
+            !hasUsefulPartialArgs(part.partialArgs || {}, part.toolName)
+          ) {
+            return null;
+          }
 
           // Create a proper tool message for rendering
           // Merge regular args with partial args from streaming

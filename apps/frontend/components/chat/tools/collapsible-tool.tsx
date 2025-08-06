@@ -24,7 +24,6 @@ export function ToolComponent({
   onClick,
   children,
   isLoading = false,
-  loadingText,
 }: {
   icon: React.ReactNode;
   type: ToolTypes | "error" | "warning";
@@ -42,7 +41,6 @@ export function ToolComponent({
   onClick?: () => void;
   children?: React.ReactNode;
   isLoading?: boolean;
-  loadingText?: string;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -54,7 +52,7 @@ export function ToolComponent({
         isExpanded={isExpanded}
         toggleExpanded={() => setIsExpanded(!isExpanded)}
       >
-        {icon}
+        {isLoading ? <Loader2 className="animate-spin" /> : icon}
         <div className="flex w-[calc(100%-1.5rem)] items-center gap-1">
           {type !== "error" && type !== "warning" && (
             <div className="whitespace-nowrap opacity-70">
@@ -75,14 +73,6 @@ export function ToolComponent({
           </div>
           {hasStdErr && (
             <AlertCircle className="text-destructive ml-1 shrink-0" />
-          )}
-          {isLoading && (
-            <div className="flex items-center gap-1">
-              <Loader2 className="size-3 animate-spin opacity-70" />
-              {loadingText && (
-                <span className="text-xs opacity-70">{loadingText}</span>
-              )}
-            </div>
           )}
           {!isLoading && changes && (
             <div className="flex items-center gap-1">

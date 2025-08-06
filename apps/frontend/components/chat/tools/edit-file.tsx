@@ -28,18 +28,6 @@ export function EditFileTool({ message }: { message: Message }) {
 
   const isLoading = status === "RUNNING";
 
-  // Generate better loading text based on available information
-  let loadingText: string | undefined;
-  if (isLoading) {
-    if (filePath) {
-      // We have complete or partial filename
-      loadingText = `Editing ${filePath}...`;
-    } else {
-      // Fallback when no filename available yet
-      loadingText = "Generating code...";
-    }
-  }
-
   return (
     <ToolComponent
       icon={<Edit3 />}
@@ -48,7 +36,6 @@ export function EditFileTool({ message }: { message: Message }) {
       changes={changes}
       showFileIcon={filePath}
       isLoading={isLoading}
-      loadingText={loadingText}
       onClick={() => {
         updateSelectedFilePath(filePath);
         expandRightPanel();

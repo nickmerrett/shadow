@@ -20,9 +20,7 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
   const _output = result?.stdout || result?.stderr || "";
   const _error = result?.stderr;
 
-  // Generate better loading text based on available information
   const isLoading = status === "RUNNING";
-  const loadingText = isLoading && command ? `Running ${command}...` : undefined;
 
   const suffix = isBackground ? " (Background)" : undefined;
 
@@ -34,7 +32,6 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
       suffix={suffix}
       hasStdErr={!!_error}
       isLoading={isLoading}
-      loadingText={loadingText}
       onClick={() => expandRightPanel()}
     />
   );

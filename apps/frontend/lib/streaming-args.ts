@@ -3,18 +3,26 @@ interface PartialArgs {
   command?: string;
 }
 
+/**
+ * Tools that support streaming argument extraction and should only be shown 
+ * when useful arguments are extracted during streaming
+ */
+export const STREAMING_ENABLED_TOOLS = [
+  "edit_file",
+  "read_file", 
+  "search_replace",
+  "delete_file",
+  "run_terminal_cmd",
+] as const;
+
 export function extractStreamingArgs(
   accumulatedText: string,
   toolName: string
 ): PartialArgs {
   const partialArgs: PartialArgs = {};
 
-  // Extract target_file for file operations
-  if (
-    ["edit_file", "read_file", "search_replace", "delete_file"].includes(
-      toolName
-    )
-  ) {
+  // Extract target_file for file operations  
+  if (["edit_file", "read_file", "search_replace", "delete_file"].includes(toolName)) {
     /**
      * Regex: /"target_file"\s*:\s*"([^"]+)"/
      *
@@ -63,8 +71,6 @@ export function extractStreamingArgs(
     }
   }
 
-  console.log("partialArgs", partialArgs);
-
   return partialArgs;
 }
 
@@ -75,11 +81,7 @@ export function hasUsefulPartialArgs(
   partialArgs: PartialArgs,
   toolName: string
 ): boolean {
-  if (
-    ["edit_file", "read_file", "search_replace", "delete_file"].includes(
-      toolName
-    )
-  ) {
+  if (["edit_file", "read_file", "search_replace", "delete_file"].includes(toolName)) {
     return !!partialArgs.target_file;
   }
 

@@ -26,8 +26,6 @@ export function SearchReplaceTool({ message }: { message: Message }) {
       : undefined;
 
   const isLoading = status === "RUNNING";
-  const loadingText =
-    isLoading && filePath ? `Editing ${filePath}...` : undefined;
 
   return (
     <ToolComponent
@@ -36,7 +34,6 @@ export function SearchReplaceTool({ message }: { message: Message }) {
       title={filePath}
       changes={changes}
       isLoading={isLoading}
-      loadingText={loadingText}
       onClick={() => {
         updateSelectedFilePath(filePath);
         expandRightPanel();

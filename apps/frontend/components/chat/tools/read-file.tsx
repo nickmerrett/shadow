@@ -19,8 +19,6 @@ export function ReadFileTool({ message }: { message: Message }) {
     startLine && endLine ? `${startLine}-${endLine}` : undefined;
 
   const isLoading = status === "RUNNING";
-  const loadingText =
-    isLoading && filePath ? `Reading ${filePath}...` : undefined;
 
   return (
     <ToolComponent
@@ -30,7 +28,6 @@ export function ReadFileTool({ message }: { message: Message }) {
       suffix={lineRange}
       showFileIcon={filePath}
       isLoading={isLoading}
-      loadingText={loadingText}
       onClick={() => {
         updateSelectedFilePath(filePath);
         expandRightPanel();
