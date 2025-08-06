@@ -8,7 +8,11 @@ import {
 export async function retrieveCodeChunks(
   request: CodebaseSearchRequest
 ): Promise<CodebaseSearchResponse[]> {
-  const pinecone = new PineconeHandler("shadow");
-
-  return await pinecone.searchRecords(request);
+  try {
+    const pinecone = new PineconeHandler("shadow");
+    return await pinecone.searchRecords(request);
+  } catch (error) {
+    console.error(`[CODEBASE_RETRIEVAL] Error retrieving code chunks: ${error}`);
+    return [];
+  }
 }
