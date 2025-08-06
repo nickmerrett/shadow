@@ -1,4 +1,3 @@
-import { ModelType } from "@repo/types";
 import {
   useQuery,
   useMutation,

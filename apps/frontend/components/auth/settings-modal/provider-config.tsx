@@ -1,9 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, ArrowLeft } from "lucide-react";
-import { ModelType, ApiKeyProvider } from "@repo/types";
+import { Loader2 } from "lucide-react";
+import { ModelType, ApiKeyProvider, API_KEY_PROVIDER_NAMES } from "@repo/types";
 import { useState, useEffect } from "react";
 import {
   useUserSettings,
@@ -13,7 +12,6 @@ import {
   getAllPossibleModelsInfo,
   getModelDefaults,
 } from "@/lib/actions/api-keys";
-import { useModal } from "@/components/layout/modal-context";
 
 interface ProviderConfigProps {
   provider: ApiKeyProvider;
@@ -23,9 +21,10 @@ export function ProviderConfig({ provider }: ProviderConfigProps) {
   const { data: userSettings, isLoading: isLoadingSettings } =
     useUserSettings();
   const updateUserSettings = useUpdateUserSettings();
-  const { closeProviderConfig } = useModal();
 
-  const [allModels, setAllModels] = useState<{ id: string; name: string; provider: string }[]>([]);
+  const [allModels, setAllModels] = useState<
+    { id: string; name: string; provider: string }[]
+  >([]);
   const [defaults, setDefaults] = useState<{
     defaultModels: ModelType[];
   }>({ defaultModels: [] });
@@ -71,15 +70,7 @@ export function ProviderConfig({ provider }: ProviderConfigProps) {
   if (!provider || providerModels.length === 0) {
     return (
       <div className="flex w-full flex-col gap-6">
-        <Button
-          variant="ghost"
-          className="w-fit self-start"
-          onClick={() => closeProviderConfig()}
-        >
-          <ArrowLeft className="mr-2 size-4" />
-          Back to Models
-        </Button>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           No models available for this provider.
         </p>
       </div>
@@ -88,51 +79,33 @@ export function ProviderConfig({ provider }: ProviderConfigProps) {
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <Button
-        variant="ghost"
-        className="w-fit self-start"
-        onClick={() => closeProviderConfig()}
-      >
-        <ArrowLeft className="mr-2 size-4" />
-        Back to Models
-      </Button>
-
-      <div className="space-y-6">
-        {/* Main Models Selection */}
+      <div className="flex flex-col gap-4">
         <div>
-          <h3 className="mb-3 text-sm font-medium">Available Models</h3>
-          <p className="mb-4 text-xs text-muted-foreground">
-            Select which {provider.charAt(0).toUpperCase() + provider.slice(1)} models appear in your dropdown.
-          </p>
+          Select which {API_KEY_PROVIDER_NAMES[provider]} models appear in your
+          model selector.
+        </div>
 
-          <div className="space-y-2">
-            {providerModels.map((model) => (
-              <div key={model.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`model-${model.id}`}
-                  checked={selectedModels.includes(model.id as ModelType)}
-                  onCheckedChange={(checked) =>
-                    handleModelToggle(model.id as ModelType, !!checked)
-                  }
-                  disabled={isLoadingSettings || updateUserSettings.isPending}
-                />
-                <label
-                  htmlFor={`model-${model.id}`}
-                  className="flex-1 cursor-pointer text-sm"
-                >
-                  {model.name}
-                </label>
-              </div>
-            ))}
-          </div>
+        <div className="space-y-2">
+          {providerModels.map((model) => (
+            <div key={model.id} className="flex items-center space-x-2">
+              <Checkbox
+                id={`model-${model.id}`}
+                checked={selectedModels.includes(model.id as ModelType)}
+                onCheckedChange={(checked) =>
+                  handleModelToggle(model.id as ModelType, !!checked)
+                }
+                disabled={isLoadingSettings || updateUserSettings.isPending}
+              />
+              <label
+                htmlFor={`model-${model.id}`}
+                className="flex-1 cursor-pointer text-sm"
+              >
+                {model.name}
+              </label>
+            </div>
+          ))}
         </div>
       </div>
-
-      {(isLoadingSettings || updateUserSettings.isPending) && (
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="size-5 animate-spin" />
-        </div>
-      )}
     </div>
   );
 }
