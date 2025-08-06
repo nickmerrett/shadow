@@ -1,5 +1,4 @@
 import { prisma } from "@repo/db";
-import { ModelType } from "@repo/types";
 
 export interface UserSettings {
   id: string;
