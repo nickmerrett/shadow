@@ -4,6 +4,7 @@ import {
   updateUserSettings,
   getOrCreateUserSettings,
 } from "@/lib/db-operations/user-settings";
+import { ModelType } from "@repo/types";
 
 export async function GET(req: NextRequest) {
   try {
@@ -38,7 +39,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { autoPullRequest, enableDeepWiki, memoriesEnabled } = body;
+    const {
+      autoPullRequest,
+      enableDeepWiki,
+      memoriesEnabled,
+      selectedModels,
+      selectedMiniModels,
+    } = body;
 
     // Validate autoPullRequest if provided
     if (autoPullRequest !== undefined && typeof autoPullRequest !== "boolean") {
@@ -64,11 +71,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate selectedModels if provided
+    if (selectedModels !== undefined && !Array.isArray(selectedModels)) {
+      return NextResponse.json(
+        { error: "selectedModels must be an array" },
+        { status: 400 }
+      );
+    }
+
+    // Validate selectedMiniModels if provided
+    if (
+      selectedMiniModels !== undefined &&
+      (typeof selectedMiniModels !== "object" ||
+        selectedMiniModels === null ||
+        Array.isArray(selectedMiniModels))
+    ) {
+      return NextResponse.json(
+        { error: "selectedMiniModels must be an object (not array or null)" },
+        { status: 400 }
+      );
+    }
+
     // Build update object with only provided fields
     const updateData: {
       autoPullRequest?: boolean;
       enableDeepWiki?: boolean;
       memoriesEnabled?: boolean;
+      selectedModels?: string[];
+      selectedMiniModels?: Record<string, ModelType>;
     } = {};
     if (autoPullRequest !== undefined)
       updateData.autoPullRequest = autoPullRequest;
@@ -76,6 +106,10 @@ export async function POST(request: NextRequest) {
       updateData.enableDeepWiki = enableDeepWiki;
     if (memoriesEnabled !== undefined)
       updateData.memoriesEnabled = memoriesEnabled;
+    if (selectedModels !== undefined)
+      updateData.selectedModels = selectedModels;
+    if (selectedMiniModels !== undefined)
+      updateData.selectedMiniModels = selectedMiniModels;
 
     const settings = await updateUserSettings(session.user.id, updateData);
 
@@ -83,7 +117,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error updating user settings:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to update user settings" },
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to update user settings",
+      },
       { status: 500 }
     );
   }

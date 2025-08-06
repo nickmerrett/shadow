@@ -164,7 +164,8 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       const initContext = await modelContextService.createContext(
         taskId,
         req.headers.cookie,
-        model as ModelType
+        model as ModelType,
+        userId
       );
 
       if (!initContext.validateAccess()) {
@@ -265,7 +266,7 @@ app.post("/api/validate-keys", async (req, res) => {
       hasOpenAI: !!userApiKeys.openai,
       hasAnthropic: !!userApiKeys.anthropic,
       hasOpenRouter: !!userApiKeys.openrouter,
-      hasGroq: !!userApiKeys.groq,
+      // hasGroq: !!userApiKeys.groq,
       hasOllama: !!userApiKeys.ollama,
     });
 
@@ -280,9 +281,9 @@ app.post("/api/validate-keys", async (req, res) => {
     if (userApiKeys.openrouter && userApiKeys.openrouter.trim()) {
       keysToValidate.openrouter = userApiKeys.openrouter;
     }
-    if (userApiKeys.groq && userApiKeys.groq.trim()) {
-      keysToValidate.groq = userApiKeys.groq;
-    }
+    // if (userApiKeys.groq && userApiKeys.groq.trim()) {
+    //   keysToValidate.groq = userApiKeys.groq;
+    // }
     if (userApiKeys.ollama && userApiKeys.ollama.trim()) {
       keysToValidate.ollama = userApiKeys.ollama;
     }
@@ -493,7 +494,8 @@ app.post("/api/tasks/:taskId/pull-request", async (req, res) => {
     // Get or refresh model context for PR creation
     const modelContext = await modelContextService.refreshContext(
       taskId,
-      req.headers.cookie
+      req.headers.cookie,
+      task.userId
     );
 
     if (modelContext) {
