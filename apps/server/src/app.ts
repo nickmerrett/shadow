@@ -169,8 +169,12 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 
       if (!initContext.validateAccess()) {
         const provider = initContext.getProvider();
-        const providerName = provider === "anthropic" ? "Anthropic" : 
-                         provider === "openrouter" ? "OpenRouter" : "OpenAI";
+        const providerName =
+          provider === "anthropic"
+            ? "Anthropic"
+            : provider === "openrouter"
+              ? "OpenRouter"
+              : "OpenAI";
 
         await updateTaskStatus(taskId, "FAILED", "INIT");
 
@@ -257,7 +261,9 @@ app.get("/api/models", async (req, res) => {
   try {
     const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
     const availableModels = chatService.getAvailableModels(userApiKeys);
-    const modelsWithInfo = availableModels.map((modelId) => ModelInfos[modelId]);
+    const modelsWithInfo = availableModels.map(
+      (modelId) => ModelInfos[modelId]
+    );
 
     res.json(modelsWithInfo);
   } catch (error) {
@@ -270,7 +276,15 @@ app.get("/api/models", async (req, res) => {
 app.post("/api/validate-keys", async (req, res) => {
   try {
     const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
-    
+
+    console.log("[VALIDATION] Parsed API keys:", {
+      hasOpenAI: !!userApiKeys.openai,
+      hasAnthropic: !!userApiKeys.anthropic,
+      hasOpenRouter: !!userApiKeys.openrouter,
+      hasGroq: !!userApiKeys.groq,
+      hasOllama: !!userApiKeys.ollama,
+    });
+
     // Only validate keys that are present and not empty
     const keysToValidate: Partial<Record<string, string>> = {};
     if (userApiKeys.openai && userApiKeys.openai.trim()) {
@@ -282,9 +296,20 @@ app.post("/api/validate-keys", async (req, res) => {
     if (userApiKeys.openrouter && userApiKeys.openrouter.trim()) {
       keysToValidate.openrouter = userApiKeys.openrouter;
     }
+    if (userApiKeys.groq && userApiKeys.groq.trim()) {
+      keysToValidate.groq = userApiKeys.groq;
+    }
+    if (userApiKeys.ollama && userApiKeys.ollama.trim()) {
+      keysToValidate.ollama = userApiKeys.ollama;
+    }
 
-    const validationResults = await apiKeyValidator.validateMultiple(keysToValidate);
-    
+    console.log("[VALIDATION] Keys to validate:", Object.keys(keysToValidate));
+
+    const validationResults =
+      await apiKeyValidator.validateMultiple(keysToValidate);
+
+    console.log("[VALIDATION] Results:", validationResults);
+
     res.json(validationResults);
   } catch (error) {
     console.error("Error validating API keys:", error);
