@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import type { StackedPRInfo } from "@/lib/db-operations/get-stacked-pr-info";
+import { TaskStatus } from "@repo/db";
 
 type InitialStackedPRData = {
   id: string;
   title: string;
   shadowBranch?: string;
+  status?: TaskStatus;
 };
 
 export function useStackedPRInfo(
@@ -24,7 +26,7 @@ export function useStackedPRInfo(
       ? {
           id: initialData.id,
           title: initialData.title,
-          status: "INITIALIZING",
+          status: initialData.status || "INITIALIZING",
           shadowBranch: initialData.shadowBranch || null,
         }
       : undefined,

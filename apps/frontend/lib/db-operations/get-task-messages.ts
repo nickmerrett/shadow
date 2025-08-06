@@ -19,6 +19,7 @@ export async function getTaskMessages(taskId: string): Promise<TaskMessages> {
               id: true,
               title: true,
               shadowBranch: true,
+              status: true,
             },
           },
         },
