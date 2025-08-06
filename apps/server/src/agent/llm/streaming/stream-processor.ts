@@ -6,6 +6,7 @@ import {
   ToolName,
   getModelProvider,
   toCoreMessage,
+  ApiKeys,
 } from "@repo/types";
 import {
   CoreMessage,
@@ -30,7 +31,7 @@ export class StreamProcessor {
     systemPrompt: string,
     messages: Message[],
     model: ModelType,
-    userApiKeys: { openai?: string; anthropic?: string },
+    userApiKeys: ApiKeys,
     enableTools: boolean = true,
     taskId: string,
     workspacePath?: string,
@@ -47,7 +48,8 @@ export class StreamProcessor {
       const tools =
         preCreatedTools || (await createTools(taskId, workspacePath));
 
-      const isAnthropicModel = getModelProvider(model) === "anthropic";
+      const modelProvider = getModelProvider(model);
+      const isAnthropicModel = modelProvider === "anthropic";
 
       let finalMessages: CoreMessage[];
       if (isAnthropicModel) {

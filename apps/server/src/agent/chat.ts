@@ -5,6 +5,7 @@ import {
   Message,
   MessageMetadata,
   ModelType,
+  ApiKeys,
 } from "@repo/types";
 import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import { randomUUID } from "crypto";
@@ -1229,10 +1230,7 @@ export class ChatService {
     }
   }
 
-  getAvailableModels(userApiKeys: {
-    openai?: string;
-    anthropic?: string;
-  }): ModelType[] {
+  getAvailableModels(userApiKeys: ApiKeys): ModelType[] {
     return this.llmService.getAvailableModels(userApiKeys);
   }
 
