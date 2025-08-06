@@ -117,11 +117,11 @@ export class TaskCleanupService {
         },
       });
 
-      // Update task status to ARCHIVED and clear cleanup schedule
+      // Set initStatus to INACTIVE (VM spun down) and clear cleanup schedule
+      // Keep original task status (COMPLETED/STOPPED) so user can resume later
       await prisma.task.update({
         where: { id: taskId },
         data: {
-          status: "ARCHIVED",
           initStatus: "INACTIVE",
           scheduledCleanupAt: null,
         },

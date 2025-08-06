@@ -567,31 +567,21 @@ export class ChatService {
         return;
       }
 
-      // Handle COMPLETED or STOPPED tasks with scheduled cleanup
-      if (
-        (task.status === "COMPLETED" || task.status === "STOPPED") &&
-        task.scheduledCleanupAt
-      ) {
-        console.log(
-          `[CHAT] Following up on ${task.status.toLowerCase()} task ${taskId}, cancelling cleanup`
-        );
+      // Handle tasks with inactive workspaces (VM spun down)
+      if (task.initStatus === "INACTIVE") {
+        // If task has scheduled cleanup, cancel it since user wants to resume
+        if (task.scheduledCleanupAt) {
+          console.log(
+            `[CHAT] Resuming task ${taskId} with scheduled cleanup, cancelling cleanup`
+          );
+          await cancelTaskCleanup(taskId);
+        } else {
+          console.log(
+            `[CHAT] Resuming inactive task ${taskId}, requires re-initialization`
+          );
+        }
 
-        await cancelTaskCleanup(taskId);
-        await updateTaskStatus(taskId, "RUNNING", "CHAT");
-
-        return;
-      }
-
-      // Handle COMPLETED or STOPPED tasks without scheduled cleanup (need re-initialization)
-      if (
-        (task.status === "COMPLETED" || task.status === "STOPPED") &&
-        !task.scheduledCleanupAt
-      ) {
-        console.log(
-          `[CHAT] Following up on ${task.status.toLowerCase()} task ${taskId}, requires re-initialization`
-        );
-
-        // Set task back to INITIALIZING and reset init status
+        // Set task to INITIALIZING to trigger workspace spin-up
         await updateTaskStatus(taskId, "INITIALIZING", "CHAT");
         await prisma.task.update({
           where: { id: taskId },
