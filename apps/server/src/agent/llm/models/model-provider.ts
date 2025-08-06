@@ -1,6 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
-import { ModelType, getModelProvider } from "@repo/types";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { ModelType, getModelProvider, ApiKeys } from "@repo/types";
 import { LanguageModel } from "ai";
 
 export class ModelProvider {
@@ -9,7 +10,7 @@ export class ModelProvider {
    */
   getModel(
     modelId: ModelType,
-    userApiKeys: { openai?: string; anthropic?: string }
+    userApiKeys: ApiKeys
   ): LanguageModel {
     const provider = getModelProvider(modelId);
 
@@ -41,6 +42,26 @@ export class ModelProvider {
 
         const openaiClient = createOpenAI({ apiKey: userApiKeys.openai });
         return openaiClient(modelId);
+      }
+
+      case "openrouter": {
+        if (!userApiKeys.openrouter) {
+          throw new Error(
+            "OpenRouter API key not provided. Please configure your API key in settings."
+          );
+        }
+
+        console.log("Creating OpenRouter client");
+
+        try {
+          const openrouterClient = createOpenRouter({
+            apiKey: userApiKeys.openrouter,
+          });
+          return openrouterClient.chat(modelId);
+        } catch (error) {
+          console.error("OpenRouter client creation failed:", error);
+          throw error;
+        }
       }
 
       default:

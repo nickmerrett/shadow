@@ -1,13 +1,10 @@
-import { ModelType, AvailableModels } from "@repo/types";
+import { ModelType, AvailableModels, ApiKeys } from "@repo/types";
 
 export class ModelTypes {
   /**
    * Get available models based on user API keys
    */
-  getAvailableModels(userApiKeys: {
-    openai?: string;
-    anthropic?: string;
-  }): ModelType[] {
+  getAvailableModels(userApiKeys: ApiKeys): ModelType[] {
     const models: ModelType[] = [];
 
     if (userApiKeys.anthropic) {
@@ -16,6 +13,14 @@ export class ModelTypes {
 
     if (userApiKeys.openai) {
       models.push(AvailableModels.GPT_4O, AvailableModels.O3, AvailableModels.GPT_4_1);
+    }
+
+    if (userApiKeys.openrouter) {
+      models.push(
+        AvailableModels.OPENROUTER_HORIZON_BETA,
+        AvailableModels.OPENAI_GPT_OSS_120B,
+        AvailableModels.OPENAI_GPT_OSS_20B
+      );
     }
 
     return models;

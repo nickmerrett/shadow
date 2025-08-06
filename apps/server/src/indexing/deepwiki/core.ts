@@ -7,7 +7,7 @@ import JavaScript from "tree-sitter-javascript";
 import { CodebaseUnderstandingStorage } from "./db-storage";
 import TS from "tree-sitter-typescript";
 import { ModelProvider } from "@/agent/llm/models/model-provider";
-import { ModelType } from "@repo/types";
+import { ModelType, ApiKeys } from "@repo/types";
 import { generateText } from "ai";
 import { TaskModelContext } from "@/services/task-model-context";
 
@@ -591,7 +591,7 @@ export async function runDeepWiki(
   repoFullName: string,
   repoUrl: string,
   userId: string,
-  contextOrApiKeys: TaskModelContext | { openai?: string; anthropic?: string },
+  contextOrApiKeys: TaskModelContext | ApiKeys,
   options: {
     concurrency?: number;
     model?: ModelType;
