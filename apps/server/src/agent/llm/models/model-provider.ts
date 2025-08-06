@@ -1,7 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { createGroq } from "@ai-sdk/groq";
+// import { createGroq } from "@ai-sdk/groq";
 import { createOllama } from "ollama-ai-provider";
 import { ModelType, getModelProvider, ApiKeys } from "@repo/types";
 import { LanguageModel } from "ai";
@@ -62,25 +62,25 @@ export class ModelProvider {
         }
       }
 
-      case "groq": {
-        if (!userApiKeys.groq) {
-          throw new Error(
-            "Groq API key not provided. Please configure your API key in settings."
-          );
-        }
+      // case "groq": {
+      //   if (!userApiKeys.groq) {
+      //     throw new Error(
+      //       "Groq API key not provided. Please configure your API key in settings."
+      //     );
+      //   }
 
-        console.log("Creating Groq client");
+      //   console.log("Creating Groq client");
 
-        try {
-          const groqClient = createGroq({
-            apiKey: userApiKeys.groq,
-          });
-          return groqClient(modelId) as unknown as LanguageModel;
-        } catch (error) {
-          console.error("Groq client creation failed:", error);
-          throw error;
-        }
-      }
+      //   try {
+      //     const groqClient = createGroq({
+      //       apiKey: userApiKeys.groq,
+      //     });
+      //     return groqClient(modelId) as unknown as LanguageModel;
+      //   } catch (error) {
+      //     console.error("Groq client creation failed:", error);
+      //     throw error;
+      //   }
+      // }
 
       case "ollama": {
         console.log("Creating Ollama client");

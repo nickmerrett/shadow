@@ -43,8 +43,8 @@ export class LLMService {
   /**
    * Get available models based on user API keys
    */
-  getAvailableModels(userApiKeys: ApiKeys): ModelType[] {
-    return getAvailableModels(userApiKeys);
+  async getAvailableModels(userApiKeys: ApiKeys): Promise<ModelType[]> {
+    return await getAvailableModels(userApiKeys);
   }
 
   /**

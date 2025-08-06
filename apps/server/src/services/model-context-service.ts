@@ -29,10 +29,28 @@ export class ModelContextService {
   async createContext(
     taskId: string,
     cookieHeader: string | undefined,
-    selectedModel: ModelType
+    selectedModel: ModelType,
+    userId?: string
   ): Promise<TaskModelContext> {
     const apiKeys = parseApiKeysFromCookies(cookieHeader);
-    const context = new TaskModelContext(taskId, selectedModel, apiKeys);
+    
+    // Fetch user's selected mini models if userId is provided
+    let selectedMiniModels: Record<string, ModelType> | undefined;
+    if (userId) {
+      try {
+        const userSettings = await prisma.userSettings.findUnique({
+          where: { userId },
+          select: { selectedMiniModels: true },
+        });
+        if (userSettings?.selectedMiniModels) {
+          selectedMiniModels = userSettings.selectedMiniModels as Record<string, ModelType>;
+        }
+      } catch (error) {
+        console.warn("Failed to fetch user mini model settings:", error);
+      }
+    }
+
+    const context = new TaskModelContext(taskId, selectedModel, apiKeys, selectedMiniModels);
 
     // Update the task's mainModel field to keep it current
     await this.updateTaskMainModel(taskId, selectedModel);
@@ -102,7 +120,8 @@ export class ModelContextService {
    */
   async refreshContext(
     taskId: string,
-    cookieHeader: string | undefined
+    cookieHeader: string | undefined,
+    userId?: string
   ): Promise<TaskModelContext | null> {
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -114,10 +133,28 @@ export class ModelContextService {
     }
 
     const apiKeys = parseApiKeysFromCookies(cookieHeader);
+    
+    // Fetch user's selected mini models if userId is provided
+    let selectedMiniModels: Record<string, ModelType> | undefined;
+    if (userId) {
+      try {
+        const userSettings = await prisma.userSettings.findUnique({
+          where: { userId },
+          select: { selectedMiniModels: true },
+        });
+        if (userSettings?.selectedMiniModels) {
+          selectedMiniModels = userSettings.selectedMiniModels as Record<string, ModelType>;
+        }
+      } catch (error) {
+        console.warn("Failed to fetch user mini model settings:", error);
+      }
+    }
+
     const context = new TaskModelContext(
       taskId,
       task.mainModel as ModelType,
-      apiKeys
+      apiKeys,
+      selectedMiniModels
     );
 
     this.cacheContext(taskId, context);
