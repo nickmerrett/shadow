@@ -6,6 +6,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { SettingsModal } from "@/components/auth/settings-modal";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { cookies } from "next/headers";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -20,10 +21,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const departureMono = localFont({
+  src: "./fonts/DepartureMono-Regular.woff2",
+  variable: "--font-departure-mono",
+});
+
 export const metadata: Metadata = {
   title: "Shadow",
   description:
-    "A remote, autonomous coding agent for complex and long-running tasks.",
+    "An open-source background agent and web interface to build, debug, and understand code.",
   icons: {
     icon: [
       {
@@ -48,17 +54,8 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link
-          rel="preload"
-          href="/fonts/DepartureMono-Regular.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} overscroll-none antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${departureMono.variable} overscroll-none antialiased`}
       >
         <QueryClientProvider>
           <ThemeProvider
