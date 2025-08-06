@@ -43,6 +43,19 @@ export class ModelContextService {
     return context;
   }
 
+  async copyContext(
+    taskId: string,
+    context: TaskModelContext
+  ): Promise<TaskModelContext> {
+    const newContext = new TaskModelContext(
+      taskId,
+      context.getMainModel(),
+      context.getApiKeys()
+    );
+    this.cacheContext(taskId, newContext);
+    return newContext;
+  }
+
   /**
    * Get existing context for a task (from cache or database)
    * This is used by services that need the context but don't have direct access to cookies
@@ -51,11 +64,23 @@ export class ModelContextService {
     taskId: string,
     fallbackApiKeys?: ApiKeys
   ): Promise<TaskModelContext | null> {
+    console.log(`[API_KEY_DEBUG] Getting context for task ${taskId}`);
+
     // Check cache first
     const cached = this.getCachedContext(taskId);
     if (cached) {
+      console.log(
+        `[API_KEY_DEBUG] Found cached context for ${taskId}, validates: ${cached.validateAccess()}`
+      );
+      console.log(
+        `[API_KEY_DEBUG] Cached context keys: ${JSON.stringify(Object.keys(cached.getApiKeys()))}`
+      );
       return cached;
     }
+
+    console.log(
+      `[API_KEY_DEBUG] No cached context for ${taskId}, fetching from DB`
+    );
 
     // Fetch from database
     const task = await prisma.task.findUnique({
@@ -92,9 +117,6 @@ export class ModelContextService {
       where: { id: taskId },
       data: { mainModel: newModel },
     });
-
-    // Invalidate cache to force refresh
-    this.invalidateCache(taskId);
   }
 
   /**
@@ -121,6 +143,39 @@ export class ModelContextService {
     );
 
     this.cacheContext(taskId, context);
+    return context;
+  }
+
+  /**
+   * Create context for stacked task inheriting API keys from parent
+   */
+  async createContextWithInheritedKeys(
+    taskId: string,
+    selectedModel: ModelType,
+    inheritedApiKeys: ApiKeys
+  ): Promise<TaskModelContext> {
+    console.log(
+      `[API_KEY_DEBUG] Creating inherited context for task ${taskId}`
+    );
+    console.log(
+      `[API_KEY_DEBUG] Inherited keys: ${JSON.stringify(Object.keys(inheritedApiKeys))}`
+    );
+    console.log(`[API_KEY_DEBUG] Selected model: ${selectedModel}`);
+
+    const context = new TaskModelContext(
+      taskId,
+      selectedModel,
+      inheritedApiKeys
+    );
+
+    console.log(
+      `[API_KEY_DEBUG] Created context validates access: ${context.validateAccess()}`
+    );
+
+    // Update task's mainModel and cache the context
+    await this.updateTaskMainModel(taskId, selectedModel);
+    this.cacheContext(taskId, context);
+
     return context;
   }
 

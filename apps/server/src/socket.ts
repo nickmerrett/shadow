@@ -240,7 +240,7 @@ async function verifyTaskAccess(
   }
 }
 
-function emitToTask(
+export function emitToTask(
   taskId: string,
   event: keyof ServerToClientEvents,
   data: unknown
@@ -447,11 +447,11 @@ export function createSocketServer(
       }
     });
 
-    socket.on("clear-queued-message", async (data) => {
+    socket.on("clear-queued-action", async (data: { taskId: string }) => {
       try {
-        chatService.clearQueuedMessage(data.taskId);
+        chatService.clearQueuedAction(data.taskId);
       } catch (error) {
-        console.error("Error clearing queued message:", error);
+        console.error("Error clearing queued action:", error);
       }
     });
 
@@ -564,10 +564,10 @@ export function createSocketServer(
           taskId: data.taskId,
           messages: history,
           mostRecentMessageModel: (task?.mainModel as ModelType) || null,
-          // If complete is true, the queued message will automatically get sent, so set it to empty string so the frontend removes it from the queue UI
-          queuedMessage: data.complete
+          // If complete is true, the queued action will automatically get sent, so set it to null so the frontend removes it from the queue UI
+          queuedAction: data.complete
             ? null
-            : chatService.getQueuedMessage(data.taskId) || null,
+            : chatService.getQueuedAction(data.taskId),
         });
       } catch (error) {
         console.error("Error getting chat history:", error);

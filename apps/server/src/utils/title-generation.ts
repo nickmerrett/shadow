@@ -1,27 +1,27 @@
 import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { anthropic } from "@ai-sdk/anthropic";
 import {
   cleanTitle,
   generateShadowBranchName,
   getTitleGenerationModel,
+  ModelType,
 } from "@repo/types";
 import { TaskModelContext } from "../services/task-model-context";
+import { ModelProvider } from "../agent/llm/models/model-provider";
 
 export async function generateTaskTitleAndBranch(
   taskId: string,
   userPrompt: string,
-  context?: TaskModelContext
+  context: TaskModelContext
 ): Promise<{ title: string; shadowBranch: string }> {
   try {
     // Get API keys from context if provided
-    const apiKeys = context?.getApiKeys() || {
+    const apiKeys = context.getApiKeys() || {
       openai: undefined,
       anthropic: undefined,
     };
 
     // Get the main model to determine provider for mini model selection
-    const fallbackModel = context?.getMainModel();
+    const fallbackModel = context.getMainModel();
 
     const modelConfig = getTitleGenerationModel({
       taskId,
@@ -40,10 +40,11 @@ export async function generateTaskTitleAndBranch(
       };
     }
 
-    const model =
-      modelConfig.provider === "openai"
-        ? openai(modelConfig.modelChoice)
-        : anthropic(modelConfig.modelChoice);
+    const modelProvider = new ModelProvider();
+    const model = modelProvider.getModel(
+      modelConfig.modelChoice as ModelType,
+      apiKeys
+    );
 
     const { text: generatedText } = await generateText({
       model,

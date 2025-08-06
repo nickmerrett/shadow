@@ -12,6 +12,7 @@ import type {
   TaskStatusUpdateEvent,
   ModelType,
   FileNode,
+  QueuedActionUI,
   ToolCallPart,
 } from "@repo/types";
 import { TextPart, ToolResultPart } from "ai";
@@ -20,7 +21,6 @@ import { TaskMessages } from "@/lib/db-operations/get-task-messages";
 import { CodebaseTreeResponse } from "../use-codebase-tree";
 import { Task, TodoStatus } from "@repo/db";
 import { TaskStatusData } from "@/lib/db-operations/get-task-status";
-import { toast } from "sonner";
 
 interface FileChange {
   filePath: string;
@@ -304,17 +304,14 @@ export function useTaskSocket(taskId: string | undefined) {
       taskId: string;
       messages: Message[];
       mostRecentMessageModel: ModelType | null;
-      queuedMessage: string | null;
+      queuedAction: QueuedActionUI | null;
     }) {
       if (data.taskId === taskId) {
         queryClient.setQueryData<TaskMessages>(["task-messages", taskId], {
           messages: data.messages,
           mostRecentMessageModel: data.mostRecentMessageModel,
         });
-        queryClient.setQueryData(
-          ["queued-message", taskId],
-          data.queuedMessage
-        );
+        queryClient.setQueryData(["queued-action", taskId], data.queuedAction);
 
         clearStreamingState();
       }
@@ -445,7 +442,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "tool-call-start":
           if (chunk.toolCallStart) {
-
             const toolCallStartPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCallStart.id,
@@ -490,7 +486,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "tool-result":
           if (chunk.toolResult) {
-
             const correspondingCall = streamingParts.current.get(
               chunk.toolResult.id
             );
@@ -709,15 +704,71 @@ export function useTaskSocket(taskId: string | undefined) {
       clearStreamingState();
     }
 
-    function onStackedPRCreated(data: {
-      parentTaskId: string;
-      newTaskId: string;
+    function onQueuedActionProcessing(data: {
+      taskId: string;
+      type: "message" | "stacked-pr";
       message: string;
+      model: ModelType;
+      shadowBranch?: string;
+      title?: string;
     }) {
-      // queryClient.invalidateQueries({
-      //   queryKey: ["task-messages", data.parentTaskId],
-      // });
-      toast.success(`Stacked PR created: ${data.newTaskId}`);
+      if (data.taskId === taskId) {
+        console.log(`[TASK_SOCKET] Processing queued ${data.type}:`, data);
+
+        // Add optimistic user message to chat
+        const optimisticMessage: Message = {
+          id: `temp-queued-${Date.now()}`,
+          role: "user",
+          content: data.message.trim(),
+          llmModel: data.model,
+          createdAt: new Date().toISOString(),
+          metadata: { isStreaming: false },
+          pullRequestSnapshot: undefined,
+          // For stacked PRs, we have additional context from the generated task
+          ...(data.type === "stacked-pr" &&
+            data.shadowBranch && {
+              stackedTask: {
+                id: "temp",
+                title: data.title || data.message.trim(),
+                shadowBranch: data.shadowBranch,
+              },
+            }),
+        };
+
+        queryClient.setQueryData<TaskMessages>(
+          ["task-messages", taskId],
+          (old) => {
+            const currentMessages = old?.messages || [];
+
+            // Check if we already have a temp message for this queued action
+            const hasTempMessage = currentMessages.some(
+              (msg) =>
+                msg.id.startsWith("temp-queued-") &&
+                msg.content === data.message.trim() &&
+                msg.role === "user"
+            );
+
+            if (hasTempMessage) {
+              return (
+                old || {
+                  messages: currentMessages,
+                  mostRecentMessageModel: data.model,
+                }
+              );
+            }
+
+            const updatedMessages = [...currentMessages, optimisticMessage];
+
+            return {
+              messages: updatedMessages,
+              mostRecentMessageModel: data.model,
+            };
+          }
+        );
+
+        // Clear the queued action display since it's now processing
+        queryClient.setQueryData(["queued-action", taskId], null);
+      }
     }
 
     function onTaskStatusUpdate(data: TaskStatusUpdateEvent) {
@@ -781,7 +832,7 @@ export function useTaskSocket(taskId: string | undefined) {
     socket.on("stream-complete", onStreamComplete);
     socket.on("stream-error", onStreamError);
     socket.on("message-error", onMessageError);
-    socket.on("stacked-pr-created", onStackedPRCreated);
+    socket.on("queued-action-processing", onQueuedActionProcessing);
     socket.on("task-status-updated", onTaskStatusUpdate);
 
     return () => {
@@ -793,7 +844,7 @@ export function useTaskSocket(taskId: string | undefined) {
       socket.off("stream-complete", onStreamComplete);
       socket.off("stream-error", onStreamError);
       socket.off("message-error", onMessageError);
-      socket.off("stacked-pr-created", onStackedPRCreated);
+      socket.off("queued-action-processing", onQueuedActionProcessing);
       socket.off("task-status-updated", onTaskStatusUpdate);
     };
   }, [socket, taskId, queryClient]);
@@ -822,9 +873,9 @@ export function useTaskSocket(taskId: string | undefined) {
     clearStreamingState();
   }, [socket, taskId, isStreaming, clearStreamingState]);
 
-  const clearQueuedMessage = useCallback(() => {
+  const clearQueuedAction = useCallback(() => {
     if (!socket || !taskId) return;
-    socket.emit("clear-queued-message", { taskId });
+    socket.emit("clear-queued-action", { taskId });
   }, [socket, taskId]);
 
   const createStackedPR = useCallback(
@@ -848,7 +899,7 @@ export function useTaskSocket(taskId: string | undefined) {
     isStreaming,
     sendMessage,
     stopStream,
-    clearQueuedMessage,
+    clearQueuedAction,
     createStackedPR,
   };
 }

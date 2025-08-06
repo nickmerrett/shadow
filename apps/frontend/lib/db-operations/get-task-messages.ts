@@ -18,6 +18,8 @@ export async function getTaskMessages(taskId: string): Promise<TaskMessages> {
             select: {
               id: true,
               title: true,
+              shadowBranch: true,
+              status: true,
             },
           },
         },

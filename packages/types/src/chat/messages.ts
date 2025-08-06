@@ -7,7 +7,7 @@ import type {
 } from "ai";
 import { ToolExecutionStatusType } from "../tools/execution";
 import { ToolResultTypes } from "../tools/schemas";
-import type { PullRequestSnapshot } from "@repo/db";
+import type { PullRequestSnapshot, TaskStatus } from "@repo/db";
 
 // Error part type for AI SDK error chunks
 export interface ErrorPart {
@@ -53,6 +53,8 @@ export type Message = {
   stackedTask?: {
     id: string;
     title: string;
+    shadowBranch?: string;
+    status?: TaskStatus;
   };
 };
 

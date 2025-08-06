@@ -25,7 +25,7 @@ export function ValidationErrorTool({
       <div className="flex flex-col gap-1">
         <div className="font-medium text-yellow-600">{error.error}</div>
         {error.suggestedFix && (
-          <div className="text-muted-foreground">
+          <div>
             <strong>Suggestion:</strong> {error.suggestedFix}
           </div>
         )}
@@ -35,9 +35,9 @@ export function ValidationErrorTool({
             {error.validationDetails.receivedType}
           </div>
         )}
-        <div className="text-muted-foreground">Tool Call ID: {toolCallId}</div>
+        <div>Tool Call ID: {toolCallId}</div>
         {!isProduction && Object.keys(args).length > 0 && (
-          <details className="text-muted-foreground">
+          <details>
             <summary className="cursor-pointer">Tool Arguments</summary>
             <pre className="bg-muted mt-1 overflow-x-auto rounded p-2 text-xs">
               {JSON.stringify(args, null, 2)}

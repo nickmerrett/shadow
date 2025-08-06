@@ -1,14 +1,5 @@
 import { createAuthClient } from "better-auth/react";
 
-console.log(
-  "NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL",
-  process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL
-);
-console.log(
-  "NEXT_PUBLIC_VERCEL_BRANCH_URL",
-  process.env.NEXT_PUBLIC_VERCEL_BRANCH_URL
-);
-
 const baseURL = process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL}`
   : "http://localhost:3000";
