@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ValidationErrorResult } from "../chat/streaming";
+import type { ValidationErrorResult } from "../chat/streaming-client";
 
 // === Base Schemas ===
 const BaseResultSchema = z.object({

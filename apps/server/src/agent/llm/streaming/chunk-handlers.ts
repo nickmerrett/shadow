@@ -82,6 +82,55 @@ export class ChunkHandlers {
   }
 
   /**
+   * Handle tool-call-streaming-start chunks
+   */
+  handleToolCallStreamingStart(
+    chunk: AIStreamChunk & { type: "tool-call-streaming-start" },
+    toolCallMap: Map<string, ToolName>
+  ): StreamChunk[] {
+    const chunks: StreamChunk[] = [];
+
+    // Emit the tool call start
+    chunks.push({
+      type: "tool-call-start",
+      toolCallStart: {
+        id: chunk.toolCallId,
+        name: chunk.toolName,
+      },
+    });
+
+    // Pre-register the tool in the map if it's valid (for later result processing)
+    if (chunk.toolName in ToolResultSchemas) {
+      toolCallMap.set(chunk.toolCallId, chunk.toolName as ToolName);
+    } else {
+      console.warn(`[LLM] Invalid tool call streaming start: ${chunk.toolName}`);
+    }
+
+    return chunks;
+  }
+
+  /**
+   * Handle tool-call-delta chunks  
+   */
+  handleToolCallDelta(
+    chunk: AIStreamChunk & { type: "tool-call-delta" }
+  ): StreamChunk[] {
+    const chunks: StreamChunk[] = [];
+
+    // Emit the tool call delta
+    chunks.push({
+      type: "tool-call-delta",
+      toolCallDelta: {
+        id: chunk.toolCallId,
+        name: chunk.toolName,
+        argsTextDelta: chunk.argsTextDelta,
+      },
+    });
+
+    return chunks;
+  }
+
+  /**
    * Handle tool-result chunks
    */
   handleToolResult(
