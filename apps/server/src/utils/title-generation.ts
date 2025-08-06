@@ -6,7 +6,6 @@ import {
   cleanTitle,
   generateShadowBranchName,
   getTitleGenerationModel,
-  ModelType,
 } from "@repo/types";
 import { TaskModelContext } from "../services/task-model-context";
 
