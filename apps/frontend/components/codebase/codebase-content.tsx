@@ -9,6 +9,7 @@ import {
   FolderGit2,
   Loader2,
   Sparkles,
+  Folder,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { MarkdownRenderer } from "@/components/agent-environment/markdown-renderer";
@@ -20,6 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import Link from "next/link";
 
 export function CodebasePageContent() {
   const { codebaseId } = useParams<{ codebaseId: string }>();
@@ -166,7 +168,18 @@ export function CodebasePageContent() {
             </TooltipContent>
           </Tooltip>
         )}
-        <div className="truncate px-2">{/* {codebase.title} */}TITLE</div>
+        <Button
+          variant="ghost"
+          className="hover:bg-sidebar-accent px-2! justify-start font-normal"
+          asChild
+        >
+          <Link href={codebase?.repoUrl || "#"} target="_blank">
+            <Folder className="size-4 shrink-0" />
+            <span className="truncate">
+              {codebase?.repoFullName || "Repository"}
+            </span>
+          </Link>
+        </Button>
       </div>
 
       <div className="relative z-0 mx-auto flex w-full max-w-2xl flex-col items-center px-4 sm:px-6">
