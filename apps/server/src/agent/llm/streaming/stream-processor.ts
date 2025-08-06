@@ -153,7 +153,66 @@ export class StreamProcessor {
         );
       }
 
-      const result = streamText(streamConfig);
+      // Pre-stream validation logs
+      console.log("[DEBUG_STREAM] Model instance type:", typeof modelInstance);
+      console.log(
+        "[DEBUG_STREAM] Model instance keys:",
+        Object.keys(modelInstance || {})
+      );
+
+      // Log API keys validation
+      console.log("[DEBUG_STREAM] API keys present:", {
+        anthropic: !!userApiKeys.anthropic,
+        openai: !!userApiKeys.openai,
+        anthropicLength: userApiKeys.anthropic?.length || 0,
+      });
+
+      // Log streamConfig validation
+      console.log(
+        "[DEBUG_STREAM] StreamConfig keys:",
+        Object.keys(streamConfig)
+      );
+      console.log(
+        "[DEBUG_STREAM] StreamConfig model:",
+        streamConfig.model?.constructor?.name
+      );
+      console.log(
+        "[DEBUG_STREAM] StreamConfig messages length:",
+        streamConfig.messages?.length
+      );
+      console.log(
+        "[DEBUG_STREAM] StreamConfig has tools:",
+        !!streamConfig.tools
+      );
+
+      // Stream creation with error handling
+      let result;
+      try {
+        console.log("[DEBUG_STREAM] Calling streamText with config...");
+        result = streamText(streamConfig);
+        console.log("[DEBUG_STREAM] streamText returned successfully");
+      } catch (error) {
+        console.error("[DEBUG_STREAM] streamText threw error:", error);
+        console.error("[DEBUG_STREAM] Error details:", {
+          name: error instanceof Error ? error.name : "Unknown",
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : "No stack trace",
+        });
+        throw error;
+      }
+
+      // Result object analysis
+      console.log("[DEBUG_STREAM] Result object analysis:");
+      console.log("[DEBUG_STREAM] Result type:", typeof result);
+      console.log("[DEBUG_STREAM] Result keys:", Object.keys(result || {}));
+      console.log("[DEBUG_STREAM] fullStream type:", typeof result?.fullStream);
+      console.log(
+        "[DEBUG_STREAM] fullStream keys:",
+        result?.fullStream ? Object.keys(result.fullStream) : "N/A"
+      );
+
+      // Note: StreamTextResult doesn't have an error property
+      // Errors are handled through the stream itself or thrown during creation
 
       const toolCallMap = new Map<string, ToolName>(); // toolCallId -> validated toolName
 
