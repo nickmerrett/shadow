@@ -621,7 +621,7 @@ export class TaskInitializationEngine {
     try {
       const userSettings = await prisma.userSettings.findUnique({
         where: { userId },
-        select: { enableDeepWiki: true, enableIndexing: true },
+        select: { enableShadowWiki: true, enableIndexing: true },
       });
       enableShadowWiki = userSettings?.enableShadowWiki ?? false;
       enableIndexing = userSettings?.enableIndexing ?? false;
