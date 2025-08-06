@@ -9,7 +9,7 @@ export function QueuedMessage() {
   const { taskId } = useParams<{ taskId: string }>();
 
   const queryClient = useQueryClient();
-  const { clearQueuedMessage } = useTaskSocket(taskId);
+  const { clearQueuedAction } = useTaskSocket(taskId);
   const { data: queuedMessage } = useQueuedMessage(taskId);
 
   if (!queuedMessage) return null;
@@ -27,7 +27,7 @@ export function QueuedMessage() {
         className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border p-0"
         onClick={() => {
           queryClient.setQueryData(["queued-message", taskId], null);
-          clearQueuedMessage();
+          clearQueuedAction();
         }}
       >
         <X className="size-3.5" />

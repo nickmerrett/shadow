@@ -86,7 +86,7 @@ export interface ClientToServerEvents {
   "get-chat-history": (data: { taskId: string; complete: boolean }) => void;
   "stop-stream": (data: { taskId: string }) => void;
   "request-history": (data: { taskId: string; fromPosition?: number }) => void;
-  "clear-queued-message": (data: { taskId: string }) => void;
+  "clear-queued-action": (data: { taskId: string }) => void;
   "create-stacked-pr": (data: {
     taskId: string;
     message: string;

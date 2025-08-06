@@ -447,11 +447,11 @@ export function createSocketServer(
       }
     });
 
-    socket.on("clear-queued-message", async (data) => {
+    socket.on("clear-queued-action", async (data: { taskId: string }) => {
       try {
-        chatService.clearQueuedMessage(data.taskId);
+        chatService.clearQueuedAction(data.taskId);
       } catch (error) {
-        console.error("Error clearing queued message:", error);
+        console.error("Error clearing queued action:", error);
       }
     });
 
@@ -567,7 +567,7 @@ export function createSocketServer(
           // If complete is true, the queued message will automatically get sent, so set it to empty string so the frontend removes it from the queue UI
           queuedMessage: data.complete
             ? null
-            : chatService.getQueuedMessage(data.taskId) || null,
+            : chatService.getQueuedAction(data.taskId) || null,
         });
       } catch (error) {
         console.error("Error getting chat history:", error);

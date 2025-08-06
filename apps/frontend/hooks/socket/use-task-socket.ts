@@ -711,9 +711,9 @@ export function useTaskSocket(taskId: string | undefined) {
     setStreamingAssistantParts([]);
   }, [socket, taskId, isStreaming]);
 
-  const clearQueuedMessage = useCallback(() => {
+  const clearQueuedAction = useCallback(() => {
     if (!socket || !taskId) return;
-    socket.emit("clear-queued-message", { taskId });
+    socket.emit("clear-queued-action", { taskId });
   }, [socket, taskId]);
 
   const createStackedPR = useCallback(
@@ -736,7 +736,7 @@ export function useTaskSocket(taskId: string | undefined) {
     isStreaming,
     sendMessage,
     stopStream,
-    clearQueuedMessage,
+    clearQueuedAction,
     createStackedPR,
   };
 }

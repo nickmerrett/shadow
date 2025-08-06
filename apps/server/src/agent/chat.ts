@@ -37,28 +37,34 @@ import {
 import { createToolExecutor } from "../execution";
 import { memoryService } from "../services/memory-service";
 
+// Discriminated union types for queued actions
+type QueuedMessageAction = {
+  type: 'message';
+  data: {
+    message: string;
+    context: TaskModelContext;
+    workspacePath?: string;
+  };
+};
+
+type QueuedStackedPRAction = {
+  type: 'stacked-pr';
+  data: {
+    message: string;
+    parentTaskId: string;
+    model: ModelType;
+    userId: string;
+    socket: TypedSocket;
+  };
+};
+
+type QueuedAction = QueuedMessageAction | QueuedStackedPRAction;
+
 export class ChatService {
   private llmService: LLMService;
   private activeStreams: Map<string, AbortController> = new Map();
   private stopRequested: Set<string> = new Set();
-  private queuedMessages: Map<
-    string,
-    {
-      message: string;
-      context: TaskModelContext;
-      workspacePath?: string;
-    }
-  > = new Map();
-  private queuedStackedPRs: Map<
-    string,
-    {
-      parentTaskId: string;
-      message: string;
-      model: ModelType;
-      userId: string;
-      socket: TypedSocket;
-    }
-  > = new Map();
+  private queuedActions: Map<string, QueuedAction> = new Map();
 
   constructor() {
     this.llmService = new LLMService();
@@ -665,12 +671,15 @@ export class ChatService {
           `[CHAT] Queuing message for task ${taskId} (stream in progress)`
         );
 
-        // Support only one queued message at a time for now, can extend to a list later
-        // Override the existing queued message if it exists
-        this.queuedMessages.set(taskId, {
-          message: userMessage,
-          context,
-          workspacePath,
+        // Support only one queued action at a time for now, can extend to a list later
+        // Override the existing queued action if it exists
+        this.queuedActions.set(taskId, {
+          type: 'message',
+          data: {
+            message: userMessage,
+            context,
+            workspacePath,
+          },
         });
         return;
       }
@@ -682,9 +691,9 @@ export class ChatService {
         );
         await this.stopStream(taskId);
 
-        // Override queued message if it exists
-        if (this.queuedMessages.has(taskId)) {
-          this.queuedMessages.delete(taskId);
+        // Override queued action if it exists
+        if (this.queuedActions.has(taskId)) {
+          this.queuedActions.delete(taskId);
         }
 
         // Cleanup time buffer
@@ -1068,8 +1077,8 @@ export class ChatService {
           this.stopRequested.delete(taskId);
           endStream(taskId);
 
-          // Clear any queued messages (don't process them after error)
-          this.clearQueuedMessage(taskId);
+          // Clear any queued actions (don't process them after error)
+          this.clearQueuedAction(taskId);
 
           // Exit the streaming loop
           break;
@@ -1165,11 +1174,8 @@ export class ChatService {
       this.stopRequested.delete(taskId);
       endStream(taskId);
 
-      // Process any queued message
-      await this.processQueuedMessage(taskId);
-
-      // Process any queued stacked PRs
-      await this.processQueuedStackedPRs(taskId);
+      // Process any queued actions
+      await this.processQueuedActions(taskId);
     } catch (error) {
       console.error("Error processing user message:", error);
 
@@ -1192,41 +1198,60 @@ export class ChatService {
       this.stopRequested.delete(taskId);
       handleStreamError(error, taskId);
 
-      await this.processQueuedMessage(taskId);
-
-      // Process any queued stacked PRs even on error
-      await this.processQueuedStackedPRs(taskId);
+      // Clear any queued actions (don't process them after error)
+      this.clearQueuedAction(taskId);
       throw error;
     }
   }
 
-  private async processQueuedMessage(taskId: string): Promise<void> {
-    const queuedMessage = this.queuedMessages.get(taskId);
-    if (!queuedMessage) {
+  private async processQueuedActions(taskId: string): Promise<void> {
+    const queuedAction = this.queuedActions.get(taskId);
+    if (!queuedAction) {
       return;
     }
 
-    this.queuedMessages.delete(taskId);
+    this.queuedActions.delete(taskId);
 
-    console.log(`[CHAT] Processing queued message for task ${taskId}`);
+    console.log(`[CHAT] Processing queued ${queuedAction.type} for task ${taskId}`);
 
     try {
-      // Use the stored TaskModelContext directly
-      await this.processUserMessage({
-        taskId,
-        userMessage: queuedMessage.message,
-        context: queuedMessage.context,
-        enableTools: true,
-        skipUserMessageSave: false,
-        workspacePath: queuedMessage.workspacePath,
-        queue: false,
-      });
+      switch (queuedAction.type) {
+        case 'message':
+          await this._processQueuedMessage(queuedAction.data, taskId);
+          break;
+        case 'stacked-pr':
+          await this._processQueuedStackedPR(queuedAction.data);
+          break;
+      }
     } catch (error) {
       console.error(
-        `[CHAT] Error processing queued message for task ${taskId}:`,
+        `[CHAT] Error processing queued ${queuedAction.type} for task ${taskId}:`,
         error
       );
     }
+  }
+
+  private async _processQueuedMessage(data: QueuedMessageAction['data'], taskId: string): Promise<void> {
+    // Use the stored TaskModelContext directly
+    await this.processUserMessage({
+      taskId,
+      userMessage: data.message,
+      context: data.context,
+      enableTools: true,
+      skipUserMessageSave: false,
+      workspacePath: data.workspacePath,
+      queue: false,
+    });
+  }
+
+  private async _processQueuedStackedPR(data: QueuedStackedPRAction['data']): Promise<void> {
+    await this._createStackedTaskInternal({
+      parentTaskId: data.parentTaskId,
+      message: data.message,
+      model: data.model,
+      userId: data.userId,
+      socket: data.socket,
+    });
   }
 
   getAvailableModels(userApiKeys: {
@@ -1236,12 +1261,12 @@ export class ChatService {
     return this.llmService.getAvailableModels(userApiKeys);
   }
 
-  getQueuedMessage(taskId: string): string | undefined {
-    return this.queuedMessages.get(taskId)?.message;
+  getQueuedAction(taskId: string): string | undefined {
+    return this.queuedActions.get(taskId)?.data.message;
   }
 
-  clearQueuedMessage(taskId: string): void {
-    this.queuedMessages.delete(taskId);
+  clearQueuedAction(taskId: string): void {
+    this.queuedActions.delete(taskId);
   }
 
   async stopStream(taskId: string): Promise<void> {
@@ -1282,7 +1307,7 @@ export class ChatService {
     if (this.activeStreams.has(taskId)) {
       await this.stopStream(taskId);
     }
-    this.clearQueuedMessage(taskId);
+    this.clearQueuedAction(taskId);
 
     // Update the message in database
     await prisma.chatMessage.update({
@@ -1397,12 +1422,15 @@ export class ChatService {
         console.log(
           `[CHAT] Queuing stacked PR for task ${parentTaskId} (stream in progress)`
         );
-        this.queuedStackedPRs.set(parentTaskId, {
-          parentTaskId,
-          message,
-          model,
-          userId,
-          socket,
+        this.queuedActions.set(parentTaskId, {
+          type: 'stacked-pr',
+          data: {
+            message,
+            parentTaskId,
+            model,
+            userId,
+            socket,
+          },
         });
         return;
       }
@@ -1567,7 +1595,7 @@ export class ChatService {
         undefined, // Use default steps
         _userId,
         newTaskContext
-      ).catch((error: any) => {
+      ).catch((error: unknown) => {
         console.error(`[CHAT] Failed to initialize stacked task ${taskId}:`, error);
       });
 
@@ -1591,28 +1619,6 @@ export class ChatService {
     }
   }
 
-  /**
-   * Process any queued stacked PRs after stream completion
-   */
-  private async processQueuedStackedPRs(taskId: string): Promise<void> {
-    const queuedStackedPR = this.queuedStackedPRs.get(taskId);
-    if (!queuedStackedPR) {
-      return;
-    }
-
-    this.queuedStackedPRs.delete(taskId);
-
-    console.log(`[CHAT] Processing queued stacked PR for task ${taskId}`);
-
-    try {
-      await this._createStackedTaskInternal(queuedStackedPR);
-    } catch (error) {
-      console.error(
-        `[CHAT] Error processing queued stacked PR for task ${taskId}:`,
-        error
-      );
-    }
-  }
 
   /**
    * Clean up task-related memory structures
@@ -1628,11 +1634,8 @@ export class ChatService {
         this.activeStreams.delete(taskId);
       }
 
-      // Clean up queued messages
-      this.queuedMessages.delete(taskId);
-
-      // Clean up queued stacked PRs
-      this.queuedStackedPRs.delete(taskId);
+      // Clean up queued actions
+      this.queuedActions.delete(taskId);
 
       console.log(
         `[CHAT] Successfully cleaned up ChatService memory for task ${taskId}`
