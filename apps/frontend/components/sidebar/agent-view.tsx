@@ -47,7 +47,7 @@ const todoStatusConfig = {
   PENDING: { icon: Square, className: "text-muted-foreground" },
   IN_PROGRESS: { icon: CircleDashed, className: "" },
   COMPLETED: { icon: SquareCheck, className: "" },
-  CANCELLED: { icon: SquareX, className: "text-red-400" },
+  CANCELLED: { icon: SquareX, className: "text-destructive" },
 };
 
 // Intermediate tree node structure for building the tree
@@ -353,7 +353,9 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 <FileDiff className="size-4" />
                 <div className="flex items-center gap-1">
                   <span className="text-green-400">+{diffStats.additions}</span>
-                  <span className="text-red-400">-{diffStats.deletions}</span>
+                  <span className="text-destructive">
+                    -{diffStats.deletions}
+                  </span>
                 </div>
               </div>
             </SidebarMenuItem>

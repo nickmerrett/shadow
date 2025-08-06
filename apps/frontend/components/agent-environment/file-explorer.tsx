@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  ChevronDown,
-  ChevronRight,
-  Folder,
-  FolderOpen,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Folder, FolderOpen } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { FileNode } from "@repo/types";
@@ -107,7 +102,7 @@ export function FileExplorer({
       case "UPDATE":
         return "text-yellow-500";
       case "DELETE":
-        return "text-red-400";
+        return "text-destructive";
       default:
         return "text-neutral-500";
     }

@@ -37,14 +37,18 @@ export const statusColorsConfig = {
   RUNNING: { icon: PlayCircle, className: "text-blue-400", bg: "bg-blue-400" },
   INITIALIZING: {
     icon: CircleDashed,
-    className: "text-yellow-500",
-    bg: "bg-yellow-500",
+    className: "text-yellow-600",
+    bg: "bg-yellow-600",
   },
-  FAILED: { icon: AlertCircle, className: "text-red-400", bg: "bg-red-500" },
+  FAILED: {
+    icon: AlertCircle,
+    className: "text-destructive",
+    bg: "bg-destructive",
+  },
   ARCHIVED: {
     icon: Archive,
-    className: "text-neutral-500",
-    bg: "bg-neutral-500",
+    className: "text-muted-foreground",
+    bg: "bg-muted-foreground",
   },
 };
 

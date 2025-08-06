@@ -130,7 +130,7 @@ export function SidebarNavigation({
           <LogoHover
             className={cn(
               process.env.NEXT_PUBLIC_VERCEL_ENV === "preview"
-                ? "text-red-400"
+                ? "text-destructive"
                 : ""
             )}
           />

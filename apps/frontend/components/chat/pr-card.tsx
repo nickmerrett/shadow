@@ -33,7 +33,7 @@ export function PRCard({
 
             <div className="flex items-center gap-1">
               <span className="text-green-400">+{snapshot.linesAdded}</span>
-              <span className="text-red-400">-{snapshot.linesRemoved}</span>
+              <span className="text-destructive">-{snapshot.linesRemoved}</span>
             </div>
 
             <Circle className="fill-muted-foreground size-1 opacity-50" />

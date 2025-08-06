@@ -25,7 +25,7 @@ function StatusIcon({ status }: { status: TodoItem["status"] }) {
     case "completed":
       return <CheckSquare2 className="size-4 shrink-0" />;
     case "cancelled":
-      return <SquareX className="size-4 shrink-0 text-red-400" />;
+      return <SquareX className="text-destructive size-4 shrink-0" />;
   }
 }
 
@@ -50,7 +50,7 @@ function TodoList({ todos }: { todos: TodoItem[] }) {
                 todo.status === "completed"
                   ? "line-through"
                   : todo.status === "cancelled"
-                    ? "text-red-400/70 line-through"
+                    ? "text-destructive/70 line-through"
                     : ""
               )}
             >

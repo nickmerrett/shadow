@@ -52,7 +52,7 @@ export function UserSettings() {
           Loading user info... <Loader2 className="size-3.5 animate-spin" />
         </div>
       ) : !session?.user ? (
-        <div className="flex items-center gap-1.5 text-red-400">
+        <div className="text-destructive flex items-center gap-1.5">
           Failed to load user info <X className="size-3.5" />
         </div>
       ) : (
