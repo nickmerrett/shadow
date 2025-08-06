@@ -38,7 +38,10 @@ export function ModelSelector({
 
     // Check if we have a valid API key for this provider
     const hasKey = !!apiKeys?.[provider];
-    const isValid = validationState?.[provider]?.isValid === true;
+
+    // If validation state is not available, assume valid if we have a key
+    // This prevents filtering out all models when validation is still loading
+    const isValid = validationState?.[provider]?.isValid !== false;
 
     return hasKey && isValid;
   });

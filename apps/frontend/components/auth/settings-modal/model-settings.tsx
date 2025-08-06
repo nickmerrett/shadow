@@ -16,7 +16,14 @@ import {
   useSaveApiKeyValidation,
 } from "@/hooks/use-api-keys";
 import { useValidateApiKeys } from "@/hooks/use-api-key-validation";
-import { Loader2, Trash, CheckCircle, XCircle, Settings } from "lucide-react";
+import {
+  Loader2,
+  Trash,
+  CheckCircle,
+  XCircle,
+  Settings,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useDebounceCallbackWithCancel } from "@/lib/debounce";
@@ -70,7 +77,7 @@ export function ModelSettings() {
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <XCircle className="size-3.5 text-gray-400" />
+            <X className="size-3.5 text-destructive" />
           </TooltipTrigger>
           <TooltipContent>{result.error || "Invalid API key"}</TooltipContent>
         </Tooltip>
