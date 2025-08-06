@@ -2,6 +2,10 @@
 
 import { useSocket } from "./use-socket";
 import { useEffect, useState, useCallback } from "react";
+import {
+  createStreamingPartAdder,
+  createStreamingStateCleaner,
+} from "@/lib/streaming";
 import { useQueryClient } from "@tanstack/react-query";
 import type {
   AssistantMessagePart,
@@ -255,41 +259,16 @@ export function useTaskSocket(taskId: string | undefined) {
   const [streamingPartsOrder, setStreamingPartsOrder] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
 
-  // Helper functions for O(1) streaming part operations with performance monitoring
-  const addStreamingPart = useCallback(
-    (part: AssistantMessagePart, id: string) => {
-      const startTime = performance.now();
-
-      setStreamingPartsMap((prev) => {
-        const newMap = new Map(prev);
-        newMap.set(id, part);
-        return newMap;
-      });
-      setStreamingPartsOrder((prev) =>
-        prev.includes(id) ? prev : [...prev, id]
-      );
-
-      const endTime = performance.now();
-      if (endTime - startTime > 1) {
-        // Only log if > 1ms
-        console.log(
-          `[PERF] addStreamingPart took ${(endTime - startTime).toFixed(2)}ms for part type: ${part.type}`
-        );
-      }
-    },
-    []
+  const addStreamingPart = createStreamingPartAdder(
+    setStreamingPartsMap,
+    setStreamingPartsOrder
   );
 
-  const clearStreamingState = useCallback(() => {
-    const startTime = performance.now();
-    setStreamingPartsMap(new Map());
-    setStreamingPartsOrder([]);
-    setIsStreaming(false);
-    const endTime = performance.now();
-    console.log(
-      `[PERF] clearStreamingState took ${(endTime - startTime).toFixed(2)}ms`
-    );
-  }, []);
+  const clearStreamingState = createStreamingStateCleaner(
+    setStreamingPartsMap,
+    setStreamingPartsOrder,
+    setIsStreaming
+  );
 
   // Join/leave task room
   useEffect(() => {

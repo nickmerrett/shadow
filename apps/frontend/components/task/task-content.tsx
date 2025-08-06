@@ -9,54 +9,12 @@ import { useParams } from "next/navigation";
 import { ScrollToBottom } from "./scroll-to-bottom";
 import { useCallback, useMemo, memo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ModelType, AssistantMessagePart } from "@repo/types";
+import { ModelType } from "@repo/types";
 import { useTaskStatus } from "@/hooks/use-task-status";
-import { ToolCallPart, ToolResultPart } from "ai";
-
-/**
- * Modern deduplication working directly with Map storage for optimal performance
- * Prevents duplicate tool-call/tool-result pairs when joining mid-stream
- */
-function deduplicatePartsFromMap(
-  existingParts: AssistantMessagePart[],
-  streamingPartsMap: Map<string, AssistantMessagePart>,
-  streamingPartsOrder: string[]
-): AssistantMessagePart[] {
-  const startTime = performance.now();
-
-  // Create set of existing tool call IDs for O(1) lookup
-  const existingToolIds = new Set(
-    existingParts
-      .filter((p): p is ToolCallPart | ToolResultPart => "toolCallId" in p)
-      .map((p) => p.toolCallId)
-  );
-
-  // Iterate through streaming parts in order, filtering duplicates - O(n) where n = streaming parts
-  const newParts: AssistantMessagePart[] = [];
-  for (const id of streamingPartsOrder) {
-    const part = streamingPartsMap.get(id);
-    if (part) {
-      if ("toolCallId" in part) {
-        if (!existingToolIds.has(part.toolCallId)) {
-          newParts.push(part);
-        }
-      } else {
-        newParts.push(part); // Always include text and error parts (they don't duplicate)
-      }
-    }
-  }
-
-  const endTime = performance.now();
-  const duration = endTime - startTime;
-
-  console.log(
-    `[MODERN_DEDUPLICATION] ${duration.toFixed(2)}ms - ` +
-      `Existing: ${existingParts.length}, Streaming map size: ${streamingPartsMap.size}, ` +
-      `New after dedup: ${newParts.length}, Tool IDs: [${Array.from(existingToolIds).join(", ")}]`
-  );
-
-  return [...existingParts, ...newParts];
-}
+import {
+  deduplicatePartsFromMap,
+  convertMapToPartsArray,
+} from "@/lib/streaming";
 
 function TaskPageContent() {
   const { taskId } = useParams<{ taskId: string }>();
@@ -124,17 +82,6 @@ function TaskPageContent() {
   const displayMessages = useMemo(() => {
     const msgs = [...messages];
 
-    console.log(
-      "[MODERN_MERGE] streamingPartsMap size:",
-      streamingPartsMap.size,
-      "streamingPartsOrder length:",
-      streamingPartsOrder.length,
-      "msgs:",
-      msgs.length,
-      "isStreaming:",
-      isStreaming
-    );
-
     // Only proceed if we have streaming parts or are actively streaming
     if (streamingPartsMap.size === 0 && !isStreaming) {
       return msgs;
@@ -176,13 +123,10 @@ function TaskPageContent() {
       }
     } else if (streamingPartsOrder.length > 0) {
       // Create new streaming assistant message from Map data
-      const streamingParts: AssistantMessagePart[] = [];
-      for (const id of streamingPartsOrder) {
-        const part = streamingPartsMap.get(id);
-        if (part) {
-          streamingParts.push(part);
-        }
-      }
+      const streamingParts = convertMapToPartsArray(
+        streamingPartsMap,
+        streamingPartsOrder
+      );
 
       msgs.push({
         id: "streaming",
@@ -198,7 +142,13 @@ function TaskPageContent() {
     }
 
     return msgs;
-  }, [messages, streamingPartsMap, streamingPartsOrder, isStreaming, mostRecentMessageModel]);
+  }, [
+    messages,
+    streamingPartsMap,
+    streamingPartsOrder,
+    isStreaming,
+    mostRecentMessageModel,
+  ]);
 
   return (
     <div className="relative z-0 mx-auto flex w-full max-w-lg grow flex-col items-center px-4 sm:px-6">
