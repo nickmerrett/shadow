@@ -734,12 +734,12 @@ export class ChatService {
 
       const shadowWikiContent = await getShadowWikiMessage(taskId);
       if (shadowWikiContent) {
-        const deepWikiSequence = await this.getNextSequence(taskId);
+        const shadowWikiSequence = await this.getNextSequence(taskId);
         await this.saveSystemMessage(
           taskId,
           shadowWikiContent,
           context.getMainModel(),
-          deepWikiSequence
+          shadowWikiSequence
         );
 
         systemMessagesToAdd.push({

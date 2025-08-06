@@ -690,6 +690,8 @@ export function useTaskSocket(taskId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task-messages", taskId] });
       queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
+      // Invalidate codebases query to ensure sidebar updates when new codebase understanding is created
+      queryClient.invalidateQueries({ queryKey: ["codebases"] });
     }
 
     function onStreamError(error: unknown) {
@@ -805,6 +807,12 @@ export function useTaskSocket(taskId: string | undefined) {
         );
 
         queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
+
+        // Invalidate codebases query when task status changes to RUNNING
+        // This ensures the sidebar updates when a new codebase understanding is created
+        if (data.status === "RUNNING") {
+          queryClient.invalidateQueries({ queryKey: ["codebases"] });
+        }
 
         queryClient.setQueryData(["tasks"], (oldTasks: Task[]) => {
           if (oldTasks) {

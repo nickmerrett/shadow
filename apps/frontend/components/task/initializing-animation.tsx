@@ -40,7 +40,7 @@ export default function InitializingAnimation({
 
   // Use user settings to determine which steps to show
   const steps = getStepsForMode(mode, {
-    enableDeepWiki: userSettings?.enableDeepWiki ?? true,
+    enableShadowWiki: userSettings?.enableShadowWiki ?? true,
   });
 
   let currentStepIndex = 0;
