@@ -1,6 +1,6 @@
 // === Chat Message Types ===
 export * from "./chat/messages";
-export * from "./chat/streaming";
+export * from "./chat/streaming-client";
 
 // === Tool Result Types ===
 export * from "./tools/execution";
@@ -9,7 +9,7 @@ export * from "./tools/schemas";
 
 // === LLM Integration Types ===
 export * from "./llm/models";
-export * from "./llm/streaming";
+export * from "./llm/streaming-ai-sdk";
 
 // === File Tree Types ===
 export * from "./files/tree";

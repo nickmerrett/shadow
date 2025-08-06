@@ -40,7 +40,6 @@ export function ToolMessage({ message }: { message: Message }) {
     return <div className="text-muted-foreground">{message.content}</div>;
   }
 
-  // const { status } = message.metadata.tool;
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) {
     return <span className="text-muted-foreground">{message.content}</span>;
@@ -56,7 +55,6 @@ export function ToolMessage({ message }: { message: Message }) {
     );
   }
 
-  // Todo: pass in status
   return <ToolComponent message={message} />;
 }
 
