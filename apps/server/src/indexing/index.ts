@@ -1,13 +1,16 @@
 import { IndexRepoOptions } from "@repo/types";
-import { startBackgroundIndexing, getIndexingPromise } from "../initialization/background-indexing";
+import {
+  startBackgroundIndexing,
+  getIndexingPromise,
+} from "../initialization/background-indexing";
 import express from "express";
 import { isValidRepo } from "./utils/repository";
-import { deepwikiRouter } from "./deepwiki/routes";
+import { shadowWikiRouter } from "./deepwiki/routes";
 
 const router = express.Router();
 
-// Mount the DeepWiki router
-router.use("/deepwiki", deepwikiRouter);
+// Mount the Shadow Wiki router
+router.use("/shadowwiki", shadowWikiRouter);
 
 router.post(
   "/index",
@@ -18,7 +21,7 @@ router.post(
       { repo: string; taskId: string; options: IndexRepoOptions }
     >,
     res,
-    next
+    next,
   ) => {
     console.log("Indexing repo", req.body.repo);
     const { repo, taskId, options } = req.body;
@@ -32,21 +35,23 @@ router.post(
       // Start background indexing
       await startBackgroundIndexing(repo, taskId, {
         clearNamespace: options.clearNamespace ?? true,
-        force: true // Allow manual indexing to override recent indexing
+        force: true, // Allow manual indexing to override recent indexing
       });
-      
+
       // Wait for the indexing to complete
       const indexingPromise = getIndexingPromise(repo);
       if (indexingPromise) {
-        console.log(`[INDEXING_API] Waiting for indexing to complete for ${repo}`);
+        console.log(
+          `[INDEXING_API] Waiting for indexing to complete for ${repo}`,
+        );
         await indexingPromise;
         console.log(`[INDEXING_API] Indexing completed for ${repo}`);
       }
-      
-      res.json({ 
+
+      res.json({
         message: "Indexing completed successfully",
         repoFullName: repo,
-        taskId: taskId
+        taskId: taskId,
       });
     } catch (error: unknown) {
       if (error instanceof Error && error.message.includes("Not Found")) {
@@ -56,7 +61,7 @@ router.post(
       }
       next(error);
     }
-  }
+  },
 );
 
 export { router };

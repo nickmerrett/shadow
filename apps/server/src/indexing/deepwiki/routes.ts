@@ -7,13 +7,13 @@ import { db } from "@repo/db";
 import { ModelType } from "@repo/types";
 import { modelContextService } from "@/services/model-context-service";
 
-const deepwikiRouter = express.Router();
+const shadowWikiRouter = express.Router();
 
 /**
  * Generate codebase understanding summary for a task
- * POST /api/indexing/deepwiki/generate/:taskId
+ * POST /api/indexing/shadowwiki/generate/:taskId
  */
-deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
+shadowWikiRouter.post("/generate/:taskId", async (req, res, next) => {
   const { taskId } = req.params;
   const { forceRefresh = false, model, modelMini } = req.body;
 
@@ -37,7 +37,7 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
     // Get or create model context for this task
     const modelContext = await modelContextService.refreshContext(
       taskId,
-      req.headers.cookie
+      req.headers.cookie,
     );
 
     if (!modelContext) {
@@ -97,7 +97,7 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
         concurrency: 12,
         model: model as ModelType,
         modelMini: modelMini as ModelType,
-      }
+      },
     );
 
     res.json({
@@ -112,4 +112,4 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
   }
 });
 
-export { deepwikiRouter };
+export { shadowWikiRouter };

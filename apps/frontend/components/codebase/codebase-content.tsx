@@ -38,12 +38,12 @@ export function CodebasePageContent() {
     setIsGenerating(true);
     try {
       const response = await fetch(
-        `/api/indexing/deepwiki/generate/${codebase.tasks[0].id}`,
+        `/api/indexing/shadowwiki/generate/${codebase.tasks[0].id}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ forceRefresh: true }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -61,7 +61,7 @@ export function CodebasePageContent() {
     const repoSummaries = summaries.filter((s) => s.type === "repo_summary");
     const fileSummaries = summaries.filter((s) => s.type === "file_summary");
     const directorySummaries = summaries.filter(
-      (s) => s.type === "directory_summary"
+      (s) => s.type === "directory_summary",
     );
     return { repoSummaries, fileSummaries, directorySummaries };
   }, [summaries]);
@@ -72,7 +72,7 @@ export function CodebasePageContent() {
       (s) =>
         s.filePath === "root_overview" ||
         (s.filePath?.toLowerCase().includes("root") &&
-          s.filePath?.toLowerCase().includes("overview"))
+          s.filePath?.toLowerCase().includes("overview")),
     ) || repoSummaries[0];
 
   const getLanguageBadge = (language?: string) => {
