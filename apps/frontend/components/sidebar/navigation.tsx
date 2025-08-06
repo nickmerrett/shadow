@@ -79,7 +79,9 @@ export function SidebarNavigation({
             <Play />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="right">Agent View</TooltipContent>
+        <TooltipContent lighter side="right">
+          Agent View
+        </TooltipContent>
       </Tooltip>
     </div>
   );
@@ -106,7 +108,9 @@ export function SidebarNavigation({
           <FileCode />
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="right">Codebase Understanding</TooltipContent>
+      <TooltipContent lighter side="right">
+        Codebase Understanding
+      </TooltipContent>
     </Tooltip>
   );
 
@@ -144,7 +148,9 @@ export function SidebarNavigation({
                 </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">New Task</TooltipContent>
+            <TooltipContent lighter side="right">
+              New Task
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -167,7 +173,9 @@ export function SidebarNavigation({
                 <LayoutGrid />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">Active Tasks</TooltipContent>
+            <TooltipContent lighter side="right">
+              Active Tasks
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -190,7 +198,9 @@ export function SidebarNavigation({
                 <BookOpenText />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">Codebases</TooltipContent>
+            <TooltipContent lighter side="right">
+              Codebases
+            </TooltipContent>
           </Tooltip>
 
           {pageSpecificViewTrigger}
@@ -208,7 +218,7 @@ export function SidebarNavigation({
               <Settings />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="right" shortcut="⌘K">
+          <TooltipContent lighter side="right" shortcut="⌘K">
             Settings
           </TooltipContent>
         </Tooltip>

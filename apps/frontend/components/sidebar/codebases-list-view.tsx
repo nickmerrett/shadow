@@ -50,7 +50,7 @@ export function SidebarCodebasesListView({
         <form ref={searchFormRef} className="relative">
           <Search className="text-muted-foreground absolute left-2 top-1/2 size-3.5 -translate-y-1/2" />
           <Input
-            placeholder="Search repositories..."
+            placeholder="Search codebases..."
             className="h-8 px-7"
             onChange={(e) => debouncedSearch(e.target.value)}
           />
@@ -109,7 +109,11 @@ export function SidebarCodebasesListView({
                       </span>
                       <Clock className="size-3 shrink-0" />
                       <span>
-                        {formatTimeAgo(codebase.updatedAt.toISOString())}
+                        {formatTimeAgo(
+                          typeof codebase.updatedAt === "string"
+                            ? codebase.updatedAt
+                            : codebase.updatedAt.toISOString()
+                        )}
                       </span>
                     </div>
                   </a>
@@ -122,13 +126,13 @@ export function SidebarCodebasesListView({
         searchQuery ? (
           <SidebarGroup>
             <SidebarGroupLabel className="text-muted-foreground hover:text-muted-foreground">
-              No repositories match "{searchQuery}".
+              No codebases match "{searchQuery}".
             </SidebarGroupLabel>
           </SidebarGroup>
         ) : (
           <SidebarGroup>
             <SidebarGroupLabel className="text-muted-foreground hover:text-muted-foreground h-auto px-0 pt-2 leading-tight">
-              No repositories found. Start a new task to see repositories here.
+              No codebases found. Start a new task to see repositories here.
             </SidebarGroupLabel>
           </SidebarGroup>
         )
