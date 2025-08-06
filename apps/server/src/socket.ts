@@ -286,7 +286,7 @@ export function createSocketServer(
     const cookieHeader = socket.request.headers.cookie;
 
     console.log(`[SOCKET] User connected: ${connectionId}`);
-    console.log(`[SOCKET] Raw cookie header:`, cookieHeader || "undefined");
+    // console.log(`[SOCKET] Raw cookie header:`, cookieHeader || "undefined");
 
     const apiKeys = parseApiKeysFromCookies(cookieHeader);
 
