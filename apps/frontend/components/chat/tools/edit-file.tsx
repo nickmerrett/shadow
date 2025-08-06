@@ -28,6 +28,7 @@ export function EditFileTool({ message }: { message: Message }) {
       type={ToolTypes.EDIT_FILE}
       title={filePath}
       changes={changes}
+      showFileIcon={filePath}
       onClick={() => {
         updateSelectedFilePath(filePath);
         expandRightPanel();

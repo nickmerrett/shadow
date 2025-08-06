@@ -24,6 +24,7 @@ export function ReadFileTool({ message }: { message: Message }) {
       type={ToolTypes.READ_FILE}
       title={filePath}
       suffix={lineRange}
+      showFileIcon={filePath}
       onClick={() => {
         updateSelectedFilePath(filePath);
         expandRightPanel();
