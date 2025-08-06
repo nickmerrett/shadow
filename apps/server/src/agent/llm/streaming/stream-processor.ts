@@ -218,7 +218,18 @@ export class StreamProcessor {
       try {
         console.log("[DEBUG_STREAM] Calling streamText with config...");
         result = streamText(streamConfig);
-        console.log("[DEBUG_STREAM] streamText returned successfully");
+        
+        // Handle environment difference: production returns Promise, local returns direct result
+        const isPromise = result instanceof Promise;
+        console.log("[DEBUG_STREAM] streamText returned Promise:", isPromise);
+        
+        if (isPromise) {
+          console.log("[DEBUG_STREAM] Awaiting Promise result...");
+          result = await result;
+          console.log("[DEBUG_STREAM] Promise resolved successfully");
+        } else {
+          console.log("[DEBUG_STREAM] Direct result returned (local environment)");
+        }
       } catch (error) {
         console.error("[DEBUG_STREAM] streamText threw error:", error);
         console.error("[DEBUG_STREAM] Error details:", {
@@ -234,6 +245,7 @@ export class StreamProcessor {
       console.log("[DEBUG_STREAM] Result type:", typeof result);
       console.log("[DEBUG_STREAM] Result is null/undefined:", result == null);
       console.log("[DEBUG_STREAM] Result constructor:", result?.constructor?.name);
+      console.log("[DEBUG_STREAM] Result is Promise:", result instanceof Promise);
 
       // Object.keys() doesn't show non-enumerable properties - check directly
       console.log("[DEBUG_STREAM] fullStream exists:", !!result.fullStream);

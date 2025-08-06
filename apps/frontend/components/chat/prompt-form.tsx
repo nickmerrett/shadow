@@ -404,7 +404,7 @@ export function PromptForm({
       isHome,
       repo,
       branch,
-      message.trim,
+      message.trim(),
     ]
   );
 
