@@ -185,28 +185,32 @@ export class StreamProcessor {
         !!streamConfig.tools
       );
 
-      // Test basic LLM connectivity with simple generateText call
-      console.log("[DEBUG_STREAM] Testing basic LLM connectivity...");
-      try {
-        const testResult = await generateText({
-          model: modelInstance,
-          messages: [{ role: "user", content: "Hello" }],
-          maxTokens: 10,
-        });
-        console.log("[DEBUG_STREAM] LLM connectivity test SUCCESS:", {
-          textLength: testResult.text?.length || 0,
-          usage: testResult.usage,
-        });
-      } catch (testError) {
-        console.error(
-          "[DEBUG_STREAM] LLM connectivity test FAILED:",
-          testError
-        );
-        console.error("[DEBUG_STREAM] Test error details:", {
-          name: testError instanceof Error ? testError.name : "Unknown",
-          message:
-            testError instanceof Error ? testError.message : String(testError),
-        });
+      if (process.env.NODE_ENV === "production") {
+        // Test basic LLM connectivity with simple generateText call
+        console.log("[DEBUG_STREAM] Testing basic LLM connectivity...");
+        try {
+          const testResult = await generateText({
+            model: modelInstance,
+            messages: [{ role: "user", content: "Hello" }],
+            maxTokens: 10,
+          });
+          console.log("[DEBUG_STREAM] LLM connectivity test SUCCESS:", {
+            textLength: testResult.text?.length || 0,
+            usage: testResult.usage,
+          });
+        } catch (testError) {
+          console.error(
+            "[DEBUG_STREAM] LLM connectivity test FAILED:",
+            testError
+          );
+          console.error("[DEBUG_STREAM] Test error details:", {
+            name: testError instanceof Error ? testError.name : "Unknown",
+            message:
+              testError instanceof Error
+                ? testError.message
+                : String(testError),
+          });
+        }
       }
 
       // Stream creation with error handling
