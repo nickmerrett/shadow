@@ -501,7 +501,7 @@ export function PromptForm({
               autoFocus
               value={message}
               onChange={(e) => {
-                if (!isMessageOptionsOpen) {
+                if (!isMessageOptionsOpen && !isPending) {
                   setMessage(e.target.value);
                 }
               }}
