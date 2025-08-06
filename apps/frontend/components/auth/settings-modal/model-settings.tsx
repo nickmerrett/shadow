@@ -86,7 +86,7 @@ export function ModelSettings() {
   }, [apiKeys]);
 
   const saveApiKey = async (
-    provider: "openai" | "anthropic" | "openrouter" | "ollama",
+    provider: "openai" | "anthropic" | "openrouter",
     key: string
   ) => {
     // Only save if key is different from current saved value
@@ -97,7 +97,7 @@ export function ModelSettings() {
           ? apiKeys?.anthropic
           : provider === "openrouter"
             ? apiKeys?.openrouter
-            : apiKeys?.ollama;
+            : undefined;
     if (key === currentKey) {
       if (provider === "openai") setSavingOpenai(false);
       else if (provider === "anthropic") setSavingAnthropic(false);
@@ -160,7 +160,7 @@ export function ModelSettings() {
             ? "Anthropic"
             : provider === "openrouter"
               ? "OpenRouter"
-              : "Ollama";
+              : "Unknown";
       toast.error(`Failed to save ${providerName} API key`);
     } finally {
       if (provider === "openai") setSavingOpenai(false);
@@ -216,14 +216,14 @@ export function ModelSettings() {
     debouncedSaveOpenrouter(value);
   };
 
-  const handleOllamaChange = (value: string) => {
-    // setOllamaInput(value);
-    // setSavingOllama(true);
-    // debouncedSaveOllama(value);
-  };
+  // const handleOllamaChange = (value: string) => {
+  //   // setOllamaInput(value);
+  //   // setSavingOllama(true);
+  //   // debouncedSaveOllama(value);
+  // };
 
   const handleClearApiKey = async (
-    provider: "openai" | "anthropic" | "openrouter" | "ollama"
+    provider: "openai" | "anthropic" | "openrouter"
   ) => {
     try {
       await clearApiKeyMutation.mutateAsync(provider);
@@ -262,7 +262,7 @@ export function ModelSettings() {
             ? "Anthropic"
             : provider === "openrouter"
               ? "OpenRouter"
-              : "Ollama";
+              : "Unknown";
       toast.error(`Failed to clear ${providerName} API key`);
     }
   };

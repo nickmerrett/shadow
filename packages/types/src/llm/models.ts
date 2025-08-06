@@ -417,7 +417,7 @@ export function getMiniModelForProvider(
     // } else if (provider === "ollama") {
     //   return AvailableModels.OLLAMA_GPT_OSS_20B;
     // }
-
-    return AvailableModels.CLAUDE_3_5_HAIKU;
   }
+  // Default fallback for anthropic and any other providers
+  return AvailableModels.CLAUDE_3_5_HAIKU;
 }
