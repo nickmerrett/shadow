@@ -229,14 +229,27 @@ export class StreamProcessor {
         throw error;
       }
 
-      // Result object analysis
+      // Result object analysis - use proper property detection instead of Object.keys()
       console.log("[DEBUG_STREAM] Result object analysis:");
       console.log("[DEBUG_STREAM] Result type:", typeof result);
-      console.log("[DEBUG_STREAM] Result keys:", Object.keys(result || {}));
-      console.log("[DEBUG_STREAM] fullStream type:", typeof result?.fullStream);
+
+      // Object.keys() doesn't show non-enumerable properties - check directly
+      console.log("[DEBUG_STREAM] fullStream exists:", !!result.fullStream);
+      console.log("[DEBUG_STREAM] fullStream type:", typeof result.fullStream);
+      console.log("[DEBUG_STREAM] textStream exists:", !!result.textStream);
+      console.log("[DEBUG_STREAM] textStream type:", typeof result.textStream);
+
+      // Check if streams are iterable
       console.log(
-        "[DEBUG_STREAM] fullStream keys:",
-        result?.fullStream ? Object.keys(result.fullStream) : "N/A"
+        "[DEBUG_STREAM] fullStream iterable:",
+        result.fullStream && Symbol.asyncIterator in result.fullStream
+      );
+
+      // Show all properties including non-enumerable ones
+      const descriptors = Object.getOwnPropertyDescriptors(result || {});
+      console.log(
+        "[DEBUG_STREAM] All property names:",
+        Object.keys(descriptors)
       );
 
       // Note: StreamTextResult doesn't have an error property
@@ -244,15 +257,34 @@ export class StreamProcessor {
 
       const toolCallMap = new Map<string, ToolName>(); // toolCallId -> validated toolName
 
-      // Validate fullStream exists before iteration to prevent async iterator errors
-      if (!result.fullStream) {
+      // Check if fullStream is accessible (don't rely on truthiness since it could be a getter)
+      if (!result.fullStream || !(Symbol.asyncIterator in result.fullStream)) {
         console.error(
-          `[LLM_STREAM_ERROR] fullStream is undefined for task ${taskId}. This indicates a streaming initialization failure.`
+          `[LLM_STREAM_ERROR] fullStream is not accessible for task ${taskId}`
+        );
+        console.log(
+          "[DEBUG_STREAM] Attempting to use textStream as fallback..."
+        );
+
+        // Try textStream as fallback if fullStream isn't available
+        if (result.textStream && Symbol.asyncIterator in result.textStream) {
+          console.log("[DEBUG_STREAM] Using textStream fallback");
+          for await (const textPart of result.textStream) {
+            yield {
+              type: "content",
+              content: textPart,
+            };
+          }
+          return;
+        }
+
+        console.error(
+          "[LLM_STREAM_ERROR] Neither fullStream nor textStream are available"
         );
         yield {
           type: "error",
           error:
-            "Stream initialization failed - unable to establish connection with LLM service",
+            "Stream initialization failed - no accessible stream properties",
           finishReason: "error",
         };
         return;
