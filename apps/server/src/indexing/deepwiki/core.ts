@@ -26,7 +26,8 @@ function getHardcodedMiniModel(
     case "openai":
       return "gpt-4o-mini";
     case "openrouter":
-      return "openai/gpt-oss-20b";
+      // return "openai/gpt-oss-20b";
+      return "openrouter/horizon-beta"; // fallback to a different model
     default:
       return "claude-3-5-haiku-20241022"; // fallback
   }

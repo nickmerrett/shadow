@@ -41,8 +41,8 @@ export const AvailableModels = {
 
   // OpenRouter models
   XAI_GROK_3: "x-ai/grok-3",
-  OPENAI_GPT_OSS_120B: "openai/gpt-oss-120b",
-  OPENAI_GPT_OSS_20B: "openai/gpt-oss-20b",
+  // OPENAI_GPT_OSS_120B: "openai/gpt-oss-120b",
+  // OPENAI_GPT_OSS_20B: "openai/gpt-oss-20b",
   OPENROUTER_HORIZON_BETA: "openrouter/horizon-beta",
   MISTRAL_CODESTRAL_2508: "mistralai/codestral-2508",
 
@@ -200,16 +200,16 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "Grok 3",
     provider: "openrouter",
   },
-  [AvailableModels.OPENAI_GPT_OSS_120B]: {
-    id: AvailableModels.OPENAI_GPT_OSS_120B,
-    name: "GPT OSS 120B",
-    provider: "openrouter",
-  },
-  [AvailableModels.OPENAI_GPT_OSS_20B]: {
-    id: AvailableModels.OPENAI_GPT_OSS_20B,
-    name: "GPT OSS 20B",
-    provider: "openrouter",
-  },
+  // [AvailableModels.OPENAI_GPT_OSS_120B]: {
+  //   id: AvailableModels.OPENAI_GPT_OSS_120B,
+  //   name: "GPT OSS 120B",
+  //   provider: "openrouter",
+  // },
+  // [AvailableModels.OPENAI_GPT_OSS_20B]: {
+  //   id: AvailableModels.OPENAI_GPT_OSS_20B,
+  //   name: "GPT OSS 20B",
+  //   provider: "openrouter",
+  // },
   [AvailableModels.OPENROUTER_HORIZON_BETA]: {
     id: AvailableModels.OPENROUTER_HORIZON_BETA,
     name: "Horizon Beta",
@@ -274,8 +274,8 @@ export async function getAllPossibleModels(
   if (userApiKeys.openrouter) {
     models.push(
       AvailableModels.XAI_GROK_3,
-      AvailableModels.OPENAI_GPT_OSS_120B,
-      AvailableModels.OPENAI_GPT_OSS_20B,
+      // AvailableModels.OPENAI_GPT_OSS_120B,
+      // AvailableModels.OPENAI_GPT_OSS_20B,
       AvailableModels.OPENROUTER_HORIZON_BETA,
       AvailableModels.MISTRAL_CODESTRAL_2508
     );
@@ -330,8 +330,8 @@ export async function getDefaultSelectedModels(
     // All OpenRouter models default
     defaultModels.push(
       AvailableModels.XAI_GROK_3,
-      AvailableModels.OPENAI_GPT_OSS_120B,
-      AvailableModels.OPENAI_GPT_OSS_20B,
+      // AvailableModels.OPENAI_GPT_OSS_120B,
+      // AvailableModels.OPENAI_GPT_OSS_20B,
       AvailableModels.OPENROUTER_HORIZON_BETA,
       AvailableModels.MISTRAL_CODESTRAL_2508
     );
