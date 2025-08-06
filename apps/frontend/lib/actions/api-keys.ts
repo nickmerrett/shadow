@@ -8,7 +8,6 @@ import {
   getAvailableModels,
   getAllPossibleModels,
   getDefaultSelectedModels,
-  getDefaultSelectedMiniModels,
   ModelInfo,
   ModelInfos,
   ModelType,
@@ -73,12 +72,10 @@ export async function getAllPossibleModelsInfo(): Promise<ModelInfo[]> {
 
 export async function getModelDefaults(): Promise<{
   defaultModels: ModelType[];
-  defaultMiniModels: Record<string, ModelType>;
 }> {
   const apiKeys = await getApiKeys();
   return {
     defaultModels: await getDefaultSelectedModels(apiKeys),
-    defaultMiniModels: getDefaultSelectedMiniModels(apiKeys),
   };
 }
 

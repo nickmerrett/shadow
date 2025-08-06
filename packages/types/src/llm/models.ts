@@ -349,33 +349,6 @@ export async function getDefaultSelectedModels(
 }
 
 /**
- * Get default mini models for each provider
- */
-export function getDefaultSelectedMiniModels(
-  userApiKeys: ApiKeys
-): Record<string, ModelType> {
-  const miniModels: Record<string, ModelType> = {};
-
-  if (userApiKeys.anthropic) {
-    miniModels.anthropic = AvailableModels.CLAUDE_3_5_HAIKU;
-  }
-  if (userApiKeys.openai) {
-    miniModels.openai = AvailableModels.GPT_4O_MINI;
-  }
-  if (userApiKeys.openrouter) {
-    miniModels.openrouter = AvailableModels.OPENAI_GPT_OSS_20B;
-  }
-  // if (userApiKeys.groq) {
-  //   miniModels.groq = AvailableModels.GROQ_LLAMA3_8B;
-  // }
-  // if (userApiKeys.ollama) {
-  //   miniModels.ollama = AvailableModels.OLLAMA_GPT_OSS_20B;
-  // }
-
-  return miniModels;
-}
-
-/**
  * Get available models based on user API keys and selected models in settings
  */
 export async function getAvailableModels(
@@ -391,33 +364,4 @@ export async function getAvailableModels(
 
   // Filter selected models to only include those that user has API keys for
   return selectedModels.filter((model) => allPossible.includes(model));
-}
-
-/**
- * Get mini model for provider, with user preferences
- */
-export function getMiniModelForProvider(
-  mainModel: ModelType,
-  selectedMiniModels?: Record<string, ModelType>
-): ModelType {
-  const provider = getModelProvider(mainModel);
-
-  // Use user selected mini model if available
-  if (selectedMiniModels && selectedMiniModels[provider]) {
-    return selectedMiniModels[provider];
-  }
-
-  // Fallback to hardcoded defaults
-  if (provider === "openai") {
-    return AvailableModels.GPT_4O_MINI;
-  } else if (provider === "openrouter") {
-    return AvailableModels.OPENAI_GPT_OSS_20B;
-    // } else if (provider === "groq") {
-    //   return AvailableModels.GROQ_LLAMA3_8B;
-    // } else if (provider === "ollama") {
-    //   return AvailableModels.OLLAMA_GPT_OSS_20B;
-    // }
-  }
-  // Default fallback for anthropic and any other providers
-  return AvailableModels.CLAUDE_3_5_HAIKU;
 }
