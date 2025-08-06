@@ -86,26 +86,26 @@ model Task {
 
   // User's selected LLM model for this task - updated on each user message
   // Used for context-aware operations (commits, PR generation, etc.)
-  mainModel           String?
-  workspacePath       String?
-  initStatus          InitStatus        @default(INACTIVE)
-  scheduledCleanupAt  DateTime?
-  initializationError String?
-  workspaceCleanedUp  Boolean           @default(false)
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-  userId              String
-  baseBranch          String
-  baseCommitSha       String
-  shadowBranch        String
-  pullRequestNumber   Int?
-  githubIssueId       String?
-  messages            ChatMessage[]         @relation("TaskMessages")
-  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions            TaskSession[]
-  commands            TerminalCommand[]
-  todos               Todo[]
-  memories            Memory[]
+  mainModel                   String?
+  workspacePath               String?
+  initStatus                  InitStatus        @default(INACTIVE)
+  scheduledCleanupAt          DateTime?
+  initializationError         String?
+  workspaceCleanedUp          Boolean           @default(false)
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime          @updatedAt
+  userId                      String
+  baseBranch                  String
+  baseCommitSha               String
+  shadowBranch                String
+  pullRequestNumber           Int?
+  githubIssueId               String?
+  messages                    ChatMessage[]     @relation("TaskMessages")
+  user                        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions                    TaskSession[]
+  commands                    TerminalCommand[]
+  todos                       Todo[]
+  memories                    Memory[]
   stackedTaskCreationMessages ChatMessage[]     @relation("StackedTask")
 
   codebaseUnderstandingId String?
@@ -296,6 +296,7 @@ model UserSettings {
   memoriesEnabled Boolean  @default(true)
   autoPullRequest Boolean  @default(false)
   enableDeepWiki  Boolean  @default(true)
+  selectedModels  String[] @default([])
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)

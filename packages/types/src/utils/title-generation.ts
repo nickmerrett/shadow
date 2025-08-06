@@ -1,4 +1,4 @@
-import { getMiniModelForProvider, getModelProvider } from "../llm/models";
+import { getModelProvider } from "../llm/models";
 import type { ApiKeys } from "../api-keys";
 import type { ModelType } from "../llm/models";
 
@@ -20,7 +20,10 @@ export function generateRandomSuffix(length: number): string {
   return result;
 }
 
-export function generateShadowBranchName(title: string, taskId: string): string {
+export function generateShadowBranchName(
+  title: string,
+  taskId: string
+): string {
   const branchSafeTitle = title
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, "") // Remove special chars except spaces and hyphens
@@ -47,31 +50,39 @@ export interface TitleGenerationConfig {
 }
 
 export function getTitleGenerationModel(config: TitleGenerationConfig): {
-  provider: "openai" | "anthropic";
+  provider: "openai" | "anthropic" | "openrouter" /* | "ollama" */;
   modelChoice: string;
 } | null {
   const { apiKeys, fallbackModel } = config;
-  
+
   // Check if any API key is available
-  if (!apiKeys.openai && !apiKeys.anthropic) {
+  if (
+    !apiKeys.openai &&
+    !apiKeys.anthropic &&
+    !apiKeys.openrouter
+    // && !apiKeys.ollama
+  ) {
     return null;
   }
 
   let modelChoice: string;
-  let provider: "openai" | "anthropic";
+  let provider: "openai" | "anthropic" | "openrouter" | "ollama";
 
   if (fallbackModel) {
-    // Determine provider from fallback model and use appropriate mini model
+    // Use the fallback model directly
     provider = getModelProvider(fallbackModel as ModelType);
-    modelChoice = getMiniModelForProvider(fallbackModel as ModelType);
+    modelChoice = fallbackModel as ModelType;
   } else {
-    // Default behavior: prefer OpenAI if available
+    // Default behavior: prefer OpenAI, then Anthropic, then OpenRouter
     if (apiKeys.openai) {
       provider = "openai";
-      modelChoice = getMiniModelForProvider("gpt-4o" as ModelType);
-    } else {
+      modelChoice = "gpt-4o" as ModelType;
+    } else if (apiKeys.anthropic) {
       provider = "anthropic";
-      modelChoice = getMiniModelForProvider("claude-3-5-sonnet-20241022" as ModelType);
+      modelChoice = "claude-3-5-sonnet-20241022" as ModelType;
+    } else {
+      provider = "openrouter";
+      modelChoice = "openrouter/horizon-beta" as ModelType;
     }
   }
 

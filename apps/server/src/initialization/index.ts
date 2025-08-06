@@ -1,8 +1,5 @@
 import { InitStatus, prisma } from "@repo/db";
-import {
-  getStepsForMode,
-  InitializationProgress,
-} from "@repo/types";
+import { getStepsForMode, InitializationProgress } from "@repo/types";
 import { emitStreamChunk } from "../socket";
 import { createWorkspaceManager, getAgentMode } from "../execution";
 import type { WorkspaceManager as AbstractWorkspaceManager } from "../execution";
@@ -541,7 +538,6 @@ export class TaskInitializationEngine {
         {
           concurrency: 12,
           model: context.getMainModel(),
-          modelMini: context.getMiniModel(),
         }
       );
 
@@ -559,12 +555,14 @@ export class TaskInitializationEngine {
       );
     }
   }
-  
+
   /**
    * Index repository step - Start background indexing (non-blocking)
    */
   private async executeIndexRepository(taskId: string): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Starting background repository indexing`);
+    console.log(
+      `[TASK_INIT] ${taskId}: Starting background repository indexing`
+    );
 
     try {
       // Get task info
@@ -580,7 +578,7 @@ export class TaskInitializationEngine {
       // Start background indexing (non-blocking)
       await startBackgroundIndexing(task.repoFullName, taskId, {
         clearNamespace: true,
-        force: false
+        force: false,
       });
 
       console.log(
@@ -592,10 +590,11 @@ export class TaskInitializationEngine {
         error
       );
       // Don't throw error - we don't want indexing failures to block task startup
-      console.log(`[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`);
+      console.log(
+        `[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`
+      );
     }
   }
-
 
   /**
    * Emit progress events via WebSocket

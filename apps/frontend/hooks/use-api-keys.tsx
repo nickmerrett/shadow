@@ -3,6 +3,9 @@ import {
   getApiKeys,
   saveApiKey as saveApiKeyAction,
   clearApiKey as clearApiKeyAction,
+  getApiKeyValidation,
+  saveApiKeyValidation,
+  clearApiKeyValidation,
   type ApiKeyProvider,
 } from "@/lib/actions/api-keys";
 
@@ -39,6 +42,33 @@ export function useClearApiKey() {
     mutationFn: (provider: ApiKeyProvider) => clearApiKeyAction(provider),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+      queryClient.invalidateQueries({ queryKey: ["api-key-validation"] });
+    },
+  });
+}
+
+export function useApiKeyValidation() {
+  return useQuery({
+    queryKey: ["api-key-validation"],
+    queryFn: getApiKeyValidation,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useSaveApiKeyValidation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      provider,
+      validation,
+    }: {
+      provider: ApiKeyProvider;
+      validation: any;
+    }) => saveApiKeyValidation(provider, validation),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["api-key-validation"] });
     },
   });
 }

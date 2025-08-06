@@ -1,4 +1,4 @@
-import { ModelInfos, ModelType } from "@repo/types";
+import { ModelInfos, ModelType, getModelProvider } from "@repo/types";
 import { useEffect, useState } from "react";
 import { useModal } from "@/components/layout/modal-context";
 import {
@@ -12,8 +12,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Box, Layers, Square } from "lucide-react";
+import { Box } from "lucide-react";
 import { useModels } from "@/hooks/use-models";
+import { useApiKeys, useApiKeyValidation } from "@/hooks/use-api-keys";
 
 export function ModelSelector({
   isHome,
@@ -28,6 +29,22 @@ export function ModelSelector({
   const { openSettingsModal } = useModal();
 
   const { data: availableModels = [] } = useModels();
+  const { data: apiKeys } = useApiKeys();
+  const { data: validationState } = useApiKeyValidation();
+
+  // Filter models based on valid API keys only
+  const filteredModels = availableModels.filter((model) => {
+    const provider = getModelProvider(model.id as ModelType);
+
+    // Check if we have a valid API key for this provider
+    const hasKey = !!apiKeys?.[provider];
+
+    // If validation state is not available, assume valid if we have a key
+    // This prevents filtering out all models when validation is still loading
+    const isValid = validationState?.[provider]?.isValid !== false;
+
+    return hasKey && isValid;
+  });
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -51,7 +68,6 @@ export function ModelSelector({
               variant="ghost"
               className="text-muted-foreground hover:bg-accent px-2 font-normal"
             >
-              {isHome && <Layers className="size-4" />}
               <span>
                 {selectedModel
                   ? ModelInfos[selectedModel].name
@@ -71,8 +87,8 @@ export function ModelSelector({
         className="flex flex-col gap-0.5 overflow-hidden rounded-lg p-0"
       >
         <div className="flex flex-col gap-0.5 rounded-lg p-1.5">
-          {availableModels.length > 0 ? (
-            availableModels.map((model) => (
+          {filteredModels.length > 0 ? (
+            filteredModels.map((model) => (
               <Button
                 key={model.id}
                 size="sm"
@@ -80,14 +96,13 @@ export function ModelSelector({
                 className="hover:bg-accent justify-start font-normal"
                 onClick={() => handleSelectModel(model.id as ModelType)}
               >
-                <Square className="size-4" />
-                {model.name}
+                <span>{model.name}</span>
               </Button>
             ))
           ) : (
             <div className="text-muted-foreground p-2 text-left text-sm">
-              No models available. Configure your API keys to begin using
-              Shadow.
+              No models available. Configure and validate your API keys to begin
+              using Shadow.
             </div>
           )}
         </div>

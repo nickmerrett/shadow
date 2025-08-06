@@ -1,12 +1,13 @@
 import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import {
   cleanTitle,
   generateShadowBranchName,
   getTitleGenerationModel,
-  ModelType,
 } from "@repo/types";
 import { TaskModelContext } from "../services/task-model-context";
-import { ModelProvider } from "../agent/llm/models/model-provider";
 
 export async function generateTaskTitleAndBranch(
   taskId: string,
@@ -18,6 +19,7 @@ export async function generateTaskTitleAndBranch(
     const apiKeys = context.getApiKeys() || {
       openai: undefined,
       anthropic: undefined,
+      openrouter: undefined,
     };
 
     // Get the main model to determine provider for mini model selection
@@ -40,11 +42,18 @@ export async function generateTaskTitleAndBranch(
       };
     }
 
-    const modelProvider = new ModelProvider();
-    const model = modelProvider.getModel(
-      modelConfig.modelChoice as ModelType,
-      apiKeys
-    );
+    const model =
+      modelConfig.provider === "openai"
+        ? openai(modelConfig.modelChoice)
+        : modelConfig.provider === "anthropic"
+          ? anthropic(modelConfig.modelChoice)
+          : createOpenRouter({
+              apiKey: apiKeys.openrouter!,
+              headers: {
+                "HTTP-Referer": "https://shadowrealm.ai",
+                "X-Title": "Shadow Agent",
+              },
+            }).chat(modelConfig.modelChoice);
 
     const { text: generatedText } = await generateText({
       model,

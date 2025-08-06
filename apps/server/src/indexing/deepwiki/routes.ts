@@ -18,6 +18,22 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
   const { forceRefresh = false, model, modelMini } = req.body;
 
   try {
+    // Get task details first
+    const task = await db.task.findUnique({
+      where: { id: taskId },
+      select: {
+        id: true,
+        userId: true,
+        repoFullName: true,
+        repoUrl: true,
+        codebaseUnderstanding: true,
+      },
+    });
+
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
     // Get or create model context for this task
     const modelContext = await modelContextService.refreshContext(
       taskId,
@@ -34,19 +50,15 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
     // Validate that user has required API keys
     if (!modelContext.validateAccess()) {
       const provider = modelContext.getProvider();
-      const providerName = provider === "anthropic" ? "Anthropic" : "OpenAI";
+      const providerName =
+        provider === "anthropic"
+          ? "Anthropic"
+          : provider === "openrouter"
+            ? "OpenRouter"
+            : "OpenAI";
       return res.status(400).json({
         error: `${providerName} API key required. Please configure your API key in settings.`,
       });
-    }
-    // Get task details
-    const task = await db.task.findUnique({
-      where: { id: taskId },
-      include: { codebaseUnderstanding: true },
-    });
-
-    if (!task) {
-      return res.status(404).json({ error: "Task not found" });
     }
 
     // Check if summary already exists and no force refresh

@@ -5,6 +5,7 @@ import {
   Message,
   MessageMetadata,
   ModelType,
+  ApiKeys,
   QueuedActionUI,
 } from "@repo/types";
 import { TextPart, ToolCallPart, ToolResultPart } from "ai";
@@ -1063,10 +1064,23 @@ export class ChatService {
           finishReason = chunk.finishReason || "error";
           hasError = true;
 
+          // Improve error messages for rate limits
+          let userFriendlyError = chunk.error || "Unknown error occurred";
+          if (
+            userFriendlyError.includes("Too Many Requests") ||
+            userFriendlyError.includes("rate limit")
+          ) {
+            userFriendlyError =
+              "The model is currently experiencing high demand. Please try again in a few moments or switch to a different model.";
+          } else if (userFriendlyError.includes("Failed after 3 attempts")) {
+            userFriendlyError =
+              "The model is temporarily unavailable. Please try again or switch to a different model.";
+          }
+
           // Add error part to assistant message parts
           const errorPart: ErrorPart = {
             type: "error",
-            error: chunk.error || "Unknown error occurred",
+            error: userFriendlyError,
             finishReason: chunk.finishReason,
           };
           assistantParts.push(errorPart);
@@ -1290,11 +1304,8 @@ export class ChatService {
     });
   }
 
-  getAvailableModels(userApiKeys: {
-    openai?: string;
-    anthropic?: string;
-  }): ModelType[] {
-    return this.llmService.getAvailableModels(userApiKeys);
+  async getAvailableModels(userApiKeys: ApiKeys): Promise<ModelType[]> {
+    return await this.llmService.getAvailableModels(userApiKeys);
   }
 
   getQueuedAction(taskId: string): QueuedActionUI | null {
