@@ -83,9 +83,9 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
       });
     }
 
-    console.log(`[DEEP-WIKI] Analyzing workspace directly: ${workspaceDir}`);
+    console.log(`[SHADOW-WIKI] Analyzing workspace directly: ${workspaceDir}`);
 
-    // Run deep wiki analysis directly on workspace
+    // Run Shadow Wiki analysis directly on workspace
     const result = await runDeepWiki(
       workspaceDir,
       taskId,
