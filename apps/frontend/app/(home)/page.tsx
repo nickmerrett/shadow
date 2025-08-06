@@ -1,21 +1,17 @@
 import { HomePageContent } from "@/components/chat/home";
 import { HomeLayoutWrapper } from "@/components/layout/home-layout";
 import { getUser } from "@/lib/auth/get-user";
-import {
-  getGitHubRepositories,
-  getGitHubStatus,
-} from "@/lib/github/github-api";
 import { getGitSelectorCookie } from "@/lib/actions/git-selector-cookie";
 import { getModelSelectorCookie } from "@/lib/actions/model-selector-cookie";
 import { getApiKeys, getModels } from "@/lib/actions/api-keys";
 import { getModelProvider, AvailableModels } from "@repo/types";
-import type { GitHubStatus } from "@/lib/github/types";
 import {
   dehydrate,
   HydrationBoundary,
   QueryClient,
 } from "@tanstack/react-query";
 import { GitCookieDestroyer } from "@/components/task/git-cookie-destroyer";
+
 
 export default async function Home() {
   const user = await getUser();
@@ -25,28 +21,6 @@ export default async function Home() {
   const apiKeys = await getApiKeys();
 
   const prefetchPromises = [
-    queryClient
-      .prefetchQuery({
-        queryKey: ["github", "status"],
-        queryFn: () => getGitHubStatus(user?.id),
-      })
-      .catch((error) => {
-        console.log(
-          "Could not prefetch GitHub status:",
-          error?.message || error
-        );
-      }),
-    queryClient
-      .prefetchQuery({
-        queryKey: ["github", "repositories"],
-        queryFn: () => getGitHubRepositories(user?.id),
-      })
-      .catch((error) => {
-        console.log(
-          "Could not prefetch GitHub repositories:",
-          error?.message || error
-        );
-      }),
     queryClient
       .prefetchQuery({
         queryKey: ["models"],
@@ -67,14 +41,9 @@ export default async function Home() {
 
   await Promise.allSettled(prefetchPromises);
 
-  const githubStatus = queryClient.getQueryData<GitHubStatus>([
-    "github",
-    "status",
-  ]);
-
-  // If the GitHub app installation disconnected or expired, don't use our saved cookie
-  const shouldDeleteGitCookie =
-    !!initialGitCookieState && !!githubStatus && !githubStatus.isAppInstalled;
+  // Since we're not prefetching GitHub status anymore, we can't check installation status
+  // The GitCookieDestroyer component will handle this when GitHub components load
+  const shouldDeleteGitCookie = false;
 
   // Validate saved model against available API keys
   let initialSelectedModel = savedModel;
@@ -103,6 +72,7 @@ export default async function Home() {
       initialSelectedModel = null;
     }
   }
+
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

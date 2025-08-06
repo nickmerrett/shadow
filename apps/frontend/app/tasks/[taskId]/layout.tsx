@@ -13,6 +13,7 @@ import {
 import { notFound } from "next/navigation";
 import { getCodebases } from "@/lib/db-operations/get-codebases";
 
+
 export default async function TaskLayout({
   children,
   params,
@@ -21,7 +22,9 @@ export default async function TaskLayout({
   params: Promise<{ taskId: string }>;
 }>) {
   const { taskId } = await params;
+  
   const user = await getUser();
+  
   const [
     initialTasks,
     initialCodebases,
@@ -40,7 +43,7 @@ export default async function TaskLayout({
 
   const queryClient = new QueryClient();
 
-  await Promise.all([
+  const prefetchPromises = [
     queryClient.prefetchQuery({
       queryKey: ["task", taskId],
       queryFn: () => ({
@@ -78,7 +81,9 @@ export default async function TaskLayout({
       .catch((error) => {
         console.log("Could not prefetch models:", error?.message || error);
       }),
-  ]);
+  ];
+
+  await Promise.allSettled(prefetchPromises);
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
