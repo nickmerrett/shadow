@@ -24,14 +24,14 @@ export async function getApiKeys(): Promise<ApiKeys> {
   const anthropicKey = cookieStore.get("anthropic-key")?.value;
   const openrouterKey = cookieStore.get("openrouter-key")?.value;
   // const groqKey = cookieStore.get("groq-key")?.value;
-  const ollamaKey = cookieStore.get("ollama-key")?.value;
+  // const ollamaKey = cookieStore.get("ollama-key")?.value;
 
   return {
     openai: openaiKey || undefined,
     anthropic: anthropicKey || undefined,
     openrouter: openrouterKey || undefined,
     // groq: groqKey || undefined,
-    ollama: ollamaKey || undefined,
+    // ollama: ollamaKey || undefined,
   };
 }
 
@@ -82,11 +82,11 @@ export async function getAllPossibleModelsInfo(): Promise<ModelInfo[]> {
  */
 function createDynamicModelInfo(modelId: ModelType): ModelInfo {
   // For now, assume any unknown model is Ollama
-  return {
-    id: modelId,
-    name: modelId,
-    provider: "ollama",
-  };
+  // return {
+  //   id: modelId,
+  //   name: modelId,
+  //   provider: "ollama",
+  // };
 }
 
 export async function getModelDefaults(): Promise<{
@@ -135,7 +135,7 @@ export async function getApiKeyValidation(): Promise<ApiKeyValidation> {
   const anthropicValidation = cookieStore.get("anthropic-validation")?.value;
   const openrouterValidation = cookieStore.get("openrouter-validation")?.value;
   // const groqValidation = cookieStore.get("groq-validation")?.value;
-  const ollamaValidation = cookieStore.get("ollama-validation")?.value;
+  // const ollamaValidation = cookieStore.get("ollama-validation")?.value;
 
   return {
     openai: openaiValidation ? JSON.parse(openaiValidation) : undefined,
@@ -146,7 +146,7 @@ export async function getApiKeyValidation(): Promise<ApiKeyValidation> {
       ? JSON.parse(openrouterValidation)
       : undefined,
     // groq: groqValidation ? JSON.parse(groqValidation) : undefined,
-    ollama: ollamaValidation ? JSON.parse(ollamaValidation) : undefined,
+    // ollama: ollamaValidation ? JSON.parse(ollamaValidation) : undefined,
   };
 }
 

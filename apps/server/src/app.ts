@@ -267,7 +267,7 @@ app.post("/api/validate-keys", async (req, res) => {
       hasAnthropic: !!userApiKeys.anthropic,
       hasOpenRouter: !!userApiKeys.openrouter,
       // hasGroq: !!userApiKeys.groq,
-      hasOllama: !!userApiKeys.ollama,
+      // hasOllama: !!userApiKeys.ollama,
     });
 
     // Only validate keys that are present and not empty
@@ -284,9 +284,9 @@ app.post("/api/validate-keys", async (req, res) => {
     // if (userApiKeys.groq && userApiKeys.groq.trim()) {
     //   keysToValidate.groq = userApiKeys.groq;
     // }
-    if (userApiKeys.ollama && userApiKeys.ollama.trim()) {
-      keysToValidate.ollama = userApiKeys.ollama;
-    }
+    // if (userApiKeys.ollama && userApiKeys.ollama.trim()) {
+    //   keysToValidate.ollama = userApiKeys.ollama;
+    // }
 
     console.log("[VALIDATION] Keys to validate:", Object.keys(keysToValidate));
 

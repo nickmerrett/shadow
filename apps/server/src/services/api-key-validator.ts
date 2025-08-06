@@ -1,4 +1,6 @@
 import { ApiKeyProvider } from "@repo/types";
+// import { createOllama } from "ollama-ai-provider";
+// import { generateText } from "ai";
 
 export interface ValidationResult {
   isValid: boolean;
@@ -27,8 +29,8 @@ export class ApiKeyValidator {
           return await this.validateOpenRouter(apiKey, startTime);
         // case "groq":
         //   return await this.validateGroq(apiKey, startTime);
-        case "ollama":
-          return await this.validateOllama(apiKey, startTime);
+        // case "ollama":
+        //   return await this.validateOllama(apiKey, startTime);
         default:
           throw new Error(`Unsupported provider: ${provider}`);
       }
@@ -254,53 +256,70 @@ export class ApiKeyValidator {
     }
   }
 
-  private async validateOllama(
-    apiKey: string,
-    startTime: number
-  ): Promise<ValidationResult> {
-    try {
-      // For Ollama, the "API key" is actually the baseURL
-      const baseURL = apiKey || "http://localhost:11434";
+  // private async validateOllama(
+  //   apiKey: string,
+  //   startTime: number
+  // ): Promise<ValidationResult> {
+  //   try {
+  //     if (!apiKey) {
+  //       return {
+  //         isValid: false,
+  //         error: "Ollama API key is required",
+  //         latencyMs: Date.now() - startTime,
+  //       };
+  //     }
 
-      // Make a simple API call to validate the connection
-      const response = await fetch(`${baseURL}/api/tags`, {
-        method: "GET",
-        signal: AbortSignal.timeout(5000),
-      });
+  //     // Make a simple API call to validate the connection
+  //     const response = await fetch("https://ollama.com/api/chat", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         Authorization: `Bearer ${apiKey}`,
+  //       },
+  //       body: JSON.stringify({
+  //         model: "gpt-oss:20b",
+  //         messages: [{ role: "user", content: "hi" }],
+  //         stream: false,
+  //       }),
+  //       signal: AbortSignal.timeout(10000),
+  //     });
 
-      const latencyMs = Date.now() - startTime;
+  //     const latencyMs = Date.now() - startTime;
 
-      if (response.status === 200) {
-        return { isValid: true, latencyMs };
-      } else {
-        return {
-          isValid: false,
-          error: `Ollama API returned status ${response.status}`,
-          latencyMs,
-        };
-      }
-    } catch (error: any) {
-      const latencyMs = Date.now() - startTime;
+  //     if (response.status === 200 || response.status === 400) {
+  //       // 200 = success, 400 = bad request but auth is valid
+  //       return { isValid: true, latencyMs };
+  //     } else if (response.status === 401 || response.status === 403) {
+  //       return {
+  //         isValid: false,
+  //         error: "Invalid Ollama API key",
+  //         latencyMs,
+  //       };
+  //     } else {
+  //       return {
+  //         isValid: false,
+  //         error: `Ollama API returned status ${response.status}`,
+  //         latencyMs,
+  //       };
+  //     }
+  //   } catch (error: any) {
+  //     const latencyMs = Date.now() - startTime;
 
-      // Handle connection errors and other issues
-      if (
-        error?.message?.includes("ECONNREFUSED") ||
-        error?.message?.includes("fetch failed")
-      ) {
-        return {
-          isValid: false,
-          error: "Cannot connect to Ollama server - ensure it's running",
-          latencyMs,
-        };
-      } else {
-        return {
-          isValid: false,
-          error: `Ollama validation failed: ${error?.message || "Unknown error"}`,
-          latencyMs,
-        };
-      }
-    }
-  }
+  //     if (error?.name === "AbortError") {
+  //       return {
+  //         isValid: false,
+  //         error: "Ollama API request timed out",
+  //         latencyMs,
+  //       };
+  //     } else {
+  //       return {
+  //         isValid: false,
+  //         error: `Ollama validation failed: ${error?.message || "Unknown error"}`,
+  //         latencyMs,
+  //       };
+  //     }
+  //   }
+  // }
 
   /**
    * Validate multiple API keys concurrently

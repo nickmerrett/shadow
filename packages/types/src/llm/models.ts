@@ -5,7 +5,7 @@ export interface LLMConfig {
   maxTokens?: number;
   temperature?: number;
   systemPrompt?: string;
-  provider: "anthropic" | "openai" | "openrouter" | /*"groq" |*/ "ollama";
+  provider: "anthropic" | "openai" | "openrouter" /* | "groq" | "ollama" */;
 }
 
 // Model Selection
@@ -51,10 +51,9 @@ export const AvailableModels = {
   // GROQ_LLAMA3_70B: "llama3-70b-8192",
   // GROQ_LLAMA3_8B: "llama3-8b-8192",
 
-  // Ollama models (local)
-  OLLAMA_LLAMA3_2: "llama3.2",
-  OLLAMA_LLAMA3_2_1B: "llama3.2:1b",
-  OLLAMA_QWEN2_5_CODER: "qwen2.5-coder:7b",
+  // Ollama models
+  // OLLAMA_GPT_OSS_120B: "gpt-oss:120b",
+  // OLLAMA_GPT_OSS_20B: "gpt-oss:20b",
 } as const;
 
 export type ModelType = (typeof AvailableModels)[keyof typeof AvailableModels];
@@ -62,7 +61,7 @@ export type ModelType = (typeof AvailableModels)[keyof typeof AvailableModels];
 export interface ModelInfo {
   id: ModelType;
   name: string;
-  provider: "anthropic" | "openai" | "openrouter" | /*"groq" |*/ "ollama";
+  provider: "anthropic" | "openai" | "openrouter" /* | "groq" | "ollama" */;
 }
 
 export const ModelInfos: Record<ModelType, ModelInfo> = {
@@ -223,67 +222,26 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
   },
 
   // Ollama models
-  [AvailableModels.OLLAMA_LLAMA3_2]: {
-    id: AvailableModels.OLLAMA_LLAMA3_2,
-    name: "Llama 3.2",
-    provider: "ollama",
-  },
-  [AvailableModels.OLLAMA_LLAMA3_2_1B]: {
-    id: AvailableModels.OLLAMA_LLAMA3_2_1B,
-    name: "Llama 3.2 1B",
-    provider: "ollama",
-  },
-  [AvailableModels.OLLAMA_QWEN2_5_CODER]: {
-    id: AvailableModels.OLLAMA_QWEN2_5_CODER,
-    name: "Qwen2.5 Coder 7B",
-    provider: "ollama",
-  },
+  // [AvailableModels.OLLAMA_GPT_OSS_120B]: {
+  //   id: AvailableModels.OLLAMA_GPT_OSS_120B,
+  //   name: "GPT OSS 120B",
+  //   provider: "ollama",
+  // },
+  // [AvailableModels.OLLAMA_GPT_OSS_20B]: {
+  //   id: AvailableModels.OLLAMA_GPT_OSS_20B,
+  //   name: "GPT OSS 20B",
+  //   provider: "ollama",
+  // },
 };
 
 export function getModelProvider(
   model: ModelType
-): "anthropic" | "openai" | "openrouter" | "ollama" {
+): "anthropic" | "openai" | "openrouter" /* | "ollama" */ {
   return ModelInfos[model].provider;
 }
 
 export function getModelInfo(model: ModelType): ModelInfo {
   return ModelInfos[model];
-}
-
-/**
- * Fetch available Ollama models from the /api/tags endpoint
- */
-export async function fetchOllamaModels(baseURL: string): Promise<ModelType[]> {
-  try {
-    const response = await fetch(`${baseURL}/api/tags`, {
-      method: "GET",
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (response.status === 200) {
-      const data = await response.json();
-      if (data.models && Array.isArray(data.models)) {
-        // Return model names as ModelType, but they won't be in our static ModelInfos
-        // We'll handle this dynamically in the UI
-        return data.models.map((model: any) => model.name as ModelType);
-      }
-    }
-
-    // Fallback to static models if API fails
-    return [
-      AvailableModels.OLLAMA_LLAMA3_2,
-      AvailableModels.OLLAMA_LLAMA3_2_1B,
-      AvailableModels.OLLAMA_QWEN2_5_CODER,
-    ];
-  } catch (error) {
-    console.warn("Failed to fetch Ollama models, using fallback:", error);
-    // Return static fallback models
-    return [
-      AvailableModels.OLLAMA_LLAMA3_2,
-      AvailableModels.OLLAMA_LLAMA3_2_1B,
-      AvailableModels.OLLAMA_QWEN2_5_CODER,
-    ];
-  }
 }
 
 /**
@@ -299,33 +257,17 @@ export async function getAllPossibleModels(
       AvailableModels.CLAUDE_OPUS_4,
       AvailableModels.CLAUDE_SONNET_4,
       AvailableModels.CLAUDE_3_7_SONNET,
-      AvailableModels.CLAUDE_3_5_SONNET_20241022,
-      AvailableModels.CLAUDE_3_5_SONNET_20240620,
-      AvailableModels.CLAUDE_3_5_HAIKU,
-      AvailableModels.CLAUDE_3_OPUS,
-      AvailableModels.CLAUDE_3_SONNET,
-      AvailableModels.CLAUDE_3_HAIKU
+      AvailableModels.CLAUDE_3_5_HAIKU
     );
   }
 
   if (userApiKeys.openai) {
     models.push(
       AvailableModels.GPT_4_1,
-      AvailableModels.GPT_4_1_MINI,
-      AvailableModels.GPT_4_1_NANO,
       AvailableModels.GPT_4O,
       AvailableModels.GPT_4O_MINI,
-      AvailableModels.GPT_4O_AUDIO_PREVIEW,
-      AvailableModels.GPT_4_TURBO,
-      AvailableModels.GPT_4,
-      AvailableModels.GPT_3_5_TURBO,
-      AvailableModels.O1,
-      AvailableModels.O1_MINI,
-      AvailableModels.O1_PREVIEW,
-      AvailableModels.O3_MINI,
       AvailableModels.O3,
-      AvailableModels.O4_MINI,
-      AvailableModels.CHATGPT_4O_LATEST
+      AvailableModels.O4_MINI
     );
   }
 
@@ -347,12 +289,12 @@ export async function getAllPossibleModels(
   //   );
   // }
 
-  if (userApiKeys.ollama) {
-    // Fetch models dynamically from Ollama API
-    const baseURL = userApiKeys.ollama || "http://localhost:11434";
-    const ollamaModels = await fetchOllamaModels(baseURL);
-    models.push(...ollamaModels);
-  }
+  // if (userApiKeys.ollama) {
+  //   // models.push(
+  //   //   AvailableModels.OLLAMA_GPT_OSS_120B,
+  //   //   AvailableModels.OLLAMA_GPT_OSS_20B
+  //   // );
+  // }
 
   return models;
 }
@@ -395,14 +337,13 @@ export async function getDefaultSelectedModels(
     );
   }
 
-  if (userApiKeys.ollama) {
-    // For Ollama, we get the dynamic models but use static fallbacks for defaults
-    defaultModels.push(
-      AvailableModels.OLLAMA_LLAMA3_2,
-      AvailableModels.OLLAMA_LLAMA3_2_1B,
-      AvailableModels.OLLAMA_QWEN2_5_CODER
-    );
-  }
+  // if (userApiKeys.ollama) {
+  //   // For Ollama, we get the dynamic models but use static fallbacks for defaults
+  //   // defaultModels.push(
+  //   //   AvailableModels.OLLAMA_GPT_OSS_120B,
+  //   //   AvailableModels.OLLAMA_GPT_OSS_20B
+  //   // );
+  // }
 
   return defaultModels;
 }
@@ -427,9 +368,9 @@ export function getDefaultSelectedMiniModels(
   // if (userApiKeys.groq) {
   //   miniModels.groq = AvailableModels.GROQ_LLAMA3_8B;
   // }
-  if (userApiKeys.ollama) {
-    miniModels.ollama = AvailableModels.OLLAMA_LLAMA3_2_1B;
-  }
+  // if (userApiKeys.ollama) {
+  //   miniModels.ollama = AvailableModels.OLLAMA_GPT_OSS_20B;
+  // }
 
   return miniModels;
 }
@@ -473,9 +414,10 @@ export function getMiniModelForProvider(
     return AvailableModels.OPENAI_GPT_OSS_20B;
     // } else if (provider === "groq") {
     //   return AvailableModels.GROQ_LLAMA3_8B;
-  } else if (provider === "ollama") {
-    return AvailableModels.OLLAMA_LLAMA3_2_1B;
-  } else {
+    // } else if (provider === "ollama") {
+    //   return AvailableModels.OLLAMA_GPT_OSS_20B;
+    // }
+
     return AvailableModels.CLAUDE_3_5_HAIKU;
   }
 }

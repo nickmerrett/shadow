@@ -44,11 +44,11 @@ export function ModelSettings() {
   const [openrouterInput, setOpenrouterInput] = useState(
     apiKeys?.openrouter ?? ""
   );
-  const [ollamaInput, setOllamaInput] = useState(apiKeys?.ollama ?? "");
+  // const [ollamaInput, setOllamaInput] = useState(apiKeys?.ollama ?? "");
   const [savingOpenai, setSavingOpenai] = useState(false);
   const [savingAnthropic, setSavingAnthropic] = useState(false);
   const [savingOpenrouter, setSavingOpenrouter] = useState(false);
-  const [savingOllama, setSavingOllama] = useState(false);
+  // const [savingOllama, setSavingOllama] = useState(false);
   const [configModalProvider, setConfigModalProvider] = useState<string | null>(
     null
   );
@@ -82,7 +82,7 @@ export function ModelSettings() {
     setOpenaiInput(apiKeys?.openai ?? "");
     setAnthropicInput(apiKeys?.anthropic ?? "");
     setOpenrouterInput(apiKeys?.openrouter ?? "");
-    setOllamaInput(apiKeys?.ollama ?? "");
+    // setOllamaInput(apiKeys?.ollama ?? "");
   }, [apiKeys]);
 
   const saveApiKey = async (
@@ -102,7 +102,7 @@ export function ModelSettings() {
       if (provider === "openai") setSavingOpenai(false);
       else if (provider === "anthropic") setSavingAnthropic(false);
       else if (provider === "openrouter") setSavingOpenrouter(false);
-      else setSavingOllama(false);
+      // else setSavingOllama(false);
       return;
     }
 
@@ -166,7 +166,7 @@ export function ModelSettings() {
       if (provider === "openai") setSavingOpenai(false);
       else if (provider === "anthropic") setSavingAnthropic(false);
       else if (provider === "openrouter") setSavingOpenrouter(false);
-      else setSavingOllama(false);
+      // else setSavingOllama(false);
     }
   };
 
@@ -192,11 +192,11 @@ export function ModelSettings() {
     200
   );
 
-  const { debouncedCallback: debouncedSaveOllama, cancel: cancelOllamaSave } =
-    useDebounceCallbackWithCancel(
-      (key: string) => saveApiKey("ollama", key),
-      200
-    );
+  // const { debouncedCallback: debouncedSaveOllama, cancel: cancelOllamaSave } =
+  //   useDebounceCallbackWithCancel(
+  //     (key: string) => saveApiKey("ollama", key),
+  //     200
+  //   );
 
   const handleOpenaiChange = (value: string) => {
     setOpenaiInput(value);
@@ -217,9 +217,9 @@ export function ModelSettings() {
   };
 
   const handleOllamaChange = (value: string) => {
-    setOllamaInput(value);
-    setSavingOllama(true);
-    debouncedSaveOllama(value);
+    // setOllamaInput(value);
+    // setSavingOllama(true);
+    // debouncedSaveOllama(value);
   };
 
   const handleClearApiKey = async (
@@ -240,9 +240,9 @@ export function ModelSettings() {
         cancelOpenrouterSave();
         setSavingOpenrouter(false);
       } else {
-        setOllamaInput("");
-        cancelOllamaSave();
-        setSavingOllama(false);
+        // setOllamaInput("");
+        // cancelOllamaSave();
+        // setSavingOllama(false);
       }
 
       // Clear validation result for this provider
@@ -450,12 +450,12 @@ export function ModelSettings() {
         </div>
 
         {/* Ollama Section */}
-        <div className="flex w-full flex-col gap-2">
+        {/* <div className="flex w-full flex-col gap-2">
           <Label
             htmlFor="ollama-key"
             className="flex h-5 items-center gap-2 font-normal"
           >
-            Ollama Server URL
+            Ollama API Key
             {savingOllama && (
               <Loader2 className="text-muted-foreground size-3 animate-spin" />
             )}
@@ -464,7 +464,8 @@ export function ModelSettings() {
           <div className="flex gap-2">
             <Input
               id="ollama-key"
-              placeholder="http://localhost:11434"
+              type="text"
+              placeholder="Enter your Ollama API key"
               value={ollamaInput}
               onChange={(e) => handleOllamaChange(e.target.value)}
             />
@@ -499,12 +500,12 @@ export function ModelSettings() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" align="end">
-                  Clear Ollama server URL
+                  Clear Ollama API key
                 </TooltipContent>
               </Tooltip>
             )}
           </div>
-        </div>
+        </div> */}
       </div>
 
       <div className="text-muted-foreground flex w-full flex-col gap-1 border-t pt-4 text-xs">

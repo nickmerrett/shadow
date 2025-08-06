@@ -39,8 +39,12 @@ export async function generateTaskTitleAndBranch(
       modelConfig.provider === "openai"
         ? createOpenAI({ apiKey: apiKeys.openai })(modelConfig.modelChoice)
         : modelConfig.provider === "anthropic"
-        ? createAnthropic({ apiKey: apiKeys.anthropic })(modelConfig.modelChoice)
-        : createOpenRouter({ apiKey: apiKeys.openrouter! }).chat(modelConfig.modelChoice);
+          ? createAnthropic({ apiKey: apiKeys.anthropic })(
+              modelConfig.modelChoice
+            )
+          : createOpenRouter({ apiKey: apiKeys.openrouter! }).chat(
+              modelConfig.modelChoice
+            );
 
     const { text: generatedText } = await generateText({
       model,

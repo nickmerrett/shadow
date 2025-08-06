@@ -4,7 +4,7 @@ export const API_KEY_PROVIDERS = {
   ANTHROPIC: "anthropic",
   OPENROUTER: "openrouter",
   // GROQ: "groq",
-  OLLAMA: "ollama",
+  // OLLAMA: "ollama",
 } as const;
 
 export type ApiKeyProvider =
@@ -22,7 +22,7 @@ export interface ApiKeys {
   anthropic?: string;
   openrouter?: string;
   // groq?: string;
-  ollama?: string;
+  // ollama?: string;
 }
 
 export interface ApiKeyValidation {
@@ -30,5 +30,5 @@ export interface ApiKeyValidation {
   anthropic?: ApiKeyValidationResult;
   openrouter?: ApiKeyValidationResult;
   // groq?: ApiKeyValidationResult;
-  ollama?: ApiKeyValidationResult;
+  // ollama?: ApiKeyValidationResult;
 }

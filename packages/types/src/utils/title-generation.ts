@@ -50,7 +50,7 @@ export interface TitleGenerationConfig {
 }
 
 export function getTitleGenerationModel(config: TitleGenerationConfig): {
-  provider: "openai" | "anthropic" | "openrouter" | "ollama";
+  provider: "openai" | "anthropic" | "openrouter" /* | "ollama" */;
   modelChoice: string;
 } | null {
   const { apiKeys, fallbackModel } = config;
@@ -59,8 +59,8 @@ export function getTitleGenerationModel(config: TitleGenerationConfig): {
   if (
     !apiKeys.openai &&
     !apiKeys.anthropic &&
-    !apiKeys.openrouter &&
-    !apiKeys.ollama
+    !apiKeys.openrouter
+    // && !apiKeys.ollama
   ) {
     return null;
   }

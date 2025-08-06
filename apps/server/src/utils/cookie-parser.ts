@@ -7,7 +7,7 @@ export function parseApiKeysFromCookies(cookieHeader?: string): ApiKeys {
       anthropic: undefined,
       openrouter: undefined,
       // groq: undefined,
-      ollama: undefined,
+      // ollama: undefined,
     };
   }
 
@@ -26,6 +26,6 @@ export function parseApiKeysFromCookies(cookieHeader?: string): ApiKeys {
     anthropic: cookies["anthropic-key"] || undefined,
     openrouter: cookies["openrouter-key"] || undefined,
     // groq: cookies["groq-key"] || undefined,
-    ollama: cookies["ollama-key"] || undefined,
+    // ollama: cookies["ollama-key"] || undefined,
   };
 }
