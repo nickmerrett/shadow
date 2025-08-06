@@ -126,6 +126,21 @@ const LANGUAGES = {
 
 const sha1 = (data: string) => createHash("sha1").update(data).digest("hex");
 
+// Timeout utility to prevent operations from hanging indefinitely
+async function withTimeout<T>(
+  promise: Promise<T>, 
+  timeoutMs: number, 
+  operation: string
+): Promise<T> {
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`Operation '${operation}' timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  
+  return Promise.race([promise, timeoutPromise]);
+}
+
 // Check if a file is critical and should always be analyzed
 function isCriticalFile(filePath: string): boolean {
   const fileName = path.basename(filePath).toLowerCase();
@@ -166,12 +181,12 @@ function isCriticalFile(filePath: string): boolean {
 }
 
 // AST-based intelligent truncation - extract important symbols with tree-sitter
-function intelligentTruncateWithAST(
+async function intelligentTruncateWithAST(
   src: string, 
   filePath: string, 
   langSpec: any, 
   maxTokens: number = 12000
-): string {
+): Promise<string> {
   const maxChars = maxTokens * 4;
   
   if (src.length <= maxChars) {
@@ -181,8 +196,13 @@ function intelligentTruncateWithAST(
   console.debug(`[SHADOW-WIKI] AST-based truncation for ${filePath} (${src.length} chars -> ~${maxTokens} tokens)`);
 
   try {
-    // Parse the AST
-    const tree = langSpec.parser.parse(src);
+    // Parse the AST with timeout protection
+    const tree = await withTimeout(
+      Promise.resolve(langSpec.parser.parse(src)),
+      10000, // 10 second timeout for tree-sitter parsing
+      `AST parsing of ${filePath}`
+    );
+    
     if (!tree || !tree.rootNode || tree.rootNode.hasError()) {
       // Fallback to simple truncation if parsing fails
       return fallbackTruncation(src, maxChars);
@@ -199,8 +219,8 @@ function intelligentTruncateWithAST(
 
     // Helper to add a range with context (include surrounding comments/JSDoc)
     const addRangeWithContext = (node: Parser.SyntaxNode, priority: number, type: string, name?: string) => {
-      let start = node.startIndex;
-      let end = node.endIndex;
+      const start = node.startIndex;
+      const end = node.endIndex;
       
       // Expand backwards to capture leading comments/JSDoc
       const lines = src.substring(0, start).split('\n');
@@ -238,7 +258,7 @@ function intelligentTruncateWithAST(
         case 'function_declaration':
         case 'function_signature':
         case 'method_definition':
-        case 'method_signature':
+        case 'method_signature': {
           const funcName = extractNodeName(node, src);
           const isExported = isNodeExported(node);
           // React components (capitalized functions) get higher priority
@@ -246,6 +266,7 @@ function intelligentTruncateWithAST(
           const priority = isExported ? 9 : (isComponent ? 7 : 6);
           addRangeWithContext(node, priority, 'function', funcName);
           break;
+        }
           
         // Arrow functions and function expressions
         case 'arrow_function':
@@ -262,10 +283,11 @@ function intelligentTruncateWithAST(
         case 'interface_declaration':
         case 'type_alias_declaration':
         case 'abstract_class_declaration':
-        case 'ambient_declaration':
+        case 'ambient_declaration': {
           const className = extractNodeName(node, src);
           addRangeWithContext(node, 8, 'type', className);
           break;
+        }
           
         // Medium priority: imports (context for dependencies)
         case 'import_statement':
@@ -473,17 +495,31 @@ function isParseableFile(src: string, filePath: string): boolean {
     ".txt",
     ".prisma",
     ".sql",
+    ".sh",      // Shell scripts
+    ".bash",    // Bash scripts
+    ".zsh",     // Zsh scripts
+    ".fish",    // Fish scripts
+    ".bat",     // Batch files
+    ".cmd",     // Windows command files
+    ".ps1",     // PowerShell scripts
+    ".dockerfile", // Dockerfile
+    ".makefile",   // Makefile
+    ".cmake",      // CMake files
+    ".toml",       // TOML config files
+    ".ini",        // INI config files
+    ".cfg",        // Config files
+    ".conf",       // Configuration files
   ];
 
   return parseableExtensions.includes(ext);
 }
 
 // Extract symbols using tree-sitter
-function extractSymbols(
+async function extractSymbols(
   src: string,
   langSpec: any,
   filePath: string = "unknown"
-): Symbols {
+): Promise<Symbols> {
   const emptySymbols: Symbols = {
     defs: new Set(),
     calls: new Set(),
@@ -508,7 +544,12 @@ function extractSymbols(
   };
 
   try {
-    const tree = langSpec.parser.parse(src);
+    // Parse with timeout protection to prevent hanging on malformed files
+    const tree = await withTimeout(
+      Promise.resolve(langSpec.parser.parse(src)),
+      5000, // 5 second timeout for symbol extraction parsing
+      `Symbol extraction parsing of ${filePath}`
+    );
 
     // Validate parse result
     if (!tree || !tree.rootNode) {
@@ -535,7 +576,7 @@ function extractSymbols(
         m.captures.forEach((cap: any) => {
           try {
             out.defs.add(format(cap.node));
-          } catch (e) {
+          } catch (_e) {
             // Skip individual problematic nodes
           }
         });
@@ -552,7 +593,7 @@ function extractSymbols(
         m.captures.forEach((cap: any) => {
           try {
             out.calls.add(format(cap.node));
-          } catch (e) {
+          } catch (_e) {
             // Skip individual problematic nodes
           }
         });
@@ -573,7 +614,7 @@ function extractSymbols(
                 .slice(cap.node.startIndex, cap.node.endIndex)
                 .replace(/['"`]/g, "")
             );
-          } catch (e) {
+          } catch (_e) {
             // Skip individual problematic nodes
           }
         });
@@ -613,7 +654,7 @@ function symbolsToMarkdown(sym: Symbols): string {
   const md: string[] = [];
   if (sym.imports.size) md.push("**Imports**: " + [...sym.imports].join(", "));
   if (sym.defs.size) md.push("**Defs**: " + [...sym.defs].join(", "));
-  if (sym.calls.size) md.push("**Calls**: " + [...sym.calls].join(", "));
+  // Removed calls to reduce noise - focus on definitions and imports only
   return md.join("\n");
 }
 
@@ -662,6 +703,22 @@ function extractSymbolsWithRegex(src: string, filePath: string): Symbols {
         extractRubySymbols(src, lines, symbols);
         break;
         
+      case '.sh':
+      case '.bash':
+      case '.zsh':
+      case '.fish':
+        extractShellSymbols(src, lines, symbols);
+        break;
+        
+      case '.bat':
+      case '.cmd':
+        extractBatchSymbols(src, lines, symbols);
+        break;
+        
+      case '.ps1':
+        extractPowerShellSymbols(src, lines, symbols);
+        break;
+        
       default:
         // Generic patterns for unknown languages
         extractGenericSymbols(src, lines, symbols);
@@ -703,13 +760,7 @@ function extractCppSymbols(_src: string, lines: string[], symbols: Symbols) {
       symbols.defs.add(`struct ${structMatch[1]} (L${i + 1})`);
     }
     
-    // Function calls (simple heuristic)
-    const callMatches = line.matchAll(/(\w+)\s*\(/g);
-    for (const match of callMatches) {
-      if (match[1] && !['if', 'while', 'for', 'switch', 'return'].includes(match[1])) {
-        symbols.calls.add(match[1]);
-      }
-    }
+    // Skip call extraction - too verbose for file summaries
   }
 }
 
@@ -870,6 +921,94 @@ function extractRubySymbols(_src: string, lines: string[], symbols: Symbols) {
   }
 }
 
+// Shell script specific symbol extraction
+function extractShellSymbols(_src: string, lines: string[], symbols: Symbols) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]?.trim() || '';
+    
+    // Skip comments and empty lines
+    if (line.startsWith('#') || !line) continue;
+    
+    // Function definitions: function name() { or name() {
+    const funcMatch = line.match(/^(?:function\s+)?(\w+)\s*\(\s*\)\s*\{?$/);
+    if (funcMatch) {
+      symbols.defs.add(`${funcMatch[1]}() (L${i + 1})`);
+    }
+    
+    // Variable assignments and exports
+    const varMatch = line.match(/^(?:export\s+|declare\s+)?(\w+)=/);
+    if (varMatch) {
+      symbols.defs.add(`$${varMatch[1]} (L${i + 1})`);
+    }
+    
+    // Source/includes
+    const sourceMatch = line.match(/^(?:source|\.)\s+([^\s;]+)/);
+    if (sourceMatch) {
+      symbols.imports.add(sourceMatch[1] || '');
+    }
+    
+    // Skip call extraction - focus on definitions and imports only
+  }
+}
+
+// Batch file specific symbol extraction
+function extractBatchSymbols(_src: string, lines: string[], symbols: Symbols) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]?.trim() || '';
+    
+    // Skip comments and empty lines
+    if (line.startsWith('REM') || line.startsWith('::') || !line) continue;
+    
+    // Labels
+    const labelMatch = line.match(/^:(\w+)/);
+    if (labelMatch) {
+      symbols.defs.add(`${labelMatch[1]} (L${i + 1})`);
+    }
+    
+    // Variable definitions
+    const varMatch = line.match(/^set\s+(\w+)=/i);
+    if (varMatch) {
+      symbols.defs.add(`%${varMatch[1]}% (L${i + 1})`);
+    }
+    
+    // Call statements
+    const callMatch = line.match(/^call\s+(?::(\w+)|([^\s]+))/i);
+    if (callMatch) {
+      symbols.calls.add(callMatch[1] || callMatch[2] || '');
+    }
+  }
+}
+
+// PowerShell specific symbol extraction
+function extractPowerShellSymbols(_src: string, lines: string[], symbols: Symbols) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]?.trim() || '';
+    
+    // Skip comments and empty lines
+    if (line.startsWith('#') || !line) continue;
+    
+    // Function definitions
+    const funcMatch = line.match(/^function\s+(\w+(?:-\w+)*)/i);
+    if (funcMatch) {
+      symbols.defs.add(`${funcMatch[1]}() (L${i + 1})`);
+    }
+    
+    // Variable definitions
+    const varMatch = line.match(/^\$(\w+)\s*=/);
+    if (varMatch) {
+      symbols.defs.add(`$${varMatch[1]} (L${i + 1})`);
+    }
+    
+    // Imports
+    const importMatch = line.match(/^(?:Import-Module|\.)\s+([^\s;]+)/i);
+    if (importMatch) {
+      symbols.imports.add(importMatch[1] || '');
+    }
+    
+    // Skip cmdlet call extraction - focus on definitions and imports only
+  }
+}
+
 // Generic symbol extraction for unknown file types
 function extractGenericSymbols(_src: string, lines: string[], symbols: Symbols) {
   // Look for common patterns across languages
@@ -964,7 +1103,7 @@ function shouldSkipFile(filePath: string, fileSize?: number): { skip: boolean; r
 }
 
 // Build directory tree
-async function buildTree(rootPath: string): Promise<IndexFile> {
+async function buildTree(rootPath: string, repoName?: string): Promise<IndexFile> {
   const ignore = [
     "**/node_modules/**",
     "**/.git/**",
@@ -1011,9 +1150,20 @@ async function buildTree(rootPath: string): Promise<IndexFile> {
   }
 
   const nodes: Record<string, TreeNode> = {};
+  
+  // Extract clean repository name (avoid task ID contamination)
+  let cleanRepoName: string;
+  if (repoName) {
+    // Extract repo name from "owner/repo" format
+    cleanRepoName = repoName.includes('/') ? repoName.split('/').pop()! : repoName;
+  } else {
+    // Fallback to directory name, but this might contain task ID
+    cleanRepoName = path.basename(rootPath);
+  }
+  
   const rootNode: TreeNode = {
     id: "root",
-    name: path.basename(rootPath),
+    name: cleanRepoName,
     absPath: rootPath,
     relPath: ".",
     level: 0,
@@ -1157,9 +1307,10 @@ async function summarizeFile(
 ): Promise<string> {
   const abs = path.join(rootPath, rel);
 
-  // Safe file reading with error handling
+  // Safe file reading with error handling - ensure all variables are initialized
   let src: string;
-  let fileSize: number;
+  let fileSize: number = 0; // Always initialize to prevent undefined errors
+  
   try {
     const stats = statSync(abs);
     fileSize = stats.size;
@@ -1174,7 +1325,7 @@ async function summarizeFile(
       const stats = statSync(abs);
       return getBasicFileInfo(rel, stats.size) + " _(unreadable)_";
     } catch {
-      return getBasicFileInfo(rel) + " _(unreadable)_";
+      return getBasicFileInfo(rel, 0) + " _(unreadable)_";
     }
   }
 
@@ -1224,7 +1375,7 @@ async function summarizeFile(
   }
 
   // Extract symbols using Tree-sitter with enhanced error handling
-  const symbols = extractSymbols(src, langSpec, rel);
+  const symbols = await extractSymbols(src, langSpec, rel);
   const needsDeepAnalysis = analyzeFileComplexity(symbols, src.length);
 
   if (needsDeepAnalysis) {
@@ -1287,7 +1438,7 @@ async function analyzeFileWithLLM(
       }
       
       // Use AST-based intelligent truncation for code files
-      truncatedSrc = intelligentTruncateWithAST(src, rel, langSpec, maxTokens);
+      truncatedSrc = await intelligentTruncateWithAST(src, rel, langSpec, maxTokens);
     }
   }
   
@@ -1316,12 +1467,17 @@ File: ${path.basename(rel)}${wasTruncated ? ' (content was truncated to focus on
   try {
     const model = modelProvider.getModel(modelMini, context.getApiKeys());
 
-    const { text } = await generateText({
-      model,
-      temperature: 0.6,
-      messages,
-      maxTokens: isCritical ? 3000 : 2048,
-    });
+    // Add timeout to prevent LLM calls from hanging indefinitely
+    const { text } = await withTimeout(
+      generateText({
+        model,
+        temperature: 0.6,
+        messages,
+        maxTokens: isCritical ? 3000 : 2048,
+      }),
+      60000, // 60 second timeout for LLM calls
+      `LLM analysis of ${rel}`
+    );
 
     let result = text?.trim() || "_(no response)_";
     
@@ -1357,12 +1513,17 @@ async function chat(
 ): Promise<string> {
   const modelInstance = modelProvider.getModel(model, context.getApiKeys());
 
-  const { text } = await generateText({
-    model: modelInstance,
-    temperature: TEMP,
-    messages,
-    maxTokens: budget,
-  });
+  // Add timeout to prevent directory/root analysis from hanging
+  const { text } = await withTimeout(
+    generateText({
+      model: modelInstance,
+      temperature: TEMP,
+      messages,
+      maxTokens: budget,
+    }),
+    45000, // 45 second timeout for directory summaries
+    "Directory/root summary generation"
+  );
 
   return text?.trim() || "_(no response)_";
 }
@@ -1564,12 +1725,28 @@ Use bullet points, fragments, abbreviations. Directory: ${node.relPath}`;
 
   const userContent = childSummaries.join("\n---\n");
 
-  // Additional safety check for empty content after join
+  // CRITICAL: Never send empty content to LLM - causes hallucination
   if (!userContent || userContent.trim().length === 0) {
+    console.warn(`[SHADOW-WIKI] Empty user content for ${node.relPath}, using pattern analysis`);
     if (rootPath) {
-      return analyzeDirectoryPatterns(node, rootPath);
+      const patternContent = analyzeDirectoryPatterns(node, rootPath);
+      if (patternContent && patternContent.trim().length > 0) {
+        return patternContent;
+      }
     }
-    return `Directory contains no analyzable content: ${node.relPath}`;
+    // Last resort: provide basic directory info
+    return `Directory: ${node.relPath} - ${node.files?.length || 0} files, ${node.children?.length || 0} subdirectories`;
+  }
+  
+  // Additional safety: ensure content has meaningful length
+  if (userContent.trim().length < 20) {
+    console.warn(`[SHADOW-WIKI] Very short content for ${node.relPath}, supplementing with pattern analysis`);
+    if (rootPath) {
+      const patternContent = analyzeDirectoryPatterns(node, rootPath);
+      if (patternContent && patternContent.trim().length > 0) {
+        return `${userContent}\n\n### Additional Context:\n${patternContent}`;
+      }
+    }
   }
 
   const messages = [
@@ -1606,9 +1783,17 @@ Use bullet points and fragments. Ultra-concise technical descriptions only.`;
 
   const userContent = childSummaries.join("\n---\n");
 
-  // Additional safety check for empty content after join
+  // CRITICAL: Never send empty content to LLM - causes hallucination
   if (!userContent || userContent.trim().length === 0) {
-    return `Project contains no analyzable content: ${node.name}`;
+    console.warn(`[SHADOW-WIKI] Empty user content for root ${node.name}, creating basic summary`);
+    return `Project: ${node.name}\n- Empty or unanalyzable repository\n- ${node.children?.length || 0} top-level directories\n- No processable content found`;
+  }
+  
+  // Additional safety: ensure root content has meaningful length  
+  if (userContent.trim().length < 50) {
+    console.warn(`[SHADOW-WIKI] Very short root content for ${node.name}`);
+    const basicInfo = `\n\n### Basic Project Info:\n- Project: ${node.name}\n- Directories: ${node.children?.length || 0}\n- Content: Limited analyzable content`;
+    return `${userContent}${basicInfo}`;
   }
 
   const messages = [
@@ -1688,26 +1873,47 @@ export async function runDeepWiki(
   };
 
   // Build tree
-  const tree = await buildTree(repoPath);
+  const tree = await buildTree(repoPath, repoFullName);
 
-  // Process files (parallel)
+  // Process files in controlled batches to prevent memory exhaustion
   const fileCache: Record<string, string> = {};
-  const fileTasks: Promise<void>[] = [];
-
+  const allFiles: string[] = [];
+  
+  // Collect all files first
   for (const nid in tree.nodes) {
     const node = tree.nodes[nid]!;
     for (const rel of node.files || []) {
-      fileTasks.push(
-        summarizeFile(repoPath, rel, modelProvider, context, miniModel).then(
-          (summary) => {
-            fileCache[rel] = summary;
-            stats.filesProcessed++;
-          }
-        )
-      );
+      allFiles.push(rel);
     }
   }
-  await Promise.all(fileTasks);
+  
+  console.log(`[SHADOW-WIKI] Processing ${allFiles.length} files in batches`);
+  
+  // Process files in batches to control memory usage and API rate limits
+  const BATCH_SIZE = 5; // Process 5 files at a time to avoid overwhelming APIs
+  for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
+    const batch = allFiles.slice(i, i + BATCH_SIZE);
+    const batchTasks = batch.map(async (rel) => {
+      try {
+        const summary = await summarizeFile(repoPath, rel, modelProvider, context, miniModel);
+        fileCache[rel] = summary;
+        stats.filesProcessed++;
+      } catch (error) {
+        console.error(`[SHADOW-WIKI] Failed to process ${rel}:`, error);
+        // Always provide fallback to prevent empty cache entries
+        fileCache[rel] = getBasicFileInfo(rel) + " _(processing failed)_";
+        stats.filesProcessed++;
+      }
+    });
+    
+    await Promise.all(batchTasks);
+    console.log(`[SHADOW-WIKI] Processed batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(allFiles.length/BATCH_SIZE)} (${stats.filesProcessed}/${allFiles.length} files)`);
+    
+    // Longer delay between batches to respect API rate limits
+    if (i + BATCH_SIZE < allFiles.length) {
+      await new Promise(resolve => setTimeout(resolve, 500)); // 500ms between batches
+    }
+  }
 
   // Process directories (bottom-up)
   const nodesByDepth = Object.keys(tree.nodes).sort(
@@ -1727,11 +1933,20 @@ export async function runDeepWiki(
       blocks.push(`## Directory: ${c.name}\n${c.summary || "_missing_"}`);
     });
 
-    // Add file summaries
+    // Add file summaries - ensure we always have SOME content
     for (const filePath of node.files) {
       const fileName = path.basename(filePath);
-      const fileContent = fileCache[filePath] || "_missing_";
-      blocks.push(`### ${fileName}\n${fileContent.split("\n\n")[0]}`);
+      let fileContent = fileCache[filePath];
+      
+      // CRITICAL: Never allow missing/empty file content - causes LLM hallucination
+      if (!fileContent || fileContent.trim().length === 0) {
+        console.warn(`[SHADOW-WIKI] Missing content for ${filePath}, using fallback`);
+        fileContent = getBasicFileInfo(filePath) + " _(content unavailable)_";
+      }
+      
+      // Take first meaningful part, but ensure it's never empty
+      const contentPreview = fileContent.split("\n\n")[0]?.trim() || fileContent.trim() || "_(no content)_";
+      blocks.push(`### ${fileName}\n${contentPreview}`);
     }
 
     node.summary = await summarizeDir(
