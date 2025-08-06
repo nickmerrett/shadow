@@ -6,12 +6,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { NewTaskAnimation } from "../task/new-task-animation";
 
 export function HomeLayoutWrapper({ children }: { children: React.ReactNode }) {
   const { open } = useSidebar();
 
   return (
-    <div className="relative flex size-full max-h-svh flex-col overflow-hidden">
+    <div className="relative flex size-full h-svh flex-col items-center overflow-hidden">
+      <NewTaskAnimation />
       <div className="bg-background sticky top-0 z-10 flex w-full items-center justify-between p-3">
         {!open ? (
           <Tooltip>
