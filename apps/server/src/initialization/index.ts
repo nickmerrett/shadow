@@ -46,7 +46,7 @@ const STEP_DEFINITIONS: Record<
     description: "Index repository files for semantic search",
   },
 
-  // Deep wiki generation step (both modes, optional)
+  // Shadow Wiki generation step (both modes, optional)
   GENERATE_DEEP_WIKI: {
     name: "Understanding Your Codebase",
     description: "Generate comprehensive codebase documentation",
@@ -203,7 +203,7 @@ export class TaskInitializationEngine {
       // Repository indexing step (both modes)
       case "INDEX_REPOSITORY":
         await this.executeIndexRepository(taskId);
-        // Indexing is handled during deep wiki generation
+        // Indexing is handled during Shadow Wiki generation
         break;
 
       // Deep wiki generation step (both modes, optional)
@@ -470,13 +470,13 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Generate deep wiki step - Generate comprehensive codebase documentation
+   * Generate Shadow Wiki step - Generate comprehensive codebase documentation
    */
   private async executeGenerateDeepWiki(
     taskId: string,
     context: TaskModelContext
   ): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Starting deep wiki generation`);
+    console.log(`[TASK_INIT] ${taskId}: Starting Shadow Wiki generation`);
 
     try {
       // Get task info
@@ -494,7 +494,7 @@ export class TaskInitializationEngine {
         throw new Error(`Task not found: ${taskId}`);
       }
 
-      // Check if deep wiki already exists for this repository
+      // Check if Shadow Wiki already exists for this repository
       const existingUnderstanding =
         await prisma.codebaseUnderstanding.findUnique({
           where: { repoFullName: task.repoFullName },
@@ -504,7 +504,7 @@ export class TaskInitializationEngine {
       if (existingUnderstanding) {
         // Link task to existing understanding
         console.log(
-          `[TASK_INIT] ${taskId}: Linking to existing deep wiki for ${task.repoFullName} (ID: ${existingUnderstanding.id})`
+          `[TASK_INIT] ${taskId}: Linking to existing Shadow Wiki for ${task.repoFullName} (ID: ${existingUnderstanding.id})`
         );
 
         await prisma.task.update({
@@ -522,12 +522,12 @@ export class TaskInitializationEngine {
         throw new Error(`Workspace path not found for task: ${taskId}`);
       }
 
-      // Generate deep wiki documentation
+      // Generate Shadow Wiki documentation
       console.log(
-        `[TASK_INIT] ${taskId}: Generating new deep wiki for ${task.repoFullName}`
+        `[TASK_INIT] ${taskId}: Generating new Shadow Wiki for ${task.repoFullName}`
       );
 
-      // Use TaskModelContext for deep wiki generation during initialization
+      // Use TaskModelContext for Shadow Wiki generation during initialization
       const result = await runDeepWiki(
         task.workspacePath,
         taskId,
@@ -542,11 +542,11 @@ export class TaskInitializationEngine {
       );
 
       console.log(
-        `[TASK_INIT] ${taskId}: Successfully generated deep wiki - ${result.stats.filesProcessed} files, ${result.stats.directoriesProcessed} directories processed`
+        `[TASK_INIT] ${taskId}: Successfully generated Shadow Wiki - ${result.stats.filesProcessed} files, ${result.stats.directoriesProcessed} directories processed`
       );
     } catch (error) {
       console.error(
-        `[TASK_INIT] ${taskId}: Failed to generate deep wiki:`,
+        `[TASK_INIT] ${taskId}: Failed to generate Shadow Wiki:`,
         error
       );
       // Don't throw error - we don't want indexing failures to block task startup
@@ -615,7 +615,7 @@ export class TaskInitializationEngine {
   async getDefaultStepsForTask(userId: string): Promise<InitStatus[]> {
     const agentMode = getAgentMode();
 
-    // Fetch user settings to determine if deep wiki generation should be enabled
+    // Fetch user settings to determine if Shadow Wiki generation should be enabled
     let enableDeepWiki = true; // Default to true
     try {
       const userSettings = await prisma.userSettings.findUnique({
