@@ -9,7 +9,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { Toaster } from "sonner";
 import "./globals.css";
-import { getUser } from "@/lib/auth/get-user";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,21 +45,6 @@ export default async function RootLayout({
 }>) {
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
-
-  // Temporary prod check
-  if (process.env.VERCEL_ENV === "production") {
-    const user = await getUser();
-    console.log("User:", user?.email);
-    if (user && user.email !== "ishaan1013@gmail.com") {
-      return (
-        <html>
-          <body>
-            <div>Unauthorized</div>
-          </body>
-        </html>
-      );
-    }
-  }
 
   return (
     <html lang="en" suppressHydrationWarning>
