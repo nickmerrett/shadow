@@ -161,7 +161,7 @@ export default function Terminal() {
         />
       </div>
 
-      <div ref={terminalRef} className="h-full" />
+      <div ref={terminalRef} className="hide-scrollbar h-full" />
     </div>
   );
 }
