@@ -18,6 +18,7 @@ import {
   GitPushResponse,
   GitCommitRequest,
   GitPushRequest,
+  RecursiveDirectoryListing,
 } from "@repo/types";
 import { CommandResult } from "./types";
 
@@ -46,6 +47,8 @@ export interface ToolExecutor {
 
   // Directory operations
   listDirectory(relativeWorkspacePath: string): Promise<DirectoryListing>;
+  
+  listDirectoryRecursive(relativeWorkspacePath?: string): Promise<RecursiveDirectoryListing>;
 
   // Search operations
   searchFiles(

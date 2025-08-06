@@ -21,10 +21,7 @@ export class ModelProvider {
           );
         }
 
-        console.log(
-          "Creating Anthropic client with API key",
-          userApiKeys.anthropic
-        );
+        console.log("Creating Anthropic client with API key");
 
         const anthropicClient = createAnthropic({
           apiKey: userApiKeys.anthropic,
@@ -38,6 +35,8 @@ export class ModelProvider {
             "OpenAI API key not provided. Please configure your API key in settings."
           );
         }
+
+        console.log("Creating OpenAI client with API key");
 
         const openaiClient = createOpenAI({ apiKey: userApiKeys.openai });
         return openaiClient(modelId);

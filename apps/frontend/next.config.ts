@@ -15,12 +15,17 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.plugins = [...config.plugins, new PrismaPlugin()];
-    }
-    return config;
-  },
+  ...(process.env.VERCEL_ENV === "production" ||
+  process.env.NODE_ENV === "production"
+    ? {
+        webpack: (config, { isServer }) => {
+          if (isServer) {
+            config.plugins = [...config.plugins, new PrismaPlugin()];
+          }
+          return config;
+        },
+      }
+    : {}),
 };
 
 export default nextConfig;

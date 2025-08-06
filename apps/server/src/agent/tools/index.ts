@@ -75,6 +75,9 @@ export async function createTools(taskId: string, workspacePath?: string) {
   );
 
   // Create tool executor through abstraction layer
+  // The factory function is now smart enough to handle mode detection internally:
+  // - Local mode: uses workspacePath for filesystem operations  
+  // - Remote mode: ignores workspacePath, generates sidecar URL from taskId
   const executor = createToolExecutor(taskId, workspacePath);
 
   // Initialize filesystem watcher for local mode

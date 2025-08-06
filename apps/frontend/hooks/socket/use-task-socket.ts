@@ -643,6 +643,8 @@ export function useTaskSocket(taskId: string | undefined) {
           }
         );
 
+        queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
+
         queryClient.setQueryData(["tasks"], (oldTasks: Task[]) => {
           if (oldTasks) {
             return oldTasks.map((task: Task) =>

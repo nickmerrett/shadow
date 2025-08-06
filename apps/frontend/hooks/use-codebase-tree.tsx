@@ -4,8 +4,6 @@ import { FileNode } from "@repo/types";
 export interface CodebaseTreeResponse {
   success: boolean;
   tree: FileNode[];
-  status: "ready" | "initializing";
-  message?: string;
   error?: string;
 }
 
@@ -20,9 +18,5 @@ export function useCodebaseTree(taskId: string) {
       return res.json();
     },
     enabled: !!taskId,
-    refetchInterval: (query) => {
-      // Refetch every 3 seconds if workspace is still initializing
-      return query.state.data?.status === "initializing" ? 3000 : false;
-    },
   });
 }

@@ -7,6 +7,7 @@ import {
   TaskConfig,
 } from "../interfaces/types";
 import config from "../../config";
+import { sanitizeTaskIdForK8s } from "../../utils/kubernetes";
 import { getGitHubAccessToken } from "../../github/auth/account-service";
 import { RemoteToolExecutor } from "./remote-tool-executor";
 import { RemoteVMRunner } from "./remote-vm-runner";
@@ -102,7 +103,7 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       await this.vmRunner.deleteVMPod(taskId);
 
       console.log(
-        `[REMOTE_WM] Deleted remote VM pod: shadow-vm-${taskId.toLowerCase().replaceAll("_", "-")}`
+        `[REMOTE_WM] Deleted remote VM pod: shadow-vm-${sanitizeTaskIdForK8s(taskId)}`
       );
 
       return {

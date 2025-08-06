@@ -31,6 +31,8 @@ import {
   GitPushResponse,
   GitCommitRequest,
   GitPushRequest,
+  RecursiveDirectoryListing,
+  RecursiveDirectoryEntry,
 } from "@repo/types";
 import { CommandResult } from "../interfaces/types";
 import { performSemanticSearch } from "@/utils/semantic-search";
@@ -370,6 +372,89 @@ export class LocalToolExecutor implements ToolExecutor {
         error: error instanceof Error ? error.message : "Unknown error",
         message: `Failed to list directory: ${relativeWorkspacePath}`,
         path: relativeWorkspacePath,
+      };
+    }
+  }
+
+  async listDirectoryRecursive(
+    relativeWorkspacePath: string = "."
+  ): Promise<RecursiveDirectoryListing> {
+    // Folders to ignore while walking the repository
+    const IGNORE_DIRS = [
+      "node_modules",
+      ".git",
+      ".next",
+      ".turbo",
+      "dist",
+      "build",
+    ];
+
+    const entries: RecursiveDirectoryEntry[] = [];
+
+    const walkDirectory = async (currentPath: string): Promise<void> => {
+      try {
+        // Handle path resolution correctly - normalize relative paths
+        let normalizedPath = currentPath;
+        if (normalizedPath.startsWith("/")) {
+          normalizedPath = normalizedPath.slice(1);
+        }
+        if (normalizedPath === "") {
+          normalizedPath = ".";
+        }
+
+        const dirPath = path.resolve(this.workspacePath, normalizedPath);
+        const dirEntries = await fs.readdir(dirPath, { withFileTypes: true });
+
+        for (const entry of dirEntries) {
+          // Skip ignored directories
+          if (IGNORE_DIRS.includes(entry.name)) continue;
+
+          const entryPath = normalizedPath === "." ? entry.name : `${normalizedPath}/${entry.name}`;
+          
+          entries.push({
+            name: entry.name,
+            type: entry.isDirectory() ? "directory" : "file",
+            relativePath: entryPath,
+            isDirectory: entry.isDirectory(),
+          });
+
+          // Recursively walk subdirectories
+          if (entry.isDirectory()) {
+            await walkDirectory(entryPath);
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to walk directory: ${currentPath}`, error);
+        // Continue walking other directories even if one fails
+      }
+    };
+
+    try {
+      await walkDirectory(relativeWorkspacePath);
+
+      // Sort entries: directories first, then files, both alphabetically by relative path
+      entries.sort((a, b) => {
+        if (a.isDirectory !== b.isDirectory) {
+          return a.isDirectory ? -1 : 1;
+        }
+        return a.relativePath.localeCompare(b.relativePath);
+      });
+
+      return {
+        success: true,
+        entries,
+        basePath: relativeWorkspacePath,
+        totalCount: entries.length,
+        message: `Recursively listed ${entries.length} items starting from ${relativeWorkspacePath}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        entries: [],
+        basePath: relativeWorkspacePath,
+        totalCount: 0,
+        message: `Failed to list directory recursively: ${relativeWorkspacePath}`,
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }

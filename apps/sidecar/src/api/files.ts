@@ -119,6 +119,28 @@ export function createFilesRouter(fileService: FileService): Router {
   );
 
   /**
+   * POST /files/list-recursive
+   * Recursively list all directory contents (optimized for buildFileTree)
+   */
+  router.post(
+    "/files/list-recursive",
+    asyncHandler(async (req, res) => {
+      const { path } = req.body;
+      const dirPath = path || ".";
+
+      const result = await fileService.listDirectoryRecursive(dirPath);
+
+      if (!result.success && result.error === "DIRECTORY_NOT_FOUND") {
+        res.status(404).json(result);
+      } else if (!result.success) {
+        res.status(500).json(result);
+      } else {
+        res.json(result);
+      }
+    })
+  );
+
+  /**
    * POST /files/search-replace
    * Search and replace in file (alternative endpoint for FirecrackerToolExecutor)
    */

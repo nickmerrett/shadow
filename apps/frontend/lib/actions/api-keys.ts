@@ -1,7 +1,13 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { ApiKeyProvider, ApiKeys } from "@repo/types";
+import {
+  ApiKeyProvider,
+  ApiKeys,
+  getAvailableModels,
+  ModelInfo,
+  ModelInfos,
+} from "@repo/types";
 
 export type { ApiKeyProvider };
 
@@ -15,6 +21,12 @@ export async function getApiKeys(): Promise<ApiKeys> {
     openai: openaiKey || undefined,
     anthropic: anthropicKey || undefined,
   };
+}
+
+export async function getModels(): Promise<ModelInfo[]> {
+  const apiKeys = await getApiKeys();
+  const availableModels = getAvailableModels(apiKeys);
+  return availableModels.map((modelId) => ModelInfos[modelId]);
 }
 
 export async function saveApiKey(provider: ApiKeyProvider, key: string | null) {

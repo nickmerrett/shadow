@@ -1,7 +1,6 @@
 import { SidebarViews } from "@/components/sidebar";
 import { AgentEnvironmentProvider } from "@/components/agent-environment/agent-environment-context";
-import { getModels } from "@/lib/actions/get-models";
-import { getApiKeys } from "@/lib/actions/api-keys";
+import { getApiKeys, getModels } from "@/lib/actions/api-keys";
 import { getUser } from "@/lib/auth/get-user";
 import { getTaskMessages } from "@/lib/db-operations/get-task-messages";
 import { getTaskWithDetails } from "@/lib/db-operations/get-task-with-details";
@@ -28,13 +27,11 @@ export default async function TaskLayout({
     initialCodebases,
     { task, todos, fileChanges, diffStats },
     taskMessages,
-    models,
   ] = await Promise.all([
     user ? getTasks(user.id) : [],
     user ? getCodebases(user.id) : [],
     getTaskWithDetails(taskId),
     getTaskMessages(taskId),
-    getModels(),
   ]);
 
   if (!task) {
@@ -58,10 +55,6 @@ export default async function TaskLayout({
       queryFn: () => taskMessages,
     }),
     queryClient.prefetchQuery({
-      queryKey: ["models"],
-      queryFn: () => models,
-    }),
-    queryClient.prefetchQuery({
       queryKey: ["task-title", taskId],
       queryFn: () => task.title,
     }),
@@ -77,6 +70,14 @@ export default async function TaskLayout({
       queryKey: ["api-keys"],
       queryFn: getApiKeys,
     }),
+    queryClient
+      .prefetchQuery({
+        queryKey: ["models"],
+        queryFn: getModels,
+      })
+      .catch((error) => {
+        console.log("Could not prefetch models:", error?.message || error);
+      }),
   ]);
 
   return (

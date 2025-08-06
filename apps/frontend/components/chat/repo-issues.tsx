@@ -107,7 +107,7 @@ function IssuesContent({
 
         <div
           className={cn(
-            "github-issues-container flex flex-col gap-0.5 overflow-y-auto",
+            "hide-scrollbar flex flex-col gap-0.5 overflow-y-auto",
             isIssuesExpanded && "pb-3"
           )}
         >

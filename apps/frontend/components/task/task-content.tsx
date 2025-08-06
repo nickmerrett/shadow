@@ -77,6 +77,14 @@ function TaskPageContent() {
   const displayMessages = useMemo(() => {
     const msgs = [...messages];
 
+    console.log(
+      "streamingAssistantParts",
+      streamingAssistantParts,
+      "msgs",
+      msgs,
+      "\n\n"
+    );
+
     // If streaming and we have parts, merge with existing or create new message
     if (streamingAssistantParts.length > 0 || isStreaming) {
       const lastMsg = msgs[msgs.length - 1];
