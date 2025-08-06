@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/tooltip";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function CodebasePageContent() {
   const { codebaseId } = useParams<{ codebaseId: string }>();
@@ -30,6 +31,7 @@ export function CodebasePageContent() {
   const { open } = useSidebar();
 
   const { data: codebase, isLoading, error, refetch } = useCodebase(codebaseId);
+  const queryClient = useQueryClient();
   const summaries = useMemo(() => codebase?.summaries || [], [codebase]);
 
   const generateSummary = async () => {
@@ -43,11 +45,13 @@ export function CodebasePageContent() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ forceRefresh: true }),
-        },
+        }
       );
 
       if (response.ok) {
         await refetch();
+        // Invalidate codebases query to ensure sidebar updates
+        queryClient.invalidateQueries({ queryKey: ["codebases"] });
       }
     } catch (error) {
       console.error("Failed to generate summary:", error);
@@ -61,7 +65,7 @@ export function CodebasePageContent() {
     const repoSummaries = summaries.filter((s) => s.type === "repo_summary");
     const fileSummaries = summaries.filter((s) => s.type === "file_summary");
     const directorySummaries = summaries.filter(
-      (s) => s.type === "directory_summary",
+      (s) => s.type === "directory_summary"
     );
     return { repoSummaries, fileSummaries, directorySummaries };
   }, [summaries]);
@@ -72,7 +76,7 @@ export function CodebasePageContent() {
       (s) =>
         s.filePath === "root_overview" ||
         (s.filePath?.toLowerCase().includes("root") &&
-          s.filePath?.toLowerCase().includes("overview")),
+          s.filePath?.toLowerCase().includes("overview"))
     ) || repoSummaries[0];
 
   const getLanguageBadge = (language?: string) => {
