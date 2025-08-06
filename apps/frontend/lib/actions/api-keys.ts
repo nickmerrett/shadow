@@ -11,11 +11,15 @@ export async function getApiKeys(): Promise<ApiKeys> {
   const openaiKey = cookieStore.get("openai-key")?.value;
   const anthropicKey = cookieStore.get("anthropic-key")?.value;
   const openrouterKey = cookieStore.get("openrouter-key")?.value;
+  const groqKey = cookieStore.get("groq-key")?.value;
+  const ollamaKey = cookieStore.get("ollama-key")?.value;
 
   return {
     openai: openaiKey || undefined,
     anthropic: anthropicKey || undefined,
     openrouter: openrouterKey || undefined,
+    groq: groqKey || undefined,
+    ollama: ollamaKey || undefined,
   };
 }
 
@@ -53,11 +57,19 @@ export async function getApiKeyValidation(): Promise<ApiKeyValidation> {
   const openaiValidation = cookieStore.get("openai-validation")?.value;
   const anthropicValidation = cookieStore.get("anthropic-validation")?.value;
   const openrouterValidation = cookieStore.get("openrouter-validation")?.value;
+  const groqValidation = cookieStore.get("groq-validation")?.value;
+  const ollamaValidation = cookieStore.get("ollama-validation")?.value;
 
   return {
     openai: openaiValidation ? JSON.parse(openaiValidation) : undefined,
-    anthropic: anthropicValidation ? JSON.parse(anthropicValidation) : undefined,
-    openrouter: openrouterValidation ? JSON.parse(openrouterValidation) : undefined,
+    anthropic: anthropicValidation
+      ? JSON.parse(anthropicValidation)
+      : undefined,
+    openrouter: openrouterValidation
+      ? JSON.parse(openrouterValidation)
+      : undefined,
+    groq: groqValidation ? JSON.parse(groqValidation) : undefined,
+    ollama: ollamaValidation ? JSON.parse(ollamaValidation) : undefined,
   };
 }
 
@@ -70,11 +82,11 @@ export async function saveApiKeyValidation(
 
   if (validation) {
     const isProduction = process.env.VERCEL_ENV === "production";
-    
+
     // Add timestamp
     const validationWithTimestamp = {
       ...validation,
-      validatedAt: Date.now()
+      validatedAt: Date.now(),
     };
 
     cookieStore.set(cookieName, JSON.stringify(validationWithTimestamp), {

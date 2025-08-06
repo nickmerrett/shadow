@@ -1,6 +1,8 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createGroq } from "@ai-sdk/groq";
+import { createOllama } from "ollama-ai-provider";
 import { ModelType, getModelProvider, ApiKeys } from "@repo/types";
 import { LanguageModel } from "ai";
 
@@ -60,6 +62,43 @@ export class ModelProvider {
           return openrouterClient.chat(modelId);
         } catch (error) {
           console.error("OpenRouter client creation failed:", error);
+          throw error;
+        }
+      }
+
+      case "groq": {
+        if (!userApiKeys.groq) {
+          throw new Error(
+            "Groq API key not provided. Please configure your API key in settings."
+          );
+        }
+
+        console.log("Creating Groq client");
+
+        try {
+          const groqClient = createGroq({
+            apiKey: userApiKeys.groq,
+          });
+          return groqClient(modelId);
+        } catch (error) {
+          console.error("Groq client creation failed:", error);
+          throw error;
+        }
+      }
+
+      case "ollama": {
+        console.log("Creating Ollama client");
+
+        try {
+          // Ollama runs locally, so we use the default baseURL
+          // The "API key" for Ollama can be used for custom baseURL if needed
+          const baseURL = userApiKeys.ollama || "http://localhost:11434";
+          const ollamaClient = createOllama({
+            baseURL: baseURL,
+          });
+          return ollamaClient(modelId);
+        } catch (error) {
+          console.error("Ollama client creation failed:", error);
           throw error;
         }
       }

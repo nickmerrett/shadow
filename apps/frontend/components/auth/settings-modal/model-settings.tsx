@@ -16,7 +16,7 @@ import {
   useSaveApiKeyValidation,
 } from "@/hooks/use-api-keys";
 import { useValidateApiKeys } from "@/hooks/use-api-key-validation";
-import { Loader2, Trash, CheckCircle, XCircle, AlertCircle, RotateCcw } from "lucide-react";
+import { Loader2, Trash, CheckCircle, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useDebounceCallbackWithCancel } from "@/lib/debounce";
@@ -24,7 +24,8 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export function ModelSettings() {
   const { data: apiKeys, isLoading: isLoadingApiKeys } = useApiKeys();
-  const { data: validationState, isLoading: isLoadingValidation } = useApiKeyValidation();
+  const { data: validationState, isLoading: isLoadingValidation } =
+    useApiKeyValidation();
   const saveApiKeyMutation = useSaveApiKey();
   const clearApiKeyMutation = useClearApiKey();
   const validateApiKeysMutation = useValidateApiKeys();
@@ -42,10 +43,14 @@ export function ModelSettings() {
   const [openrouterInput, setOpenrouterInput] = useState(
     apiKeys?.openrouter ?? ""
   );
+  const [groqInput, setGroqInput] = useState(apiKeys?.groq ?? "");
+  const [ollamaInput, setOllamaInput] = useState(apiKeys?.ollama ?? "");
   const [savingOpenai, setSavingOpenai] = useState(false);
   const [savingAnthropic, setSavingAnthropic] = useState(false);
   const [savingOpenrouter, setSavingOpenrouter] = useState(false);
-  
+  const [savingGroq, setSavingGroq] = useState(false);
+  const [savingOllama, setSavingOllama] = useState(false);
+
   const renderValidationIcon = (provider: string) => {
     const result = validationState?.[provider as keyof typeof validationState];
     if (!result) return null;
@@ -56,9 +61,7 @@ export function ModelSettings() {
           <TooltipTrigger asChild>
             <CheckCircle className="size-3.5 text-gray-400" />
           </TooltipTrigger>
-          <TooltipContent>
-            Valid API key
-          </TooltipContent>
+          <TooltipContent>Valid API key</TooltipContent>
         </Tooltip>
       );
     } else {
@@ -67,26 +70,9 @@ export function ModelSettings() {
           <TooltipTrigger asChild>
             <XCircle className="size-3.5 text-gray-400" />
           </TooltipTrigger>
-          <TooltipContent>
-            {result.error || "Invalid API key"}
-          </TooltipContent>
+          <TooltipContent>{result.error || "Invalid API key"}</TooltipContent>
         </Tooltip>
       );
-    }
-  };
-
-  const handleRevalidate = async () => {
-    try {
-      const results = await validateApiKeysMutation.mutateAsync();
-      // Save validation results for each provider
-      for (const [validationProvider, result] of Object.entries(results)) {
-        await saveValidationMutation.mutateAsync({
-          provider: validationProvider as any,
-          validation: result,
-        });
-      }
-    } catch (error) {
-      console.error("Revalidation failed:", error);
     }
   };
 
@@ -94,39 +80,71 @@ export function ModelSettings() {
     setOpenaiInput(apiKeys?.openai ?? "");
     setAnthropicInput(apiKeys?.anthropic ?? "");
     setOpenrouterInput(apiKeys?.openrouter ?? "");
+    setGroqInput(apiKeys?.groq ?? "");
+    setOllamaInput(apiKeys?.ollama ?? "");
   }, [apiKeys]);
 
-  const saveApiKey = async (provider: "openai" | "anthropic" | "openrouter", key: string) => {
+  const saveApiKey = async (
+    provider: "openai" | "anthropic" | "openrouter" | "groq" | "ollama",
+    key: string
+  ) => {
     // Only save if key is different from current saved value
     const currentKey =
-      provider === "openai" ? apiKeys?.openai : 
-      provider === "anthropic" ? apiKeys?.anthropic : 
-      apiKeys?.openrouter;
+      provider === "openai"
+        ? apiKeys?.openai
+        : provider === "anthropic"
+          ? apiKeys?.anthropic
+          : provider === "openrouter"
+            ? apiKeys?.openrouter
+            : provider === "groq"
+              ? apiKeys?.groq
+              : apiKeys?.ollama;
     if (key === currentKey) {
       if (provider === "openai") setSavingOpenai(false);
       else if (provider === "anthropic") setSavingAnthropic(false);
-      else setSavingOpenrouter(false);
+      else if (provider === "openrouter") setSavingOpenrouter(false);
+      else if (provider === "groq") setSavingGroq(false);
+      else setSavingOllama(false);
       return;
     }
 
     try {
       await saveApiKeyMutation.mutateAsync({ provider, key });
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-      
+
       // Validate the key after saving if it's not empty
       const trimmedKey = key.trim();
       if (trimmedKey) {
         try {
+          // Wait a bit for the API key to be saved before validating
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
           const results = await validateApiKeysMutation.mutateAsync();
-          // Save validation results for each provider
-          for (const [validationProvider, result] of Object.entries(results)) {
-            await saveValidationMutation.mutateAsync({
-              provider: validationProvider as any,
-              validation: result,
-            });
-          }
+
+          // Save validation results for each provider that was validated
+          const savePromises = Object.entries(results).map(
+            async ([validationProvider, result]) => {
+              try {
+                await saveValidationMutation.mutateAsync({
+                  provider: validationProvider as any,
+                  validation: result,
+                });
+              } catch (saveError) {
+                console.error(
+                  `Failed to save validation for ${validationProvider}:`,
+                  saveError
+                );
+              }
+            }
+          );
+
+          await Promise.all(savePromises);
+
+          // Invalidate validation query to refresh the UI
+          queryClient.invalidateQueries({ queryKey: ["api-key-validation"] });
         } catch (validationError) {
           console.error("Validation failed:", validationError);
+          // Don't throw here - we still want to save the API key even if validation fails
         }
       } else {
         // Clear validation result if key is empty
@@ -134,15 +152,26 @@ export function ModelSettings() {
           provider,
           validation: null,
         });
+        queryClient.invalidateQueries({ queryKey: ["api-key-validation"] });
       }
     } catch (_error) {
-      const providerName = provider === "openai" ? "OpenAI" : 
-                          provider === "anthropic" ? "Anthropic" : "OpenRouter";
+      const providerName =
+        provider === "openai"
+          ? "OpenAI"
+          : provider === "anthropic"
+            ? "Anthropic"
+            : provider === "openrouter"
+              ? "OpenRouter"
+              : provider === "groq"
+                ? "Groq"
+                : "Ollama";
       toast.error(`Failed to save ${providerName} API key`);
     } finally {
       if (provider === "openai") setSavingOpenai(false);
       else if (provider === "anthropic") setSavingAnthropic(false);
-      else setSavingOpenrouter(false);
+      else if (provider === "openrouter") setSavingOpenrouter(false);
+      else if (provider === "groq") setSavingGroq(false);
+      else setSavingOllama(false);
     }
   };
 
@@ -168,6 +197,18 @@ export function ModelSettings() {
     200
   );
 
+  const { debouncedCallback: debouncedSaveGroq, cancel: cancelGroqSave } =
+    useDebounceCallbackWithCancel(
+      (key: string) => saveApiKey("groq", key),
+      200
+    );
+
+  const { debouncedCallback: debouncedSaveOllama, cancel: cancelOllamaSave } =
+    useDebounceCallbackWithCancel(
+      (key: string) => saveApiKey("ollama", key),
+      200
+    );
+
   const handleOpenaiChange = (value: string) => {
     setOpenaiInput(value);
     setSavingOpenai(true);
@@ -186,7 +227,21 @@ export function ModelSettings() {
     debouncedSaveOpenrouter(value);
   };
 
-  const handleClearApiKey = async (provider: "openai" | "anthropic" | "openrouter") => {
+  const handleGroqChange = (value: string) => {
+    setGroqInput(value);
+    setSavingGroq(true);
+    debouncedSaveGroq(value);
+  };
+
+  const handleOllamaChange = (value: string) => {
+    setOllamaInput(value);
+    setSavingOllama(true);
+    debouncedSaveOllama(value);
+  };
+
+  const handleClearApiKey = async (
+    provider: "openai" | "anthropic" | "openrouter" | "groq" | "ollama"
+  ) => {
     try {
       await clearApiKeyMutation.mutateAsync(provider);
       if (provider === "openai") {
@@ -197,20 +252,40 @@ export function ModelSettings() {
         setAnthropicInput("");
         cancelAnthropicSave();
         setSavingAnthropic(false);
-      } else {
+      } else if (provider === "openrouter") {
         setOpenrouterInput("");
         cancelOpenrouterSave();
         setSavingOpenrouter(false);
+      } else if (provider === "groq") {
+        setGroqInput("");
+        cancelGroqSave();
+        setSavingGroq(false);
+      } else {
+        setOllamaInput("");
+        cancelOllamaSave();
+        setSavingOllama(false);
       }
-      
+
       // Clear validation result for this provider
       await saveValidationMutation.mutateAsync({
         provider,
         validation: null,
       });
+
+      // Invalidate queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+      queryClient.invalidateQueries({ queryKey: ["api-key-validation"] });
     } catch (_error) {
-      const providerName = provider === "openai" ? "OpenAI" : 
-                          provider === "anthropic" ? "Anthropic" : "OpenRouter";
+      const providerName =
+        provider === "openai"
+          ? "OpenAI"
+          : provider === "anthropic"
+            ? "Anthropic"
+            : provider === "openrouter"
+              ? "OpenRouter"
+              : provider === "groq"
+                ? "Groq"
+                : "Ollama";
       toast.error(`Failed to clear ${providerName} API key`);
     }
   };
@@ -246,40 +321,22 @@ export function ModelSettings() {
               onChange={(e) => handleOpenaiChange(e.target.value)}
             />
             {apiKeys?.openai && apiKeys.openai.length > 0 && (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="secondary"
-                      className="text-muted-foreground hover:text-foreground"
-                      size="icon"
-                      onClick={handleRevalidate}
-                      disabled={validateApiKeysMutation.isPending}
-                    >
-                      <RotateCcw className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align="end">
-                    Revalidate API keys
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="secondary"
-                      className="text-muted-foreground hover:text-foreground"
-                      size="icon"
-                      onClick={() => handleClearApiKey("openai")}
-                      disabled={clearApiKeyMutation.isPending}
-                    >
-                      <Trash className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align="end">
-                    Clear OpenAI API key
-                  </TooltipContent>
-                </Tooltip>
-              </>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    className="text-muted-foreground hover:text-foreground"
+                    size="icon"
+                    onClick={() => handleClearApiKey("openai")}
+                    disabled={clearApiKeyMutation.isPending}
+                  >
+                    <Trash className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="end">
+                  Clear OpenAI API key
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -304,40 +361,22 @@ export function ModelSettings() {
               onChange={(e) => handleAnthropicChange(e.target.value)}
             />
             {apiKeys?.anthropic && apiKeys.anthropic.length > 0 && (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="secondary"
-                      className="text-muted-foreground hover:text-foreground"
-                      size="icon"
-                      onClick={handleRevalidate}
-                      disabled={validateApiKeysMutation.isPending}
-                    >
-                      <RotateCcw className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align="end">
-                    Revalidate API keys
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="secondary"
-                      className="text-muted-foreground hover:text-foreground"
-                      size="icon"
-                      onClick={() => handleClearApiKey("anthropic")}
-                      disabled={clearApiKeyMutation.isPending}
-                    >
-                      <Trash className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align="end">
-                    Clear Anthropic API key
-                  </TooltipContent>
-                </Tooltip>
-              </>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    className="text-muted-foreground hover:text-foreground"
+                    size="icon"
+                    onClick={() => handleClearApiKey("anthropic")}
+                    disabled={clearApiKeyMutation.isPending}
+                  >
+                    <Trash className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="end">
+                  Clear Anthropic API key
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -362,40 +401,102 @@ export function ModelSettings() {
               onChange={(e) => handleOpenrouterChange(e.target.value)}
             />
             {apiKeys?.openrouter && apiKeys.openrouter.length > 0 && (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="secondary"
-                      className="text-muted-foreground hover:text-foreground"
-                      size="icon"
-                      onClick={handleRevalidate}
-                      disabled={validateApiKeysMutation.isPending}
-                    >
-                      <RotateCcw className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align="end">
-                    Revalidate API keys
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="secondary"
-                      className="text-muted-foreground hover:text-foreground"
-                      size="icon"
-                      onClick={() => handleClearApiKey("openrouter")}
-                      disabled={clearApiKeyMutation.isPending}
-                    >
-                      <Trash className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align="end">
-                    Clear OpenRouter API key
-                  </TooltipContent>
-                </Tooltip>
-              </>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    className="text-muted-foreground hover:text-foreground"
+                    size="icon"
+                    onClick={() => handleClearApiKey("openrouter")}
+                    disabled={clearApiKeyMutation.isPending}
+                  >
+                    <Trash className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="end">
+                  Clear OpenRouter API key
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        </div>
+
+        {/* Groq Section */}
+        <div className="flex w-full flex-col gap-2">
+          <Label
+            htmlFor="groq-key"
+            className="flex h-5 items-center gap-2 font-normal"
+          >
+            Groq API Key
+            {savingGroq && (
+              <Loader2 className="text-muted-foreground size-3 animate-spin" />
+            )}
+            {renderValidationIcon("groq")}
+          </Label>
+          <div className="flex gap-2">
+            <Input
+              id="groq-key"
+              placeholder="gsk_placeholder..."
+              value={groqInput}
+              onChange={(e) => handleGroqChange(e.target.value)}
+            />
+            {apiKeys?.groq && apiKeys.groq.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    className="text-muted-foreground hover:text-foreground"
+                    size="icon"
+                    onClick={() => handleClearApiKey("groq")}
+                    disabled={clearApiKeyMutation.isPending}
+                  >
+                    <Trash className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="end">
+                  Clear Groq API key
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        </div>
+
+        {/* Ollama Section */}
+        <div className="flex w-full flex-col gap-2">
+          <Label
+            htmlFor="ollama-key"
+            className="flex h-5 items-center gap-2 font-normal"
+          >
+            Ollama Server URL
+            {savingOllama && (
+              <Loader2 className="text-muted-foreground size-3 animate-spin" />
+            )}
+            {renderValidationIcon("ollama")}
+          </Label>
+          <div className="flex gap-2">
+            <Input
+              id="ollama-key"
+              placeholder="http://localhost:11434"
+              value={ollamaInput}
+              onChange={(e) => handleOllamaChange(e.target.value)}
+            />
+            {apiKeys?.ollama && apiKeys.ollama.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    className="text-muted-foreground hover:text-foreground"
+                    size="icon"
+                    onClick={() => handleClearApiKey("ollama")}
+                    disabled={clearApiKeyMutation.isPending}
+                  >
+                    <Trash className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="end">
+                  Clear Ollama server URL
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         </div>

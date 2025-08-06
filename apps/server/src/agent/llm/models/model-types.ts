@@ -23,6 +23,22 @@ export class ModelTypes {
       );
     }
 
+    if (userApiKeys.groq) {
+      models.push(
+        AvailableModels.GROQ_MIXTRAL_8X7B,
+        AvailableModels.GROQ_LLAMA3_70B,
+        AvailableModels.GROQ_LLAMA3_8B
+      );
+    }
+
+    if (userApiKeys.ollama) {
+      models.push(
+        AvailableModels.OLLAMA_LLAMA3_2,
+        AvailableModels.OLLAMA_LLAMA3_2_1B,
+        AvailableModels.OLLAMA_QWEN2_5_CODER
+      );
+    }
+
     return models;
   }
 }
