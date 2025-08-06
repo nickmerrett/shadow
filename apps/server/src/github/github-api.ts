@@ -372,6 +372,73 @@ export class GitHubApiClient {
   }
 
   /**
+   * Compare two branches or commits to get file changes
+   */
+  async compareBranches(
+    repoFullName: string,
+    basehead: string,
+    userId: string
+  ): Promise<{
+    files: Array<{
+      filename: string;
+      status: 'added' | 'modified' | 'removed' | 'renamed';
+      additions: number;
+      deletions: number;
+      changes: number;
+    }>;
+    stats: {
+      additions: number;
+      deletions: number;
+      total: number;
+    };
+  }> {
+    return this.executeWithRetry(userId, async (accessToken) => {
+      const [owner, repo] = repoFullName.split("/");
+      const octokit = this.createOctokit(accessToken);
+
+      if (!owner || !repo) {
+        throw new Error(`Invalid repository full name: ${repoFullName}`);
+      }
+
+      try {
+        const { data } = await octokit.repos.compareCommitsWithBasehead({
+          owner,
+          repo,
+          basehead,
+        });
+
+        return {
+          files: data.files?.map(file => ({
+            filename: file.filename,
+            status: file.status as 'added' | 'modified' | 'removed' | 'renamed',
+            additions: file.additions || 0,
+            deletions: file.deletions || 0,
+            changes: file.changes || 0,
+          })) || [],
+          stats: {
+            additions: data.files?.reduce((sum, file) => sum + (file.additions || 0), 0) || 0,
+            deletions: data.files?.reduce((sum, file) => sum + (file.deletions || 0), 0) || 0,
+            total: data.files?.length || 0,
+          },
+        };
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          "status" in error &&
+          error.status === 404
+        ) {
+          throw new Error(
+            `Repository, branch, or commit not found: ${owner}/${repo} (${basehead})`
+          );
+        }
+        throw new Error(
+          `Failed to compare branches: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+      }
+    });
+  }
+
+  /**
    * Get a single issue by number
    */
   async getIssue(

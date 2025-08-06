@@ -3,6 +3,7 @@ import { prisma } from "@repo/db";
 import { FILE_SIZE_LIMITS } from "@repo/types";
 import { createWorkspaceManager } from "../execution";
 import { getFileChanges, hasGitRepository } from "../utils/git-operations";
+import { getGitHubFileChanges } from "../utils/github-file-changes";
 import { buildFileTree } from "./build-tree";
 
 const router = Router();
@@ -155,7 +156,16 @@ router.get("/:taskId/file-changes", async (req, res) => {
     // Validate task exists and get full status
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { id: true, workspacePath: true, status: true, baseBranch: true },
+      select: { 
+        id: true, 
+        workspacePath: true, 
+        status: true, 
+        baseBranch: true,
+        shadowBranch: true,
+        repoFullName: true,
+        initStatus: true,
+        userId: true,
+      },
     });
 
     if (!task) {
@@ -174,6 +184,31 @@ router.get("/:taskId/file-changes", async (req, res) => {
       });
     }
 
+    // If task workspace is INACTIVE (cleaned up), use GitHub API
+    if (task.initStatus === "INACTIVE") {
+      if (!task.repoFullName || !task.shadowBranch) {
+        return res.json({
+          success: true,
+          fileChanges: [],
+          diffStats: { additions: 0, deletions: 0, totalFiles: 0 },
+        });
+      }
+
+      const { fileChanges, diffStats } = await getGitHubFileChanges(
+        task.repoFullName,
+        task.baseBranch,
+        task.shadowBranch,
+        task.userId
+      );
+
+      return res.json({
+        success: true,
+        fileChanges,
+        diffStats,
+      });
+    }
+
+    // For ACTIVE tasks, use local git operations
     // Check if workspace has git repository
     const hasGit = await hasGitRepository(taskId);
     if (!hasGit) {
