@@ -401,7 +401,7 @@ Shadow provides a comprehensive set of tools for AI agents:
 4. Test in both local and remote modes
 5. Submit a pull request
 
-# Brought To You By
+## Brought To You By
 
 [Ishaan Dey](https://github.com/ishaan1013), [Twitter](https://x.com/ishaandey_)
 - Software Engineering @ University of Waterloo, Prev @ Vercel
