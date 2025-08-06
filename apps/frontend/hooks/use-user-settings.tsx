@@ -11,7 +11,7 @@ interface UserSettings {
   id: string;
   userId: string;
   autoPullRequest: boolean;
-  enableDeepWiki: boolean;
+  enableShadowWiki: boolean;
   memoriesEnabled: boolean;
   selectedModels: string[];
   createdAt: Date;
@@ -21,7 +21,7 @@ interface UserSettings {
 type UpdateUserSettingsParams = {
   autoPullRequest?: boolean;
   memoriesEnabled?: boolean;
-  enableDeepWiki?: boolean;
+  enableShadowWiki?: boolean;
   selectedModels?: string[];
 };
 
@@ -50,7 +50,7 @@ async function fetchUserSettings(): Promise<UserSettings> {
 async function updateUserSettingsAPI(settings: {
   autoPullRequest?: boolean;
   memoriesEnabled?: boolean;
-  enableDeepWiki?: boolean;
+  enableShadowWiki?: boolean;
   selectedModels?: string[];
 }): Promise<UserSettings> {
   const response = await fetch("/api/user-settings", {
