@@ -14,8 +14,9 @@ import type {
   TaskStatusUpdateEvent,
   ModelType,
   FileNode,
+  ToolCallPart,
 } from "@repo/types";
-import { TextPart, ToolCallPart, ToolResultPart } from "ai";
+import { TextPart, ToolResultPart } from "ai";
 import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
 import { TaskMessages } from "@/lib/db-operations/get-task-messages";
 import { CodebaseTreeResponse } from "../use-codebase-tree";
@@ -341,16 +342,48 @@ export function useTaskSocket(taskId: string | undefined) {
             };
             newPartsMap.set(partId, textPart);
             newPartsOrder.push(partId);
+          } else if (chunk.type === "tool-call-start" && chunk.toolCallStart) {
+            const partId = chunk.toolCallStart.id;
+            const toolCallStartPart: ToolCallPart = {
+              type: "tool-call",
+              toolCallId: chunk.toolCallStart.id,
+              toolName: chunk.toolCallStart.name,
+              args: {}, // Empty initially
+              streamingState: "starting",
+              argsComplete: false,
+            };
+            newPartsMap.set(partId, toolCallStartPart);
+            newPartsOrder.push(partId);
+          } else if (chunk.type === "tool-call-delta" && chunk.toolCallDelta) {
+            const partId = chunk.toolCallDelta.id;
+            // Update existing part if it exists
+            const existingPart = newPartsMap.get(partId);
+            if (existingPart?.type === "tool-call") {
+              const updatedPart: ToolCallPart = {
+                ...existingPart,
+                streamingState: "streaming",
+                // Note: For v1, keeping args empty for simplicity
+              };
+              newPartsMap.set(partId, updatedPart);
+              // Don't push to order - already exists
+            }
           } else if (chunk.type === "tool-call" && chunk.toolCall) {
             const partId = chunk.toolCall.id;
+            // Check if we already have a starting version
+            const existingPart = newPartsMap.get(partId);
             const toolCallPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
               toolName: chunk.toolCall.name,
-              args: chunk.toolCall.args,
+              args: chunk.toolCall.args, // Complete args
+              streamingState: "complete",
+              argsComplete: true,
             };
             newPartsMap.set(partId, toolCallPart);
-            newPartsOrder.push(partId);
+            // Only push to order if this is the first time seeing this ID
+            if (!existingPart) {
+              newPartsOrder.push(partId);
+            }
           } else if (chunk.type === "tool-result" && chunk.toolResult) {
             const partId = `${chunk.toolResult.id}-result`;
             // Find corresponding tool call to get tool name
@@ -402,9 +435,47 @@ export function useTaskSocket(taskId: string | undefined) {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
               toolName: chunk.toolCall.name,
-              args: chunk.toolCall.args,
+              args: chunk.toolCall.args, // Complete args
+              streamingState: "complete",
+              argsComplete: true,
             };
+            // REPLACE existing part with complete version
             addStreamingPart(toolCallPart, chunk.toolCall.id);
+          }
+          break;
+
+        case "tool-call-start":
+          if (chunk.toolCallStart) {
+            console.log("Tool call started:", chunk.toolCallStart);
+
+            const toolCallStartPart: ToolCallPart = {
+              type: "tool-call",
+              toolCallId: chunk.toolCallStart.id,
+              toolName: chunk.toolCallStart.name,
+              args: {}, // Empty initially
+              streamingState: "starting",
+              argsComplete: false,
+            };
+            // Use SAME ID as final tool call - critical for deduplication!
+            addStreamingPart(toolCallStartPart, chunk.toolCallStart.id);
+          }
+          break;
+
+        case "tool-call-delta":
+          if (chunk.toolCallDelta) {
+            console.log("Tool call delta:", chunk.toolCallDelta);
+
+            // Update existing part with accumulated args
+            const existingPart = streamingPartsMap.get(chunk.toolCallDelta.id);
+            if (existingPart?.type === "tool-call") {
+              const updatedPart: ToolCallPart = {
+                ...existingPart,
+                streamingState: "streaming",
+                // Note: For v1, we'll keep args empty and just track state
+                // TODO: Accumulate args from argsTextDelta (JSON parsing)
+              };
+              addStreamingPart(updatedPart, chunk.toolCallDelta.id);
+            }
           }
           break;
 

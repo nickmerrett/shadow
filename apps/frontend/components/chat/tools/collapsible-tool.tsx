@@ -6,6 +6,7 @@ import {
   ChevronRight,
   CornerDownRight,
   Expand,
+  Loader2,
 } from "lucide-react";
 import { useState } from "react";
 import { FileIcon } from "@/components/ui/file-icon";
@@ -22,6 +23,8 @@ export function ToolComponent({
   collapsible = false,
   onClick,
   children,
+  isLoading = false,
+  loadingText,
 }: {
   icon: React.ReactNode;
   type: ToolTypes | "error" | "warning";
@@ -38,6 +41,8 @@ export function ToolComponent({
   collapsible?: boolean;
   onClick?: () => void;
   children?: React.ReactNode;
+  isLoading?: boolean;
+  loadingText?: string;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -71,7 +76,15 @@ export function ToolComponent({
           {hasStdErr && (
             <AlertCircle className="text-destructive ml-1 shrink-0" />
           )}
-          {changes && (
+          {isLoading && (
+            <div className="flex items-center gap-1">
+              <Loader2 className="size-3 animate-spin opacity-70" />
+              {loadingText && (
+                <span className="text-xs opacity-70">{loadingText}</span>
+              )}
+            </div>
+          )}
+          {!isLoading && changes && (
             <div className="flex items-center gap-1">
               <span className="text-green-400">+{changes.linesAdded}</span>
               <span className="text-destructive">-{changes.linesRemoved}</span>

@@ -4,6 +4,7 @@ import type {
   ErrorPart,
   ToolResultTypes,
   ValidationErrorResult,
+  ToolCallPart,
 } from "@repo/types";
 import {
   ChevronDown,
@@ -27,7 +28,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { ToolCallPart } from "ai";
 
 function getMessageCopyContent(
   groupedParts: Array<
@@ -220,6 +220,10 @@ export function AssistantMessage({
             );
           }
 
+          // Determine status from streaming state and result availability
+          const isInProgress = !part.argsComplete || !toolResult;
+          const status = isInProgress ? "RUNNING" : "COMPLETED";
+
           // Create a proper tool message for rendering
           const toolMessage: Message = {
             id: `${message.id}-tool-${part.toolCallId}`,
@@ -231,7 +235,7 @@ export function AssistantMessage({
               tool: {
                 name: part.toolName,
                 args: part.args as Record<string, unknown>,
-                status: "COMPLETED",
+                status, // Dynamic status based on streaming state
                 result: toolResult?.result as ToolResultTypes["result"], // Tool result from stream - cast for compatibility
               },
             },

@@ -1,7 +1,7 @@
 import type {
   CoreMessage,
   TextPart,
-  ToolCallPart,
+  ToolCallPart as BaseToolCallPart,
   ToolResultPart,
   FinishReason,
 } from "ai";
@@ -14,6 +14,13 @@ export interface ErrorPart {
   type: "error";
   error: string;
   finishReason?: FinishReason;
+}
+
+// Extended ToolCallPart with streaming state tracking
+export interface ToolCallPart extends BaseToolCallPart {
+  // Streaming state properties
+  streamingState?: "starting" | "streaming" | "complete";
+  argsComplete?: boolean; // Are args fully received?
 }
 
 export type AssistantMessagePart =

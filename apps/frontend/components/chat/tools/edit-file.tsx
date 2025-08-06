@@ -22,6 +22,9 @@ export function EditFileTool({ message }: { message: Message }) {
       ? { linesAdded, linesRemoved }
       : undefined;
 
+  const isLoading = status === "RUNNING";
+  const loadingText = isLoading ? "Generating code..." : undefined;
+
   return (
     <ToolComponent
       icon={<Edit3 />}
@@ -29,6 +32,8 @@ export function EditFileTool({ message }: { message: Message }) {
       title={filePath}
       changes={changes}
       showFileIcon={filePath}
+      isLoading={isLoading}
+      loadingText={loadingText}
       onClick={() => {
         updateSelectedFilePath(filePath);
         expandRightPanel();
