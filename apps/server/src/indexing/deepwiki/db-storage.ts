@@ -3,6 +3,9 @@ import { db } from "@repo/db";
 /**
  * Simple database storage for codebase understanding summaries
  * Uses the new Prisma CodebaseUnderstanding model linked to tasks
+ * 
+ * Note: taskId is used ONLY for database operations and task linking,
+ * never included in the actual content to keep it portable across tasks
  */
 export class CodebaseUnderstandingStorage {
   private taskId: string;

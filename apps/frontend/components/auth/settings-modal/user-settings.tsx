@@ -41,7 +41,7 @@ export function UserSettings() {
     updateUserSettings.mutate({ memoriesEnabled: checked });
   };
 
-  const handleDeepWikiToggle = (checked: boolean) => {
+  const handleShadowWikiToggle = (checked: boolean) => {
     updateUserSettings.mutate({ enableDeepWiki: checked });
   };
 
@@ -119,16 +119,16 @@ export function UserSettings() {
               />
             </div>
             <div className="flex items-center justify-between">
-              <label htmlFor="deep-wiki" className="flex flex-col gap-0">
-                <div className="text-sm font-normal">Enable Deep Wiki</div>
+              <label htmlFor="shadow-wiki" className="flex flex-col gap-0">
+                <div className="text-sm font-normal">Enable Shadow Wiki</div>
                 <div className="text-muted-foreground text-[11px]">
                   Generate lightweight codebase understanding for AI context
                 </div>
               </label>
               <Checkbox
-                id="deep-wiki"
+                id="shadow-wiki"
                 checked={userSettings?.enableDeepWiki ?? true}
-                onCheckedChange={handleDeepWikiToggle}
+                onCheckedChange={handleShadowWikiToggle}
                 disabled={isLoadingSettings || updateUserSettings.isPending}
               />
             </div>
