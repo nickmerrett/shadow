@@ -22,3 +22,53 @@
     0 10px 15px -3px oklch(0.3715 0 0 / 0.25),
     0 4px 6px -4px oklch(0.3715 0 0 / 0.25), 0 15px 25px 15px oklch(0.1957 0 0);
 }
+
+.new-task-pulse {
+  background: conic-gradient(
+    from 0deg,
+    var(--background) 0%,
+    var(--background) 40%,
+    var(--foreground) 50%,
+    var(--background) 60%,
+    var(--background) 100%
+  );
+  opacity: 0;
+}
+
+.rotate-left {
+  animation: rotate-left 1s var(--ease-out-quad) forwards;
+  animation-delay: 0.2s;
+}
+
+.rotate-right {
+  animation: rotate-right 1s var(--ease-out-quad) forwards;
+  animation-delay: 0.2s;
+}
+
+@keyframes rotate-left {
+  0% {
+    transform: rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: rotate(180deg);
+    opacity: 0;
+  }
+}
+
+@keyframes rotate-right {
+  0% {
+    transform: rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: rotate(-180deg);
+    opacity: 0;
+  }
+}
