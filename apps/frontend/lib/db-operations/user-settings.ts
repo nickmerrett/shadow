@@ -8,7 +8,6 @@ export interface UserSettings {
   enableDeepWiki: boolean;
   memoriesEnabled: boolean;
   selectedModels: string[];
-  selectedMiniModels: Record<string, ModelType>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,16 +19,6 @@ export async function getUserSettings(
     where: { userId },
   });
 
-  if (settings) {
-    return {
-      ...settings,
-      selectedMiniModels: settings.selectedMiniModels as Record<
-        string,
-        ModelType
-      >,
-    };
-  }
-
   return settings;
 }
 
@@ -40,7 +29,6 @@ export async function createUserSettings(
     enableDeepWiki?: boolean;
     memoriesEnabled?: boolean;
     selectedModels?: string[];
-    selectedMiniModels?: Record<string, ModelType>;
   }
 ): Promise<UserSettings> {
   const result = await prisma.userSettings.create({
@@ -50,14 +38,10 @@ export async function createUserSettings(
       enableDeepWiki: settings.enableDeepWiki ?? true,
       memoriesEnabled: settings.memoriesEnabled ?? true,
       selectedModels: settings.selectedModels ?? [],
-      selectedMiniModels: settings.selectedMiniModels ?? {},
     },
   });
 
-  return {
-    ...result,
-    selectedMiniModels: result.selectedMiniModels as Record<string, ModelType>,
-  };
+  return result;
 }
 
 export async function updateUserSettings(
@@ -67,7 +51,6 @@ export async function updateUserSettings(
     enableDeepWiki?: boolean;
     memoriesEnabled?: boolean;
     selectedModels?: string[];
-    selectedMiniModels?: Record<string, ModelType>;
   }
 ): Promise<UserSettings> {
   try {
@@ -76,7 +59,6 @@ export async function updateUserSettings(
       enableDeepWiki?: boolean;
       memoriesEnabled?: boolean;
       selectedModels?: string[];
-      selectedMiniModels?: Record<string, ModelType>;
     } = {};
 
     if (settings.autoPullRequest !== undefined)
@@ -87,8 +69,6 @@ export async function updateUserSettings(
       updateData.memoriesEnabled = settings.memoriesEnabled;
     if (settings.selectedModels !== undefined)
       updateData.selectedModels = settings.selectedModels;
-    if (settings.selectedMiniModels !== undefined)
-      updateData.selectedMiniModels = settings.selectedMiniModels;
 
     // Build create data object with only non-default values
     const createData: {
@@ -97,7 +77,6 @@ export async function updateUserSettings(
       enableDeepWiki?: boolean;
       memoriesEnabled?: boolean;
       selectedModels?: string[];
-      selectedMiniModels?: any; // Use any for JSON field
     } = {
       userId,
     };
@@ -122,11 +101,6 @@ export async function updateUserSettings(
       settings.selectedModels.length > 0
     )
       createData.selectedModels = settings.selectedModels;
-    if (
-      settings.selectedMiniModels !== undefined &&
-      Object.keys(settings.selectedMiniModels).length > 0
-    )
-      createData.selectedMiniModels = settings.selectedMiniModels;
 
     const result = await prisma.userSettings.upsert({
       where: { userId },
@@ -134,13 +108,7 @@ export async function updateUserSettings(
       create: createData,
     });
 
-    return {
-      ...result,
-      selectedMiniModels: result.selectedMiniModels as Record<
-        string,
-        ModelType
-      >,
-    };
+    return result;
   } catch (error) {
     console.error("Error in updateUserSettings:", error);
     throw error;
@@ -158,7 +126,6 @@ export async function getOrCreateUserSettings(
       enableDeepWiki: true,
       memoriesEnabled: true,
       selectedModels: [],
-      selectedMiniModels: {},
     });
   }
 
