@@ -659,7 +659,7 @@ async function summarizeFile(
   const symbols = await extractSymbols(src, langSpec, rel);
   const needsDeepAnalysis = analyzeFileComplexity(symbols, src.length);
 
-  if (needsDeepAnalysis) {
+  if (needsDeepAnalysis && !skipLLM) {
     return await analyzeFileWithLLM(
       rel,
       src,
@@ -1069,17 +1069,25 @@ export async function runDeepWiki(
   
   for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
     const batch = allFiles.slice(i, i + BATCH_SIZE);
+    const skipLLM = consecutiveLLMFailures >= MAX_CONSECUTIVE_FAILURES;
+    if (skipLLM && i === 0) {
+      console.warn(`[SHADOW-WIKI] Too many consecutive LLM failures (${consecutiveLLMFailures}), switching to symbol-only analysis`);
+    }
+
     const batchTasks = batch.map(async (rel) => {
       try {
         const summary = await summarizeFile(
           repoPath,
           rel,
-          miniModelInstance
+          miniModelInstance,
+          skipLLM
         );
         fileCache[rel] = summary;
         stats.filesProcessed++;
+        if (!skipLLM) consecutiveLLMFailures = 0; // Reset on success
       } catch (error) {
         console.error(`[SHADOW-WIKI] Failed to process ${rel}:`, error);
+        if (!skipLLM) consecutiveLLMFailures++;
         fileCache[rel] = getBasicFileInfo(rel) + " _(processing failed)_";
         stats.filesProcessed++;
       }
@@ -1091,7 +1099,9 @@ export async function runDeepWiki(
     );
 
     if (i + BATCH_SIZE < allFiles.length) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Dynamic delay based on codebase size - smaller for larger codebases
+      const delay = allFiles.length > 1000 ? 200 : allFiles.length > 500 ? 350 : 500;
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 
