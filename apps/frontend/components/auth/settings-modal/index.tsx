@@ -3,13 +3,14 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useModal } from "@/components/layout/modal-context";
-import { Box, User2 } from "lucide-react";
+import { Box, User2, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
 import { GithubLogo } from "../../graphics/github/github-logo";
 import { UserSettings } from "./user-settings";
 import { ModelSettings } from "./model-settings";
 import { GitHubSettings } from "./github-settings";
+import { ProviderConfig } from "./provider-config";
 
 const tabs = [
   {
@@ -36,9 +37,11 @@ export function SettingsModal() {
   const {
     isSettingsModalOpen,
     settingsModalTab,
+    providerConfigView,
     closeSettingsModal,
     setSettingsModalTab,
     openSettingsModal,
+    closeProviderConfig,
   } = useModal();
 
   const activeTab = settingsModalTab;
@@ -57,6 +60,10 @@ export function SettingsModal() {
   }, [openSettingsModal]);
 
   const renderTabContent = () => {
+    if (providerConfigView) {
+      return <ProviderConfig provider={providerConfigView} />;
+    }
+    
     switch (activeTab) {
       case "user":
         return <UserSettings />;
@@ -67,6 +74,14 @@ export function SettingsModal() {
       default:
         return <UserSettings />;
     }
+  };
+
+  const getModalTitle = () => {
+    if (providerConfigView) {
+      const providerName = providerConfigView.charAt(0).toUpperCase() + providerConfigView.slice(1);
+      return `${providerName} Configuration`;
+    }
+    return currentTab?.title || "Settings";
   };
 
   return (
@@ -86,25 +101,38 @@ export function SettingsModal() {
                   variant="ghost"
                   className={cn(
                     "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent px-2! w-full justify-start border border-transparent font-normal",
-                    activeTab === tab.value &&
+                    activeTab === tab.value && !providerConfigView &&
                       "bg-accent text-foreground border-sidebar-border"
                   )}
-                  onClick={() =>
+                  onClick={() => {
+                    closeProviderConfig();
                     setSettingsModalTab(
                       tab.value as "user" | "models" | "github"
-                    )
-                  }
+                    );
+                  }}
                 >
                   {tab.icon}
                   {tab.sidebarLabel}
                 </Button>
               ))}
+              
+              {/* Provider config sub-page navigation */}
+              {providerConfigView && (
+                <Button
+                  variant="ghost"
+                  className="ml-4 w-full justify-start border border-sidebar-border bg-accent px-2 font-normal text-foreground"
+                  onClick={() => closeProviderConfig()}
+                >
+                  <ArrowLeft className="size-4" />
+                  {providerConfigView.charAt(0).toUpperCase() + providerConfigView.slice(1)}
+                </Button>
+              )}
             </div>
           </div>
 
           {/* Right content area */}
           <div className="flex grow flex-col gap-6">
-            <div className="p-4 pb-0 font-medium">{currentTab?.title}</div>
+            <div className="p-4 pb-0 font-medium">{getModalTitle()}</div>
 
             <div className="flex w-full grow flex-col items-start gap-6 overflow-y-auto p-4 pt-0 text-sm">
               {renderTabContent()}

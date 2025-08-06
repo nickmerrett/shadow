@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Tooltip,
   TooltipContent,
@@ -23,43 +22,23 @@ import {
   CheckCircle,
   X,
   Settings,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useDebounceCallbackWithCancel } from "@/lib/debounce";
 import { useQueryClient } from "@tanstack/react-query";
-import { ModelType } from "@repo/types";
-import {
-  useUserSettings,
-  useUpdateUserSettings,
-} from "@/hooks/use-user-settings";
-import {
-  getAllPossibleModelsInfo,
-  getModelDefaults,
-} from "@/lib/actions/api-keys";
-import { cn } from "@/lib/utils";
+import { ApiKeyProvider } from "@repo/types";
+import { useModal } from "@/components/layout/modal-context";
 
 export function ModelSettings() {
   const { data: apiKeys, isLoading: isLoadingApiKeys } = useApiKeys();
-  const { data: validationState, isLoading: isLoadingValidation } =
-    useApiKeyValidation();
+  const { data: validationState } = useApiKeyValidation();
   const saveApiKeyMutation = useSaveApiKey();
   const clearApiKeyMutation = useClearApiKey();
   const validateApiKeysMutation = useValidateApiKeys();
   const saveValidationMutation = useSaveApiKeyValidation();
   const queryClient = useQueryClient();
-
-  // Model selection state
-  const { data: userSettings, isLoading: isLoadingSettings } =
-    useUserSettings();
-  const updateUserSettings = useUpdateUserSettings();
-  const [allModels, setAllModels] = useState<any[]>([]);
-  const [defaults, setDefaults] = useState<{
-    defaultModels: ModelType[];
-  }>({ defaultModels: [] });
-  const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
+  const { openProviderConfig } = useModal();
 
   useEffect(() => {
     console.log("apiKeys", apiKeys);
@@ -76,44 +55,6 @@ export function ModelSettings() {
   const [savingAnthropic, setSavingAnthropic] = useState(false);
   const [savingOpenrouter, setSavingOpenrouter] = useState(false);
 
-  // Load model data when component mounts
-  useEffect(() => {
-    const loadModelData = async () => {
-      try {
-        const [modelsInfo, defaultsInfo] = await Promise.all([
-          getAllPossibleModelsInfo(),
-          getModelDefaults(),
-        ]);
-        setAllModels(modelsInfo);
-        setDefaults(defaultsInfo);
-      } catch (error) {
-        console.error("Failed to load model data:", error);
-      }
-    };
-    loadModelData();
-  }, []);
-
-  const getSelectedModels = (): ModelType[] => {
-    if (
-      userSettings?.selectedModels &&
-      userSettings.selectedModels.length > 0
-    ) {
-      return userSettings.selectedModels as ModelType[];
-    }
-    return defaults.defaultModels;
-  };
-
-  const handleModelToggle = (modelId: ModelType) => {
-    const currentSelected = getSelectedModels();
-    const isSelected = currentSelected.includes(modelId);
-    const newSelected = isSelected
-      ? currentSelected.filter((id) => id !== modelId)
-      : [...currentSelected, modelId];
-
-    updateUserSettings.mutate({ selectedModels: newSelected });
-  };
-
-  const selectedModels = getSelectedModels();
 
   const renderValidationIcon = (provider: string) => {
     const result = validationState?.[provider as keyof typeof validationState];
@@ -147,7 +88,7 @@ export function ModelSettings() {
   }, [apiKeys]);
 
   const saveApiKey = async (
-    provider: "openai" | "anthropic" | "openrouter",
+    provider: ApiKeyProvider,
     key: string
   ) => {
     // Only save if key is different from current saved value
@@ -184,7 +125,7 @@ export function ModelSettings() {
             async ([validationProvider, result]) => {
               try {
                 await saveValidationMutation.mutateAsync({
-                  provider: validationProvider as any,
+                  provider: validationProvider as ApiKeyProvider,
                   validation: result,
                 });
               } catch (saveError) {
@@ -212,7 +153,7 @@ export function ModelSettings() {
         });
         queryClient.invalidateQueries({ queryKey: ["api-key-validation"] });
       }
-    } catch (error) {
+    } catch (_error) {
       const providerName =
         provider === "openai"
           ? "OpenAI"
@@ -270,7 +211,7 @@ export function ModelSettings() {
   };
 
   const handleClearApiKey = async (
-    provider: "openai" | "anthropic" | "openrouter"
+    provider: ApiKeyProvider
   ) => {
     try {
       await clearApiKeyMutation.mutateAsync(provider);
@@ -345,13 +286,9 @@ export function ModelSettings() {
   return (
     <div className="flex w-full flex-col gap-6">
       {providers.map((provider) => {
-        const isExpanded = expandedProvider === provider.key;
         const hasValidKey =
           apiKeys?.[provider.key as keyof typeof apiKeys] &&
           (apiKeys[provider.key as keyof typeof apiKeys] as string)?.length > 0;
-        const providerModels = allModels.filter(
-          (m) => m.provider === provider.key
-        );
 
         return (
           <div key={provider.key} className="flex w-full flex-col gap-2">
@@ -379,19 +316,13 @@ export function ModelSettings() {
                       variant="secondary"
                       className="text-muted-foreground hover:text-foreground"
                       size="icon"
-                      onClick={() =>
-                        setExpandedProvider(isExpanded ? null : provider.key)
-                      }
+                      onClick={() => openProviderConfig(provider.key as ApiKeyProvider)}
                     >
-                      {isExpanded ? (
-                        <ChevronUp className="size-4" />
-                      ) : (
-                        <ChevronDown className="size-4" />
-                      )}
+                      <Settings className="size-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top" align="end">
-                    {isExpanded ? "Hide" : "Configure"} {provider.name} models
+                    Configure {provider.name} models
                   </TooltipContent>
                 </Tooltip>
               )}
@@ -402,7 +333,7 @@ export function ModelSettings() {
                       variant="secondary"
                       className="text-muted-foreground hover:text-foreground"
                       size="icon"
-                      onClick={() => handleClearApiKey(provider.key as any)}
+                      onClick={() => handleClearApiKey(provider.key as ApiKeyProvider)}
                     >
                       <Trash className="size-4" />
                     </Button>
@@ -413,48 +344,6 @@ export function ModelSettings() {
                 </Tooltip>
               )}
             </div>
-
-            {/* Expandable Model Selection */}
-            {isExpanded && hasValidKey && (
-              <div className="mt-3 space-y-3">
-                <div>
-                  <h4 className="text-sm font-medium mb-2">
-                    {provider.name} Models
-                  </h4>
-                  <div className="space-y-2">
-                    {providerModels.map((model) => (
-                      <div
-                        key={model.id}
-                        className="flex items-center space-x-2"
-                      >
-                        <Checkbox
-                          id={`model-${model.id}`}
-                          checked={selectedModels.includes(model.id)}
-                          onCheckedChange={(checked) =>
-                            handleModelToggle(model.id)
-                          }
-                          disabled={
-                            isLoadingSettings || updateUserSettings.isPending
-                          }
-                        />
-                        <label
-                          htmlFor={`model-${model.id}`}
-                          className="text-sm cursor-pointer"
-                        >
-                          {model.name}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {(isLoadingSettings || updateUserSettings.isPending) && (
-                  <div className="flex items-center justify-center py-2">
-                    <Loader2 className="size-4 animate-spin" />
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         );
       })}
