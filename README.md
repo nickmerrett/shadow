@@ -403,14 +403,14 @@ Shadow provides a comprehensive set of tools for AI agents:
 
 # Brought To You By
 
-[Ishaan Dey](https://github.com/ishaan1013)
+[Ishaan Dey](https://github.com/ishaan1013), [Twitter](https://x.com/ishaandey_)
 - Software Engineering @ University of Waterloo, Prev @ Vercel
 - Architecture, design, remote mode implementation, full-stack & agent workflow
 
-[Rajan Agarwal](https://github.com/rajansagarwal)
+[Rajan Agarwal](https://github.com/rajansagarwal), [Twitter](https://x.com/_rajanagarwal)
 - Software Engineering @ University of Waterloo, MoTS Intern @ Amazon AGI Lab
-- Codebase understanding, search/indexing/memory algorithms, LLM integrations, interface
+- Codebase understanding, Semantic Search/Indexing/Wiki/Memory algorithms, LLM integrations, interface
 
-[Elijah Kurien](https://github.com/elijahkurien)
+[Elijah Kurien](https://github.com/elijahkurien), [Twitter](https://x.com/ElijahKurien)
 - Software Engineering @ University of Waterloo, MoTS Intern @ Yutori
-- Semantic Search infrastrucutre, context compaction
+- Semantic Search Infrastrucutre, Context Compaction
