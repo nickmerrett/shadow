@@ -1240,8 +1240,8 @@ export class ChatService {
     }
   }
 
-  getAvailableModels(userApiKeys: ApiKeys): ModelType[] {
-    return this.llmService.getAvailableModels(userApiKeys);
+  async getAvailableModels(userApiKeys: ApiKeys): Promise<ModelType[]> {
+    return await this.llmService.getAvailableModels(userApiKeys);
   }
 
   getQueuedMessage(taskId: string): string | undefined {
@@ -1481,7 +1481,8 @@ export class ChatService {
       const context = await modelContextService.createContext(
         parentTaskId, // Use parent task context for API keys
         undefined, // No cookies in server context
-        model
+        model,
+        userId
       );
 
       // Generate title and branch for the new task
@@ -1570,7 +1571,8 @@ export class ChatService {
       const newTaskContext = await modelContextService.createContext(
         taskId,
         undefined, // No cookies in server context
-        model
+        model,
+        _userId
       );
 
       // Start task initialization in background (non-blocking)

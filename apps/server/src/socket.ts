@@ -411,14 +411,15 @@ export function createSocketServer(
         // Get task workspace path from database
         const task = await prisma.task.findUnique({
           where: { id: data.taskId },
-          select: { workspacePath: true },
+          select: { workspacePath: true, userId: true },
         });
 
         // Create or get model context for this task
         const modelContext = await modelContextService.createContext(
           data.taskId,
           socket.handshake.headers.cookie,
-          data.llmModel as ModelType
+          data.llmModel as ModelType,
+          task?.userId
         );
 
         // Validate that user has the required API key for the selected model
@@ -507,14 +508,15 @@ export function createSocketServer(
         // Get task workspace path from database
         const task = await prisma.task.findUnique({
           where: { id: data.taskId },
-          select: { workspacePath: true },
+          select: { workspacePath: true, userId: true },
         });
 
         // Create or get model context for this task
         const modelContext = await modelContextService.createContext(
           data.taskId,
           socket.handshake.headers.cookie,
-          data.llmModel as ModelType
+          data.llmModel as ModelType,
+          task?.userId
         );
 
         // Validate that user has the required API key for the selected model
