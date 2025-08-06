@@ -12,11 +12,7 @@ type StackedTask = {
   shadowBranch?: string;
 };
 
-export function StackedPRCard({
-  stackedTask,
-}: {
-  stackedTask: StackedTask;
-}) {
+export function StackedPRCard({ stackedTask }: { stackedTask: StackedTask }) {
   const { data: stackedPRInfo, isLoading } = useStackedPRInfo(
     stackedTask.id,
     stackedTask
@@ -25,7 +21,7 @@ export function StackedPRCard({
   const status = (stackedPRInfo?.status as TaskStatus) || "INITIALIZING";
   const title = stackedPRInfo?.title || stackedTask.title;
   const shadowBranch = stackedPRInfo?.shadowBranch || stackedTask.shadowBranch;
-  
+
   const statusConfig = statusColorsConfig[status];
   const StatusIcon = statusConfig.icon;
 
@@ -37,20 +33,22 @@ export function StackedPRCard({
           <span className="truncate">{title}</span>
         </div>
 
-        <div className="text-muted-foreground flex items-center gap-2 text-[13px] mt-1">
+        <div className="text-muted-foreground mt-1 flex items-center gap-2 text-[13px]">
           <div className="flex items-center gap-1">
-            <StatusIcon 
+            <StatusIcon
               className={cn("size-3", statusConfig.className, {
-                "animate-spin": isLoading && status === "INITIALIZING"
-              })} 
+                "animate-spin": isLoading && status === "INITIALIZING",
+              })}
             />
-            <span className="capitalize">{status.toLowerCase().replace('_', ' ')}</span>
+            <span className="capitalize">
+              {status.toLowerCase().replace("_", " ")}
+            </span>
           </div>
 
           {shadowBranch && (
             <>
               <Circle className="fill-muted-foreground size-1 opacity-50" />
-              <span className="text-xs font-mono">{shadowBranch}</span>
+              <span className="font-mono text-xs">{shadowBranch}</span>
             </>
           )}
         </div>
