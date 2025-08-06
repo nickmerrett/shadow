@@ -987,7 +987,7 @@ Use bullet points and fragments. Ultra-concise technical descriptions only.`;
 /**
  * Main function to run Shadow Wiki analysis and store in database
  */
-export async function runDeepWiki(
+export async function runShadowWiki(
   repoPath: string,
   taskId: string,
   repoFullName: string,

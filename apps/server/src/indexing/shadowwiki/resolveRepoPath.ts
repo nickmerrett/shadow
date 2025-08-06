@@ -79,7 +79,7 @@ export async function resolveRepoPath(
   const { owner, repo } = getOwnerFromRepo(repoOrPath);
   const cacheDir = path.join(
     os.tmpdir(),
-    "deepwiki-repos",
+    "shadowwiki-repos",
     `${owner}-${repo}`
   );
   const marker = path.join(cacheDir, ".complete");
@@ -126,7 +126,7 @@ async function resolveFromWorkspace(
 ): Promise<string> {
   const cacheDir = path.join(
     os.tmpdir(),
-    "deepwiki-repos",
+    "shadowwiki-repos",
     `task-${taskId}`
   );
   const marker = path.join(cacheDir, ".complete");

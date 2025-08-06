@@ -5,7 +5,7 @@ import {
 } from "../initialization/background-indexing";
 import express from "express";
 import { isValidRepo } from "./utils/repository";
-import { shadowWikiRouter } from "./deepwiki/routes";
+import { shadowWikiRouter } from "./shadowwiki/routes";
 
 const router = express.Router();
 

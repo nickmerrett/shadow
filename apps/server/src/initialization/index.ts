@@ -9,7 +9,7 @@ import {
   clearTaskProgress,
 } from "../utils/task-status";
 import { startBackgroundIndexing } from "./background-indexing";
-import { runDeepWiki } from "../indexing/deepwiki/core";
+import { runShadowWiki } from "../indexing/shadowwiki/core";
 import { TaskModelContext } from "../services/task-model-context";
 
 // Helper for async delays
@@ -528,7 +528,7 @@ export class TaskInitializationEngine {
       );
 
       // Use TaskModelContext for Shadow Wiki generation during initialization
-      const result = await runDeepWiki(
+      const result = await runShadowWiki(
         task.workspacePath,
         taskId,
         task.repoFullName,

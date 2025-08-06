@@ -1,6 +1,6 @@
 import express from "express";
 import { LocalWorkspaceManager } from "@/execution/local/local-workspace-manager";
-import { runDeepWiki } from "./core";
+import { runShadowWiki } from "./core";
 import { CodebaseUnderstandingStorage } from "./db-storage";
 import fs from "fs";
 import { db } from "@repo/db";
@@ -86,7 +86,7 @@ shadowWikiRouter.post("/generate/:taskId", async (req, res, next) => {
     console.log(`[SHADOW-WIKI] Analyzing workspace directly: ${workspaceDir}`);
 
     // Run Shadow Wiki analysis directly on workspace
-    const result = await runDeepWiki(
+    const result = await runShadowWiki(
       workspaceDir,
       taskId,
       task.repoFullName,
