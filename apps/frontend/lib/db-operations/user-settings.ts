@@ -123,7 +123,7 @@ export async function getOrCreateUserSettings(
   if (!settings) {
     settings = await createUserSettings(userId, {
       autoPullRequest: false,
-      enableDeepWiki: true,
+      enableDeepWiki: false,
       memoriesEnabled: true,
       selectedModels: [],
     });

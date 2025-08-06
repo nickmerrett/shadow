@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ taskId: string }> }
+  { params }: { params: Promise<{ taskId: string }> },
 ) {
   try {
     const { taskId } = await params;
@@ -22,12 +22,12 @@ export async function POST(
     }
 
     const response = await fetch(
-      `${backendUrl}/api/indexing/deepwiki/generate/${taskId}`,
+      `${backendUrl}/api/indexing/shadowwiki/generate/${taskId}`,
       {
         method: "POST",
         headers,
         body: JSON.stringify(body),
-      }
+      },
     );
 
     const data = await response.json();
@@ -41,7 +41,7 @@ export async function POST(
     console.error("Error generating summary:", error);
     return NextResponse.json(
       { error: "Failed to generate summary" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

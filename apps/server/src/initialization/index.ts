@@ -9,7 +9,7 @@ import {
   clearTaskProgress,
 } from "../utils/task-status";
 import { startBackgroundIndexing } from "./background-indexing";
-import { runDeepWiki } from "../indexing/deepwiki/core";
+import { runShadowWiki } from "../indexing/shadowwiki/core";
 import { TaskModelContext } from "../services/task-model-context";
 
 // Helper for async delays
@@ -46,8 +46,8 @@ const STEP_DEFINITIONS: Record<
     description: "Index repository files for semantic search",
   },
 
-  // Deep wiki generation step (both modes, optional)
-  GENERATE_DEEP_WIKI: {
+  // Shadow Wiki generation step (both modes, optional)
+  GENERATE_SHADOW_WIKI: {
     name: "Understanding Your Codebase",
     description: "Generate comprehensive codebase documentation",
   },
@@ -71,10 +71,10 @@ export class TaskInitializationEngine {
     taskId: string,
     steps: InitStatus[] = ["PREPARE_WORKSPACE"],
     userId: string,
-    context: TaskModelContext
+    context: TaskModelContext,
   ): Promise<void> {
     console.log(
-      `[TASK_INIT] Starting initialization for task ${taskId} with steps: ${steps.join(", ")}`
+      `[TASK_INIT] Starting initialization for task ${taskId} with steps: ${steps.join(", ")}`,
     );
 
     try {
@@ -111,7 +111,7 @@ export class TaskInitializationEngine {
           });
 
           console.log(
-            `[TASK_INIT] ${taskId}: Starting step ${stepNumber}/${steps.length}: ${step}`
+            `[TASK_INIT] ${taskId}: Starting step ${stepNumber}/${steps.length}: ${step}`,
           );
 
           // Execute the step
@@ -121,19 +121,19 @@ export class TaskInitializationEngine {
           await setInitStatus(taskId, step);
 
           console.log(
-            `[TASK_INIT] ${taskId}: Completed step ${stepNumber}/${steps.length}: ${step}`
+            `[TASK_INIT] ${taskId}: Completed step ${stepNumber}/${steps.length}: ${step}`,
           );
         } catch (error) {
           console.error(
             `[TASK_INIT] ${taskId}: Failed at step ${stepNumber}/${steps.length}: ${step}:`,
-            error
+            error,
           );
 
           // Mark as failed with error details
           await setTaskFailed(
             taskId,
             step,
-            error instanceof Error ? error.message : "Unknown error"
+            error instanceof Error ? error.message : "Unknown error",
           );
 
           // Emit error
@@ -156,7 +156,7 @@ export class TaskInitializationEngine {
       await setInitStatus(taskId, "ACTIVE");
 
       console.log(
-        `[TASK_INIT] ${taskId}: Initialization completed successfully`
+        `[TASK_INIT] ${taskId}: Initialization completed successfully`,
       );
 
       // Emit completion
@@ -179,7 +179,7 @@ export class TaskInitializationEngine {
     taskId: string,
     step: InitStatus,
     userId: string,
-    context: TaskModelContext
+    context: TaskModelContext,
   ): Promise<void> {
     switch (step) {
       // Local mode step
@@ -203,12 +203,12 @@ export class TaskInitializationEngine {
       // Repository indexing step (both modes)
       case "INDEX_REPOSITORY":
         await this.executeIndexRepository(taskId);
-        // Indexing is handled during deep wiki generation
+        // Indexing is handled during Shadow Wiki generation
         break;
 
-      // Deep wiki generation step (both modes, optional)
-      case "GENERATE_DEEP_WIKI":
-        await this.executeGenerateDeepWiki(taskId, context);
+      // Shadow Wiki generation step (both modes, optional)
+      case "GENERATE_SHADOW_WIKI":
+        await this.executeGenerateShadowWiki(taskId, context);
         break;
 
       case "INACTIVE":
@@ -227,12 +227,12 @@ export class TaskInitializationEngine {
    */
   private async executePrepareWorkspace(
     taskId: string,
-    userId: string
+    userId: string,
   ): Promise<void> {
     const agentMode = getAgentMode();
     if (agentMode !== "local") {
       throw new Error(
-        `PREPARE_WORKSPACE step should only be used in local mode, but agent mode is: ${agentMode}`
+        `PREPARE_WORKSPACE step should only be used in local mode, but agent mode is: ${agentMode}`,
       );
     }
 
@@ -266,7 +266,7 @@ export class TaskInitializationEngine {
 
     if (!workspaceResult.success) {
       throw new Error(
-        workspaceResult.error || "Failed to prepare local workspace"
+        workspaceResult.error || "Failed to prepare local workspace",
       );
     }
 
@@ -285,7 +285,7 @@ export class TaskInitializationEngine {
     const agentMode = getAgentMode();
     if (agentMode !== "remote") {
       throw new Error(
-        `CREATE_VM step should only be used in remote mode, but agent mode is: ${agentMode}`
+        `CREATE_VM step should only be used in remote mode, but agent mode is: ${agentMode}`,
       );
     }
 
@@ -342,7 +342,7 @@ export class TaskInitializationEngine {
       });
 
       console.log(
-        `[TASK_INIT] ${taskId}: Successfully created VM ${workspaceInfo.podName}`
+        `[TASK_INIT] ${taskId}: Successfully created VM ${workspaceInfo.podName}`,
       );
     } catch (error) {
       console.error(`[TASK_INIT] ${taskId}: Failed to create VM:`, error);
@@ -355,7 +355,7 @@ export class TaskInitializationEngine {
    */
   private async executeWaitVMReady(taskId: string): Promise<void> {
     console.log(
-      `[TASK_INIT] ${taskId}: Waiting for sidecar service and repository clone to complete`
+      `[TASK_INIT] ${taskId}: Waiting for sidecar service and repository clone to complete`,
     );
 
     try {
@@ -375,7 +375,7 @@ export class TaskInitializationEngine {
           // Debug logging to understand the response
           console.log(
             `[TASK_INIT] ${taskId}: listDirectory response (attempt ${attempt}):`,
-            JSON.stringify(listing, null, 2)
+            JSON.stringify(listing, null, 2),
           );
 
           // Check that both sidecar is responding AND workspace has content
@@ -385,22 +385,22 @@ export class TaskInitializationEngine {
             listing.contents.length > 0
           ) {
             console.log(
-              `[TASK_INIT] ${taskId}: Sidecar ready and repository cloned (attempt ${attempt})`
+              `[TASK_INIT] ${taskId}: Sidecar ready and repository cloned (attempt ${attempt})`,
             );
             return;
           } else {
             throw new Error(
-              `Sidecar responding but workspace appears empty. Response: ${JSON.stringify(listing)}`
+              `Sidecar responding but workspace appears empty. Response: ${JSON.stringify(listing)}`,
             );
           }
         } catch (error) {
           if (attempt === maxRetries) {
             throw new Error(
-              `Sidecar/clone failed to become ready after ${maxRetries} attempts: ${error}`
+              `Sidecar/clone failed to become ready after ${maxRetries} attempts: ${error}`,
             );
           }
           console.log(
-            `[TASK_INIT] ${taskId}: Sidecar or clone not ready yet (attempt ${attempt}/${maxRetries}), retrying...`
+            `[TASK_INIT] ${taskId}: Sidecar or clone not ready yet (attempt ${attempt}/${maxRetries}), retrying...`,
           );
           await delay(retryDelay);
         }
@@ -408,7 +408,7 @@ export class TaskInitializationEngine {
     } catch (error) {
       console.error(
         `[TASK_INIT] ${taskId}: Failed waiting for sidecar and clone:`,
-        error
+        error,
       );
       throw error;
     }
@@ -419,10 +419,10 @@ export class TaskInitializationEngine {
    */
   private async executeVerifyVMWorkspace(
     taskId: string,
-    _userId: string
+    _userId: string,
   ): Promise<void> {
     console.log(
-      `[TASK_INIT] ${taskId}: Verifying workspace is ready and contains repository`
+      `[TASK_INIT] ${taskId}: Verifying workspace is ready and contains repository`,
     );
 
     try {
@@ -442,7 +442,7 @@ export class TaskInitializationEngine {
 
       // Final verification that workspace is fully ready with repository content
       console.log(
-        `[TASK_INIT] ${taskId}: Performing final workspace verification`
+        `[TASK_INIT] ${taskId}: Performing final workspace verification`,
       );
 
       // Verify the workspace is ready by checking contents
@@ -453,30 +453,30 @@ export class TaskInitializationEngine {
         listing.contents.length === 0
       ) {
         throw new Error(
-          "Workspace verification failed - workspace appears empty"
+          "Workspace verification failed - workspace appears empty",
         );
       }
 
       console.log(
-        `[TASK_INIT] ${taskId}: Successfully verified workspace is ready with repository content`
+        `[TASK_INIT] ${taskId}: Successfully verified workspace is ready with repository content`,
       );
     } catch (error) {
       console.error(
         `[TASK_INIT] ${taskId}: Failed to verify workspace:`,
-        error
+        error,
       );
       throw error;
     }
   }
 
   /**
-   * Generate deep wiki step - Generate comprehensive codebase documentation
+   * Generate Shadow Wiki step - Generate comprehensive codebase documentation
    */
-  private async executeGenerateDeepWiki(
+  private async executeGenerateShadowWiki(
     taskId: string,
-    context: TaskModelContext
+    context: TaskModelContext,
   ): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Starting deep wiki generation`);
+    console.log(`[TASK_INIT] ${taskId}: Starting Shadow Wiki generation`);
 
     try {
       // Get task info
@@ -494,7 +494,7 @@ export class TaskInitializationEngine {
         throw new Error(`Task not found: ${taskId}`);
       }
 
-      // Check if deep wiki already exists for this repository
+      // Check if Shadow Wiki already exists for this repository
       const existingUnderstanding =
         await prisma.codebaseUnderstanding.findUnique({
           where: { repoFullName: task.repoFullName },
@@ -504,7 +504,7 @@ export class TaskInitializationEngine {
       if (existingUnderstanding) {
         // Link task to existing understanding
         console.log(
-          `[TASK_INIT] ${taskId}: Linking to existing deep wiki for ${task.repoFullName} (ID: ${existingUnderstanding.id})`
+          `[TASK_INIT] ${taskId}: Linking to existing Shadow Wiki for ${task.repoFullName} (ID: ${existingUnderstanding.id})`,
         );
 
         await prisma.task.update({
@@ -513,7 +513,7 @@ export class TaskInitializationEngine {
         });
 
         console.log(
-          `[TASK_INIT] ${taskId}: Successfully linked to existing codebase understanding`
+          `[TASK_INIT] ${taskId}: Successfully linked to existing codebase understanding`,
         );
         return;
       }
@@ -522,13 +522,13 @@ export class TaskInitializationEngine {
         throw new Error(`Workspace path not found for task: ${taskId}`);
       }
 
-      // Generate deep wiki documentation
+      // Generate Shadow Wiki documentation
       console.log(
-        `[TASK_INIT] ${taskId}: Generating new deep wiki for ${task.repoFullName}`
+        `[TASK_INIT] ${taskId}: Generating new Shadow Wiki for ${task.repoFullName}`,
       );
 
-      // Use TaskModelContext for deep wiki generation during initialization
-      const result = await runDeepWiki(
+      // Use TaskModelContext for Shadow Wiki generation during initialization
+      const result = await runShadowWiki(
         task.workspacePath,
         taskId,
         task.repoFullName,
@@ -538,20 +538,20 @@ export class TaskInitializationEngine {
         {
           concurrency: 12,
           model: context.getMainModel(),
-        }
+        },
       );
 
       console.log(
-        `[TASK_INIT] ${taskId}: Successfully generated deep wiki - ${result.stats.filesProcessed} files, ${result.stats.directoriesProcessed} directories processed`
+        `[TASK_INIT] ${taskId}: Successfully generated Shadow Wiki - ${result.stats.filesProcessed} files, ${result.stats.directoriesProcessed} directories processed`,
       );
     } catch (error) {
       console.error(
-        `[TASK_INIT] ${taskId}: Failed to generate deep wiki:`,
-        error
+        `[TASK_INIT] ${taskId}: Failed to generate Shadow Wiki:`,
+        error,
       );
       // Don't throw error - we don't want indexing failures to block task startup
       console.log(
-        `[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`
+        `[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`,
       );
     }
   }
@@ -561,7 +561,7 @@ export class TaskInitializationEngine {
    */
   private async executeIndexRepository(taskId: string): Promise<void> {
     console.log(
-      `[TASK_INIT] ${taskId}: Starting background repository indexing`
+      `[TASK_INIT] ${taskId}: Starting background repository indexing`,
     );
 
     try {
@@ -582,16 +582,16 @@ export class TaskInitializationEngine {
       });
 
       console.log(
-        `[TASK_INIT] ${taskId}: Background indexing started for repository ${task.repoFullName}`
+        `[TASK_INIT] ${taskId}: Background indexing started for repository ${task.repoFullName}`,
       );
     } catch (error) {
       console.error(
         `[TASK_INIT] ${taskId}: Failed to start background indexing:`,
-        error
+        error,
       );
       // Don't throw error - we don't want indexing failures to block task startup
       console.log(
-        `[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`
+        `[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`,
       );
     }
   }
@@ -605,7 +605,7 @@ export class TaskInitializationEngine {
         type: "init-progress",
         initProgress: progress,
       },
-      taskId
+      taskId,
     );
   }
 
@@ -615,18 +615,18 @@ export class TaskInitializationEngine {
   async getDefaultStepsForTask(userId: string): Promise<InitStatus[]> {
     const agentMode = getAgentMode();
 
-    // Fetch user settings to determine if deep wiki generation should be enabled
-    let enableDeepWiki = true; // Default to true
+    // Fetch user settings to determine if Shadow Wiki generation should be enabled
+    let enableDeepWiki = false; // Default to false
     try {
       const userSettings = await prisma.userSettings.findUnique({
         where: { userId },
         select: { enableDeepWiki: true },
       });
-      enableDeepWiki = userSettings?.enableDeepWiki ?? true;
+      enableDeepWiki = userSettings?.enableDeepWiki ?? false;
     } catch (error) {
       console.warn(
-        `[TASK_INIT] Failed to fetch user settings for ${userId}, using default enableDeepWiki=true:`,
-        error
+        `[TASK_INIT] Failed to fetch user settings for ${userId}, using default enableDeepWiki=false:`,
+        error,
       );
     }
 

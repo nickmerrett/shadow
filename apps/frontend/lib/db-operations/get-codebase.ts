@@ -25,7 +25,7 @@ export async function getCodebase(
   }
 }
 
-// New function to get codebase by task ID (for our new deep wiki system)
+// New function to get codebase by task ID (for our new Shadow Wiki system)
 export async function getCodebaseByTaskId(
   taskId: string
 ): Promise<CodebaseWithSummaries | null> {
