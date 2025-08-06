@@ -10,10 +10,7 @@ export class ModelProvider {
   /**
    * Creates and returns a language model instance based on the model type and user API keys
    */
-  getModel(
-    modelId: ModelType,
-    userApiKeys: ApiKeys
-  ): LanguageModel {
+  getModel(modelId: ModelType, userApiKeys: ApiKeys): LanguageModel {
     const provider = getModelProvider(modelId);
 
     switch (provider) {
@@ -79,7 +76,7 @@ export class ModelProvider {
           const groqClient = createGroq({
             apiKey: userApiKeys.groq,
           });
-          return groqClient(modelId);
+          return groqClient(modelId) as unknown as LanguageModel;
         } catch (error) {
           console.error("Groq client creation failed:", error);
           throw error;
