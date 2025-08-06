@@ -440,7 +440,7 @@ export class ChatService {
       );
 
       // Create tool executor for this task
-      const toolExecutor = createToolExecutor(taskId);
+      const toolExecutor = await createToolExecutor(taskId);
 
       // Check if there are any uncommitted changes
       const statusResponse = await toolExecutor.getGitStatus();
