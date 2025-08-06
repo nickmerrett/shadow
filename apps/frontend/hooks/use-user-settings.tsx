@@ -1,5 +1,26 @@
-import { UserSettings } from "@repo/db";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ModelType } from "@repo/types";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+
+// Local UserSettings interface to avoid Prisma type issues
+interface UserSettings {
+  id: string;
+  userId: string;
+  autoPullRequest: boolean;
+  enableDeepWiki: boolean;
+  memoriesEnabled: boolean;
+  selectedModels: string[];
+  selectedMiniModels: Record<string, ModelType>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+type UpdateUserSettingsParams = {
+  autoPullRequest?: boolean;
+  memoriesEnabled?: boolean;
+  enableDeepWiki?: boolean;
+  selectedModels?: string[];
+  selectedMiniModels?: Record<string, ModelType>;
+};
 
 interface UserSettingsResponse {
   success: boolean;
@@ -27,6 +48,8 @@ async function updateUserSettingsAPI(settings: {
   autoPullRequest?: boolean;
   memoriesEnabled?: boolean;
   enableDeepWiki?: boolean;
+  selectedModels?: string[];
+  selectedMiniModels?: Record<string, ModelType>;
 }): Promise<UserSettings> {
   const response = await fetch("/api/user-settings", {
     method: "POST",
@@ -45,7 +68,7 @@ async function updateUserSettingsAPI(settings: {
   return data.settings;
 }
 
-export function useUserSettings() {
+export function useUserSettings(): UseQueryResult<UserSettings, Error> {
   return useQuery({
     queryKey: ["user-settings"],
     queryFn: fetchUserSettings,
@@ -54,7 +77,7 @@ export function useUserSettings() {
   });
 }
 
-export function useUpdateUserSettings() {
+export function useUpdateUserSettings(): UseMutationResult<UserSettings, Error, UpdateUserSettingsParams> {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -62,6 +85,8 @@ export function useUpdateUserSettings() {
     onSuccess: (updatedSettings) => {
       // Update the cache with the new settings
       queryClient.setQueryData(["user-settings"], updatedSettings);
+      // Invalidate models cache so it refetches with new selections
+      queryClient.invalidateQueries({ queryKey: ["models"] });
     },
     onError: (error) => {
       console.error("Failed to update user settings:", error);

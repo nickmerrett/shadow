@@ -16,11 +16,12 @@ import {
   useSaveApiKeyValidation,
 } from "@/hooks/use-api-keys";
 import { useValidateApiKeys } from "@/hooks/use-api-key-validation";
-import { Loader2, Trash, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Trash, CheckCircle, XCircle, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useDebounceCallbackWithCancel } from "@/lib/debounce";
 import { useQueryClient } from "@tanstack/react-query";
+import { ProviderConfigModal } from "./provider-config-modal";
 
 export function ModelSettings() {
   const { data: apiKeys, isLoading: isLoadingApiKeys } = useApiKeys();
@@ -43,13 +44,14 @@ export function ModelSettings() {
   const [openrouterInput, setOpenrouterInput] = useState(
     apiKeys?.openrouter ?? ""
   );
-  const [groqInput, setGroqInput] = useState(apiKeys?.groq ?? "");
   const [ollamaInput, setOllamaInput] = useState(apiKeys?.ollama ?? "");
   const [savingOpenai, setSavingOpenai] = useState(false);
   const [savingAnthropic, setSavingAnthropic] = useState(false);
   const [savingOpenrouter, setSavingOpenrouter] = useState(false);
-  const [savingGroq, setSavingGroq] = useState(false);
   const [savingOllama, setSavingOllama] = useState(false);
+  const [configModalProvider, setConfigModalProvider] = useState<string | null>(
+    null
+  );
 
   const renderValidationIcon = (provider: string) => {
     const result = validationState?.[provider as keyof typeof validationState];
@@ -80,12 +82,11 @@ export function ModelSettings() {
     setOpenaiInput(apiKeys?.openai ?? "");
     setAnthropicInput(apiKeys?.anthropic ?? "");
     setOpenrouterInput(apiKeys?.openrouter ?? "");
-    setGroqInput(apiKeys?.groq ?? "");
     setOllamaInput(apiKeys?.ollama ?? "");
   }, [apiKeys]);
 
   const saveApiKey = async (
-    provider: "openai" | "anthropic" | "openrouter" | "groq" | "ollama",
+    provider: "openai" | "anthropic" | "openrouter" | "ollama",
     key: string
   ) => {
     // Only save if key is different from current saved value
@@ -96,14 +97,11 @@ export function ModelSettings() {
           ? apiKeys?.anthropic
           : provider === "openrouter"
             ? apiKeys?.openrouter
-            : provider === "groq"
-              ? apiKeys?.groq
-              : apiKeys?.ollama;
+            : apiKeys?.ollama;
     if (key === currentKey) {
       if (provider === "openai") setSavingOpenai(false);
       else if (provider === "anthropic") setSavingAnthropic(false);
       else if (provider === "openrouter") setSavingOpenrouter(false);
-      else if (provider === "groq") setSavingGroq(false);
       else setSavingOllama(false);
       return;
     }
@@ -162,15 +160,12 @@ export function ModelSettings() {
             ? "Anthropic"
             : provider === "openrouter"
               ? "OpenRouter"
-              : provider === "groq"
-                ? "Groq"
-                : "Ollama";
+              : "Ollama";
       toast.error(`Failed to save ${providerName} API key`);
     } finally {
       if (provider === "openai") setSavingOpenai(false);
       else if (provider === "anthropic") setSavingAnthropic(false);
       else if (provider === "openrouter") setSavingOpenrouter(false);
-      else if (provider === "groq") setSavingGroq(false);
       else setSavingOllama(false);
     }
   };
@@ -197,12 +192,6 @@ export function ModelSettings() {
     200
   );
 
-  const { debouncedCallback: debouncedSaveGroq, cancel: cancelGroqSave } =
-    useDebounceCallbackWithCancel(
-      (key: string) => saveApiKey("groq", key),
-      200
-    );
-
   const { debouncedCallback: debouncedSaveOllama, cancel: cancelOllamaSave } =
     useDebounceCallbackWithCancel(
       (key: string) => saveApiKey("ollama", key),
@@ -227,12 +216,6 @@ export function ModelSettings() {
     debouncedSaveOpenrouter(value);
   };
 
-  const handleGroqChange = (value: string) => {
-    setGroqInput(value);
-    setSavingGroq(true);
-    debouncedSaveGroq(value);
-  };
-
   const handleOllamaChange = (value: string) => {
     setOllamaInput(value);
     setSavingOllama(true);
@@ -240,7 +223,7 @@ export function ModelSettings() {
   };
 
   const handleClearApiKey = async (
-    provider: "openai" | "anthropic" | "openrouter" | "groq" | "ollama"
+    provider: "openai" | "anthropic" | "openrouter" | "ollama"
   ) => {
     try {
       await clearApiKeyMutation.mutateAsync(provider);
@@ -256,10 +239,6 @@ export function ModelSettings() {
         setOpenrouterInput("");
         cancelOpenrouterSave();
         setSavingOpenrouter(false);
-      } else if (provider === "groq") {
-        setGroqInput("");
-        cancelGroqSave();
-        setSavingGroq(false);
       } else {
         setOllamaInput("");
         cancelOllamaSave();
@@ -283,9 +262,7 @@ export function ModelSettings() {
             ? "Anthropic"
             : provider === "openrouter"
               ? "OpenRouter"
-              : provider === "groq"
-                ? "Groq"
-                : "Ollama";
+              : "Ollama";
       toast.error(`Failed to clear ${providerName} API key`);
     }
   };
@@ -320,6 +297,23 @@ export function ModelSettings() {
               value={openaiInput}
               onChange={(e) => handleOpenaiChange(e.target.value)}
             />
+            {apiKeys?.openai && apiKeys.openai.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    className="text-muted-foreground hover:text-foreground"
+                    size="icon"
+                    onClick={() => setConfigModalProvider("openai")}
+                  >
+                    <Settings className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="end">
+                  Configure OpenAI models
+                </TooltipContent>
+              </Tooltip>
+            )}
             {apiKeys?.openai && apiKeys.openai.length > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -367,6 +361,23 @@ export function ModelSettings() {
                     variant="secondary"
                     className="text-muted-foreground hover:text-foreground"
                     size="icon"
+                    onClick={() => setConfigModalProvider("anthropic")}
+                  >
+                    <Settings className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="end">
+                  Configure Anthropic models
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {apiKeys?.anthropic && apiKeys.anthropic.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    className="text-muted-foreground hover:text-foreground"
+                    size="icon"
                     onClick={() => handleClearApiKey("anthropic")}
                     disabled={clearApiKeyMutation.isPending}
                   >
@@ -407,6 +418,23 @@ export function ModelSettings() {
                     variant="secondary"
                     className="text-muted-foreground hover:text-foreground"
                     size="icon"
+                    onClick={() => setConfigModalProvider("openrouter")}
+                  >
+                    <Settings className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="end">
+                  Configure OpenRouter models
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {apiKeys?.openrouter && apiKeys.openrouter.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    className="text-muted-foreground hover:text-foreground"
+                    size="icon"
                     onClick={() => handleClearApiKey("openrouter")}
                     disabled={clearApiKeyMutation.isPending}
                   >
@@ -415,46 +443,6 @@ export function ModelSettings() {
                 </TooltipTrigger>
                 <TooltipContent side="top" align="end">
                   Clear OpenRouter API key
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        </div>
-
-        {/* Groq Section */}
-        <div className="flex w-full flex-col gap-2">
-          <Label
-            htmlFor="groq-key"
-            className="flex h-5 items-center gap-2 font-normal"
-          >
-            Groq API Key
-            {savingGroq && (
-              <Loader2 className="text-muted-foreground size-3 animate-spin" />
-            )}
-            {renderValidationIcon("groq")}
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              id="groq-key"
-              placeholder="gsk_placeholder..."
-              value={groqInput}
-              onChange={(e) => handleGroqChange(e.target.value)}
-            />
-            {apiKeys?.groq && apiKeys.groq.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    className="text-muted-foreground hover:text-foreground"
-                    size="icon"
-                    onClick={() => handleClearApiKey("groq")}
-                    disabled={clearApiKeyMutation.isPending}
-                  >
-                    <Trash className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="end">
-                  Clear Groq API key
                 </TooltipContent>
               </Tooltip>
             )}
@@ -487,6 +475,23 @@ export function ModelSettings() {
                     variant="secondary"
                     className="text-muted-foreground hover:text-foreground"
                     size="icon"
+                    onClick={() => setConfigModalProvider("ollama")}
+                  >
+                    <Settings className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="end">
+                  Configure Ollama models
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {apiKeys?.ollama && apiKeys.ollama.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    className="text-muted-foreground hover:text-foreground"
+                    size="icon"
                     onClick={() => handleClearApiKey("ollama")}
                     disabled={clearApiKeyMutation.isPending}
                   >
@@ -511,6 +516,12 @@ export function ModelSettings() {
           Please ensure your keys have high enough rate limits for the agent!
         </span>
       </div>
+
+      <ProviderConfigModal
+        open={!!configModalProvider}
+        onOpenChange={(open) => !open && setConfigModalProvider(null)}
+        provider={configModalProvider || ""}
+      />
     </>
   );
 }

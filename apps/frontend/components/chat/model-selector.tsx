@@ -95,7 +95,9 @@ export function ModelSelector({
                 onClick={() => handleSelectModel(model.id as ModelType)}
               >
                 <Square className="size-4" />
-                {model.name}
+                <div className="flex flex-col items-start">
+                  <span>{model.name}</span>
+                </div>
               </Button>
             ))
           ) : (
