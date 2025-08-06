@@ -1,7 +1,6 @@
 "use client";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2 } from "lucide-react";
 import { ModelType, ApiKeyProvider, API_KEY_PROVIDER_NAMES } from "@repo/types";
 import { useState, useEffect } from "react";
 import {
