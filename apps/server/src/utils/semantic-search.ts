@@ -65,7 +65,7 @@ export async function performSemanticSearch(
       query,
       searchTerms: query.split(/\s+/),
       message: isConnectionError 
-        ? `Semantic search is currently unavailable. Please try again later or contact support if the issue persists.`
+        ? `Semantic search is currently unavailable. Please try again later.`
         : `Semantic search failed for "${query}": ${errorMessage}`,
       error: errorMessage,
     };
