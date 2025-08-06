@@ -663,6 +663,24 @@ export function useTaskSocket(taskId: string | undefined) {
           ["task-messages", taskId],
           (old) => {
             const currentMessages = old?.messages || [];
+
+            // Check if we already have a temp message for this queued action
+            const hasTempMessage = currentMessages.some(
+              (msg) =>
+                msg.id.startsWith("temp-queued-") &&
+                msg.content === data.message.trim() &&
+                msg.role === "user"
+            );
+
+            if (hasTempMessage) {
+              return (
+                old || {
+                  messages: currentMessages,
+                  mostRecentMessageModel: data.model,
+                }
+              );
+            }
+
             const updatedMessages = [...currentMessages, optimisticMessage];
 
             return {

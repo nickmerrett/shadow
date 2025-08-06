@@ -22,7 +22,7 @@ export function QueuedAction() {
     <div className="bg-card border-border absolute -top-12 left-0 flex w-full items-center justify-between gap-2 rounded-lg border py-1.5 pl-3 pr-1.5 text-sm">
       <div className="flex items-center gap-1.5 overflow-hidden">
         <IconComponent className="size-4" />
-        <span className="select-none">{label}</span>
+        <span className="select-none whitespace-nowrap">{label}</span>
         <span className="text-muted-foreground truncate">
           {queuedAction.message}
         </span>
