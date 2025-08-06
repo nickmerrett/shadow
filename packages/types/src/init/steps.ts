@@ -19,15 +19,15 @@ export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
  */
 export function getStepsForMode(
   mode: "local" | "remote",
-  options?: { enableDeepWiki?: boolean },
+  options?: { enableShadowWiki?: boolean },
 ): InitStatus[] {
   const steps: InitStatus[] = [];
-  const enableDeepWiki = options?.enableDeepWiki ?? true; // Default to true
+  const enableShadowWiki = options?.enableShadowWiki ?? true; // Default to true
 
   if (mode === "remote") {
     steps.push("CREATE_VM", "WAIT_VM_READY", "VERIFY_VM_WORKSPACE");
 
-    if (enableDeepWiki) {
+    if (enableShadowWiki) {
       steps.push("GENERATE_SHADOW_WIKI");
     }
 
@@ -35,7 +35,7 @@ export function getStepsForMode(
   } else {
     steps.push("PREPARE_WORKSPACE");
 
-    if (enableDeepWiki) {
+    if (enableShadowWiki) {
       steps.push("GENERATE_SHADOW_WIKI");
     }
 
