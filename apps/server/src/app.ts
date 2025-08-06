@@ -1,6 +1,6 @@
 import { router as IndexingRouter } from "@/indexing/index";
 import { prisma } from "@repo/db";
-import { AvailableModels, ModelType, ModelInfos } from "@repo/types";
+import { AvailableModels, ModelType } from "@repo/types";
 import { parseApiKeysFromCookies } from "./utils/cookie-parser";
 import cors from "cors";
 import express from "express";
