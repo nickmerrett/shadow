@@ -37,7 +37,7 @@ export function StackedPRCard({ stackedTask }: { stackedTask: StackedTask }) {
           <div className="text-muted-foreground flex items-center gap-1.5 text-[13px]">
             <div className="flex items-center gap-1.5">
               <StatusIcon
-                className={cn("size-3.5", statusConfig.className, {
+                className={cn("size-3.5 shrink-0", statusConfig.className, {
                   "animate-spin": isLoading && status === "INITIALIZING",
                 })}
               />
@@ -48,10 +48,10 @@ export function StackedPRCard({ stackedTask }: { stackedTask: StackedTask }) {
 
             {shadowBranch && (
               <>
-                <Circle className="fill-muted-foreground size-1 opacity-50" />
-                <GitBranchPlus className="size-3.5" />
+                <Circle className="fill-muted-foreground size-1 shrink-0 opacity-50" />
+                <GitBranchPlus className="size-3.5 shrink-0" />
 
-                <span>{shadowBranch}</span>
+                <span className="truncate">{shadowBranch}</span>
               </>
             )}
           </div>
