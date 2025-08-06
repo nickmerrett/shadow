@@ -6,6 +6,7 @@ import { Check } from "lucide-react";
 import { LogoHover } from "../graphics/logo/logo-hover";
 import { useEffect, useState } from "react";
 import { useTaskStatus } from "@/hooks/use-task-status";
+import { useUserSettings } from "@/hooks/use-user-settings";
 
 // height of each step
 const LINE_HEIGHT = 20;
@@ -22,6 +23,7 @@ export default function InitializingAnimation({
 }) {
   const { data } = useTaskStatus(taskId);
   const { status, initStatus } = data || {};
+  const { data: userSettings } = useUserSettings();
 
   const [topSpacing, setTopSpacing] = useState(0);
   useEffect(() => {
@@ -36,7 +38,10 @@ export default function InitializingAnimation({
       ? "remote"
       : "local";
 
-  const steps = getStepsForMode(mode);
+  // Use user settings to determine which steps to show
+  const steps = getStepsForMode(mode, {
+    enableDeepWiki: userSettings?.enableDeepWiki ?? true,
+  });
 
   let currentStepIndex = 0;
 
