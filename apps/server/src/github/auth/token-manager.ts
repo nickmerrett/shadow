@@ -49,6 +49,10 @@ export class GitHubTokenManager {
 
     const data = (await response.json()) as GitHubTokenResponse;
     if (!data.access_token || !data.refresh_token) {
+      console.error(
+        `[TOKEN_MANAGER] GitHub token refresh failed: missing access or refresh token`,
+        data
+      );
       throw new Error(
         "GitHub token refresh failed: missing access or refresh token"
       );

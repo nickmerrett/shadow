@@ -36,13 +36,29 @@ export class WorkspaceService {
     // Configure Git to trust the workspace directory
     // This fixes "dubious ownership" errors when Git operations run as different user
     try {
-      await execAsync(`git config --global --add safe.directory ${this.workspaceDir}`);
+      await execAsync(
+        `git config --global --add safe.directory ${this.workspaceDir}`
+      );
       logger.info(`Configured Git safe directory: ${this.workspaceDir}`);
     } catch (error) {
       // Log warning but don't fail startup - Git operations may still work
-      logger.warn("Failed to configure Git safe directory", { 
+      logger.warn("Failed to configure Git safe directory", {
         error: error instanceof Error ? error.message : String(error),
-        workspaceDir: this.workspaceDir 
+        workspaceDir: this.workspaceDir,
+      });
+    }
+
+    // Configure Git user as Shadow (Shadow will be the author, user will be co-author)
+    try {
+      await execAsync('git config --global user.name "Shadow"');
+      await execAsync(
+        'git config --global user.email "noreply@shadowrealm.ai"'
+      );
+      logger.info("Configured Git user as Shadow");
+    } catch (error) {
+      // Log warning but don't fail startup - Git operations may still work
+      logger.warn("Failed to configure Git user", {
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -57,7 +73,9 @@ export class WorkspaceService {
       // Get workspace size using du command
       let sizeBytes = 0;
       try {
-        const { stdout } = await execAsync("du -sb .", { cwd: this.workspaceDir });
+        const { stdout } = await execAsync("du -sb .", {
+          cwd: this.workspaceDir,
+        });
         const match = stdout.match(/^(\d+)/);
         sizeBytes = match?.[1] ? parseInt(match[1], 10) : 0;
       } catch (error) {
@@ -97,7 +115,10 @@ export class WorkspaceService {
     // Security check: ensure path is within workspace directory
     // Use path.relative() to detect traversal attempts, including via symlinks
     const relativeToWorkspace = path.relative(this.workspaceDir, resolvedPath);
-    if (relativeToWorkspace.startsWith('..') || path.isAbsolute(relativeToWorkspace)) {
+    if (
+      relativeToWorkspace.startsWith("..") ||
+      path.isAbsolute(relativeToWorkspace)
+    ) {
       throw new Error("Path traversal detected");
     }
 

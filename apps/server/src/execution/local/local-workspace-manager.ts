@@ -197,10 +197,10 @@ export class LocalWorkspaceManager implements WorkspaceManager {
         throw new Error(`User not found: ${userId}`);
       }
 
-      // Configure git user
+      // Configure git user as Shadow (Shadow will be the author, user will be co-author)
       await gitManager.configureGitUser({
-        name: user.name,
-        email: user.email,
+        name: "Shadow",
+        email: "noreply@shadowrealm.ai",
       });
 
       // Create and checkout shadow branch, get the base commit SHA

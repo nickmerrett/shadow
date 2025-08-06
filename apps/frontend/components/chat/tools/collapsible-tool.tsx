@@ -114,7 +114,7 @@ const ToolWrapper = ({
         size="sm"
         variant="ghost"
         className={cn(
-          "text-muted-foreground hover:text-foreground group/tool w-full justify-between gap-2 overflow-hidden text-[13px] font-normal [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:shrink-0 [&_svg]:opacity-70",
+          "text-muted-foreground hover:text-foreground group/tool px-3! w-full justify-between gap-2 overflow-hidden text-[13px] font-normal [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:shrink-0 [&_svg]:opacity-70",
           className
         )}
         // If an onClick is passed in, do that instead of toggling the expanded state
@@ -139,7 +139,7 @@ const ToolWrapper = ({
   return (
     <div
       className={cn(
-        "text-muted-foreground flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-[13px] [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:shrink-0 [&_svg]:opacity-70",
+        "text-muted-foreground flex h-7 w-full items-center gap-2 rounded-md px-3 text-left text-[13px] [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:shrink-0 [&_svg]:opacity-70",
         className
       )}
     >
