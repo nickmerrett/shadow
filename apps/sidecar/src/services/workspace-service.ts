@@ -23,7 +23,7 @@ export class WorkspaceService {
   }
 
   /**
-   * Ensure the workspace directory exists
+   * Ensure the workspace directory exists and configure Git safe directory
    */
   async ensureWorkspace(): Promise<void> {
     try {
@@ -31,6 +31,19 @@ export class WorkspaceService {
     } catch {
       logger.info(`Creating workspace directory: ${this.workspaceDir}`);
       await fs.mkdir(this.workspaceDir, { recursive: true });
+    }
+
+    // Configure Git to trust the workspace directory
+    // This fixes "dubious ownership" errors when Git operations run as different user
+    try {
+      await execAsync(`git config --global --add safe.directory ${this.workspaceDir}`);
+      logger.info(`Configured Git safe directory: ${this.workspaceDir}`);
+    } catch (error) {
+      // Log warning but don't fail startup - Git operations may still work
+      logger.warn("Failed to configure Git safe directory", { 
+        error: error instanceof Error ? error.message : String(error),
+        workspaceDir: this.workspaceDir 
+      });
     }
   }
 

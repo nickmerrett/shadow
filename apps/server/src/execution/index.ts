@@ -4,7 +4,6 @@
  */
 
 import config from "../config";
-import { sanitizeTaskIdForK8s } from "../utils/kubernetes";
 import { AgentMode } from "@repo/types";
 import { ToolExecutor } from "./interfaces/tool-executor";
 import { WorkspaceManager } from "./interfaces/workspace-manager";
@@ -12,27 +11,41 @@ import { LocalToolExecutor } from "./local/local-tool-executor";
 import { LocalWorkspaceManager } from "./local/local-workspace-manager";
 import { RemoteToolExecutor } from "./remote/remote-tool-executor";
 import { RemoteWorkspaceManager } from "./remote/remote-workspace-manager";
+import { RemoteVMRunner } from "./remote/remote-vm-runner";
 
 /**
  * Create a tool executor based on the configured agent mode
+ * For remote mode, uses dynamic pod discovery to find actual running VMs
  */
-export function createToolExecutor(
+export async function createToolExecutor(
   taskId: string,
   workspacePath?: string,
   mode?: AgentMode
-): ToolExecutor {
+): Promise<ToolExecutor> {
   const agentMode = mode || config.agentMode;
 
   if (agentMode === "local") {
     return new LocalToolExecutor(taskId, workspacePath);
   }
 
-  // For remote mode, workspacePath is the filesystem path inside the container
-  // Always use service discovery URL for sidecar communication in remote mode
-  // Sanitize task ID for DNS compliance (replace underscores with hyphens, etc.)
-  const sanitizedTaskId = sanitizeTaskIdForK8s(taskId);
-  const sidecarUrl = `http://shadow-vm-${sanitizedTaskId}.${config.kubernetesNamespace}.svc.cluster.local:8080`;
-  return new RemoteToolExecutor(taskId, sidecarUrl);
+  // For remote mode, use dynamic pod discovery to find the actual running VM
+  try {
+    const vmRunner = new RemoteVMRunner();
+    const pod = await vmRunner.getVMPodStatus(taskId);
+    const podIP = pod.status?.podIP;
+
+    if (!podIP) {
+      throw new Error(`Pod IP not available for task ${taskId}. Pod may not be running.`);
+    }
+
+    // Use direct pod IP connectivity (same approach as working file operations)
+    const sidecarUrl = `http://${podIP}:8080`;
+    console.log(`[CREATE_TOOL_EXECUTOR] Using dynamic pod IP: ${sidecarUrl}`);
+    return new RemoteToolExecutor(taskId, sidecarUrl);
+  } catch (error) {
+    console.error(`[CREATE_TOOL_EXECUTOR] Failed to find pod for task ${taskId}:`, error);
+    throw new Error(`Cannot create remote tool executor for task ${taskId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 /**

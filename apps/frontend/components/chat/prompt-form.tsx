@@ -423,8 +423,8 @@ export function PromptForm({
       <form
         onSubmit={handleSubmit}
         className={cn(
-          "bg-background relative z-0 flex w-full max-w-lg flex-col",
-          !isHome && "sticky bottom-0 pb-6"
+          "relative z-0 flex w-full max-w-lg flex-col",
+          !isHome && "bg-background sticky bottom-0 pb-6"
         )}
       >
         {!isHome && (
@@ -443,6 +443,7 @@ export function PromptForm({
             isPending && "opacity-50"
           )}
         >
+          {/* Message options */}
           {!isHome && (
             <div
               className={cn(
@@ -504,8 +505,15 @@ export function PromptForm({
             </div>
           )}
 
+          <div className="bg-background absolute inset-px -z-10 rounded-[calc(var(--radius)+1px)]" />
+          {isHome && (
+            <div className="absolute inset-0 -z-20 overflow-hidden rounded-[calc(var(--radius)+1px)]">
+              <div className="new-task-pulse rotate-left absolute top-1/2 aspect-square w-full -translate-y-1/2"></div>
+              <div className="new-task-pulse rotate-right absolute top-1/2 aspect-square w-full -translate-y-1/2"></div>
+            </div>
+          )}
+
           <div className="from-card/10 to-card relative flex min-h-24 flex-col rounded-lg bg-gradient-to-t">
-            <div className="bg-background absolute inset-0 -z-20 rounded-[calc(var(--radius)+1px)]" />
             <Textarea
               ref={textareaRef}
               autoFocus

@@ -63,7 +63,7 @@ async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
 
     // Create executor based on current mode
     const agentMode = config.agentMode;
-    const executor = createToolExecutor(
+    const executor = await createToolExecutor(
       taskId,
       task.workspacePath || undefined,
       agentMode
@@ -79,7 +79,7 @@ async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
         throw new Error(`Sidecar URL not available for remote task ${taskId}`);
       }
 
-      const response = await fetch(`${sidecarUrl}/terminal/history?count=100`);
+      const response = await fetch(`${sidecarUrl}/api/terminal/history?count=100`);
       if (!response.ok) {
         throw new Error(`Sidecar terminal API error: ${response.status}`);
       }
@@ -108,7 +108,7 @@ async function clearTerminal(taskId: string): Promise<void> {
     }
 
     const agentMode = config.agentMode;
-    const executor = createToolExecutor(
+    const executor = await createToolExecutor(
       taskId,
       task.workspacePath || undefined,
       agentMode
@@ -125,7 +125,7 @@ async function clearTerminal(taskId: string): Promise<void> {
       }
 
       // Call sidecar terminal clear API
-      const response = await fetch(`${sidecarUrl}/terminal/clear`, {
+      const response = await fetch(`${sidecarUrl}/api/terminal/clear`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -166,7 +166,7 @@ function startTerminalPolling(taskId: string) {
       }
 
       const agentMode = config.agentMode;
-      const executor = createToolExecutor(
+      const executor = await createToolExecutor(
         taskId,
         task.workspacePath || undefined,
         agentMode
@@ -188,7 +188,7 @@ function startTerminalPolling(taskId: string) {
 
         // Poll sidecar for new entries
         const response = await fetch(
-          `${sidecarUrl}/terminal/history?sinceId=${lastSeenId}`
+          `${sidecarUrl}/api/terminal/history?sinceId=${lastSeenId}`
         );
         if (response.ok) {
           const data = (await response.json()) as TerminalHistoryResponse;

@@ -155,6 +155,37 @@ export class StreamProcessor {
         );
       }
 
+      // Pre-stream validation logs
+      console.log("[DEBUG_STREAM] Model instance type:", typeof modelInstance);
+      console.log(
+        "[DEBUG_STREAM] Model instance keys:",
+        Object.keys(modelInstance || {})
+      );
+
+      // Log API keys validation
+      console.log("[DEBUG_STREAM] API keys present:", {
+        anthropic: !!userApiKeys.anthropic,
+        openai: !!userApiKeys.openai,
+        anthropicLength: userApiKeys.anthropic?.length || 0,
+      });
+
+      // Log streamConfig validation
+      console.log(
+        "[DEBUG_STREAM] StreamConfig keys:",
+        Object.keys(streamConfig)
+      );
+      console.log(
+        "[DEBUG_STREAM] StreamConfig model:",
+        streamConfig.model?.constructor?.name
+      );
+      console.log(
+        "[DEBUG_STREAM] StreamConfig messages length:",
+        streamConfig.messages?.length
+      );
+      console.log(
+        "[DEBUG_STREAM] StreamConfig has tools:",
+        !!streamConfig.tools
+      );
       // Stream creation with error handling
       let result;
       try {

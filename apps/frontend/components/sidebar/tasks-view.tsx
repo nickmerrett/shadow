@@ -248,7 +248,7 @@ export function SidebarTasksView({
       {/* Error State */}
       {error && (
         <SidebarGroup>
-          <SidebarGroupLabel className="text-red-400 hover:text-red-400">
+          <SidebarGroupLabel className="text-destructive hover:text-destructive">
             Error: {error instanceof Error ? error.message : String(error)}
           </SidebarGroupLabel>
         </SidebarGroup>
