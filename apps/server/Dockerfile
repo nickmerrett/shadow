@@ -76,6 +76,7 @@ RUN addgroup -g 1001 server && \
 # Copy built application and dependencies
 COPY --from=installer --chown=server:server /app/apps/server/dist ./apps/server/dist
 COPY --from=installer --chown=server:server /app/apps/server/package.json ./apps/server/package.json
+COPY --from=installer --chown=server:server /app/apps/server/node_modules ./apps/server/node_modules
 COPY --from=installer --chown=server:server /app/node_modules ./node_modules
 COPY --from=installer --chown=server:server /app/packages ./packages
 
