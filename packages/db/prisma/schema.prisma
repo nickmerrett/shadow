@@ -295,7 +295,7 @@ model UserSettings {
   userId          String   @unique
   memoriesEnabled Boolean  @default(true)
   autoPullRequest Boolean  @default(false)
-  enableDeepWiki  Boolean  @default(false)
+  enableDeepWiki  Boolean  @default(true)
   enableIndexing  Boolean  @default(false)
   selectedModels  String[] @default([])
   createdAt       DateTime @default(now())
