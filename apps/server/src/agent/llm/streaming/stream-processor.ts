@@ -232,6 +232,8 @@ export class StreamProcessor {
       // Result object analysis - use proper property detection instead of Object.keys()
       console.log("[DEBUG_STREAM] Result object analysis:");
       console.log("[DEBUG_STREAM] Result type:", typeof result);
+      console.log("[DEBUG_STREAM] Result is null/undefined:", result == null);
+      console.log("[DEBUG_STREAM] Result constructor:", result?.constructor?.name);
 
       // Object.keys() doesn't show non-enumerable properties - check directly
       console.log("[DEBUG_STREAM] fullStream exists:", !!result.fullStream);
@@ -251,6 +253,12 @@ export class StreamProcessor {
         "[DEBUG_STREAM] All property names:",
         Object.keys(descriptors)
       );
+      
+      // Additional debugging for production issue
+      console.log("[DEBUG_STREAM] Result JSON (first 200 chars):", JSON.stringify(result).substring(0, 200));
+      console.log("[DEBUG_STREAM] Result prototype:", Object.getPrototypeOf(result)?.constructor?.name);
+      console.log("[DEBUG_STREAM] Result own properties:", Object.getOwnPropertyNames(result));
+      console.log("[DEBUG_STREAM] Result symbols:", Object.getOwnPropertySymbols(result).map(s => s.toString()));
 
       // Note: StreamTextResult doesn't have an error property
       // Errors are handled through the stream itself or thrown during creation
