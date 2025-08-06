@@ -3,7 +3,7 @@ export interface LLMConfig {
   maxTokens?: number;
   temperature?: number;
   systemPrompt?: string;
-  provider: "anthropic" | "openai";
+  provider: "anthropic" | "openai" | "openrouter";
 }
 
 // Model Selection
@@ -17,6 +17,10 @@ export const AvailableModels = {
   O3: "o3",
   GPT_4_1: "gpt-4.1-2025-04-14",
   GPT_4O: "gpt-4o",
+  // OpenRouter models
+  OPENROUTER_HORIZON_BETA: "openrouter/horizon-beta",
+  OPENAI_GPT_OSS_120B: "openai/gpt-oss-120b",
+  OPENAI_GPT_OSS_20B: "openai/gpt-oss-20b",
 } as const;
 
 export type ModelType = (typeof AvailableModels)[keyof typeof AvailableModels];
@@ -24,7 +28,7 @@ export type ModelType = (typeof AvailableModels)[keyof typeof AvailableModels];
 export interface ModelInfo {
   id: ModelType;
   name: string;
-  provider: "anthropic" | "openai";
+  provider: "anthropic" | "openai" | "openrouter";
 }
 
 export const ModelInfos: Record<ModelType, ModelInfo> = {
@@ -63,9 +67,26 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "o3",
     provider: "openai",
   },
+  [AvailableModels.OPENROUTER_HORIZON_BETA]: {
+    id: AvailableModels.OPENROUTER_HORIZON_BETA,
+    name: "Horizon Beta",
+    provider: "openrouter",
+  },
+  [AvailableModels.OPENAI_GPT_OSS_120B]: {
+    id: AvailableModels.OPENAI_GPT_OSS_120B,
+    name: "GPT OSS 120B",
+    provider: "openrouter",
+  },
+  [AvailableModels.OPENAI_GPT_OSS_20B]: {
+    id: AvailableModels.OPENAI_GPT_OSS_20B,
+    name: "GPT OSS 20B",
+    provider: "openrouter",
+  },
 };
 
-export function getModelProvider(model: ModelType): "anthropic" | "openai" {
+export function getModelProvider(
+  model: ModelType
+): "anthropic" | "openai" | "openrouter" {
   return ModelInfos[model].provider;
 }
 
@@ -78,6 +99,8 @@ export function getMiniModelForProvider(mainModel: ModelType): ModelType {
 
   if (provider === "openai") {
     return AvailableModels.GPT_4O_MINI;
+  } else if (provider === "openrouter") {
+    return AvailableModels.OPENAI_GPT_OSS_20B;
   } else {
     return AvailableModels.CLAUDE_HAIKU_3_5;
   }
