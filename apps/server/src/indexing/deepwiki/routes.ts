@@ -37,8 +37,7 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
     // Get or create model context for this task
     const modelContext = await modelContextService.refreshContext(
       taskId,
-      req.headers.cookie,
-      task.userId
+      req.headers.cookie
     );
 
     if (!modelContext) {
@@ -51,8 +50,12 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
     // Validate that user has required API keys
     if (!modelContext.validateAccess()) {
       const provider = modelContext.getProvider();
-      const providerName = provider === "anthropic" ? "Anthropic" : 
-                       provider === "openrouter" ? "OpenRouter" : "OpenAI";
+      const providerName =
+        provider === "anthropic"
+          ? "Anthropic"
+          : provider === "openrouter"
+            ? "OpenRouter"
+            : "OpenAI";
       return res.status(400).json({
         error: `${providerName} API key required. Please configure your API key in settings.`,
       });

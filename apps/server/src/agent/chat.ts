@@ -1481,8 +1481,7 @@ export class ChatService {
       const context = await modelContextService.createContext(
         parentTaskId, // Use parent task context for API keys
         undefined, // No cookies in server context
-        model,
-        userId
+        model
       );
 
       // Generate title and branch for the new task
@@ -1571,8 +1570,7 @@ export class ChatService {
       const newTaskContext = await modelContextService.createContext(
         taskId,
         undefined, // No cookies in server context
-        model,
-        _userId
+        model
       );
 
       // Start task initialization in background (non-blocking)

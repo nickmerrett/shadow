@@ -14,6 +14,24 @@ import { TaskModelContext } from "@/services/task-model-context";
 // Configuration
 const TEMP = 0.15;
 
+/**
+ * Get hardcoded mini model for each provider
+ */
+function getHardcodedMiniModel(
+  provider: "anthropic" | "openai" | "openrouter"
+): ModelType {
+  switch (provider) {
+    case "anthropic":
+      return "claude-3-5-haiku-20241022";
+    case "openai":
+      return "gpt-4o-mini";
+    case "openrouter":
+      return "openai/gpt-oss-20b";
+    default:
+      return "claude-3-5-haiku-20241022"; // fallback
+  }
+}
+
 // Processing statistics
 interface ProcessingStats {
   filesProcessed: number;
@@ -552,7 +570,7 @@ Include only:
 Use bullet points, fragments, abbreviations. Directory: ${node.relPath}`;
 
   const userContent = childSummaries.join("\n---\n");
-  
+
   // Additional safety check for empty content after join
   if (!userContent || userContent.trim().length === 0) {
     return `Directory contains no analyzable content: ${node.relPath}`;
@@ -591,7 +609,7 @@ Include only the most essential:
 Use bullet points and fragments. Ultra-concise technical descriptions only.`;
 
   const userContent = childSummaries.join("\n---\n");
-  
+
   // Additional safety check for empty content after join
   if (!userContent || userContent.trim().length === 0) {
     return `Project contains no analyzable content: ${node.name}`;
@@ -631,8 +649,14 @@ export async function runDeepWiki(
   } else {
     // Legacy mode: create a temporary context from userApiKeys
     // Use default models for backward compatibility
-    const defaultModel = contextOrApiKeys.openai ? "gpt-4o" : "claude-sonnet-4-20250514";
-    context = new TaskModelContext(taskId, defaultModel as ModelType, contextOrApiKeys);
+    const defaultModel = contextOrApiKeys.openai
+      ? "gpt-4o"
+      : "claude-sonnet-4-20250514";
+    context = new TaskModelContext(
+      taskId,
+      defaultModel as ModelType,
+      contextOrApiKeys
+    );
   }
 
   // Determine which models to use based on provided options or context defaults
@@ -644,9 +668,9 @@ export async function runDeepWiki(
     mainModel = options.model;
     miniModel = options.modelMini;
   } else {
-    // Use context-aware model selection
+    // Use context-aware model selection with hardcoded mini models
     mainModel = context.getModelForOperation("pr-gen"); // Use PR generation model for main analysis
-    miniModel = context.getModelForOperation("commit-msg"); // Use commit message model for mini analysis
+    miniModel = getHardcodedMiniModel(context.getProvider()); // Use hardcoded mini model
   }
 
   // Validate that we have the required API keys through context
@@ -678,16 +702,12 @@ export async function runDeepWiki(
     const node = tree.nodes[nid]!;
     for (const rel of node.files || []) {
       fileTasks.push(
-        summarizeFile(
-          repoPath,
-          rel,
-          modelProvider,
-          context,
-          miniModel
-        ).then((summary) => {
-          fileCache[rel] = summary;
-          stats.filesProcessed++;
-        })
+        summarizeFile(repoPath, rel, modelProvider, context, miniModel).then(
+          (summary) => {
+            fileCache[rel] = summary;
+            stats.filesProcessed++;
+          }
+        )
       );
     }
   }

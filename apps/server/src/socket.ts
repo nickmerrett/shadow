@@ -418,16 +418,18 @@ export function createSocketServer(
         const modelContext = await modelContextService.createContext(
           data.taskId,
           socket.handshake.headers.cookie,
-          data.llmModel as ModelType,
-          task?.userId
+          data.llmModel as ModelType
         );
 
         // Validate that user has the required API key for the selected model
         if (!modelContext.validateAccess()) {
           const provider = modelContext.getProvider();
           const providerName =
-            provider === "anthropic" ? "Anthropic" : 
-            provider === "openrouter" ? "OpenRouter" : "OpenAI";
+            provider === "anthropic"
+              ? "Anthropic"
+              : provider === "openrouter"
+                ? "OpenRouter"
+                : "OpenAI";
           socket.emit("message-error", {
             error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
           });
@@ -515,16 +517,18 @@ export function createSocketServer(
         const modelContext = await modelContextService.createContext(
           data.taskId,
           socket.handshake.headers.cookie,
-          data.llmModel as ModelType,
-          task?.userId
+          data.llmModel as ModelType
         );
 
         // Validate that user has the required API key for the selected model
         if (!modelContext.validateAccess()) {
           const provider = modelContext.getProvider();
           const providerName =
-            provider === "anthropic" ? "Anthropic" : 
-            provider === "openrouter" ? "OpenRouter" : "OpenAI";
+            provider === "anthropic"
+              ? "Anthropic"
+              : provider === "openrouter"
+                ? "OpenRouter"
+                : "OpenAI";
           socket.emit("message-error", {
             error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
           });
