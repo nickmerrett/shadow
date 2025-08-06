@@ -65,25 +65,11 @@ export class ModelContextService {
     taskId: string,
     fallbackApiKeys?: ApiKeys
   ): Promise<TaskModelContext | null> {
-    console.log(`[API_KEY_DEBUG] Getting context for task ${taskId}`);
-
-    // Check cache first
     const cached = this.getCachedContext(taskId);
     if (cached) {
-      console.log(
-        `[API_KEY_DEBUG] Found cached context for ${taskId}, validates: ${cached.validateAccess()}`
-      );
-      console.log(
-        `[API_KEY_DEBUG] Cached context keys: ${JSON.stringify(Object.keys(cached.getApiKeys()))}`
-      );
       return cached;
     }
 
-    console.log(
-      `[API_KEY_DEBUG] No cached context for ${taskId}, fetching from DB`
-    );
-
-    // Fetch from database
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: { mainModel: true },
@@ -93,7 +79,6 @@ export class ModelContextService {
       return null;
     }
 
-    // If we have fallback API keys, create context
     if (fallbackApiKeys) {
       const context = new TaskModelContext(
         taskId,
