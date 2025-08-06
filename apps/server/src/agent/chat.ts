@@ -1584,7 +1584,13 @@ export class ChatService {
       });
 
       // Trigger task initialization (similar to the backend initiate endpoint)
-      await this.initializeStackedTask(newTaskId, message, model, userId);
+      await this.initializeStackedTask(
+        newTaskId,
+        message,
+        model,
+        userId,
+        parentTaskId
+      );
 
       console.log(
         `[CHAT] Successfully created stacked task ${newTaskId} from parent ${parentTaskId}`
@@ -1612,7 +1618,8 @@ export class ChatService {
     taskId: string,
     message: string,
     model: ModelType,
-    _userId: string
+    _userId: string,
+    parentTaskId: string
   ): Promise<void> {
     try {
       console.log(`[CHAT] Initializing stacked task ${taskId}`);
@@ -1621,12 +1628,20 @@ export class ChatService {
 
       await updateTaskStatus(taskId, "RUNNING", "CHAT");
 
-      // Create model context for the new task
-      const newTaskContext = await modelContextService.createContext(
-        taskId,
-        undefined, // No cookies in server context
-        model
-      );
+      // Get parent's API keys from cached context
+      const parentContext =
+        await modelContextService.getContextForTask(parentTaskId);
+      if (!parentContext) {
+        throw new Error(`Parent task context not found for ${parentTaskId}`);
+      }
+
+      // Create new task context inheriting parent's API keys
+      const newTaskContext =
+        await modelContextService.createContextWithInheritedKeys(
+          taskId,
+          model,
+          parentContext.getApiKeys()
+        );
 
       // Start task initialization in background (non-blocking)
       // This will handle workspace setup, VM creation, etc.
@@ -1644,15 +1659,15 @@ export class ChatService {
           );
         });
 
-      // Start the first message processing (similar to backend initiate endpoint)
       setTimeout(async () => {
         try {
           await this.processUserMessage({
             taskId,
             userMessage: message,
             context: newTaskContext,
-            workspacePath: undefined, // Will be set during initialization
+            workspacePath: undefined,
             queue: false,
+            skipUserMessageSave: true, // Don't duplicate message - it's already in parent task
           });
         } catch (error) {
           console.error(
@@ -1660,7 +1675,7 @@ export class ChatService {
             error
           );
         }
-      }, 1000); // Small delay to let initialization start
+      }, 1000);
     } catch (error) {
       console.error(`[CHAT] Error initializing stacked task ${taskId}:`, error);
     }

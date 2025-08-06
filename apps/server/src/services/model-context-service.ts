@@ -125,6 +125,27 @@ export class ModelContextService {
   }
 
   /**
+   * Create context for stacked task inheriting API keys from parent
+   */
+  async createContextWithInheritedKeys(
+    taskId: string,
+    selectedModel: ModelType,
+    inheritedApiKeys: ApiKeys
+  ): Promise<TaskModelContext> {
+    const context = new TaskModelContext(
+      taskId,
+      selectedModel,
+      inheritedApiKeys
+    );
+
+    // Update task's mainModel and cache the context
+    await this.updateTaskMainModel(taskId, selectedModel);
+    this.cacheContext(taskId, context);
+
+    return context;
+  }
+
+  /**
    * Validate that a context has the required API keys for an operation
    */
   validateContextForOperation(

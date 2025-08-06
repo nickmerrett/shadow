@@ -16,7 +16,7 @@ export function QueuedAction() {
 
   const isStackedPR = queuedAction.type === "stacked-pr";
   const IconComponent = isStackedPR ? GitBranchPlus : ListEnd;
-  const label = isStackedPR ? "Queued Stacked PR" : "Queued Message";
+  const label = isStackedPR ? "Queued Branch" : "Queued Message";
 
   return (
     <div className="bg-card border-border absolute -top-12 left-0 flex w-full items-center justify-between gap-2 rounded-lg border py-1.5 pl-3 pr-1.5 text-sm">

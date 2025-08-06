@@ -137,7 +137,6 @@ export function PromptForm({
         toast.error("Please select a model first");
         return;
       }
-      console.log("Creating stacked PR");
       onCreateStackedPR?.(message, selectedModel, queue);
       if (queue) {
         queryClient.setQueryData(["queued-action", taskId], {
@@ -180,7 +179,7 @@ export function PromptForm({
           {
             id: "stack-pr",
             icon: GitBranchPlus,
-            label: "Queue Stacked PR",
+            label: "Queue Stacked Branch",
             action: stackPRAction(true),
             shortcut: {
               key: "Enter",
@@ -208,7 +207,7 @@ export function PromptForm({
           {
             id: "stack-pr",
             icon: GitBranchPlus,
-            label: "Create Stacked PR",
+            label: "Create Stacked Branch",
             action: stackPRAction(false),
             shortcut: {
               key: "Enter",
