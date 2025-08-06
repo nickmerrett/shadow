@@ -24,5 +24,7 @@ export function parseApiKeysFromCookies(cookieHeader?: string): ApiKeys {
     openai: cookies["openai-key"] || undefined,
     anthropic: cookies["anthropic-key"] || undefined,
     openrouter: cookies["openrouter-key"] || undefined,
+    groq: cookies["groq-key"] || undefined,
+    ollama: cookies["ollama-key"] || undefined,
   };
 }

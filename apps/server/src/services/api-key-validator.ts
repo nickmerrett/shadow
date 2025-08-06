@@ -1,4 +1,9 @@
 import { ApiKeyProvider, ApiKeyValidationResult } from "@repo/types";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createGroq } from "@ai-sdk/groq";
+import { createOllama } from "ollama-ai-provider";
 
 export type ValidationResult = ApiKeyValidationResult;
 
@@ -29,6 +34,10 @@ export class ApiKeyValidator {
           return await this.validateAnthropic(apiKey, startTime);
         case "openrouter":
           return await this.validateOpenRouter(apiKey, startTime);
+        case "groq":
+          return await this.validateGroq(apiKey, startTime);
+        case "ollama":
+          return await this.validateOllama(apiKey, startTime);
         default:
           return {
             isValid: false,
@@ -48,37 +57,69 @@ export class ApiKeyValidator {
     apiKey: string,
     startTime: number
   ): Promise<ValidationResult> {
-    const response = await fetch("https://api.openai.com/v1/models", {
-      method: "GET", // Use GET to ensure proper response
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "User-Agent": "Shadow-Agent/1.0",
-      },
-      signal: AbortSignal.timeout(5000), // 5 second timeout
-    });
+    try {
+      // Make a simple API call to validate the key
+      const response = await fetch("https://api.openai.com/v1/models", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "User-Agent": "Shadow-Agent/1.0",
+        },
+        signal: AbortSignal.timeout(5000),
+      });
 
-    const latencyMs = Date.now() - startTime;
+      const latencyMs = Date.now() - startTime;
 
-    if (response.status === 200) {
-      return { isValid: true, latencyMs };
-    } else if (response.status === 401) {
-      return {
-        isValid: false,
-        error: "Invalid OpenAI API key",
-        latencyMs,
-      };
-    } else if (response.status === 429) {
-      return {
-        isValid: false,
-        error: "OpenAI API rate limit exceeded",
-        latencyMs,
-      };
-    } else {
-      return {
-        isValid: false,
-        error: `OpenAI API returned status ${response.status}`,
-        latencyMs,
-      };
+      if (response.status === 200) {
+        return { isValid: true, latencyMs };
+      } else if (response.status === 401) {
+        return {
+          isValid: false,
+          error: "Invalid OpenAI API key",
+          latencyMs,
+        };
+      } else if (response.status === 429) {
+        return {
+          isValid: false,
+          error: "OpenAI API rate limit exceeded",
+          latencyMs,
+        };
+      } else {
+        return {
+          isValid: false,
+          error: `OpenAI API returned status ${response.status}`,
+          latencyMs,
+        };
+      }
+    } catch (error: any) {
+      const latencyMs = Date.now() - startTime;
+
+      // Handle specific error types
+      if (
+        error?.message?.includes("401") ||
+        error?.message?.includes("Unauthorized")
+      ) {
+        return {
+          isValid: false,
+          error: "Invalid OpenAI API key",
+          latencyMs,
+        };
+      } else if (
+        error?.message?.includes("429") ||
+        error?.message?.includes("rate limit")
+      ) {
+        return {
+          isValid: false,
+          error: "OpenAI API rate limit exceeded",
+          latencyMs,
+        };
+      } else {
+        return {
+          isValid: false,
+          error: `OpenAI validation failed: ${error?.message || "Unknown error"}`,
+          latencyMs,
+        };
+      }
     }
   }
 
@@ -86,38 +127,70 @@ export class ApiKeyValidator {
     apiKey: string,
     startTime: number
   ): Promise<ValidationResult> {
-    const response = await fetch("https://api.anthropic.com/v1/models", {
-      method: "GET", // Anthropic requires GET, not HEAD
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01", // Required version header
-        "User-Agent": "Shadow-Agent/1.0",
-      },
-      signal: AbortSignal.timeout(5000), // 5 second timeout
-    });
+    try {
+      // Make a simple API call to validate the key
+      const response = await fetch("https://api.anthropic.com/v1/models", {
+        method: "GET",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "User-Agent": "Shadow-Agent/1.0",
+        },
+        signal: AbortSignal.timeout(5000),
+      });
 
-    const latencyMs = Date.now() - startTime;
+      const latencyMs = Date.now() - startTime;
 
-    if (response.status === 200) {
-      return { isValid: true, latencyMs };
-    } else if (response.status === 401) {
-      return {
-        isValid: false,
-        error: "Invalid Anthropic API key",
-        latencyMs,
-      };
-    } else if (response.status === 429) {
-      return {
-        isValid: false,
-        error: "Anthropic API rate limit exceeded",
-        latencyMs,
-      };
-    } else {
-      return {
-        isValid: false,
-        error: `Anthropic API returned status ${response.status}`,
-        latencyMs,
-      };
+      if (response.status === 200) {
+        return { isValid: true, latencyMs };
+      } else if (response.status === 401) {
+        return {
+          isValid: false,
+          error: "Invalid Anthropic API key",
+          latencyMs,
+        };
+      } else if (response.status === 429) {
+        return {
+          isValid: false,
+          error: "Anthropic API rate limit exceeded",
+          latencyMs,
+        };
+      } else {
+        return {
+          isValid: false,
+          error: `Anthropic API returned status ${response.status}`,
+          latencyMs,
+        };
+      }
+    } catch (error: any) {
+      const latencyMs = Date.now() - startTime;
+
+      // Handle specific error types
+      if (
+        error?.message?.includes("401") ||
+        error?.message?.includes("Unauthorized")
+      ) {
+        return {
+          isValid: false,
+          error: "Invalid Anthropic API key",
+          latencyMs,
+        };
+      } else if (
+        error?.message?.includes("429") ||
+        error?.message?.includes("rate limit")
+      ) {
+        return {
+          isValid: false,
+          error: "Anthropic API rate limit exceeded",
+          latencyMs,
+        };
+      } else {
+        return {
+          isValid: false,
+          error: `Anthropic validation failed: ${error?.message || "Unknown error"}`,
+          latencyMs,
+        };
+      }
     }
   }
 
@@ -125,38 +198,198 @@ export class ApiKeyValidator {
     apiKey: string,
     startTime: number
   ): Promise<ValidationResult> {
-    const response = await fetch("https://openrouter.ai/api/v1/key", {
-      method: "GET", // OpenRouter key endpoint requires GET
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://shadow-agent.com", // Required by OpenRouter
-        "X-Title": "Shadow Agent Validation", // Optional but recommended
-      },
-      signal: AbortSignal.timeout(5000), // 5 second timeout
-    });
+    try {
+      // Make a simple API call to validate the key
+      const response = await fetch("https://openrouter.ai/api/v1/key", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": "https://shadow-agent.com",
+          "X-Title": "Shadow Agent Validation",
+        },
+        signal: AbortSignal.timeout(5000),
+      });
 
-    const latencyMs = Date.now() - startTime;
+      const latencyMs = Date.now() - startTime;
 
-    if (response.status === 200) {
-      return { isValid: true, latencyMs };
-    } else if (response.status === 401) {
-      return {
-        isValid: false,
-        error: "Invalid OpenRouter API key",
-        latencyMs,
-      };
-    } else if (response.status === 400) {
-      return {
-        isValid: false,
-        error: "Missing required headers for OpenRouter",
-        latencyMs,
-      };
-    } else {
-      return {
-        isValid: false,
-        error: `OpenRouter API returned status ${response.status}`,
-        latencyMs,
-      };
+      if (response.status === 200) {
+        return { isValid: true, latencyMs };
+      } else if (response.status === 401) {
+        return {
+          isValid: false,
+          error: "Invalid OpenRouter API key",
+          latencyMs,
+        };
+      } else if (response.status === 400) {
+        return {
+          isValid: false,
+          error: "Missing required headers for OpenRouter",
+          latencyMs,
+        };
+      } else {
+        return {
+          isValid: false,
+          error: `OpenRouter API returned status ${response.status}`,
+          latencyMs,
+        };
+      }
+    } catch (error: any) {
+      const latencyMs = Date.now() - startTime;
+
+      // Handle specific error types
+      if (
+        error?.message?.includes("401") ||
+        error?.message?.includes("Unauthorized")
+      ) {
+        return {
+          isValid: false,
+          error: "Invalid OpenRouter API key",
+          latencyMs,
+        };
+      } else if (
+        error?.message?.includes("429") ||
+        error?.message?.includes("rate limit")
+      ) {
+        return {
+          isValid: false,
+          error: "OpenRouter API rate limit exceeded",
+          latencyMs,
+        };
+      } else {
+        return {
+          isValid: false,
+          error: `OpenRouter validation failed: ${error?.message || "Unknown error"}`,
+          latencyMs,
+        };
+      }
+    }
+  }
+
+  private async validateGroq(
+    apiKey: string,
+    startTime: number
+  ): Promise<ValidationResult> {
+    try {
+      console.log("[GROQ_VALIDATION] Starting validation for Groq API key");
+
+      // Make a simple API call to validate the key
+      const response = await fetch("https://api.groq.com/openai/v1/models", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "User-Agent": "Shadow-Agent/1.0",
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      const latencyMs = Date.now() - startTime;
+
+      console.log("[GROQ_VALIDATION] Response status:", response.status);
+
+      if (response.status === 200) {
+        console.log("[GROQ_VALIDATION] Validation successful");
+        return { isValid: true, latencyMs };
+      } else if (response.status === 401) {
+        console.log("[GROQ_VALIDATION] Invalid API key");
+        return {
+          isValid: false,
+          error: "Invalid Groq API key",
+          latencyMs,
+        };
+      } else if (response.status === 429) {
+        console.log("[GROQ_VALIDATION] Rate limit exceeded");
+        return {
+          isValid: false,
+          error: "Groq API rate limit exceeded",
+          latencyMs,
+        };
+      } else {
+        console.log("[GROQ_VALIDATION] Unexpected status:", response.status);
+        return {
+          isValid: false,
+          error: `Groq API returned status ${response.status}`,
+          latencyMs,
+        };
+      }
+    } catch (error: any) {
+      const latencyMs = Date.now() - startTime;
+
+      console.log("[GROQ_VALIDATION] Error:", error?.message);
+
+      // Handle specific error types
+      if (
+        error?.message?.includes("401") ||
+        error?.message?.includes("Unauthorized")
+      ) {
+        return {
+          isValid: false,
+          error: "Invalid Groq API key",
+          latencyMs,
+        };
+      } else if (
+        error?.message?.includes("429") ||
+        error?.message?.includes("rate limit")
+      ) {
+        return {
+          isValid: false,
+          error: "Groq API rate limit exceeded",
+          latencyMs,
+        };
+      } else {
+        return {
+          isValid: false,
+          error: `Groq validation failed: ${error?.message || "Unknown error"}`,
+          latencyMs,
+        };
+      }
+    }
+  }
+
+  private async validateOllama(
+    apiKey: string,
+    startTime: number
+  ): Promise<ValidationResult> {
+    try {
+      // For Ollama, the "API key" is actually the baseURL
+      const baseURL = apiKey || "http://localhost:11434";
+
+      // Make a simple API call to validate the connection
+      const response = await fetch(`${baseURL}/api/tags`, {
+        method: "GET",
+        signal: AbortSignal.timeout(5000),
+      });
+
+      const latencyMs = Date.now() - startTime;
+
+      if (response.status === 200) {
+        return { isValid: true, latencyMs };
+      } else {
+        return {
+          isValid: false,
+          error: `Ollama API returned status ${response.status}`,
+          latencyMs,
+        };
+      }
+    } catch (error: any) {
+      const latencyMs = Date.now() - startTime;
+
+      // Handle connection errors and other issues
+      if (
+        error?.message?.includes("ECONNREFUSED") ||
+        error?.message?.includes("fetch failed")
+      ) {
+        return {
+          isValid: false,
+          error: "Cannot connect to Ollama server - ensure it's running",
+          latencyMs,
+        };
+      } else {
+        return {
+          isValid: false,
+          error: `Ollama validation failed: ${error?.message || "Unknown error"}`,
+          latencyMs,
+        };
+      }
     }
   }
 
