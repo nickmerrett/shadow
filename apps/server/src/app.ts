@@ -1,6 +1,7 @@
 import { router as IndexingRouter } from "@/indexing/index";
 import { prisma } from "@repo/db";
 import { AvailableModels, ModelType } from "@repo/types";
+import { parseApiKeysFromCookies } from "./utils/cookie-parser";
 import cors from "cors";
 import express from "express";
 import http from "http";
@@ -16,10 +17,12 @@ import { filesRouter } from "./files/router";
 import { handleGitHubWebhook } from "./webhooks/github-webhook";
 import { getIndexingStatus } from "./routes/indexing-status";
 import { modelContextService } from "./services/model-context-service";
+import { ApiKeyValidator } from "./services/api-key-validator";
 
 const app = express();
 export const chatService = new ChatService();
 const initializationEngine = new TaskInitializationEngine();
+const apiKeyValidator = new ApiKeyValidator();
 
 const initiateTaskSchema = z.object({
   message: z.string().min(1, "Message is required"),
@@ -166,7 +169,12 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 
       if (!initContext.validateAccess()) {
         const provider = initContext.getProvider();
-        const providerName = provider === "anthropic" ? "Anthropic" : "OpenAI";
+        const providerName =
+          provider === "anthropic"
+            ? "Anthropic"
+            : provider === "openrouter"
+              ? "OpenRouter"
+              : "OpenAI";
 
         await updateTaskStatus(taskId, "FAILED", "INIT");
 
@@ -245,6 +253,51 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
   } catch (error) {
     console.error("Error initiating task:", error);
     res.status(500).json({ error: "Failed to initiate task" });
+  }
+});
+
+// Validate API keys
+app.post("/api/validate-keys", async (req, res) => {
+  try {
+    const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
+
+    console.log("[VALIDATION] Parsed API keys:", {
+      hasOpenAI: !!userApiKeys.openai,
+      hasAnthropic: !!userApiKeys.anthropic,
+      hasOpenRouter: !!userApiKeys.openrouter,
+      // hasGroq: !!userApiKeys.groq,
+      // hasOllama: !!userApiKeys.ollama,
+    });
+
+    // Only validate keys that are present and not empty
+    const keysToValidate: Partial<Record<string, string>> = {};
+    if (userApiKeys.openai && userApiKeys.openai.trim()) {
+      keysToValidate.openai = userApiKeys.openai;
+    }
+    if (userApiKeys.anthropic && userApiKeys.anthropic.trim()) {
+      keysToValidate.anthropic = userApiKeys.anthropic;
+    }
+    if (userApiKeys.openrouter && userApiKeys.openrouter.trim()) {
+      keysToValidate.openrouter = userApiKeys.openrouter;
+    }
+    // if (userApiKeys.groq && userApiKeys.groq.trim()) {
+    //   keysToValidate.groq = userApiKeys.groq;
+    // }
+    // if (userApiKeys.ollama && userApiKeys.ollama.trim()) {
+    //   keysToValidate.ollama = userApiKeys.ollama;
+    // }
+
+    console.log("[VALIDATION] Keys to validate:", Object.keys(keysToValidate));
+
+    const validationResults =
+      await apiKeyValidator.validateMultiple(keysToValidate);
+
+    console.log("[VALIDATION] Results:", validationResults);
+
+    res.json(validationResults);
+  } catch (error) {
+    console.error("Error validating API keys:", error);
+    res.status(500).json({ error: "Failed to validate API keys" });
   }
 });
 

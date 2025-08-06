@@ -6,6 +6,7 @@ import {
   ToolName,
   getModelProvider,
   toCoreMessage,
+  ApiKeys,
 } from "@repo/types";
 import {
   CoreMessage,
@@ -30,7 +31,7 @@ export class StreamProcessor {
     systemPrompt: string,
     messages: Message[],
     model: ModelType,
-    userApiKeys: { openai?: string; anthropic?: string },
+    userApiKeys: ApiKeys,
     enableTools: boolean = true,
     taskId: string,
     workspacePath?: string,
@@ -47,7 +48,8 @@ export class StreamProcessor {
       const tools =
         preCreatedTools || (await createTools(taskId, workspacePath));
 
-      const isAnthropicModel = getModelProvider(model) === "anthropic";
+      const modelProvider = getModelProvider(model);
+      const isAnthropicModel = modelProvider === "anthropic";
 
       let finalMessages: CoreMessage[];
       if (isAnthropicModel) {
@@ -184,88 +186,21 @@ export class StreamProcessor {
         "[DEBUG_STREAM] StreamConfig has tools:",
         !!streamConfig.tools
       );
-
       // Stream creation with error handling
       let result;
       try {
-        console.log("[DEBUG_STREAM] Calling streamText with config...");
         result = streamText(streamConfig);
 
         // Handle environment difference: production returns Promise, local returns direct result
         const isPromise = result instanceof Promise;
-        console.log("[DEBUG_STREAM] streamText returned Promise:", isPromise);
 
         if (isPromise) {
-          console.log("[DEBUG_STREAM] Awaiting Promise result...");
           result = await result;
-          console.log("[DEBUG_STREAM] Promise resolved successfully");
-        } else {
-          console.log(
-            "[DEBUG_STREAM] Direct result returned (local environment)"
-          );
         }
       } catch (error) {
-        console.error("[DEBUG_STREAM] streamText threw error:", error);
-        console.error("[DEBUG_STREAM] Error details:", {
-          name: error instanceof Error ? error.name : "Unknown",
-          message: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : "No stack trace",
-        });
+        console.error("[LLM_STREAM_ERROR] streamText threw error:", error);
         throw error;
       }
-
-      // Result object analysis - use proper property detection instead of Object.keys()
-      console.log("[DEBUG_STREAM] Result object analysis:");
-      console.log("[DEBUG_STREAM] Result type:", typeof result);
-      console.log("[DEBUG_STREAM] Result is null/undefined:", result == null);
-      console.log(
-        "[DEBUG_STREAM] Result constructor:",
-        result?.constructor?.name
-      );
-      console.log(
-        "[DEBUG_STREAM] Result is Promise:",
-        result instanceof Promise
-      );
-
-      // Object.keys() doesn't show non-enumerable properties - check directly
-      console.log("[DEBUG_STREAM] fullStream exists:", !!result.fullStream);
-      console.log("[DEBUG_STREAM] fullStream type:", typeof result.fullStream);
-      console.log("[DEBUG_STREAM] textStream exists:", !!result.textStream);
-      console.log("[DEBUG_STREAM] textStream type:", typeof result.textStream);
-
-      // Check if streams are iterable
-      console.log(
-        "[DEBUG_STREAM] fullStream iterable:",
-        result.fullStream && Symbol.asyncIterator in result.fullStream
-      );
-
-      // Show all properties including non-enumerable ones
-      const descriptors = Object.getOwnPropertyDescriptors(result || {});
-      console.log(
-        "[DEBUG_STREAM] All property names:",
-        Object.keys(descriptors)
-      );
-
-      // Additional debugging for production issue
-      console.log(
-        "[DEBUG_STREAM] Result JSON (first 200 chars):",
-        JSON.stringify(result).substring(0, 200)
-      );
-      console.log(
-        "[DEBUG_STREAM] Result prototype:",
-        Object.getPrototypeOf(result)?.constructor?.name
-      );
-      console.log(
-        "[DEBUG_STREAM] Result own properties:",
-        Object.getOwnPropertyNames(result)
-      );
-      console.log(
-        "[DEBUG_STREAM] Result symbols:",
-        Object.getOwnPropertySymbols(result).map((s) => s.toString())
-      );
-
-      // Note: StreamTextResult doesn't have an error property
-      // Errors are handled through the stream itself or thrown during creation
 
       const toolCallMap = new Map<string, ToolName>(); // toolCallId -> validated toolName
 
@@ -274,13 +209,9 @@ export class StreamProcessor {
         console.error(
           `[LLM_STREAM_ERROR] fullStream is not accessible for task ${taskId}`
         );
-        console.log(
-          "[DEBUG_STREAM] Attempting to use textStream as fallback..."
-        );
 
         // Try textStream as fallback if fullStream isn't available
         if (result.textStream && Symbol.asyncIterator in result.textStream) {
-          console.log("[DEBUG_STREAM] Using textStream fallback");
           for await (const textPart of result.textStream) {
             yield {
               type: "content",
@@ -303,7 +234,10 @@ export class StreamProcessor {
       }
 
       // Use fullStream to get real-time tool calls and results
+      let chunkCount = 0;
       for await (const chunk of result.fullStream as AsyncIterable<AIStreamChunk>) {
+        chunkCount++;
+
         switch (chunk.type) {
           case "text-delta": {
             const streamChunk = this.chunkHandlers.handleTextDelta(chunk);

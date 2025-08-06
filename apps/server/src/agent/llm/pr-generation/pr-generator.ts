@@ -34,7 +34,7 @@ export class PRGenerator {
 
       const prModel = userApiKeys.openai
         ? AvailableModels.GPT_4O_MINI
-        : AvailableModels.CLAUDE_HAIKU_3_5;
+        : AvailableModels.CLAUDE_3_5_HAIKU;
 
       const { object } = await generateObject({
         model: this.modelProvider.getModel(prModel, userApiKeys),

@@ -3,6 +3,7 @@
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import {
   cleanTitle,
   generateShadowBranchName,
@@ -37,7 +38,17 @@ export async function generateTaskTitleAndBranch(
     const model =
       modelConfig.provider === "openai"
         ? createOpenAI({ apiKey: apiKeys.openai })(modelConfig.modelChoice)
-        : createAnthropic({ apiKey: apiKeys.anthropic })(modelConfig.modelChoice);
+        : modelConfig.provider === "anthropic"
+          ? createAnthropic({ apiKey: apiKeys.anthropic })(
+              modelConfig.modelChoice
+            )
+          : createOpenRouter({
+              apiKey: apiKeys.openrouter!,
+              headers: {
+                "HTTP-Referer": "https://shadowrealm.ai",
+                "X-Title": "Shadow Agent",
+              },
+            }).chat(modelConfig.modelChoice);
 
     const { text: generatedText } = await generateText({
       model,

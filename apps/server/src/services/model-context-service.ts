@@ -32,6 +32,7 @@ export class ModelContextService {
     selectedModel: ModelType
   ): Promise<TaskModelContext> {
     const apiKeys = parseApiKeysFromCookies(cookieHeader);
+
     const context = new TaskModelContext(taskId, selectedModel, apiKeys);
 
     // Update the task's mainModel field to keep it current
@@ -136,6 +137,7 @@ export class ModelContextService {
     }
 
     const apiKeys = parseApiKeysFromCookies(cookieHeader);
+
     const context = new TaskModelContext(
       taskId,
       task.mainModel as ModelType,

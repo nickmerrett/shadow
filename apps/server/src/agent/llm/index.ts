@@ -1,4 +1,10 @@
-import { Message, ModelType, StreamChunk, getAvailableModels } from "@repo/types";
+import {
+  Message,
+  ModelType,
+  StreamChunk,
+  ApiKeys,
+  getAvailableModels,
+} from "@repo/types";
 import type { ToolSet } from "ai";
 import { StreamProcessor } from "./streaming/stream-processor";
 import { PRGenerator } from "./pr-generation/pr-generator";
@@ -14,7 +20,7 @@ export class LLMService {
     systemPrompt: string,
     messages: Message[],
     model: ModelType,
-    userApiKeys: { openai?: string; anthropic?: string },
+    userApiKeys: ApiKeys,
     enableTools: boolean = true,
     taskId: string,
     workspacePath?: string,
@@ -37,11 +43,8 @@ export class LLMService {
   /**
    * Get available models based on user API keys
    */
-  getAvailableModels(userApiKeys: {
-    openai?: string;
-    anthropic?: string;
-  }): ModelType[] {
-    return getAvailableModels(userApiKeys);
+  async getAvailableModels(userApiKeys: ApiKeys): Promise<ModelType[]> {
+    return await getAvailableModels(userApiKeys);
   }
 
   /**
@@ -54,7 +57,7 @@ export class LLMService {
       commitMessages: string[];
       wasTaskCompleted: boolean;
     },
-    userApiKeys: { openai?: string; anthropic?: string }
+    userApiKeys: ApiKeys
   ): Promise<{
     title: string;
     description: string;

@@ -1,28 +1,38 @@
-export function parseApiKeysFromCookies(cookieHeader?: string): {
-  openai?: string;
-  anthropic?: string;
-} {
+import { ApiKeys } from "@repo/types";
+
+export function parseApiKeysFromCookies(cookieHeader?: string): ApiKeys {
   if (!cookieHeader) {
-    return {};
+    return {
+      openai: undefined,
+      anthropic: undefined,
+      openrouter: undefined,
+      // groq: undefined,
+      // ollama: undefined,
+    };
   }
 
-  const cookies: Record<string, string> = {};
-  cookieHeader.split(";").forEach((cookie) => {
-    const trimmedCookie = cookie.trim();
-    const equalIndex = trimmedCookie.indexOf("=");
+  const cookies = cookieHeader
+    .split(";")
+    .reduce((acc: Record<string, string>, cookie) => {
+      const trimmedCookie = cookie.trim();
+      const firstEqualsIndex = trimmedCookie.indexOf("=");
+      if (firstEqualsIndex === -1) return acc;
 
-    if (equalIndex > 0) {
-      const name = trimmedCookie.substring(0, equalIndex);
-      const value = trimmedCookie.substring(equalIndex + 1);
+      const key = trimmedCookie.substring(0, firstEqualsIndex);
+      const value = trimmedCookie.substring(firstEqualsIndex + 1);
 
-      // Only decode if the value contains URL-encoded characters
-      // API keys typically don't need decoding, but session tokens might
-      cookies[name] = value.includes("%") ? decodeURIComponent(value) : value;
-    }
-  });
+      if (key && value) {
+        // Only decode if the value contains % (URL-encoded)
+        acc[key] = value.includes("%") ? decodeURIComponent(value) : value;
+      }
+      return acc;
+    }, {});
 
   return {
     openai: cookies["openai-key"] || undefined,
     anthropic: cookies["anthropic-key"] || undefined,
+    openrouter: cookies["openrouter-key"] || undefined,
+    // groq: cookies["groq-key"] || undefined,
+    // ollama: cookies["ollama-key"] || undefined,
   };
 }

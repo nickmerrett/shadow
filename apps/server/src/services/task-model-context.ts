@@ -1,5 +1,5 @@
 import { ApiKeys, ModelType } from "@repo/types";
-import { getModelProvider, getMiniModelForProvider } from "@repo/types";
+import { getModelProvider } from "@repo/types";
 
 /**
  * Task-scoped context that encapsulates model selection and API key management.
@@ -15,10 +15,6 @@ export class TaskModelContext {
     return this.mainModel;
   }
 
-  getMiniModel(): ModelType {
-    return getMiniModelForProvider(this.mainModel);
-  }
-
   getProviderApiKey(): string | undefined {
     const provider = getModelProvider(this.mainModel);
     return this.apiKeys[provider];
@@ -28,20 +24,15 @@ export class TaskModelContext {
     return this.apiKeys;
   }
 
-  getProvider(): "anthropic" | "openai" {
+  getProvider(): "anthropic" | "openai" | "openrouter" /* | "ollama" */ {
     return getModelProvider(this.mainModel);
   }
 
-  getModelForOperation(operation: "main" | "commit-msg" | "pr-gen"): ModelType {
-    switch (operation) {
-      case "main":
-        return this.getMainModel();
-      case "commit-msg":
-      case "pr-gen":
-        return this.getMiniModel();
-      default:
-        return this.getMainModel();
-    }
+  getModelForOperation(
+    _operation: "main" | "commit-msg" | "pr-gen"
+  ): ModelType {
+    // All operations now use the main model
+    return this.getMainModel();
   }
 
   getApiKeyForOperation(

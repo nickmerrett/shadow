@@ -6,6 +6,7 @@ import {
   TerminalEntry,
   TerminalHistoryResponse,
   ModelType,
+  ApiKeys,
 } from "@repo/types";
 import http from "http";
 import { Server, Socket } from "socket.io";
@@ -22,10 +23,7 @@ interface ConnectionState {
   taskId?: string;
   reconnectCount: number;
   bufferPosition: number;
-  apiKeys?: {
-    openai?: string;
-    anthropic?: string;
-  };
+  apiKeys?: ApiKeys;
 }
 
 export type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -288,7 +286,7 @@ export function createSocketServer(
     const cookieHeader = socket.request.headers.cookie;
 
     console.log(`[SOCKET] User connected: ${connectionId}`);
-    console.log(`[SOCKET] Raw cookie header:`, cookieHeader || "undefined");
+    // console.log(`[SOCKET] Raw cookie header:`, cookieHeader || "undefined");
 
     const apiKeys = parseApiKeysFromCookies(cookieHeader);
 
@@ -413,7 +411,7 @@ export function createSocketServer(
         // Get task workspace path from database
         const task = await prisma.task.findUnique({
           where: { id: data.taskId },
-          select: { workspacePath: true },
+          select: { workspacePath: true, userId: true },
         });
 
         // Create or get model context for this task
@@ -427,7 +425,11 @@ export function createSocketServer(
         if (!modelContext.validateAccess()) {
           const provider = modelContext.getProvider();
           const providerName =
-            provider === "anthropic" ? "Anthropic" : "OpenAI";
+            provider === "anthropic"
+              ? "Anthropic"
+              : provider === "openrouter"
+                ? "OpenRouter"
+                : "OpenAI";
           socket.emit("message-error", {
             error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
           });
@@ -508,7 +510,7 @@ export function createSocketServer(
         // Get task workspace path from database
         const task = await prisma.task.findUnique({
           where: { id: data.taskId },
-          select: { workspacePath: true },
+          select: { workspacePath: true, userId: true },
         });
 
         // Create or get model context for this task
@@ -522,7 +524,11 @@ export function createSocketServer(
         if (!modelContext.validateAccess()) {
           const provider = modelContext.getProvider();
           const providerName =
-            provider === "anthropic" ? "Anthropic" : "OpenAI";
+            provider === "anthropic"
+              ? "Anthropic"
+              : provider === "openrouter"
+                ? "OpenRouter"
+                : "OpenAI";
           socket.emit("message-error", {
             error: `${providerName} API key required. Please configure your API key in settings to use ${data.llmModel}.`,
           });
