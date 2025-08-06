@@ -34,7 +34,8 @@ deepwikiRouter.post("/generate/:taskId", async (req, res, next) => {
     // Validate that user has required API keys
     if (!modelContext.validateAccess()) {
       const provider = modelContext.getProvider();
-      const providerName = provider === "anthropic" ? "Anthropic" : "OpenAI";
+      const providerName = provider === "anthropic" ? "Anthropic" : 
+                       provider === "openrouter" ? "OpenRouter" : "OpenAI";
       return res.status(400).json({
         error: `${providerName} API key required. Please configure your API key in settings.`,
       });

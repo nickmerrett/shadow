@@ -1,7 +1,6 @@
-export function parseApiKeysFromCookies(cookieHeader?: string): {
-  openai?: string;
-  anthropic?: string;
-} {
+import { ApiKeys } from "@repo/types";
+
+export function parseApiKeysFromCookies(cookieHeader?: string): ApiKeys {
   if (!cookieHeader) {
     return {};
   }
@@ -24,5 +23,6 @@ export function parseApiKeysFromCookies(cookieHeader?: string): {
   return {
     openai: cookies["openai-key"] || undefined,
     anthropic: cookies["anthropic-key"] || undefined,
+    openrouter: cookies["openrouter-key"] || undefined,
   };
 }
