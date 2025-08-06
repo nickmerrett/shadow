@@ -234,15 +234,15 @@ export class ChatService {
           return false;
         }
 
-        // Commit changes with user and Shadow co-author
+        // Commit changes with Shadow as author and user as co-author
         const committed = await gitManager.commitChangesIfAny(
-          {
-            name: task.user.name,
-            email: task.user.email,
-          },
           {
             name: "Shadow",
             email: "noreply@shadowrealm.ai",
+          },
+          {
+            name: task.user.name,
+            email: task.user.email,
           },
           context
         );
@@ -473,15 +473,15 @@ export class ChatService {
         );
       }
 
-      // Commit changes with user and Shadow co-author
+      // Commit changes with Shadow as author and user as co-author
       const commitResponse = await toolExecutor.commitChanges({
         user: {
-          name: task.user.name,
-          email: task.user.email,
-        },
-        coAuthor: {
           name: "Shadow",
           email: "noreply@shadowrealm.ai",
+        },
+        coAuthor: {
+          name: task.user.name,
+          email: task.user.email,
         },
         message: commitMessage,
       });

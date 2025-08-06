@@ -21,7 +21,7 @@ import { createTools } from "../../tools";
 import { ModelProvider } from "../models/model-provider";
 import { ChunkHandlers } from "./chunk-handlers";
 
-const MAX_STEPS = 300;
+const MAX_STEPS = 100;
 
 export class StreamProcessor {
   private modelProvider = new ModelProvider();

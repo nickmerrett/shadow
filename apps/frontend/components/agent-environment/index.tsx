@@ -100,8 +100,8 @@ function AgentEnvironment({ isMobile = false }: { isMobile?: boolean }) {
 
   // Ready state - normal UI
   return (
-    <div className="flex size-full max-h-svh flex-col overflow-hidden">
-      <div className="border-border bg-card h-13 flex items-center justify-between border-b px-2">
+    <div className="flex size-full h-svh flex-col overflow-hidden">
+      <div className="border-border bg-card h-13 flex shrink-0 items-center justify-between border-b px-2">
         <div className="font-departureMono tracking-tight">Shadow Realm</div>
         <div className="flex items-center gap-0.5">
           <Tooltip>
@@ -172,7 +172,7 @@ function AgentEnvironment({ isMobile = false }: { isMobile?: boolean }) {
           </Tooltip>
         </div>
       </div>
-      <div className="flex w-full grow">
+      <div className="flex w-full grow overflow-hidden">
         <FileExplorer
           files={treeData?.tree || []}
           onFileSelect={(file) => updateSelectedFilePath(file.path)}
