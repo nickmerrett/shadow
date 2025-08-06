@@ -5,7 +5,8 @@ import {
   ApiKeyProvider,
   ApiKeys,
   getAvailableModels,
-  ModelType,
+  ModelInfo,
+  ModelInfos,
 } from "@repo/types";
 
 export type { ApiKeyProvider };
@@ -22,9 +23,10 @@ export async function getApiKeys(): Promise<ApiKeys> {
   };
 }
 
-export async function getModels(): Promise<ModelType[]> {
+export async function getModels(): Promise<ModelInfo[]> {
   const apiKeys = await getApiKeys();
-  return getAvailableModels(apiKeys);
+  const availableModels = getAvailableModels(apiKeys);
+  return availableModels.map((modelId) => ModelInfos[modelId]);
 }
 
 export async function saveApiKey(provider: ApiKeyProvider, key: string | null) {
