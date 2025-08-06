@@ -148,6 +148,124 @@ AGENT_MODE="local"  # or "remote" for production
 NODE_ENV="development"
 ```
 
+## Development Commands
+
+### Linting and Formatting
+
+Ensure you have ESLint and Prettier installed for linting and formatting. You can run these scripts from the project root:
+
+```bash
+# Lint all packages and apps
+npm run lint
+
+# Format code with Prettier
+npm run format
+
+# Type checking
+npm run check-types
+```
+
+You can also run these commands for specific packages:
+```bash
+# Lint specific app
+npm run lint --filter=frontend
+npm run lint --filter=server
+npm run lint --filter=sidecar
+
+# Format specific app
+npm run format --filter=frontend
+npm run format --filter=server
+npm run format --filter=sidecar
+```
+
+### Database Operations
+
+Shadow uses Prisma as the ORM with comprehensive database management scripts:
+
+#### Development Database
+```bash
+# Generate Prisma client from schema
+npm run generate
+
+# Push schema changes to database (for development)
+npm run db:push
+
+# Reset database and push schema (destructive)
+npm run db:push:reset
+
+# Open Prisma Studio GUI
+npm run db:studio
+
+# Run migrations in development
+npm run db:migrate:dev
+```
+
+#### Production Database
+```bash
+# Push schema to production database
+npm run db:prod:push
+
+# Open Prisma Studio for production
+npm run db:prod:studio
+
+# Deploy migrations to production
+npm run db:prod:migrate
+```
+
+#### Database Helper Scripts
+The project includes helper scripts for database operations:
+
+```bash
+# Development database operations
+./scripts/db-dev.sh db push
+./scripts/db-dev.sh studio
+./scripts/db-dev.sh migrate dev
+
+# Production database operations
+./scripts/db-prod.sh db push
+./scripts/db-prod.sh studio
+./scripts/db-prod.sh migrate deploy
+```
+
+### Building and Deployment
+
+```bash
+# Build all packages and apps
+npm run build
+
+# Build specific app
+npm run build --filter=frontend
+npm run build --filter=server
+npm run build --filter=sidecar
+```
+
+### Docker Development
+
+For containerized development, you can build and run individual services:
+
+```bash
+# Build server container
+npm run docker:build --filter=server
+npm run docker:run --filter=server
+
+# Build sidecar container
+npm run docker:build --filter=sidecar
+npm run docker:run --filter=sidecar
+```
+
+Or build containers directly:
+```bash
+# Build server
+docker build -f apps/server/Dockerfile -t shadow-server .
+
+# Build sidecar
+docker build -f apps/sidecar/Dockerfile -t shadow-sidecar .
+
+# Run containers
+docker run -p 4000:4000 --env-file apps/server/.env shadow-server
+docker run -p 8080:8080 -v $(pwd)/workspace:/workspace shadow-sidecar
+```
+
 ## Production Deployment
 
 ### Remote Infrastructure (AWS EKS)
@@ -186,6 +304,22 @@ aws acm request-certificate --domain-name your-domain.com --validation-method DN
 # Deploy with SSL
 SSL_CERTIFICATE_ARN=arn:aws:acm:us-east-1:123456789:certificate/your-cert-id \
   ./scripts/deploy-backend-ecs.sh
+```
+
+### Infrastructure Management
+
+```bash
+# Deploy only EKS cluster with Kata Containers
+./scripts/deploy-remote-infrastructure.sh
+
+# Deploy only ECS backend service
+./scripts/deploy-backend-ecs.sh
+
+# Deploy complete infrastructure (EKS + ECS)
+./scripts/deploy-full-infrastructure.sh
+
+# Clean up infrastructure
+./scripts/cleanup-infrastructure.sh
 ```
 
 ## API Endpoints
@@ -251,6 +385,13 @@ Shadow provides a comprehensive set of tools for AI agents:
 - Path traversal protection
 - Workspace boundary enforcement
 - Container isolation in remote mode
+
+### Important Notes
+- Always test both local and remote modes for production features
+- Keep initialization steps mode-aware and properly abstracted
+- Maintain WebSocket event compatibility across frontend/backend changes
+- **Remote mode requires Amazon Linux 2023 nodes** for Kata Containers compatibility
+- Use `kata-qemu` RuntimeClass for Kata QEMU container isolation
 
 ## Contributing
 
