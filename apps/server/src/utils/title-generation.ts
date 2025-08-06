@@ -6,24 +6,25 @@ import {
   cleanTitle,
   generateShadowBranchName,
   getTitleGenerationModel,
+  ModelType,
 } from "@repo/types";
 import { TaskModelContext } from "../services/task-model-context";
 
 export async function generateTaskTitleAndBranch(
   taskId: string,
   userPrompt: string,
-  context?: TaskModelContext
+  context: TaskModelContext
 ): Promise<{ title: string; shadowBranch: string }> {
   try {
     // Get API keys from context if provided
-    const apiKeys = context?.getApiKeys() || {
+    const apiKeys = context.getApiKeys() || {
       openai: undefined,
       anthropic: undefined,
       openrouter: undefined,
     };
 
     // Get the main model to determine provider for mini model selection
-    const fallbackModel = context?.getMainModel();
+    const fallbackModel = context.getMainModel();
 
     const modelConfig = getTitleGenerationModel({
       taskId,

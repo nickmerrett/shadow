@@ -17,10 +17,16 @@ export function EditFileTool({ message }: { message: Message }) {
   const linesAdded = result?.linesAdded || 0;
   const linesRemoved = result?.linesRemoved || 0;
 
+  // streaming state from message metadata (can use later)
+  const _streamingState = message.metadata?.streamingState;
+  const _partialArgs = message.metadata?.partialArgs;
+
   const changes =
     status === "COMPLETED" && (linesAdded > 0 || linesRemoved > 0)
       ? { linesAdded, linesRemoved }
       : undefined;
+
+  const isLoading = status === "RUNNING";
 
   return (
     <ToolComponent
@@ -28,6 +34,8 @@ export function EditFileTool({ message }: { message: Message }) {
       type={ToolTypes.EDIT_FILE}
       title={filePath}
       changes={changes}
+      showFileIcon={filePath}
+      isLoading={isLoading}
       onClick={() => {
         updateSelectedFilePath(filePath);
         expandRightPanel();

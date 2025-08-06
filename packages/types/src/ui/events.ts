@@ -1,7 +1,13 @@
 import { TaskStatus, InitStatus } from "@repo/db";
 import type { Message } from "../chat/messages";
-import type { StreamChunk } from "../chat/streaming";
+import type { StreamChunk } from "../chat/streaming-client";
 import type { ModelType } from "../llm/models";
+
+export type QueuedActionUI = {
+  type: 'message' | 'stacked-pr';
+  message: string;
+  model: ModelType;
+};
 
 export interface TerminalEntry {
   id: number;
@@ -29,7 +35,7 @@ export interface ServerToClientEvents {
     taskId: string;
     messages: Message[];
     mostRecentMessageModel: ModelType | null;
-    queuedMessage: string | null;
+    queuedAction: QueuedActionUI | null;
   }) => void;
   "chat-history-error": (data: { error: string }) => void;
   "stream-state": (state: {
@@ -60,10 +66,13 @@ export interface ServerToClientEvents {
   "terminal-error": (data: { error: string }) => void;
 
   "task-status-updated": (data: TaskStatusUpdateEvent) => void;
-  "stacked-pr-created": (data: {
-    parentTaskId: string;
-    newTaskId: string;
+  "queued-action-processing": (data: {
+    taskId: string;
+    type: "message" | "stacked-pr";
     message: string;
+    model: ModelType;
+    shadowBranch?: string;
+    title?: string;
   }) => void;
 }
 
@@ -86,7 +95,7 @@ export interface ClientToServerEvents {
   "get-chat-history": (data: { taskId: string; complete: boolean }) => void;
   "stop-stream": (data: { taskId: string }) => void;
   "request-history": (data: { taskId: string; fromPosition?: number }) => void;
-  "clear-queued-message": (data: { taskId: string }) => void;
+  "clear-queued-action": (data: { taskId: string }) => void;
   "create-stacked-pr": (data: {
     taskId: string;
     message: string;

@@ -1,6 +1,4 @@
-import type {
-  FinishReason
-} from "ai";
+import type { FinishReason } from "ai";
 import type { InitStatus } from "@repo/db";
 import { ToolResultTypes } from "../tools/schemas";
 import { CompletionTokenUsage } from "./messages";
@@ -20,16 +18,18 @@ export interface ValidationErrorResult {
 
 export interface StreamChunk {
   type:
-  | "content"
-  | "thinking"
-  | "usage"
-  | "complete"
-  | "error"
-  | "tool-call"
-  | "tool-result"
-  | "init-progress"
-  | "fs-change"
-  | "todo-update";
+    | "content"
+    | "thinking"
+    | "usage"
+    | "complete"
+    | "error"
+    | "tool-call"
+    | "tool-call-start"
+    | "tool-call-delta"
+    | "tool-result"
+    | "init-progress"
+    | "fs-change"
+    | "todo-update";
 
   // For content chunks
   content?: string;
@@ -37,7 +37,6 @@ export interface StreamChunk {
   // For thinking/reasoning chunks
   thinking?: string;
 
-  // For usage tracking - extends AI SDK CompletionTokenUsage with provider-specific tokens
   usage?: CompletionTokenUsage & {
     // Provider-specific tokens
     cacheCreationInputTokens?: number;
@@ -58,20 +57,37 @@ export interface StreamChunk {
   // For tool results
   toolResult?: {
     id: string;
-    result: ToolResultTypes['result'] | ValidationErrorResult;
+    result: ToolResultTypes["result"] | ValidationErrorResult;
     isValid?: boolean;
   };
 
+  // For tool call streaming start
+  toolCallStart?: {
+    id: string;
+    name: string;
+  };
+
+  // For tool call deltas (incremental args)
+  toolCallDelta?: {
+    id: string;
+    name: string;
+    argsTextDelta: string; // Raw JSON delta from AI SDK
+  };
 
   // For initialization progress
   initProgress?: InitializationProgress;
 
   // For filesystem changes
   fsChange?: {
-    operation: 'file-created' | 'file-modified' | 'file-deleted' | 'directory-created' | 'directory-deleted';
+    operation:
+      | "file-created"
+      | "file-modified"
+      | "file-deleted"
+      | "directory-created"
+      | "directory-deleted";
     filePath: string;
     timestamp: number;
-    source: 'local' | 'remote';
+    source: "local" | "remote";
     isDirectory: boolean;
   };
 
@@ -80,10 +96,10 @@ export interface StreamChunk {
     todos: Array<{
       id: string;
       content: string;
-      status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+      status: "pending" | "in_progress" | "completed" | "cancelled";
       sequence: number;
     }>;
-    action: 'updated' | 'replaced';
+    action: "updated" | "replaced";
     totalTodos?: number;
     completedTodos?: number;
   };
@@ -105,7 +121,7 @@ export interface InitializationProgress {
 
   // Error details
   error?: string;
-  
+
   // Progress tracking fields
   initStatus?: InitStatus; // For progress tracking
 }

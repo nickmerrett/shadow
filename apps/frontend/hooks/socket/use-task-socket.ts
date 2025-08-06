@@ -2,10 +2,8 @@
 
 import { useSocket } from "./use-socket";
 import { useEffect, useState, useCallback } from "react";
-import {
-  createStreamingPartAdder,
-  createStreamingStateCleaner,
-} from "@/lib/streaming";
+import { extractStreamingArgs } from "@/lib/streaming-args";
+import { useStreamingPartsMap } from "../use-streaming-parts-map";
 import { useQueryClient } from "@tanstack/react-query";
 import type {
   AssistantMessagePart,
@@ -14,14 +12,15 @@ import type {
   TaskStatusUpdateEvent,
   ModelType,
   FileNode,
+  QueuedActionUI,
+  ToolCallPart,
 } from "@repo/types";
-import { TextPart, ToolCallPart, ToolResultPart } from "ai";
+import { TextPart, ToolResultPart } from "ai";
 import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
 import { TaskMessages } from "@/lib/db-operations/get-task-messages";
 import { CodebaseTreeResponse } from "../use-codebase-tree";
 import { Task, TodoStatus } from "@repo/db";
 import { TaskStatusData } from "@/lib/db-operations/get-task-status";
-import { toast } from "sonner";
 
 interface FileChange {
   filePath: string;
@@ -252,23 +251,29 @@ export function useTaskSocket(taskId: string | undefined) {
   const { socket, isConnected } = useSocket();
   const queryClient = useQueryClient();
 
-  // All the state that was previously in task-content.tsx - optimized with Map storage
-  const [streamingPartsMap, setStreamingPartsMap] = useState<
-    Map<string, AssistantMessagePart>
-  >(new Map());
+  const streamingParts = useStreamingPartsMap();
   const [streamingPartsOrder, setStreamingPartsOrder] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
 
-  const addStreamingPart = createStreamingPartAdder(
-    setStreamingPartsMap,
-    setStreamingPartsOrder
+  const addStreamingPart = useCallback(
+    (part: AssistantMessagePart, id: string) => {
+      streamingParts.update((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(id, part);
+        return newMap;
+      });
+      setStreamingPartsOrder((prev) =>
+        prev.includes(id) ? prev : [...prev, id]
+      );
+    },
+    [streamingParts]
   );
 
-  const clearStreamingState = createStreamingStateCleaner(
-    setStreamingPartsMap,
-    setStreamingPartsOrder,
-    setIsStreaming
-  );
+  const clearStreamingState = useCallback(() => {
+    streamingParts.clear();
+    setStreamingPartsOrder([]);
+    setIsStreaming(false);
+  }, [streamingParts]);
 
   // Join/leave task room
   useEffect(() => {
@@ -299,22 +304,16 @@ export function useTaskSocket(taskId: string | undefined) {
       taskId: string;
       messages: Message[];
       mostRecentMessageModel: ModelType | null;
-      queuedMessage: string | null;
+      queuedAction: QueuedActionUI | null;
     }) {
       if (data.taskId === taskId) {
         queryClient.setQueryData<TaskMessages>(["task-messages", taskId], {
           messages: data.messages,
           mostRecentMessageModel: data.mostRecentMessageModel,
         });
-        queryClient.setQueryData(
-          ["queued-message", taskId],
-          data.queuedMessage
-        );
+        queryClient.setQueryData(["queued-action", taskId], data.queuedAction);
 
-        // Clear streaming state with O(1) operations
-        setStreamingPartsMap(new Map());
-        setStreamingPartsOrder([]);
-        setIsStreaming(false);
+        clearStreamingState();
       }
     }
 
@@ -341,16 +340,46 @@ export function useTaskSocket(taskId: string | undefined) {
             };
             newPartsMap.set(partId, textPart);
             newPartsOrder.push(partId);
+          } else if (chunk.type === "tool-call-start" && chunk.toolCallStart) {
+            const partId = chunk.toolCallStart.id;
+            const toolCallStartPart: ToolCallPart = {
+              type: "tool-call",
+              toolCallId: chunk.toolCallStart.id,
+              toolName: chunk.toolCallStart.name,
+              args: {}, // Empty initially
+              streamingState: "starting",
+              argsComplete: false,
+            };
+            newPartsMap.set(partId, toolCallStartPart);
+            newPartsOrder.push(partId);
+          } else if (chunk.type === "tool-call-delta" && chunk.toolCallDelta) {
+            const partId = chunk.toolCallDelta.id;
+            // Update existing part if it exists
+            const existingPart = newPartsMap.get(partId);
+            if (existingPart?.type === "tool-call") {
+              const updatedPart: ToolCallPart = {
+                ...existingPart,
+                streamingState: "streaming",
+              };
+              newPartsMap.set(partId, updatedPart);
+            }
           } else if (chunk.type === "tool-call" && chunk.toolCall) {
             const partId = chunk.toolCall.id;
+            // Check if we already have a starting version
+            const existingPart = newPartsMap.get(partId);
             const toolCallPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
               toolName: chunk.toolCall.name,
-              args: chunk.toolCall.args,
+              args: chunk.toolCall.args, // Complete args
+              streamingState: "complete",
+              argsComplete: true,
             };
             newPartsMap.set(partId, toolCallPart);
-            newPartsOrder.push(partId);
+            // Only push to order if this is the first time seeing this ID
+            if (!existingPart) {
+              newPartsOrder.push(partId);
+            }
           } else if (chunk.type === "tool-result" && chunk.toolResult) {
             const partId = `${chunk.toolResult.id}-result`;
             // Find corresponding tool call to get tool name
@@ -371,7 +400,7 @@ export function useTaskSocket(taskId: string | undefined) {
           }
         });
 
-        setStreamingPartsMap(newPartsMap);
+        streamingParts.update(() => newPartsMap);
         setStreamingPartsOrder(newPartsOrder);
         console.log(
           `[STREAM_STATE] Reconstructed ${newPartsMap.size} parts from ${state.chunks.length} chunks`
@@ -396,24 +425,68 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "tool-call":
           if (chunk.toolCall) {
-            console.log("Tool call:", chunk.toolCall);
+            // console.log("Tool call:", chunk.toolCall);
 
             const toolCallPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
               toolName: chunk.toolCall.name,
               args: chunk.toolCall.args,
+              streamingState: "complete",
+              argsComplete: true,
             };
+            // replace existing part with complete version
             addStreamingPart(toolCallPart, chunk.toolCall.id);
+          }
+          break;
+
+        case "tool-call-start":
+          if (chunk.toolCallStart) {
+            const toolCallStartPart: ToolCallPart = {
+              type: "tool-call",
+              toolCallId: chunk.toolCallStart.id,
+              toolName: chunk.toolCallStart.name,
+              args: {}, // Empty initially
+              streamingState: "starting",
+              argsComplete: false,
+            };
+
+            // use same id as final tool call
+            addStreamingPart(toolCallStartPart, chunk.toolCallStart.id);
+          }
+          break;
+
+        case "tool-call-delta":
+          if (chunk.toolCallDelta) {
+            const existingPart = streamingParts.current.get(
+              chunk.toolCallDelta.id
+            );
+            if (existingPart?.type === "tool-call") {
+              // Accumulate the args text
+              const newAccumulatedText =
+                (existingPart.accumulatedArgsText || "") +
+                chunk.toolCallDelta.argsTextDelta;
+
+              // Extract partial arguments using regex patterns
+              const partialArgs = extractStreamingArgs(
+                newAccumulatedText,
+                chunk.toolCallDelta.name
+              );
+
+              const updatedPart: ToolCallPart = {
+                ...existingPart,
+                streamingState: "streaming",
+                accumulatedArgsText: newAccumulatedText,
+                partialArgs,
+              };
+              addStreamingPart(updatedPart, chunk.toolCallDelta.id);
+            }
           }
           break;
 
         case "tool-result":
           if (chunk.toolResult) {
-            console.log("Tool result:", chunk.toolResult);
-
-            // Find the corresponding tool call with O(1) lookup
-            const correspondingCall = streamingPartsMap.get(
+            const correspondingCall = streamingParts.current.get(
               chunk.toolResult.id
             );
             const toolName =
@@ -631,15 +704,71 @@ export function useTaskSocket(taskId: string | undefined) {
       clearStreamingState();
     }
 
-    function onStackedPRCreated(data: {
-      parentTaskId: string;
-      newTaskId: string;
+    function onQueuedActionProcessing(data: {
+      taskId: string;
+      type: "message" | "stacked-pr";
       message: string;
+      model: ModelType;
+      shadowBranch?: string;
+      title?: string;
     }) {
-      // queryClient.invalidateQueries({
-      //   queryKey: ["task-messages", data.parentTaskId],
-      // });
-      toast.success(`Stacked PR created: ${data.newTaskId}`);
+      if (data.taskId === taskId) {
+        console.log(`[TASK_SOCKET] Processing queued ${data.type}:`, data);
+
+        // Add optimistic user message to chat
+        const optimisticMessage: Message = {
+          id: `temp-queued-${Date.now()}`,
+          role: "user",
+          content: data.message.trim(),
+          llmModel: data.model,
+          createdAt: new Date().toISOString(),
+          metadata: { isStreaming: false },
+          pullRequestSnapshot: undefined,
+          // For stacked PRs, we have additional context from the generated task
+          ...(data.type === "stacked-pr" &&
+            data.shadowBranch && {
+              stackedTask: {
+                id: "temp",
+                title: data.title || data.message.trim(),
+                shadowBranch: data.shadowBranch,
+              },
+            }),
+        };
+
+        queryClient.setQueryData<TaskMessages>(
+          ["task-messages", taskId],
+          (old) => {
+            const currentMessages = old?.messages || [];
+
+            // Check if we already have a temp message for this queued action
+            const hasTempMessage = currentMessages.some(
+              (msg) =>
+                msg.id.startsWith("temp-queued-") &&
+                msg.content === data.message.trim() &&
+                msg.role === "user"
+            );
+
+            if (hasTempMessage) {
+              return (
+                old || {
+                  messages: currentMessages,
+                  mostRecentMessageModel: data.model,
+                }
+              );
+            }
+
+            const updatedMessages = [...currentMessages, optimisticMessage];
+
+            return {
+              messages: updatedMessages,
+              mostRecentMessageModel: data.model,
+            };
+          }
+        );
+
+        // Clear the queued action display since it's now processing
+        queryClient.setQueryData(["queued-action", taskId], null);
+      }
     }
 
     function onTaskStatusUpdate(data: TaskStatusUpdateEvent) {
@@ -703,7 +832,7 @@ export function useTaskSocket(taskId: string | undefined) {
     socket.on("stream-complete", onStreamComplete);
     socket.on("stream-error", onStreamError);
     socket.on("message-error", onMessageError);
-    socket.on("stacked-pr-created", onStackedPRCreated);
+    socket.on("queued-action-processing", onQueuedActionProcessing);
     socket.on("task-status-updated", onTaskStatusUpdate);
 
     return () => {
@@ -715,7 +844,7 @@ export function useTaskSocket(taskId: string | undefined) {
       socket.off("stream-complete", onStreamComplete);
       socket.off("stream-error", onStreamError);
       socket.off("message-error", onMessageError);
-      socket.off("stacked-pr-created", onStackedPRCreated);
+      socket.off("queued-action-processing", onQueuedActionProcessing);
       socket.off("task-status-updated", onTaskStatusUpdate);
     };
   }, [socket, taskId, queryClient]);
@@ -744,9 +873,9 @@ export function useTaskSocket(taskId: string | undefined) {
     clearStreamingState();
   }, [socket, taskId, isStreaming, clearStreamingState]);
 
-  const clearQueuedMessage = useCallback(() => {
+  const clearQueuedAction = useCallback(() => {
     if (!socket || !taskId) return;
-    socket.emit("clear-queued-message", { taskId });
+    socket.emit("clear-queued-action", { taskId });
   }, [socket, taskId]);
 
   const createStackedPR = useCallback(
@@ -765,12 +894,12 @@ export function useTaskSocket(taskId: string | undefined) {
 
   return {
     isConnected,
-    streamingPartsMap,
+    streamingPartsMap: streamingParts.map,
     streamingPartsOrder,
     isStreaming,
     sendMessage,
     stopStream,
-    clearQueuedMessage,
+    clearQueuedAction,
     createStackedPR,
   };
 }

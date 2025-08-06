@@ -70,7 +70,7 @@ function TaskPageContent() {
 
   if (taskMessagesError) {
     return (
-      <div className="mx-auto flex w-full max-w-lg grow flex-col items-center justify-center">
+      <div className="mx-auto flex w-full max-w-xl grow flex-col items-center justify-center">
         <div className="text-destructive">
           Error fetching messages: {taskMessagesError.message}
         </div>
@@ -151,7 +151,7 @@ function TaskPageContent() {
   ]);
 
   return (
-    <div className="relative z-0 mx-auto flex w-full max-w-lg grow flex-col items-center px-4 sm:px-6">
+    <div className="relative z-0 mx-auto flex w-full max-w-xl grow flex-col items-center px-4 sm:px-6">
       <Messages
         taskId={taskId}
         messages={displayMessages}

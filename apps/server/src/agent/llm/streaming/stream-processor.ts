@@ -82,7 +82,7 @@ export class StreamProcessor {
         maxTokens: 4096,
         temperature: 0.7,
         maxSteps: MAX_STEPS,
-        ...(enableTools && tools && { tools }),
+        ...(enableTools && tools && { tools, toolCallStreaming: true }),
         ...(abortSignal && { abortSignal }),
         ...(enableTools &&
           tools && {
@@ -365,6 +365,25 @@ export class StreamProcessor {
               chunk,
               toolCallMap
             );
+            for (const streamChunk of streamChunks) {
+              yield streamChunk;
+            }
+            break;
+          }
+
+          case "tool-call-streaming-start": {
+            const streamChunks = this.chunkHandlers.handleToolCallStreamingStart(
+              chunk,
+              toolCallMap
+            );
+            for (const streamChunk of streamChunks) {
+              yield streamChunk;
+            }
+            break;
+          }
+
+          case "tool-call-delta": {
+            const streamChunks = this.chunkHandlers.handleToolCallDelta(chunk);
             for (const streamChunk of streamChunks) {
               yield streamChunk;
             }

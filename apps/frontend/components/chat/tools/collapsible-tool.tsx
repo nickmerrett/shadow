@@ -6,8 +6,10 @@ import {
   ChevronRight,
   CornerDownRight,
   Expand,
+  Loader2,
 } from "lucide-react";
 import { useState } from "react";
+import { FileIcon } from "@/components/ui/file-icon";
 
 export function ToolComponent({
   icon,
@@ -17,15 +19,18 @@ export function ToolComponent({
   hasStdErr,
   prefix,
   suffix,
+  showFileIcon,
   collapsible = false,
   onClick,
   children,
+  isLoading = false,
 }: {
   icon: React.ReactNode;
   type: ToolTypes | "error" | "warning";
   title: string;
   suffix?: string;
   prefix?: string;
+  showFileIcon?: string;
   changes?: {
     linesAdded: number;
     linesRemoved: number;
@@ -35,6 +40,7 @@ export function ToolComponent({
   collapsible?: boolean;
   onClick?: () => void;
   children?: React.ReactNode;
+  isLoading?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -46,12 +52,15 @@ export function ToolComponent({
         isExpanded={isExpanded}
         toggleExpanded={() => setIsExpanded(!isExpanded)}
       >
-        {icon}
+        {isLoading ? <Loader2 className="animate-spin" /> : icon}
         <div className="flex w-[calc(100%-1.5rem)] items-center gap-1">
           {type !== "error" && type !== "warning" && (
             <div className="whitespace-nowrap opacity-70">
               {prefix || TOOL_PREFIXES[type]}
             </div>
+          )}
+          {showFileIcon && (
+            <FileIcon filename={showFileIcon} className="size-3.5 opacity-70" />
           )}
           <div
             className={cn(
@@ -65,7 +74,7 @@ export function ToolComponent({
           {hasStdErr && (
             <AlertCircle className="text-destructive ml-1 shrink-0" />
           )}
-          {changes && (
+          {!isLoading && changes && (
             <div className="flex items-center gap-1">
               <span className="text-green-400">+{changes.linesAdded}</span>
               <span className="text-destructive">-{changes.linesRemoved}</span>

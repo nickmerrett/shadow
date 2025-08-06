@@ -1,19 +1,32 @@
 import type {
   CoreMessage,
   TextPart,
-  ToolCallPart,
+  ToolCallPart as BaseToolCallPart,
   ToolResultPart,
   FinishReason,
 } from "ai";
 import { ToolExecutionStatusType } from "../tools/execution";
 import { ToolResultTypes } from "../tools/schemas";
-import type { PullRequestSnapshot } from "@repo/db";
+import type { PullRequestSnapshot, TaskStatus } from "@repo/db";
 
 // Error part type for AI SDK error chunks
 export interface ErrorPart {
   type: "error";
   error: string;
   finishReason?: FinishReason;
+}
+
+// Extended ToolCallPart with streaming state tracking
+export interface ToolCallPart extends BaseToolCallPart {
+  // Streaming state properties
+  streamingState?: "starting" | "streaming" | "complete";
+  argsComplete?: boolean; // Are args fully received?
+
+  accumulatedArgsText?: string;
+  partialArgs?: {
+    target_file?: string;
+    command?: string;
+  };
 }
 
 export type AssistantMessagePart =
@@ -40,29 +53,32 @@ export type Message = {
   stackedTask?: {
     id: string;
     title: string;
+    shadowBranch?: string;
+    status?: TaskStatus;
   };
 };
 
 export interface MessageMetadata {
-  // For assistant messages with thinking
   thinking?: {
     content: string;
     duration: number; // seconds
   };
 
-  // For tool call messages - now properly typed
   tool?: {
     name: string;
     args: Record<string, unknown>;
     status: ToolExecutionStatusType;
-    result?: ToolResultTypes["result"] | string; // Support both new objects and legacy strings
+    result?: ToolResultTypes["result"];
   };
 
-  // For structured assistant messages - required for chronological tool call ordering
   parts?: AssistantMessagePart[];
 
-  // Streaming indicator
   isStreaming?: boolean;
+  streamingState?: "starting" | "streaming" | "complete";
+  partialArgs?: {
+    target_file?: string;
+    command?: string;
+  };
 
   // LLM usage metadata
   usage?: {
