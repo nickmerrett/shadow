@@ -293,7 +293,7 @@ export async function getAllPossibleModels(
       AvailableModels.CLAUDE_OPUS_4,
       AvailableModels.CLAUDE_SONNET_4,
       AvailableModels.CLAUDE_3_7_SONNET,
-      AvailableModels.CLAUDE_3_5_HAIKU
+      AvailableModels.CLAUDE_3_5_SONNET_20240620
     );
   }
 
@@ -364,7 +364,7 @@ export async function getDefaultSelectedModels(
       AvailableModels.CLAUDE_OPUS_4, // default
       AvailableModels.CLAUDE_SONNET_4, // default
       AvailableModels.CLAUDE_3_7_SONNET, // default
-      AvailableModels.CLAUDE_3_5_HAIKU // default
+      AvailableModels.CLAUDE_3_5_SONNET_20240620 // default
     );
   }
 

@@ -37,7 +37,7 @@ export type IndexFile = z.infer<typeof IndexFileSchema>;
 export type DeepWikiMetadata = z.infer<typeof DeepWikiMetadataSchema>;
 export type DeepWikiContent = z.infer<typeof DeepWikiContentSchema>;
 
-// Simplified schema for the new deep wiki implementation
+// Simplified schema for the new Shadow Wiki implementation
 export const TaskCodebaseUnderstandingSchema = z.object({
   id: z.string(),
   repoFullName: z.string(),

@@ -12,7 +12,7 @@ import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../../packages/db/src/client";
 import { LLMService } from "./llm";
-import { getSystemPrompt, getDeepWikiMessage } from "./system-prompt";
+import { getSystemPrompt, getShadowWikiMessage } from "./system-prompt";
 import { createTools } from "./tools";
 import type { ToolSet } from "ai";
 import { GitManager } from "../services/git-manager";
@@ -732,12 +732,12 @@ export class ChatService {
     if (isFirstMessage) {
       const systemMessagesToAdd: Message[] = [];
 
-      const deepWikiContent = await getDeepWikiMessage(taskId);
-      if (deepWikiContent) {
+      const shadowWikiContent = await getShadowWikiMessage(taskId);
+      if (shadowWikiContent) {
         const deepWikiSequence = await this.getNextSequence(taskId);
         await this.saveSystemMessage(
           taskId,
-          deepWikiContent,
+          shadowWikiContent,
           context.getMainModel(),
           deepWikiSequence
         );
@@ -745,7 +745,7 @@ export class ChatService {
         systemMessagesToAdd.push({
           id: randomUUID(),
           role: "system",
-          content: deepWikiContent,
+          content: shadowWikiContent,
           createdAt: new Date().toISOString(),
           llmModel: context.getMainModel(),
         });

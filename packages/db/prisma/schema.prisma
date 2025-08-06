@@ -286,7 +286,7 @@ enum InitStatus {
   WAIT_VM_READY
   VERIFY_VM_WORKSPACE
   INDEX_REPOSITORY
-  GENERATE_DEEP_WIKI
+  GENERATE_SHADOW_WIKI
   ACTIVE
 }
 
@@ -295,7 +295,7 @@ model UserSettings {
   userId          String   @unique
   memoriesEnabled Boolean  @default(true)
   autoPullRequest Boolean  @default(false)
-  enableDeepWiki  Boolean  @default(true)
+  enableDeepWiki  Boolean  @default(false)
   selectedModels  String[] @default([])
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
