@@ -47,31 +47,34 @@ export interface TitleGenerationConfig {
 }
 
 export function getTitleGenerationModel(config: TitleGenerationConfig): {
-  provider: "openai" | "anthropic";
+  provider: "openai" | "anthropic" | "openrouter";
   modelChoice: string;
 } | null {
   const { apiKeys, fallbackModel } = config;
   
   // Check if any API key is available
-  if (!apiKeys.openai && !apiKeys.anthropic) {
+  if (!apiKeys.openai && !apiKeys.anthropic && !apiKeys.openrouter) {
     return null;
   }
 
   let modelChoice: string;
-  let provider: "openai" | "anthropic";
+  let provider: "openai" | "anthropic" | "openrouter";
 
   if (fallbackModel) {
     // Determine provider from fallback model and use appropriate mini model
     provider = getModelProvider(fallbackModel as ModelType);
     modelChoice = getMiniModelForProvider(fallbackModel as ModelType);
   } else {
-    // Default behavior: prefer OpenAI if available
+    // Default behavior: prefer OpenAI, then Anthropic, then OpenRouter
     if (apiKeys.openai) {
       provider = "openai";
       modelChoice = getMiniModelForProvider("gpt-4o" as ModelType);
-    } else {
+    } else if (apiKeys.anthropic) {
       provider = "anthropic";
       modelChoice = getMiniModelForProvider("claude-3-5-sonnet-20241022" as ModelType);
+    } else {
+      provider = "openrouter";
+      modelChoice = getMiniModelForProvider("openrouter/horizon-beta" as ModelType);
     }
   }
 

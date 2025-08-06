@@ -1,6 +1,7 @@
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import {
   cleanTitle,
   generateShadowBranchName,
@@ -18,6 +19,7 @@ export async function generateTaskTitleAndBranch(
     const apiKeys = context?.getApiKeys() || {
       openai: undefined,
       anthropic: undefined,
+      openrouter: undefined,
     };
 
     // Get the main model to determine provider for mini model selection
@@ -43,7 +45,9 @@ export async function generateTaskTitleAndBranch(
     const model =
       modelConfig.provider === "openai"
         ? openai(modelConfig.modelChoice)
-        : anthropic(modelConfig.modelChoice);
+        : modelConfig.provider === "anthropic"
+        ? anthropic(modelConfig.modelChoice)
+        : createOpenRouter({ apiKey: apiKeys.openrouter! }).chat(modelConfig.modelChoice);
 
     const { text: generatedText } = await generateText({
       model,
