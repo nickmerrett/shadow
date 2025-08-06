@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { autoPullRequest, enableDeepWiki, memoriesEnabled, selectedModels } =
+    const { autoPullRequest, enableShadowWiki, memoriesEnabled, selectedModels } =
       body;
 
     // Validate autoPullRequest if provided
@@ -50,10 +50,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate enableDeepWiki if provided
-    if (enableDeepWiki !== undefined && typeof enableDeepWiki !== "boolean") {
+    // Validate enableShadowWiki if provided
+    if (enableShadowWiki !== undefined && typeof enableShadowWiki !== "boolean") {
       return NextResponse.json(
-        { error: "enableDeepWiki must be a boolean" },
+        { error: "enableShadowWiki must be a boolean" },
         { status: 400 }
       );
     }
@@ -77,14 +77,14 @@ export async function POST(request: NextRequest) {
     // Build update object with only provided fields
     const updateData: {
       autoPullRequest?: boolean;
-      enableDeepWiki?: boolean;
+      enableShadowWiki?: boolean;
       memoriesEnabled?: boolean;
       selectedModels?: string[];
     } = {};
     if (autoPullRequest !== undefined)
       updateData.autoPullRequest = autoPullRequest;
-    if (enableDeepWiki !== undefined)
-      updateData.enableDeepWiki = enableDeepWiki;
+    if (enableShadowWiki !== undefined)
+      updateData.enableShadowWiki = enableShadowWiki;
     if (memoriesEnabled !== undefined)
       updateData.memoriesEnabled = memoriesEnabled;
     if (selectedModels !== undefined)
