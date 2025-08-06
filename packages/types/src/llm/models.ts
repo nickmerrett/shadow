@@ -47,9 +47,9 @@ export const AvailableModels = {
   MISTRAL_CODESTRAL_2508: "mistralai/codestral-2508",
   DEEPSEEK_R1_0528: "deepseek/deepseek-r1-0528",
   DEEPSEEK_CHAT_V3_0324: "deepseek/deepseek-chat-v3-0324",
-  OPENAI_CODEX_MINI: "openai/codex-mini",
-  QWEN_2_5_CODER_32B_INSTRUCT_FREE: "qwen/qwen-2.5-coder-32b-instruct:free",
-  MOONSHOT_KIMI_K2_FREE: "moonshotai/kimi-k2:free",
+  // OPENAI_CODEX_MINI: "openai/codex-mini", // Removed - returns "Bad Request"
+  // QWEN_2_5_CODER_32B_INSTRUCT_FREE: "qwen/qwen-2.5-coder-32b-instruct:free", // Removed - rate limiting issues
+  // MOONSHOT_KIMI_K2_FREE: "moonshotai/kimi-k2:free", // Removed - rate limiting issues
   QWEN_3_235B_A22B_2507: "qwen/qwen3-235b-a22b-2507",
 
   // Groq models (commented out)
@@ -236,21 +236,21 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "DeepSeek Chat V3 0324",
     provider: "openrouter",
   },
-  [AvailableModels.OPENAI_CODEX_MINI]: {
-    id: AvailableModels.OPENAI_CODEX_MINI,
-    name: "Codex Mini",
-    provider: "openrouter",
-  },
-  [AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE]: {
-    id: AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE,
-    name: "Qwen 2.5 Coder 32B Instruct (Free)",
-    provider: "openrouter",
-  },
-  [AvailableModels.MOONSHOT_KIMI_K2_FREE]: {
-    id: AvailableModels.MOONSHOT_KIMI_K2_FREE,
-    name: "Moonshot Kimi K2 (Free)",
-    provider: "openrouter",
-  },
+  // [AvailableModels.OPENAI_CODEX_MINI]: {
+  //   id: AvailableModels.OPENAI_CODEX_MINI,
+  //   name: "Codex Mini",
+  //   provider: "openrouter",
+  // },
+  // [AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE]: {
+  //   id: AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE,
+  //   name: "Qwen 2.5 Coder 32B Instruct (Free)",
+  //   provider: "openrouter",
+  // },
+  // [AvailableModels.MOONSHOT_KIMI_K2_FREE]: {
+  //   id: AvailableModels.MOONSHOT_KIMI_K2_FREE,
+  //   name: "Moonshot Kimi K2 (Free)",
+  //   provider: "openrouter",
+  // },
   [AvailableModels.QWEN_3_235B_A22B_2507]: {
     id: AvailableModels.QWEN_3_235B_A22B_2507,
     name: "Qwen 3 235B A22B 2507",
@@ -316,9 +316,9 @@ export async function getAllPossibleModels(
       AvailableModels.MISTRAL_CODESTRAL_2508,
       AvailableModels.DEEPSEEK_R1_0528,
       AvailableModels.DEEPSEEK_CHAT_V3_0324,
-      AvailableModels.OPENAI_CODEX_MINI,
-      AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE,
-      AvailableModels.MOONSHOT_KIMI_K2_FREE,
+      // AvailableModels.OPENAI_CODEX_MINI, // Removed - returns "Bad Request"
+      // AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE, // Removed - rate limiting issues
+      // AvailableModels.MOONSHOT_KIMI_K2_FREE, // Removed - rate limiting issues
       AvailableModels.QWEN_3_235B_A22B_2507
     );
   }
@@ -378,9 +378,9 @@ export async function getDefaultSelectedModels(
       AvailableModels.MISTRAL_CODESTRAL_2508,
       AvailableModels.DEEPSEEK_R1_0528,
       AvailableModels.DEEPSEEK_CHAT_V3_0324,
-      AvailableModels.OPENAI_CODEX_MINI,
-      AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE,
-      AvailableModels.MOONSHOT_KIMI_K2_FREE,
+      // AvailableModels.OPENAI_CODEX_MINI, // Removed - returns "Bad Request"
+      // AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE, // Removed - rate limiting issues
+      // AvailableModels.MOONSHOT_KIMI_K2_FREE, // Removed - rate limiting issues
       AvailableModels.QWEN_3_235B_A22B_2507
     );
   }
