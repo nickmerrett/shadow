@@ -39,13 +39,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const {
-      autoPullRequest,
-      enableDeepWiki,
-      memoriesEnabled,
-      selectedModels,
-      selectedMiniModels,
-    } = body;
+    const { autoPullRequest, enableDeepWiki, memoriesEnabled, selectedModels } =
+      body;
 
     // Validate autoPullRequest if provided
     if (autoPullRequest !== undefined && typeof autoPullRequest !== "boolean") {
@@ -79,26 +74,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate selectedMiniModels if provided
-    if (
-      selectedMiniModels !== undefined &&
-      (typeof selectedMiniModels !== "object" ||
-        selectedMiniModels === null ||
-        Array.isArray(selectedMiniModels))
-    ) {
-      return NextResponse.json(
-        { error: "selectedMiniModels must be an object (not array or null)" },
-        { status: 400 }
-      );
-    }
-
     // Build update object with only provided fields
     const updateData: {
       autoPullRequest?: boolean;
       enableDeepWiki?: boolean;
       memoriesEnabled?: boolean;
       selectedModels?: string[];
-      selectedMiniModels?: Record<string, ModelType>;
     } = {};
     if (autoPullRequest !== undefined)
       updateData.autoPullRequest = autoPullRequest;
@@ -108,8 +89,6 @@ export async function POST(request: NextRequest) {
       updateData.memoriesEnabled = memoriesEnabled;
     if (selectedModels !== undefined)
       updateData.selectedModels = selectedModels;
-    if (selectedMiniModels !== undefined)
-      updateData.selectedMiniModels = selectedMiniModels;
 
     const settings = await updateUserSettings(session.user.id, updateData);
 

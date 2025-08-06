@@ -1,5 +1,11 @@
 import { ModelType } from "@repo/types";
-import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  UseQueryResult,
+  UseMutationResult,
+} from "@tanstack/react-query";
 
 // Local UserSettings interface to avoid Prisma type issues
 interface UserSettings {
@@ -9,7 +15,6 @@ interface UserSettings {
   enableDeepWiki: boolean;
   memoriesEnabled: boolean;
   selectedModels: string[];
-  selectedMiniModels: Record<string, ModelType>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,7 +24,6 @@ type UpdateUserSettingsParams = {
   memoriesEnabled?: boolean;
   enableDeepWiki?: boolean;
   selectedModels?: string[];
-  selectedMiniModels?: Record<string, ModelType>;
 };
 
 interface UserSettingsResponse {
@@ -49,7 +53,6 @@ async function updateUserSettingsAPI(settings: {
   memoriesEnabled?: boolean;
   enableDeepWiki?: boolean;
   selectedModels?: string[];
-  selectedMiniModels?: Record<string, ModelType>;
 }): Promise<UserSettings> {
   const response = await fetch("/api/user-settings", {
     method: "POST",
@@ -77,7 +80,11 @@ export function useUserSettings(): UseQueryResult<UserSettings, Error> {
   });
 }
 
-export function useUpdateUserSettings(): UseMutationResult<UserSettings, Error, UpdateUserSettingsParams> {
+export function useUpdateUserSettings(): UseMutationResult<
+  UserSettings,
+  Error,
+  UpdateUserSettingsParams
+> {
   const queryClient = useQueryClient();
 
   return useMutation({

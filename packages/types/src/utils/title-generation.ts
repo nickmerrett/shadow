@@ -1,4 +1,4 @@
-import { getMiniModelForProvider, getModelProvider } from "../llm/models";
+import { getModelProvider } from "../llm/models";
 import type { ApiKeys } from "../api-keys";
 import type { ModelType } from "../llm/models";
 
@@ -69,24 +69,20 @@ export function getTitleGenerationModel(config: TitleGenerationConfig): {
   let provider: "openai" | "anthropic" | "openrouter" | "ollama";
 
   if (fallbackModel) {
-    // Determine provider from fallback model and use appropriate mini model
+    // Use the fallback model directly
     provider = getModelProvider(fallbackModel as ModelType);
-    modelChoice = getMiniModelForProvider(fallbackModel as ModelType);
+    modelChoice = fallbackModel as ModelType;
   } else {
     // Default behavior: prefer OpenAI, then Anthropic, then OpenRouter
     if (apiKeys.openai) {
       provider = "openai";
-      modelChoice = getMiniModelForProvider("gpt-4o" as ModelType);
+      modelChoice = "gpt-4o" as ModelType;
     } else if (apiKeys.anthropic) {
       provider = "anthropic";
-      modelChoice = getMiniModelForProvider(
-        "claude-3-5-sonnet-20241022" as ModelType
-      );
+      modelChoice = "claude-3-5-sonnet-20241022" as ModelType;
     } else {
       provider = "openrouter";
-      modelChoice = getMiniModelForProvider(
-        "openrouter/horizon-beta" as ModelType
-      );
+      modelChoice = "openrouter/horizon-beta" as ModelType;
     }
   }
 
