@@ -55,7 +55,6 @@ export function ToolMessage({ message }: { message: Message }) {
     );
   }
 
-  // Todo: pass in status
   return <ToolComponent message={message} />;
 }
 

@@ -222,9 +222,10 @@ export function AssistantMessage({
 
           // Determine status from streaming state and result availability
           const isStreamingMessage = part.streamingState !== undefined;
-          const isInProgress = isStreamingMessage 
-            ? (!part.argsComplete || !toolResult)  // Streaming: check both
-            : !toolResult;                         // Database: only check result exists
+          const isInProgress = isStreamingMessage
+            ? !part.argsComplete || !toolResult // Streaming: check both
+            : !toolResult; // Database: only check result exists
+          console.log("isInProgress", isInProgress);
           const status = isInProgress ? "RUNNING" : "COMPLETED";
 
           // Create a proper tool message for rendering
@@ -238,8 +239,8 @@ export function AssistantMessage({
               tool: {
                 name: part.toolName,
                 args: part.args as Record<string, unknown>,
-                status, // Dynamic status based on streaming state
-                result: toolResult?.result as ToolResultTypes["result"], // Tool result from stream - cast for compatibility
+                status,
+                result: toolResult?.result as ToolResultTypes["result"],
               },
             },
           };
