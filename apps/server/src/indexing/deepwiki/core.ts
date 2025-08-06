@@ -596,7 +596,8 @@ function getBasicFileInfo(filePath: string, fileSize?: number): string {
 async function summarizeFile(
   rootPath: string,
   rel: string,
-  miniModelInstance: any
+  miniModelInstance: any,
+  skipLLM: boolean = false
 ): Promise<string> {
   const abs = path.join(rootPath, rel);
 
@@ -1045,6 +1046,9 @@ export async function runDeepWiki(
     totalTokens: 0,
   };
 
+  let consecutiveLLMFailures = 0;
+  const MAX_CONSECUTIVE_FAILURES = 5;
+
   const tree = await buildTree(repoPath, repoFullName);
 
   const fileCache: Record<string, string> = {};
@@ -1059,7 +1063,10 @@ export async function runDeepWiki(
 
   console.log(`[SHADOW-WIKI] Processing ${allFiles.length} files in batches`);
 
-  const BATCH_SIZE = 20;
+  // Dynamic batch size based on total files to prevent overwhelming large codebases
+  const BATCH_SIZE = Math.max(10, Math.min(50, Math.ceil(allFiles.length / 50)));
+  console.log(`[SHADOW-WIKI] Using batch size: ${BATCH_SIZE}`);
+  
   for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
     const batch = allFiles.slice(i, i + BATCH_SIZE);
     const batchTasks = batch.map(async (rel) => {
