@@ -1,5 +1,0 @@
----
-alwaysApply: true
----
-
-Do not run `npm run dev` or `npm run start` to run the application, since it causes the chat to hang indefinitely.

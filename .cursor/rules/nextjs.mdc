@@ -1,5 +1,0 @@
----
-alwaysApply: false
----
-
-When writing Next.js server actions or route handlers, always authenticate the user.
