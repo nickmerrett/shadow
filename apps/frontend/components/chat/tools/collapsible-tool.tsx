@@ -1,7 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ToolTypes, TOOL_PREFIXES } from "@repo/types";
-import { ChevronRight, CornerDownRight, Expand } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronRight,
+  CornerDownRight,
+  Expand,
+} from "lucide-react";
 import { useState } from "react";
 
 export function ToolComponent({
@@ -9,6 +14,7 @@ export function ToolComponent({
   type,
   title,
   changes,
+  hasStdErr,
   prefix,
   suffix,
   collapsible = false,
@@ -16,7 +22,7 @@ export function ToolComponent({
   children,
 }: {
   icon: React.ReactNode;
-  type: ToolTypes | "error";
+  type: ToolTypes | "error" | "warning";
   title: string;
   suffix?: string;
   prefix?: string;
@@ -24,6 +30,7 @@ export function ToolComponent({
     linesAdded: number;
     linesRemoved: number;
   };
+  hasStdErr?: boolean;
   className?: string;
   collapsible?: boolean;
   onClick?: () => void;
@@ -41,20 +48,27 @@ export function ToolComponent({
       >
         {icon}
         <div className="flex w-[calc(100%-1.5rem)] items-center gap-1">
-          {type !== "error" && (
+          {type !== "error" && type !== "warning" && (
             <div className="whitespace-nowrap opacity-70">
               {prefix || TOOL_PREFIXES[type]}
             </div>
           )}
           <div
-            className={cn("truncate", type === "error" && "text-destructive")}
+            className={cn(
+              "truncate",
+              type === "error" && "text-destructive",
+              type === "warning" && "text-yellow-600"
+            )}
           >
             {title}
           </div>
+          {hasStdErr && (
+            <AlertCircle className="text-destructive ml-1 shrink-0" />
+          )}
           {changes && (
             <div className="flex items-center gap-1">
               <span className="text-green-400">+{changes.linesAdded}</span>
-              <span className="text-red-400">-{changes.linesRemoved}</span>
+              <span className="text-destructive">-{changes.linesRemoved}</span>
             </div>
           )}
           {suffix && (
@@ -65,7 +79,13 @@ export function ToolComponent({
       {isExpanded && (
         <div className="flex w-full items-start overflow-hidden">
           <div className="h-4.5 flex w-6 shrink-0 items-center justify-end">
-            <CornerDownRight className="size-3" />
+            <CornerDownRight
+              className={cn(
+                "size-3",
+                type === "error" && "text-destructive",
+                type === "warning" && "text-yellow-600"
+              )}
+            />
           </div>
           <div className="flex grow flex-col gap-2 overflow-hidden pl-2 text-[13px]">
             {children}

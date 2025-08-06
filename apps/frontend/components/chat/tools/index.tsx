@@ -60,7 +60,6 @@ export function ToolMessage({ message }: { message: Message }) {
   return <ToolComponent message={message} />;
 }
 
-// Export all tool components for potential individual use
 export {
   SemanticSearchTool,
   DeleteFileTool,
