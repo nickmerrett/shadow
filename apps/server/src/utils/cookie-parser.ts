@@ -2,29 +2,30 @@ import { ApiKeys } from "@repo/types";
 
 export function parseApiKeysFromCookies(cookieHeader?: string): ApiKeys {
   if (!cookieHeader) {
-    return {};
+    return {
+      openai: undefined,
+      anthropic: undefined,
+      openrouter: undefined,
+      // groq: undefined,
+      ollama: undefined,
+    };
   }
 
-  const cookies: Record<string, string> = {};
-  cookieHeader.split(";").forEach((cookie) => {
-    const trimmedCookie = cookie.trim();
-    const equalIndex = trimmedCookie.indexOf("=");
-
-    if (equalIndex > 0) {
-      const name = trimmedCookie.substring(0, equalIndex);
-      const value = trimmedCookie.substring(equalIndex + 1);
-
-      // Only decode if the value contains URL-encoded characters
-      // API keys typically don't need decoding, but session tokens might
-      cookies[name] = value.includes("%") ? decodeURIComponent(value) : value;
-    }
-  });
+  const cookies = cookieHeader
+    .split(";")
+    .reduce((acc: Record<string, string>, cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      if (key && value) {
+        acc[key] = decodeURIComponent(value);
+      }
+      return acc;
+    }, {});
 
   return {
     openai: cookies["openai-key"] || undefined,
     anthropic: cookies["anthropic-key"] || undefined,
     openrouter: cookies["openrouter-key"] || undefined,
-    groq: cookies["groq-key"] || undefined,
+    // groq: cookies["groq-key"] || undefined,
     ollama: cookies["ollama-key"] || undefined,
   };
 }

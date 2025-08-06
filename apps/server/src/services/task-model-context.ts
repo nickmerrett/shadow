@@ -8,7 +8,8 @@ export class TaskModelContext {
   constructor(
     private taskId: string,
     private mainModel: ModelType,
-    private apiKeys: ApiKeys
+    private apiKeys: ApiKeys,
+    private selectedMiniModels?: Record<string, ModelType>
   ) {}
 
   getMainModel(): ModelType {
@@ -16,7 +17,7 @@ export class TaskModelContext {
   }
 
   getMiniModel(): ModelType {
-    return getMiniModelForProvider(this.mainModel);
+    return getMiniModelForProvider(this.mainModel, this.selectedMiniModels);
   }
 
   getProviderApiKey(): string | undefined {
@@ -28,7 +29,7 @@ export class TaskModelContext {
     return this.apiKeys;
   }
 
-  getProvider(): "anthropic" | "openai" | "openrouter" {
+  getProvider(): "anthropic" | "openai" | "openrouter" | "ollama" {
     return getModelProvider(this.mainModel);
   }
 

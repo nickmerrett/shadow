@@ -20,7 +20,10 @@ export function generateRandomSuffix(length: number): string {
   return result;
 }
 
-export function generateShadowBranchName(title: string, taskId: string): string {
+export function generateShadowBranchName(
+  title: string,
+  taskId: string
+): string {
   const branchSafeTitle = title
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, "") // Remove special chars except spaces and hyphens
@@ -47,18 +50,23 @@ export interface TitleGenerationConfig {
 }
 
 export function getTitleGenerationModel(config: TitleGenerationConfig): {
-  provider: "openai" | "anthropic" | "openrouter" | "groq" | "ollama";
+  provider: "openai" | "anthropic" | "openrouter" | "ollama";
   modelChoice: string;
 } | null {
   const { apiKeys, fallbackModel } = config;
-  
+
   // Check if any API key is available
-  if (!apiKeys.openai && !apiKeys.anthropic && !apiKeys.openrouter && !apiKeys.groq && !apiKeys.ollama) {
+  if (
+    !apiKeys.openai &&
+    !apiKeys.anthropic &&
+    !apiKeys.openrouter &&
+    !apiKeys.ollama
+  ) {
     return null;
   }
 
   let modelChoice: string;
-  let provider: "openai" | "anthropic" | "openrouter" | "groq" | "ollama";
+  let provider: "openai" | "anthropic" | "openrouter" | "ollama";
 
   if (fallbackModel) {
     // Determine provider from fallback model and use appropriate mini model
@@ -71,10 +79,14 @@ export function getTitleGenerationModel(config: TitleGenerationConfig): {
       modelChoice = getMiniModelForProvider("gpt-4o" as ModelType);
     } else if (apiKeys.anthropic) {
       provider = "anthropic";
-      modelChoice = getMiniModelForProvider("claude-3-5-sonnet-20241022" as ModelType);
+      modelChoice = getMiniModelForProvider(
+        "claude-3-5-sonnet-20241022" as ModelType
+      );
     } else {
       provider = "openrouter";
-      modelChoice = getMiniModelForProvider("openrouter/horizon-beta" as ModelType);
+      modelChoice = getMiniModelForProvider(
+        "openrouter/horizon-beta" as ModelType
+      );
     }
   }
 

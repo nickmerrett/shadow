@@ -5,29 +5,51 @@ export interface LLMConfig {
   maxTokens?: number;
   temperature?: number;
   systemPrompt?: string;
-  provider: "anthropic" | "openai" | "openrouter" | "groq" | "ollama";
+  provider: "anthropic" | "openai" | "openrouter" | /*"groq" |*/ "ollama";
 }
 
 // Model Selection
 export const AvailableModels = {
-  // Anthropic models
-  CLAUDE_SONNET_4: "claude-sonnet-4-20250514",
-  CLAUDE_OPUS_4: "claude-opus-4-20250514",
-  CLAUDE_HAIKU_3_5: "claude-3-5-haiku-latest",
   // OpenAI models
-  GPT_4O_MINI: "gpt-4o-mini",
-  O3: "o3",
-  GPT_4_1: "gpt-4.1-2025-04-14",
+  GPT_4_1: "gpt-4.1",
+  GPT_4_1_MINI: "gpt-4.1-mini",
+  GPT_4_1_NANO: "gpt-4.1-nano",
   GPT_4O: "gpt-4o",
+  GPT_4O_MINI: "gpt-4o-mini",
+  GPT_4O_AUDIO_PREVIEW: "gpt-4o-audio-preview",
+  GPT_4_TURBO: "gpt-4-turbo",
+  GPT_4: "gpt-4",
+  GPT_3_5_TURBO: "gpt-3.5-turbo",
+  O1: "o1",
+  O1_MINI: "o1-mini",
+  O1_PREVIEW: "o1-preview",
+  O3_MINI: "o3-mini",
+  O3: "o3",
+  O4_MINI: "o4-mini",
+  CHATGPT_4O_LATEST: "chatgpt-4o-latest",
+
+  // Anthropic models
+  CLAUDE_OPUS_4: "claude-opus-4-20250514",
+  CLAUDE_SONNET_4: "claude-sonnet-4-20250514",
+  CLAUDE_3_7_SONNET: "claude-3-7-sonnet-20250219",
+  CLAUDE_3_5_SONNET_20241022: "claude-3-5-sonnet-20241022",
+  CLAUDE_3_5_SONNET_20240620: "claude-3-5-sonnet-20240620",
+  CLAUDE_3_5_HAIKU: "claude-3-5-haiku-20241022",
+  CLAUDE_3_OPUS: "claude-3-opus-20240229",
+  CLAUDE_3_SONNET: "claude-3-sonnet-20240229",
+  CLAUDE_3_HAIKU: "claude-3-haiku-20240307",
+
   // OpenRouter models
-  OPENROUTER_HORIZON_BETA: "openrouter/horizon-beta",
+  XAI_GROK_3: "x-ai/grok-3",
   OPENAI_GPT_OSS_120B: "openai/gpt-oss-120b",
   OPENAI_GPT_OSS_20B: "openai/gpt-oss-20b",
+  OPENROUTER_HORIZON_BETA: "openrouter/horizon-beta",
+  MISTRAL_CODESTRAL_2508: "mistralai/codestral-2508",
 
-  // Groq models
-  GROQ_MIXTRAL_8X7B: "mixtral-8x7b-32768",
-  GROQ_LLAMA3_70B: "llama3-70b-8192",
-  GROQ_LLAMA3_8B: "llama3-8b-8192",
+  // Groq models (commented out)
+  // GROQ_MIXTRAL_8X7B: "mixtral-8x7b-32768",
+  // GROQ_LLAMA3_70B: "llama3-70b-8192",
+  // GROQ_LLAMA3_8B: "llama3-8b-8192",
 
   // Ollama models (local)
   OLLAMA_LLAMA3_2: "llama3.2",
@@ -40,33 +62,29 @@ export type ModelType = (typeof AvailableModels)[keyof typeof AvailableModels];
 export interface ModelInfo {
   id: ModelType;
   name: string;
-  provider: "anthropic" | "openai" | "openrouter" | "groq" | "ollama";
+  provider: "anthropic" | "openai" | "openrouter" | /*"groq" |*/ "ollama";
 }
 
 export const ModelInfos: Record<ModelType, ModelInfo> = {
-  [AvailableModels.CLAUDE_SONNET_4]: {
-    id: AvailableModels.CLAUDE_SONNET_4,
-    name: "Claude Sonnet 4",
-    provider: "anthropic",
+  // OpenAI models
+  [AvailableModels.GPT_4_1]: {
+    id: AvailableModels.GPT_4_1,
+    name: "GPT-4.1",
+    provider: "openai",
   },
-  [AvailableModels.CLAUDE_OPUS_4]: {
-    id: AvailableModels.CLAUDE_OPUS_4,
-    name: "Claude Opus 4",
-    provider: "anthropic",
+  [AvailableModels.GPT_4_1_MINI]: {
+    id: AvailableModels.GPT_4_1_MINI,
+    name: "GPT-4.1 Mini",
+    provider: "openai",
   },
-  [AvailableModels.CLAUDE_HAIKU_3_5]: {
-    id: AvailableModels.CLAUDE_HAIKU_3_5,
-    name: "Claude Haiku 3.5",
-    provider: "anthropic",
+  [AvailableModels.GPT_4_1_NANO]: {
+    id: AvailableModels.GPT_4_1_NANO,
+    name: "GPT-4.1 Nano",
+    provider: "openai",
   },
   [AvailableModels.GPT_4O]: {
     id: AvailableModels.GPT_4O,
     name: "GPT-4o",
-    provider: "openai",
-  },
-  [AvailableModels.GPT_4_1]: {
-    id: AvailableModels.GPT_4_1,
-    name: "GPT-4.1",
     provider: "openai",
   },
   [AvailableModels.GPT_4O_MINI]: {
@@ -74,14 +92,113 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "GPT-4o Mini",
     provider: "openai",
   },
+  [AvailableModels.GPT_4O_AUDIO_PREVIEW]: {
+    id: AvailableModels.GPT_4O_AUDIO_PREVIEW,
+    name: "GPT-4o Audio Preview",
+    provider: "openai",
+  },
+  [AvailableModels.GPT_4_TURBO]: {
+    id: AvailableModels.GPT_4_TURBO,
+    name: "GPT-4 Turbo",
+    provider: "openai",
+  },
+  [AvailableModels.GPT_4]: {
+    id: AvailableModels.GPT_4,
+    name: "GPT-4",
+    provider: "openai",
+  },
+  [AvailableModels.GPT_3_5_TURBO]: {
+    id: AvailableModels.GPT_3_5_TURBO,
+    name: "GPT-3.5 Turbo",
+    provider: "openai",
+  },
+  [AvailableModels.O1]: {
+    id: AvailableModels.O1,
+    name: "o1",
+    provider: "openai",
+  },
+  [AvailableModels.O1_MINI]: {
+    id: AvailableModels.O1_MINI,
+    name: "o1-mini",
+    provider: "openai",
+  },
+  [AvailableModels.O1_PREVIEW]: {
+    id: AvailableModels.O1_PREVIEW,
+    name: "o1-preview",
+    provider: "openai",
+  },
+  [AvailableModels.O3_MINI]: {
+    id: AvailableModels.O3_MINI,
+    name: "o3-mini",
+    provider: "openai",
+  },
   [AvailableModels.O3]: {
     id: AvailableModels.O3,
     name: "o3",
     provider: "openai",
   },
-  [AvailableModels.OPENROUTER_HORIZON_BETA]: {
-    id: AvailableModels.OPENROUTER_HORIZON_BETA,
-    name: "Horizon Beta",
+  [AvailableModels.O4_MINI]: {
+    id: AvailableModels.O4_MINI,
+    name: "o4-mini",
+    provider: "openai",
+  },
+  [AvailableModels.CHATGPT_4O_LATEST]: {
+    id: AvailableModels.CHATGPT_4O_LATEST,
+    name: "ChatGPT-4o Latest",
+    provider: "openai",
+  },
+
+  // Anthropic models
+  [AvailableModels.CLAUDE_OPUS_4]: {
+    id: AvailableModels.CLAUDE_OPUS_4,
+    name: "Claude Opus 4",
+    provider: "anthropic",
+  },
+  [AvailableModels.CLAUDE_SONNET_4]: {
+    id: AvailableModels.CLAUDE_SONNET_4,
+    name: "Claude Sonnet 4",
+    provider: "anthropic",
+  },
+  [AvailableModels.CLAUDE_3_7_SONNET]: {
+    id: AvailableModels.CLAUDE_3_7_SONNET,
+    name: "Claude 3.7 Sonnet",
+    provider: "anthropic",
+  },
+  [AvailableModels.CLAUDE_3_5_SONNET_20241022]: {
+    id: AvailableModels.CLAUDE_3_5_SONNET_20241022,
+    name: "Claude 3.5 Sonnet (Oct 2024)",
+    provider: "anthropic",
+  },
+  [AvailableModels.CLAUDE_3_5_SONNET_20240620]: {
+    id: AvailableModels.CLAUDE_3_5_SONNET_20240620,
+    name: "Claude 3.5 Sonnet (Jun 2024)",
+    provider: "anthropic",
+  },
+  [AvailableModels.CLAUDE_3_5_HAIKU]: {
+    id: AvailableModels.CLAUDE_3_5_HAIKU,
+    name: "Claude 3.5 Haiku",
+    provider: "anthropic",
+  },
+  [AvailableModels.CLAUDE_3_OPUS]: {
+    id: AvailableModels.CLAUDE_3_OPUS,
+    name: "Claude 3 Opus",
+    provider: "anthropic",
+  },
+  [AvailableModels.CLAUDE_3_SONNET]: {
+    id: AvailableModels.CLAUDE_3_SONNET,
+    name: "Claude 3 Sonnet",
+    provider: "anthropic",
+  },
+  [AvailableModels.CLAUDE_3_HAIKU]: {
+    id: AvailableModels.CLAUDE_3_HAIKU,
+    name: "Claude 3 Haiku",
+    provider: "anthropic",
+  },
+
+  // OpenRouter models
+  [AvailableModels.XAI_GROK_3]: {
+    id: AvailableModels.XAI_GROK_3,
+    name: "Grok 3",
     provider: "openrouter",
   },
   [AvailableModels.OPENAI_GPT_OSS_120B]: {
@@ -94,21 +211,18 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "GPT OSS 20B",
     provider: "openrouter",
   },
-  [AvailableModels.GROQ_MIXTRAL_8X7B]: {
-    id: AvailableModels.GROQ_MIXTRAL_8X7B,
-    name: "Mixtral 8x7B",
-    provider: "groq",
+  [AvailableModels.OPENROUTER_HORIZON_BETA]: {
+    id: AvailableModels.OPENROUTER_HORIZON_BETA,
+    name: "Horizon Beta",
+    provider: "openrouter",
   },
-  [AvailableModels.GROQ_LLAMA3_70B]: {
-    id: AvailableModels.GROQ_LLAMA3_70B,
-    name: "Llama 3 70B",
-    provider: "groq",
+  [AvailableModels.MISTRAL_CODESTRAL_2508]: {
+    id: AvailableModels.MISTRAL_CODESTRAL_2508,
+    name: "Codestral 2508",
+    provider: "openrouter",
   },
-  [AvailableModels.GROQ_LLAMA3_8B]: {
-    id: AvailableModels.GROQ_LLAMA3_8B,
-    name: "Llama 3 8B",
-    provider: "groq",
-  },
+
+  // Ollama models
   [AvailableModels.OLLAMA_LLAMA3_2]: {
     id: AvailableModels.OLLAMA_LLAMA3_2,
     name: "Llama 3.2",
@@ -128,7 +242,7 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
 
 export function getModelProvider(
   model: ModelType
-): "anthropic" | "openai" | "openrouter" | "groq" | "ollama" {
+): "anthropic" | "openai" | "openrouter" | "ollama" {
   return ModelInfos[model].provider;
 }
 
@@ -136,68 +250,232 @@ export function getModelInfo(model: ModelType): ModelInfo {
   return ModelInfos[model];
 }
 
-export function getMiniModelForProvider(mainModel: ModelType): ModelType {
-  const provider = getModelProvider(mainModel);
+/**
+ * Fetch available Ollama models from the /api/tags endpoint
+ */
+export async function fetchOllamaModels(baseURL: string): Promise<ModelType[]> {
+  try {
+    const response = await fetch(`${baseURL}/api/tags`, {
+      method: "GET",
+      signal: AbortSignal.timeout(5000),
+    });
 
-  if (provider === "openai") {
-    return AvailableModels.GPT_4O_MINI;
-  } else if (provider === "openrouter") {
-    return AvailableModels.OPENAI_GPT_OSS_20B;
-  } else if (provider === "groq") {
-    return AvailableModels.GROQ_LLAMA3_8B;
-  } else if (provider === "ollama") {
-    return AvailableModels.OLLAMA_LLAMA3_2_1B;
-  } else {
-    return AvailableModels.CLAUDE_HAIKU_3_5;
+    if (response.status === 200) {
+      const data = await response.json();
+      if (data.models && Array.isArray(data.models)) {
+        // Return model names as ModelType, but they won't be in our static ModelInfos
+        // We'll handle this dynamically in the UI
+        return data.models.map((model: any) => model.name as ModelType);
+      }
+    }
+
+    // Fallback to static models if API fails
+    return [
+      AvailableModels.OLLAMA_LLAMA3_2,
+      AvailableModels.OLLAMA_LLAMA3_2_1B,
+      AvailableModels.OLLAMA_QWEN2_5_CODER,
+    ];
+  } catch (error) {
+    console.warn("Failed to fetch Ollama models, using fallback:", error);
+    // Return static fallback models
+    return [
+      AvailableModels.OLLAMA_LLAMA3_2,
+      AvailableModels.OLLAMA_LLAMA3_2_1B,
+      AvailableModels.OLLAMA_QWEN2_5_CODER,
+    ];
   }
 }
 
 /**
- * Get available models based on user API keys
+ * Get all possible models based on user API keys (for settings UI)
  */
-export function getAvailableModels(userApiKeys: ApiKeys): ModelType[] {
+export async function getAllPossibleModels(
+  userApiKeys: ApiKeys
+): Promise<ModelType[]> {
   const models: ModelType[] = [];
 
   if (userApiKeys.anthropic) {
     models.push(
-      AvailableModels.CLAUDE_SONNET_4,
       AvailableModels.CLAUDE_OPUS_4,
-      AvailableModels.CLAUDE_HAIKU_3_5
+      AvailableModels.CLAUDE_SONNET_4,
+      AvailableModels.CLAUDE_3_7_SONNET,
+      AvailableModels.CLAUDE_3_5_SONNET_20241022,
+      AvailableModels.CLAUDE_3_5_SONNET_20240620,
+      AvailableModels.CLAUDE_3_5_HAIKU,
+      AvailableModels.CLAUDE_3_OPUS,
+      AvailableModels.CLAUDE_3_SONNET,
+      AvailableModels.CLAUDE_3_HAIKU
     );
   }
 
   if (userApiKeys.openai) {
     models.push(
-      AvailableModels.GPT_4O,
-      AvailableModels.O3,
       AvailableModels.GPT_4_1,
-      AvailableModels.GPT_4O_MINI
+      AvailableModels.GPT_4_1_MINI,
+      AvailableModels.GPT_4_1_NANO,
+      AvailableModels.GPT_4O,
+      AvailableModels.GPT_4O_MINI,
+      AvailableModels.GPT_4O_AUDIO_PREVIEW,
+      AvailableModels.GPT_4_TURBO,
+      AvailableModels.GPT_4,
+      AvailableModels.GPT_3_5_TURBO,
+      AvailableModels.O1,
+      AvailableModels.O1_MINI,
+      AvailableModels.O1_PREVIEW,
+      AvailableModels.O3_MINI,
+      AvailableModels.O3,
+      AvailableModels.O4_MINI,
+      AvailableModels.CHATGPT_4O_LATEST
     );
   }
 
   if (userApiKeys.openrouter) {
     models.push(
-      AvailableModels.OPENROUTER_HORIZON_BETA,
+      AvailableModels.XAI_GROK_3,
       AvailableModels.OPENAI_GPT_OSS_120B,
-      AvailableModels.OPENAI_GPT_OSS_20B
+      AvailableModels.OPENAI_GPT_OSS_20B,
+      AvailableModels.OPENROUTER_HORIZON_BETA,
+      AvailableModels.MISTRAL_CODESTRAL_2508
     );
   }
 
-  if (userApiKeys.groq) {
-    models.push(
-      AvailableModels.GROQ_MIXTRAL_8X7B,
-      AvailableModels.GROQ_LLAMA3_70B,
-      AvailableModels.GROQ_LLAMA3_8B
+  // if (userApiKeys.groq) {
+  //   models.push(
+  //     AvailableModels.GROQ_MIXTRAL_8X7B,
+  //     AvailableModels.GROQ_LLAMA3_70B,
+  //     AvailableModels.GROQ_LLAMA3_8B
+  //   );
+  // }
+
+  if (userApiKeys.ollama) {
+    // Fetch models dynamically from Ollama API
+    const baseURL = userApiKeys.ollama || "http://localhost:11434";
+    const ollamaModels = await fetchOllamaModels(baseURL);
+    models.push(...ollamaModels);
+  }
+
+  return models;
+}
+
+/**
+ * Get default selected models based on user API keys
+ */
+export async function getDefaultSelectedModels(
+  userApiKeys: ApiKeys
+): Promise<ModelType[]> {
+  const defaultModels: ModelType[] = [];
+
+  // Add defaults for each provider (matching the user's request)
+  if (userApiKeys.openai) {
+    defaultModels.push(
+      AvailableModels.GPT_4_1, // default
+      AvailableModels.GPT_4O, // default
+      AvailableModels.O3, // default
+      AvailableModels.O4_MINI // default
+    );
+  }
+
+  if (userApiKeys.anthropic) {
+    defaultModels.push(
+      AvailableModels.CLAUDE_OPUS_4, // default
+      AvailableModels.CLAUDE_SONNET_4, // default
+      AvailableModels.CLAUDE_3_7_SONNET, // default
+      AvailableModels.CLAUDE_3_5_HAIKU // default
+    );
+  }
+
+  if (userApiKeys.openrouter) {
+    // All OpenRouter models default
+    defaultModels.push(
+      AvailableModels.XAI_GROK_3,
+      AvailableModels.OPENAI_GPT_OSS_120B,
+      AvailableModels.OPENAI_GPT_OSS_20B,
+      AvailableModels.OPENROUTER_HORIZON_BETA,
+      AvailableModels.MISTRAL_CODESTRAL_2508
     );
   }
 
   if (userApiKeys.ollama) {
-    models.push(
+    // For Ollama, we get the dynamic models but use static fallbacks for defaults
+    defaultModels.push(
       AvailableModels.OLLAMA_LLAMA3_2,
       AvailableModels.OLLAMA_LLAMA3_2_1B,
       AvailableModels.OLLAMA_QWEN2_5_CODER
     );
   }
 
-  return models;
+  return defaultModels;
+}
+
+/**
+ * Get default mini models for each provider
+ */
+export function getDefaultSelectedMiniModels(
+  userApiKeys: ApiKeys
+): Record<string, ModelType> {
+  const miniModels: Record<string, ModelType> = {};
+
+  if (userApiKeys.anthropic) {
+    miniModels.anthropic = AvailableModels.CLAUDE_3_5_HAIKU;
+  }
+  if (userApiKeys.openai) {
+    miniModels.openai = AvailableModels.GPT_4O_MINI;
+  }
+  if (userApiKeys.openrouter) {
+    miniModels.openrouter = AvailableModels.OPENAI_GPT_OSS_20B;
+  }
+  // if (userApiKeys.groq) {
+  //   miniModels.groq = AvailableModels.GROQ_LLAMA3_8B;
+  // }
+  if (userApiKeys.ollama) {
+    miniModels.ollama = AvailableModels.OLLAMA_LLAMA3_2_1B;
+  }
+
+  return miniModels;
+}
+
+/**
+ * Get available models based on user API keys and selected models in settings
+ */
+export async function getAvailableModels(
+  userApiKeys: ApiKeys,
+  selectedModels?: ModelType[]
+): Promise<ModelType[]> {
+  const allPossible = await getAllPossibleModels(userApiKeys);
+
+  // If no user selection, return all possible (backward compatibility)
+  if (!selectedModels || selectedModels.length === 0) {
+    return allPossible;
+  }
+
+  // Filter selected models to only include those that user has API keys for
+  return selectedModels.filter((model) => allPossible.includes(model));
+}
+
+/**
+ * Get mini model for provider, with user preferences
+ */
+export function getMiniModelForProvider(
+  mainModel: ModelType,
+  selectedMiniModels?: Record<string, ModelType>
+): ModelType {
+  const provider = getModelProvider(mainModel);
+
+  // Use user selected mini model if available
+  if (selectedMiniModels && selectedMiniModels[provider]) {
+    return selectedMiniModels[provider];
+  }
+
+  // Fallback to hardcoded defaults
+  if (provider === "openai") {
+    return AvailableModels.GPT_4O_MINI;
+  } else if (provider === "openrouter") {
+    return AvailableModels.OPENAI_GPT_OSS_20B;
+    // } else if (provider === "groq") {
+    //   return AvailableModels.GROQ_LLAMA3_8B;
+  } else if (provider === "ollama") {
+    return AvailableModels.OLLAMA_LLAMA3_2_1B;
+  } else {
+    return AvailableModels.CLAUDE_3_5_HAIKU;
+  }
 }
