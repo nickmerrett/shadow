@@ -1,5 +1,6 @@
 import { TaskConfig } from "../interfaces/types";
 import config from "../../config";
+import { sanitizeTaskIdForK8s } from "../../utils/kubernetes";
 import * as k8s from "@kubernetes/client-node";
 
 export class RemoteVMRunner {
@@ -106,19 +107,6 @@ export class RemoteVMRunner {
   }
 
   /**
-   * Sanitize task ID to be Kubernetes DNS-compliant
-   * Kubernetes names must be lowercase RFC 1123 subdomains
-   */
-  private sanitizeTaskIdForK8s(taskId: string): string {
-    return taskId
-      .toLowerCase()                    // Convert to lowercase
-      .replace(/[^a-z0-9-]/g, '-')     // Replace invalid chars with hyphens
-      .replace(/^-+|-+$/g, '')         // Remove leading/trailing hyphens
-      .replace(/-+/g, '-')             // Collapse multiple hyphens
-      .substring(0, 50);               // Limit length (K8s limit is 63 chars)
-  }
-
-  /**
    * Create kata-qemu VM pod specification
    * Kata QEMU handles VM lifecycle automatically - no manual VM management needed
    */
@@ -131,8 +119,7 @@ export class RemoteVMRunner {
       ? `${config.vmImageRegistry}/shadow-sidecar:${config.vmImageTag || "latest"}`
       : "ghcr.io/ishaan1013/shadow/shadow-sidecar:latest";
 
-    // Sanitize task ID for Kubernetes DNS compliance
-    const sanitizedTaskId = this.sanitizeTaskIdForK8s(taskConfig.id);
+    const sanitizedTaskId = sanitizeTaskIdForK8s(taskConfig.id);
 
     return {
       apiVersion: "v1",
@@ -334,7 +321,7 @@ export class RemoteVMRunner {
   }
 
   async deleteVMPod(taskId: string): Promise<void> {
-    const sanitizedTaskId = this.sanitizeTaskIdForK8s(taskId);
+    const sanitizedTaskId = sanitizeTaskIdForK8s(taskId);
     const podName = `shadow-vm-${sanitizedTaskId}`;
 
     try {
@@ -356,7 +343,7 @@ export class RemoteVMRunner {
   }
 
   async getVMPodStatus(taskId: string): Promise<k8s.V1Pod> {
-    const sanitizedTaskId = this.sanitizeTaskIdForK8s(taskId);
+    const sanitizedTaskId = sanitizeTaskIdForK8s(taskId);
     const podName = `shadow-vm-${sanitizedTaskId}`;
 
     try {
@@ -383,7 +370,7 @@ export class RemoteVMRunner {
   ): Promise<void> {
     const startTime = Date.now();
     const pollInterval = 5000; // 5 seconds
-    const sanitizedTaskId = this.sanitizeTaskIdForK8s(taskId);
+    const sanitizedTaskId = sanitizeTaskIdForK8s(taskId);
     const podName = `shadow-vm-${sanitizedTaskId}`;
 
     while (Date.now() - startTime < maxWaitTime) {
