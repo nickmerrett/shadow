@@ -22,7 +22,6 @@ import { TaskMessages } from "@/lib/db-operations/get-task-messages";
 import { CodebaseTreeResponse } from "../use-codebase-tree";
 import { Task, TodoStatus } from "@repo/db";
 import { TaskStatusData } from "@/lib/db-operations/get-task-status";
-import { toast } from "sonner";
 
 interface FileChange {
   filePath: string;
@@ -632,16 +631,6 @@ export function useTaskSocket(taskId: string | undefined) {
       clearStreamingState();
     }
 
-    function onStackedPRCreated(data: {
-      parentTaskId: string;
-      newTaskId: string;
-      message: string;
-    }) {
-      // queryClient.invalidateQueries({
-      //   queryKey: ["task-messages", data.parentTaskId],
-      // });
-      toast.success(`Stacked PR created: ${data.newTaskId}`);
-    }
 
     function onTaskStatusUpdate(data: TaskStatusUpdateEvent) {
       if (data.taskId === taskId) {
@@ -704,7 +693,6 @@ export function useTaskSocket(taskId: string | undefined) {
     socket.on("stream-complete", onStreamComplete);
     socket.on("stream-error", onStreamError);
     socket.on("message-error", onMessageError);
-    socket.on("stacked-pr-created", onStackedPRCreated);
     socket.on("task-status-updated", onTaskStatusUpdate);
 
     return () => {
@@ -716,7 +704,6 @@ export function useTaskSocket(taskId: string | undefined) {
       socket.off("stream-complete", onStreamComplete);
       socket.off("stream-error", onStreamError);
       socket.off("message-error", onMessageError);
-      socket.off("stacked-pr-created", onStackedPRCreated);
       socket.off("task-status-updated", onTaskStatusUpdate);
     };
   }, [socket, taskId, queryClient]);

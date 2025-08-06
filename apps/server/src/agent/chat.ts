@@ -1258,7 +1258,6 @@ export class ChatService {
       message: data.message,
       model: data.model,
       userId: data.userId,
-      socket: data.socket,
     });
   }
 
@@ -1474,7 +1473,6 @@ export class ChatService {
         message,
         model,
         userId,
-        socket,
       });
     } catch (error) {
       console.error(`[CHAT] Error creating stacked PR:`, error);
@@ -1492,13 +1490,11 @@ export class ChatService {
     message,
     model,
     userId,
-    socket,
   }: {
     parentTaskId: string;
     message: string;
     model: ModelType;
     userId: string;
-    socket: TypedSocket;
   }): Promise<void> {
     try {
       // Get parent task details
@@ -1582,13 +1578,6 @@ export class ChatService {
       console.log(
         `[CHAT] Successfully created stacked task ${newTaskId} from parent ${parentTaskId}`
       );
-
-      // Emit success event to the socket
-      socket.emit("stacked-pr-created", {
-        parentTaskId,
-        newTaskId,
-        message: "Stacked PR created successfully",
-      });
     } catch (error) {
       console.error(`[CHAT] Error in _createStackedTaskInternal:`, error);
       throw error;

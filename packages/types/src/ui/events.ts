@@ -66,11 +66,6 @@ export interface ServerToClientEvents {
   "terminal-error": (data: { error: string }) => void;
 
   "task-status-updated": (data: TaskStatusUpdateEvent) => void;
-  "stacked-pr-created": (data: {
-    parentTaskId: string;
-    newTaskId: string;
-    message: string;
-  }) => void;
 }
 
 export interface ClientToServerEvents {
