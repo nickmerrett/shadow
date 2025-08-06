@@ -536,6 +536,11 @@ async function summarizeDir(
   context: TaskModelContext,
   model: ModelType
 ): Promise<string> {
+  // Handle empty childSummaries to prevent empty message error
+  if (!childSummaries || childSummaries.length === 0) {
+    return `Empty directory: ${node.relPath}`;
+  }
+
   const budget = Math.min(800, 200 + childSummaries.length * 40);
   const systemPrompt = `Summarize this code directory. Be ultra-concise.
 
@@ -546,9 +551,16 @@ Include only:
 
 Use bullet points, fragments, abbreviations. Directory: ${node.relPath}`;
 
+  const userContent = childSummaries.join("\n---\n");
+  
+  // Additional safety check for empty content after join
+  if (!userContent || userContent.trim().length === 0) {
+    return `Directory contains no analyzable content: ${node.relPath}`;
+  }
+
   const messages = [
     { role: "system" as const, content: systemPrompt },
-    { role: "user" as const, content: childSummaries.join("\n---\n") },
+    { role: "user" as const, content: userContent },
   ];
 
   return chat(messages, budget, modelProvider, context, model);
@@ -562,6 +574,11 @@ async function summarizeRoot(
   context: TaskModelContext,
   model: ModelType
 ): Promise<string> {
+  // Handle empty childSummaries to prevent empty message error
+  if (!childSummaries || childSummaries.length === 0) {
+    return `Empty project: ${node.name}`;
+  }
+
   const budget = Math.min(500, 150 + childSummaries.length * 30);
   const systemPrompt = `Create a concise architecture overview for ${node.name}.
 
@@ -573,9 +590,16 @@ Include only the most essential:
 
 Use bullet points and fragments. Ultra-concise technical descriptions only.`;
 
+  const userContent = childSummaries.join("\n---\n");
+  
+  // Additional safety check for empty content after join
+  if (!userContent || userContent.trim().length === 0) {
+    return `Project contains no analyzable content: ${node.name}`;
+  }
+
   const messages = [
     { role: "system" as const, content: systemPrompt },
-    { role: "user" as const, content: childSummaries.join("\n---\n") },
+    { role: "user" as const, content: userContent },
   ];
 
   return chat(messages, budget, modelProvider, context, model);

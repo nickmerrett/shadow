@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth/auth";
+import { verifyTaskOwnership } from "@/lib/auth/verify-task-ownership";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -9,17 +10,8 @@ export async function POST(
   try {
     const { taskId } = await params;
 
-    // Check authentication
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const { error, user: user } = await verifyTaskOwnership(taskId);
+    if (error) return error;
 
     // Forward request to backend
     const baseUrl =
@@ -36,7 +28,7 @@ export async function POST(
           ...(cookieHeader && { Cookie: cookieHeader }),
         },
         body: JSON.stringify({
-          userId: session.user.id,
+          userId: user.id,
         }),
       }
     );

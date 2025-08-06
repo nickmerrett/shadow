@@ -35,11 +35,11 @@ export function ModelSelector({
   // Filter models based on valid API keys only
   const filteredModels = availableModels.filter((model) => {
     const provider = getModelProvider(model.id as ModelType);
-    
+
     // Check if we have a valid API key for this provider
     const hasKey = !!apiKeys?.[provider];
     const isValid = validationState?.[provider]?.isValid === true;
-    
+
     return hasKey && isValid;
   });
 
@@ -100,8 +100,8 @@ export function ModelSelector({
             ))
           ) : (
             <div className="text-muted-foreground p-2 text-left text-sm">
-              No models available. Configure and validate your API keys to begin using
-              Shadow.
+              No models available. Configure and validate your API keys to begin
+              using Shadow.
             </div>
           )}
         </div>

@@ -4,6 +4,7 @@
  */
 
 import config from "../config";
+import { sanitizeTaskIdForK8s } from "../utils/kubernetes";
 import { AgentMode } from "@repo/types";
 import { ToolExecutor } from "./interfaces/tool-executor";
 import { WorkspaceManager } from "./interfaces/workspace-manager";
@@ -26,9 +27,11 @@ export function createToolExecutor(
     return new LocalToolExecutor(taskId, workspacePath);
   }
 
-  // For remote mode, workspacePath should be the sidecar URL
-  // This will be provided by the RemoteWorkspaceManager
-  const sidecarUrl = workspacePath || `http://shadow-vm-${taskId.toLowerCase()}.${config.kubernetesNamespace}.svc.cluster.local:8080`;
+  // For remote mode, workspacePath is the filesystem path inside the container
+  // Always use service discovery URL for sidecar communication in remote mode
+  // Sanitize task ID for DNS compliance (replace underscores with hyphens, etc.)
+  const sanitizedTaskId = sanitizeTaskIdForK8s(taskId);
+  const sidecarUrl = `http://shadow-vm-${sanitizedTaskId}.${config.kubernetesNamespace}.svc.cluster.local:8080`;
   return new RemoteToolExecutor(taskId, sidecarUrl);
 }
 

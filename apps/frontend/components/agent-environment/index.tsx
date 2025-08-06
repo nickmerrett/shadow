@@ -21,6 +21,7 @@ import { LeftPanelOpenIcon } from "../graphics/icons/left-panel-open-icon";
 import { BottomPanelOpenIcon } from "../graphics/icons/bottom-panel-open-icon";
 import { BottomPanelIcon } from "../graphics/icons/bottom-panel-icon";
 import { Close as SheetPrimitiveClose } from "@radix-ui/react-dialog";
+import { useTaskStatus } from "@/hooks/use-task-status";
 
 const Terminal = dynamic(() => import("./terminal"), { ssr: false });
 
@@ -28,8 +29,7 @@ function AgentEnvironment({ isMobile }: { isMobile?: boolean }) {
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
   const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(false);
 
-  const params = useParams<{ taskId?: string }>();
-  const taskId = params?.taskId;
+  const { taskId } = useParams<{ taskId: string }>();
 
   // Use context for file selection state
   const {
@@ -42,52 +42,43 @@ function AgentEnvironment({ isMobile }: { isMobile?: boolean }) {
     triggerTerminalResize,
   } = useAgentEnvironment();
 
-  // Use the new hooks for data fetching
-  const treeQuery = useCodebaseTree(taskId || "");
-
-  // Derive UI state from query results
-  const workspaceStatus = treeQuery.isLoading
-    ? "loading"
-    : treeQuery.isError
-      ? "error"
-      : treeQuery.data?.status === "initializing"
-        ? "initializing"
-        : "ready";
-
-  const loadingMessage =
-    treeQuery.data?.message ||
-    (treeQuery.isError
-      ? treeQuery.error?.message || "Failed to load workspace"
-      : null);
+  const { data: treeData, error: treeError } = useCodebaseTree(taskId);
+  const { data } = useTaskStatus(taskId);
+  const { status, initStatus } = data || {};
+  const isLoading = status === "INITIALIZING";
+  const isWorkspaceInactive = initStatus === "INACTIVE";
 
   // Loading state UI
-  if (workspaceStatus === "loading" || workspaceStatus === "initializing") {
+  if (isLoading) {
     return (
       <div className="bg-background flex size-full max-h-svh select-none flex-col items-center justify-center gap-4 p-4 text-center">
         <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
           <LogoHover forceAnimate />
-          {workspaceStatus === "initializing"
-            ? "Initializing Shadow Realm"
-            : "Loading Shadow Realm"}
+          Initializing Shadow Realm
         </div>
-        {loadingMessage && (
-          <p className="text-muted-foreground max-w-md">{loadingMessage}</p>
-        )}
+      </div>
+    );
+  }
+
+  if (isWorkspaceInactive) {
+    return (
+      <div className="bg-background flex size-full max-h-svh select-none flex-col items-center justify-center gap-4 p-4 text-center">
+        <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
+          <LogoHover />
+          Workspace Inactive
+        </div>
       </div>
     );
   }
 
   // Error state UI
-  if (workspaceStatus === "error") {
+  if (treeError) {
     return (
       <div className="bg-background flex size-full max-h-svh select-none flex-col items-center justify-center gap-4 p-4 text-center">
         <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
           <AlertTriangle className="text-destructive size-5 shrink-0" />
           Failed to Load Workspace
         </div>
-        {loadingMessage && (
-          <p className="text-muted-foreground max-w-md">{loadingMessage}</p>
-        )}
         <Button
           size="lg"
           onClick={() => window.location.reload()}
@@ -186,7 +177,7 @@ function AgentEnvironment({ isMobile }: { isMobile?: boolean }) {
       </div>
       <div className="flex w-full grow">
         <FileExplorer
-          files={treeQuery.data?.tree || []}
+          files={treeData?.tree || []}
           onFileSelect={(file) => updateSelectedFilePath(file.path)}
           selectedFilePath={selectedFilePath}
           isCollapsed={isExplorerCollapsed}

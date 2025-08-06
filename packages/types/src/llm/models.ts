@@ -149,3 +149,23 @@ export function getMiniModelForProvider(mainModel: ModelType): ModelType {
     return AvailableModels.CLAUDE_HAIKU_3_5;
   }
 }
+
+/**
+ * Get available models based on user API keys
+ */
+export function getAvailableModels(userApiKeys: {
+  openai?: string;
+  anthropic?: string;
+}): ModelType[] {
+  const models: ModelType[] = [];
+
+  if (userApiKeys.anthropic) {
+    models.push(AvailableModels.CLAUDE_SONNET_4, AvailableModels.CLAUDE_OPUS_4);
+  }
+
+  if (userApiKeys.openai) {
+    models.push(AvailableModels.GPT_4O, AvailableModels.O3, AvailableModels.GPT_4_1);
+  }
+
+  return models;
+}

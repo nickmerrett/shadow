@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+# Disable AWS CLI pager to prevent hanging on interactive commands
+export AWS_PAGER=""
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
@@ -657,39 +660,67 @@ create_load_balancer() {
             --profile "$AWS_PROFILE" || warn "Failed to enable sticky sessions, continuing..."
     fi
     
-    # Create HTTP listener (for redirect or direct access)
-    log "Creating HTTP listener..."
-    if [[ -n "$SSL_CERTIFICATE_ARN" ]]; then
-        # If SSL certificate is provided, redirect HTTP to HTTPS
-        aws elbv2 create-listener \
-            --load-balancer-arn "$ALB_ARN" \
-            --protocol HTTP \
-            --port 80 \
-            --default-actions Type=redirect,RedirectConfig='{Protocol=HTTPS,Port=443,StatusCode=HTTP_301}' \
-            --region "$AWS_REGION" \
-            --profile "$AWS_PROFILE" 2>/dev/null || warn "HTTP listener creation failed or already exists, continuing..."
+    # Check if HTTP listener already exists
+    log "Checking for existing HTTP listener..."
+    HTTP_LISTENER_ARN=$(aws elbv2 describe-listeners \
+        --load-balancer-arn "$ALB_ARN" \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" \
+        --query "Listeners[?Port==\`80\`].ListenerArn" \
+        --output text 2>/dev/null || echo "")
+    
+    if [[ -n "$HTTP_LISTENER_ARN" && "$HTTP_LISTENER_ARN" != "None" ]]; then
+        log "HTTP listener already exists: $HTTP_LISTENER_ARN"
     else
-        # If no SSL certificate, create standard HTTP listener
-        aws elbv2 create-listener \
-            --load-balancer-arn "$ALB_ARN" \
-            --protocol HTTP \
-            --port 80 \
-            --default-actions Type=forward,TargetGroupArn="$TG_ARN" \
-            --region "$AWS_REGION" \
-            --profile "$AWS_PROFILE" 2>/dev/null || warn "HTTP listener creation failed or already exists, continuing..."
+        # Create HTTP listener (for redirect or direct access)
+        log "Creating HTTP listener..."
+        if [[ -n "$SSL_CERTIFICATE_ARN" ]]; then
+            # If SSL certificate is provided, redirect HTTP to HTTPS
+            aws elbv2 create-listener \
+                --load-balancer-arn "$ALB_ARN" \
+                --protocol HTTP \
+                --port 80 \
+                --default-actions Type=redirect,RedirectConfig='{Protocol=HTTPS,Port=443,StatusCode=HTTP_301}' \
+                --region "$AWS_REGION" \
+                --profile "$AWS_PROFILE" >/dev/null || warn "HTTP listener creation failed, continuing..."
+        else
+            # If no SSL certificate, create standard HTTP listener
+            aws elbv2 create-listener \
+                --load-balancer-arn "$ALB_ARN" \
+                --protocol HTTP \
+                --port 80 \
+                --default-actions Type=forward,TargetGroupArn="$TG_ARN" \
+                --region "$AWS_REGION" \
+                --profile "$AWS_PROFILE" >/dev/null || warn "HTTP listener creation failed, continuing..."
+        fi
+        log "HTTP listener created successfully"
     fi
     
     # Create HTTPS listener if SSL certificate is provided
     if [[ -n "$SSL_CERTIFICATE_ARN" ]]; then
-        log "Creating HTTPS listener with SSL certificate..."
-        aws elbv2 create-listener \
+        # Check if HTTPS listener already exists
+        log "Checking for existing HTTPS listener..."
+        HTTPS_LISTENER_ARN=$(aws elbv2 describe-listeners \
             --load-balancer-arn "$ALB_ARN" \
-            --protocol HTTPS \
-            --port 443 \
-            --certificates CertificateArn="$SSL_CERTIFICATE_ARN" \
-            --default-actions Type=forward,TargetGroupArn="$TG_ARN" \
             --region "$AWS_REGION" \
-            --profile "$AWS_PROFILE" 2>/dev/null || warn "HTTPS listener creation failed or already exists, continuing..."
+            --profile "$AWS_PROFILE" \
+            --query "Listeners[?Port==\`443\`].ListenerArn" \
+            --output text 2>/dev/null || echo "")
+        
+        if [[ -n "$HTTPS_LISTENER_ARN" && "$HTTPS_LISTENER_ARN" != "None" ]]; then
+            log "HTTPS listener already exists: $HTTPS_LISTENER_ARN"
+        else
+            log "Creating HTTPS listener with SSL certificate..."
+            aws elbv2 create-listener \
+                --load-balancer-arn "$ALB_ARN" \
+                --protocol HTTPS \
+                --port 443 \
+                --certificates CertificateArn="$SSL_CERTIFICATE_ARN" \
+                --default-actions Type=forward,TargetGroupArn="$TG_ARN" \
+                --region "$AWS_REGION" \
+                --profile "$AWS_PROFILE" >/dev/null || warn "HTTPS listener creation failed, continuing..."
+            log "HTTPS listener created successfully"
+        fi
         
         log "HTTPS listener configured with certificate: $SSL_CERTIFICATE_ARN"
     else
