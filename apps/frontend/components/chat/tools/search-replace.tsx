@@ -25,12 +25,15 @@ export function SearchReplaceTool({ message }: { message: Message }) {
       ? { linesAdded, linesRemoved }
       : undefined;
 
+  const isLoading = status === "RUNNING";
+
   return (
     <ToolComponent
       icon={<Edit3 />}
       type={ToolTypes.SEARCH_REPLACE}
       title={filePath}
       changes={changes}
+      isLoading={isLoading}
       onClick={() => {
         updateSelectedFilePath(filePath);
         expandRightPanel();

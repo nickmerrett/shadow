@@ -1,6 +1,6 @@
 import { TaskStatus, InitStatus } from "@repo/db";
 import type { Message } from "../chat/messages";
-import type { StreamChunk } from "../chat/streaming";
+import type { StreamChunk } from "../chat/streaming-client";
 import type { ModelType } from "../llm/models";
 
 export type QueuedActionUI = {

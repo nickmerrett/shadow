@@ -1,41 +1,5 @@
-import { useCallback } from "react";
 import { AssistantMessagePart } from "@repo/types";
 import { ToolCallPart, ToolResultPart } from "ai";
-
-export function createStreamingPartAdder(
-  setStreamingPartsMap: (
-    updater: (
-      prev: Map<string, AssistantMessagePart>
-    ) => Map<string, AssistantMessagePart>
-  ) => void,
-  setStreamingPartsOrder: (updater: (prev: string[]) => string[]) => void
-) {
-  return useCallback(
-    (part: AssistantMessagePart, id: string) => {
-      setStreamingPartsMap((prev) => {
-        const newMap = new Map(prev);
-        newMap.set(id, part);
-        return newMap;
-      });
-      setStreamingPartsOrder((prev) =>
-        prev.includes(id) ? prev : [...prev, id]
-      );
-    },
-    [setStreamingPartsMap, setStreamingPartsOrder]
-  );
-}
-
-export function createStreamingStateCleaner(
-  setStreamingPartsMap: (map: Map<string, AssistantMessagePart>) => void,
-  setStreamingPartsOrder: (order: string[]) => void,
-  setIsStreaming: (streaming: boolean) => void
-) {
-  return useCallback(() => {
-    setStreamingPartsMap(new Map());
-    setStreamingPartsOrder([]);
-    setIsStreaming(false);
-  }, [setStreamingPartsMap, setStreamingPartsOrder, setIsStreaming]);
-}
 
 /**
  * Prevents duplicate tool-call/tool-result pairs when joining mid-stream

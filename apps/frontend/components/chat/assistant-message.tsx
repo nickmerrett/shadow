@@ -4,6 +4,7 @@ import type {
   ErrorPart,
   ToolResultTypes,
   ValidationErrorResult,
+  ToolCallPart,
 } from "@repo/types";
 import {
   ChevronDown,
@@ -17,6 +18,10 @@ import { MemoizedMarkdown } from "./memoized-markdown";
 import { ToolMessage } from "./tools";
 import { ToolComponent } from "./tools/collapsible-tool";
 import { ValidationErrorTool } from "./tools/validation-error";
+import {
+  hasUsefulPartialArgs,
+  STREAMING_ENABLED_TOOLS,
+} from "@/lib/streaming-args";
 import { PRCard } from "./pr-card";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
@@ -27,7 +32,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { ToolCallPart } from "ai";
 
 function getMessageCopyContent(
   groupedParts: Array<
@@ -220,7 +224,32 @@ export function AssistantMessage({
             );
           }
 
+          // Determine status from streaming state and result availability
+          const isStreamingMessage = part.streamingState !== undefined;
+          const isInProgress = isStreamingMessage
+            ? !part.argsComplete || !toolResult // Streaming: check both
+            : !toolResult; // Database: only check result exists
+          const status = isInProgress ? "RUNNING" : "COMPLETED";
+
+          // For streaming tool calls, only show if we have useful partial arguments
+          if (
+            isStreamingMessage &&
+            isInProgress &&
+            STREAMING_ENABLED_TOOLS.includes(
+              part.toolName as (typeof STREAMING_ENABLED_TOOLS)[number]
+            ) &&
+            !hasUsefulPartialArgs(part.partialArgs || {}, part.toolName)
+          ) {
+            return null;
+          }
+
           // Create a proper tool message for rendering
+          // Merge regular args with partial args from streaming
+          const mergedArgs = {
+            ...(part.args || {}),
+            ...(part.partialArgs || {}), // Partial args take precedence during streaming
+          } as Record<string, unknown>;
+
           const toolMessage: Message = {
             id: `${message.id}-tool-${part.toolCallId}`,
             role: "tool",
@@ -230,10 +259,12 @@ export function AssistantMessage({
             metadata: {
               tool: {
                 name: part.toolName,
-                args: part.args as Record<string, unknown>,
-                status: "COMPLETED",
-                result: toolResult?.result as ToolResultTypes["result"], // Tool result from stream - cast for compatibility
+                args: mergedArgs,
+                status,
+                result: toolResult?.result as ToolResultTypes["result"],
               },
+              streamingState: part.streamingState,
+              partialArgs: part.partialArgs,
             },
           };
 
