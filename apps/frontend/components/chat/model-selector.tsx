@@ -12,7 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Box, Layers, Square } from "lucide-react";
+import { Box } from "lucide-react";
 import { useModels } from "@/hooks/use-models";
 import { useApiKeys, useApiKeyValidation } from "@/hooks/use-api-keys";
 
@@ -68,7 +68,6 @@ export function ModelSelector({
               variant="ghost"
               className="text-muted-foreground hover:bg-accent px-2 font-normal"
             >
-              {isHome && <Layers className="size-4" />}
               <span>
                 {selectedModel
                   ? ModelInfos[selectedModel].name
@@ -97,10 +96,7 @@ export function ModelSelector({
                 className="hover:bg-accent justify-start font-normal"
                 onClick={() => handleSelectModel(model.id as ModelType)}
               >
-                <Square className="size-4" />
-                <div className="flex flex-col items-start">
-                  <span>{model.name}</span>
-                </div>
+                <span>{model.name}</span>
               </Button>
             ))
           ) : (
