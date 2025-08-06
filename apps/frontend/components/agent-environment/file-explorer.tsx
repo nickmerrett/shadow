@@ -3,13 +3,13 @@
 import {
   ChevronDown,
   ChevronRight,
-  File,
   Folder,
   FolderOpen,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { FileNode } from "@repo/types";
+import { FileIcon } from "@/components/ui/file-icon";
 
 interface FileChange {
   filePath: string;
@@ -176,7 +176,7 @@ export function FileExplorer({
                 </>
               )
             ) : (
-              <File className="size-4 shrink-0" />
+              <FileIcon filename={node.name} className="size-4" />
             )}
             <span className="truncate text-sm">{node.name}</span>
           </div>

@@ -11,6 +11,8 @@ import {
   FileStatsResponse,
   DirectoryListResponse,
   DirectoryEntry,
+  RecursiveDirectoryListing,
+  RecursiveDirectoryEntry,
 } from "@repo/types";
 
 export class FileService {
@@ -409,6 +411,99 @@ export class FileService {
         success: false,
         path: relativePath,
         message: `Failed to list directory: ${relativePath}`,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * Recursively list all files and directories in a tree
+   */
+  async listDirectoryRecursive(relativePath: string = "."): Promise<RecursiveDirectoryListing> {
+    // Folders to ignore while walking the repository
+    const IGNORE_DIRS = [
+      "node_modules",
+      ".git", 
+      ".next",
+      ".turbo",
+      "dist",
+      "build",
+    ];
+
+    const entries: RecursiveDirectoryEntry[] = [];
+
+    const walkDirectory = async (currentPath: string): Promise<void> => {
+      try {
+        const fullPath = this.workspaceService.resolvePath(currentPath);
+        const dirEntries = await fs.readdir(fullPath, { withFileTypes: true });
+
+        for (const entry of dirEntries) {
+          // Skip ignored directories
+          if (IGNORE_DIRS.includes(entry.name)) continue;
+
+          const entryPath = currentPath === "." ? entry.name : `${currentPath}/${entry.name}`;
+          
+          entries.push({
+            name: entry.name,
+            type: entry.isDirectory() ? "directory" : "file",
+            relativePath: entryPath,
+            isDirectory: entry.isDirectory(),
+          });
+
+          // Recursively walk subdirectories
+          if (entry.isDirectory()) {
+            await walkDirectory(entryPath);
+          }
+        }
+      } catch (error) {
+        logger.error("Failed to walk directory", { currentPath, error });
+        // Continue walking other directories even if one fails
+      }
+    };
+
+    try {
+      await walkDirectory(relativePath);
+
+      // Sort entries: directories first, then files, both alphabetically by relative path
+      entries.sort((a, b) => {
+        if (a.isDirectory !== b.isDirectory) {
+          return a.isDirectory ? -1 : 1;
+        }
+        return a.relativePath.localeCompare(b.relativePath);
+      });
+
+      logger.info("Recursive directory listing completed", {
+        basePath: relativePath,
+        totalCount: entries.length,
+      });
+
+      return {
+        success: true,
+        entries,
+        basePath: relativePath,
+        totalCount: entries.length,
+        message: `Recursively listed ${entries.length} items starting from ${relativePath}`,
+      };
+    } catch (error) {
+      logger.error("Failed to list directory recursively", { relativePath, error });
+
+      if (error instanceof Error && error.message.includes("ENOENT")) {
+        return {
+          success: false,
+          entries: [],
+          basePath: relativePath,
+          totalCount: 0,
+          message: `Directory not found: ${relativePath}`,
+          error: "DIRECTORY_NOT_FOUND",
+        };
+      }
+
+      return {
+        success: false,
+        entries: [],
+        basePath: relativePath,
+        totalCount: 0,
+        message: `Failed to list directory recursively: ${relativePath}`,
         error: error instanceof Error ? error.message : "Unknown error",
       };
     }

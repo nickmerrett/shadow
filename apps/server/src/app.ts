@@ -13,7 +13,7 @@ import { createSocketServer } from "./socket";
 import { getGitHubAccessToken } from "./github/auth/account-service";
 import { updateTaskStatus } from "./utils/task-status";
 import { createWorkspaceManager } from "./execution";
-import { filesRouter } from "./file-routes";
+import { filesRouter } from "./files/router";
 import { handleGitHubWebhook } from "./webhooks/github-webhook";
 import { getIndexingStatus } from "./routes/indexing-status";
 import { modelContextService } from "./services/model-context-service";

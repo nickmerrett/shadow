@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/resizable";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
-import { useState, memo } from "react";
+import { useState, memo, useCallback } from "react";
 import { Editor } from "./editor";
 import { FileExplorer } from "./file-explorer";
 import { Button } from "../ui/button";
@@ -25,7 +25,7 @@ import { useTaskStatus } from "@/hooks/use-task-status";
 
 const Terminal = dynamic(() => import("./terminal"), { ssr: false });
 
-function AgentEnvironment({ isMobile }: { isMobile?: boolean }) {
+function AgentEnvironment({ isMobile = false }: { isMobile?: boolean }) {
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
   const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(false);
 
@@ -48,33 +48,40 @@ function AgentEnvironment({ isMobile }: { isMobile?: boolean }) {
   const isLoading = status === "INITIALIZING";
   const isWorkspaceInactive = initStatus === "INACTIVE";
 
+  const handleClose = useCallback(() => {
+    if (rightPanelRef.current) {
+      const panel = rightPanelRef.current;
+      panel.collapse();
+    }
+  }, [rightPanelRef]);
+
   // Loading state UI
   if (isLoading) {
     return (
-      <div className="bg-background flex size-full max-h-svh select-none flex-col items-center justify-center gap-4 p-4 text-center">
+      <EmptyStateWrapper onClose={handleClose} isMobile={isMobile}>
         <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
           <LogoHover forceAnimate />
-          Initializing Shadow Realm
+          Initializing Shadow Realm...
         </div>
-      </div>
+      </EmptyStateWrapper>
     );
   }
 
   if (isWorkspaceInactive) {
     return (
-      <div className="bg-background flex size-full max-h-svh select-none flex-col items-center justify-center gap-4 p-4 text-center">
+      <EmptyStateWrapper onClose={handleClose} isMobile={isMobile}>
         <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
           <LogoHover />
-          Workspace Inactive
+          Workspace Inactive.
         </div>
-      </div>
+      </EmptyStateWrapper>
     );
   }
 
   // Error state UI
   if (treeError) {
     return (
-      <div className="bg-background flex size-full max-h-svh select-none flex-col items-center justify-center gap-4 p-4 text-center">
+      <EmptyStateWrapper onClose={handleClose} isMobile={isMobile}>
         <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
           <AlertTriangle className="text-destructive size-5 shrink-0" />
           Failed to Load Workspace
@@ -87,7 +94,7 @@ function AgentEnvironment({ isMobile }: { isMobile?: boolean }) {
         >
           Try Again
         </Button>
-      </div>
+      </EmptyStateWrapper>
     );
   }
 
@@ -143,12 +150,7 @@ function AgentEnvironment({ isMobile }: { isMobile?: boolean }) {
                     variant="ghost"
                     size="icon"
                     className="hover:bg-sidebar-accent size-7 cursor-pointer"
-                    onClick={() => {
-                      if (rightPanelRef.current) {
-                        const panel = rightPanelRef.current;
-                        panel.collapse();
-                      }
-                    }}
+                    onClick={handleClose}
                   >
                     <X className="size-4" />
                   </Button>
@@ -158,12 +160,7 @@ function AgentEnvironment({ isMobile }: { isMobile?: boolean }) {
                   variant="ghost"
                   size="icon"
                   className="hover:bg-sidebar-accent size-7 cursor-pointer"
-                  onClick={() => {
-                    if (rightPanelRef.current) {
-                      const panel = rightPanelRef.current;
-                      panel.collapse();
-                    }
-                  }}
+                  onClick={handleClose}
                 >
                   <X className="size-4" />
                 </Button>
@@ -211,6 +208,50 @@ function AgentEnvironment({ isMobile }: { isMobile?: boolean }) {
           </ResizablePanelGroup>
         </div>
       </div>
+    </div>
+  );
+}
+
+function EmptyStateWrapper({
+  children,
+  onClose,
+  isMobile,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+  isMobile: boolean;
+}) {
+  return (
+    <div className="relative flex size-full max-h-svh select-none flex-col items-center justify-center gap-4 p-4 text-center">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {isMobile ? (
+            <SheetPrimitiveClose asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hover:bg-sidebar-accent absolute right-2 top-2 size-7 cursor-pointer"
+                onClick={onClose}
+              >
+                <X className="size-4" />
+              </Button>
+            </SheetPrimitiveClose>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hover:bg-sidebar-accent absolute right-2 top-2 size-7 cursor-pointer"
+              onClick={onClose}
+            >
+              <X className="size-4" />
+            </Button>
+          )}
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="end">
+          Close Shadow Realm
+        </TooltipContent>
+      </Tooltip>
+      {children}
     </div>
   );
 }
