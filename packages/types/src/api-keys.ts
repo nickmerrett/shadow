@@ -1,4 +1,13 @@
-export type ApiKeyProvider = "openai" | "anthropic" | "openrouter";
+// API Key Provider Constants
+export const API_KEY_PROVIDERS = {
+  OPENAI: "openai",
+  ANTHROPIC: "anthropic", 
+  OPENROUTER: "openrouter",
+  GROQ: "groq",
+  OLLAMA: "ollama",
+} as const;
+
+export type ApiKeyProvider = typeof API_KEY_PROVIDERS[keyof typeof API_KEY_PROVIDERS];
 
 export interface ApiKeyValidationResult {
   isValid: boolean;
@@ -11,10 +20,14 @@ export interface ApiKeys {
   openai?: string;
   anthropic?: string;
   openrouter?: string;
+  groq?: string;
+  ollama?: string;
 }
 
 export interface ApiKeyValidation {
   openai?: ApiKeyValidationResult;
   anthropic?: ApiKeyValidationResult;
   openrouter?: ApiKeyValidationResult;
+  groq?: ApiKeyValidationResult;
+  ollama?: ApiKeyValidationResult;
 }
