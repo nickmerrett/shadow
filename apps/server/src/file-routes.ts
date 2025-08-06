@@ -78,7 +78,6 @@ router.get("/:taskId/files/tree", async (req, res) => {
   try {
     const { taskId } = req.params;
 
-    // Verify task exists
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
@@ -95,17 +94,13 @@ router.get("/:taskId/files/tree", async (req, res) => {
       });
     }
 
-    // Check if workspace is still initializing
     if (!task.workspacePath || task.status === "INITIALIZING") {
       return res.json({
         success: true,
         tree: [],
-        status: "initializing",
-        message: "Workspace is being prepared. Please try again in a moment.",
       });
     }
 
-    // Use execution abstraction layer to get file tree
     const workspaceManager = createWorkspaceManager();
     const executor = await workspaceManager.getExecutor(taskId);
 
@@ -114,7 +109,6 @@ router.get("/:taskId/files/tree", async (req, res) => {
     res.json({
       success: true,
       tree,
-      status: "ready",
     });
   } catch (error) {
     console.error("[FILE_TREE_API_ERROR]", error);

@@ -4,8 +4,6 @@ import { FileNode } from "@repo/types";
 export interface CodebaseTreeResponse {
   success: boolean;
   tree: FileNode[];
-  status: "ready" | "initializing";
-  message?: string;
   error?: string;
 }
 
