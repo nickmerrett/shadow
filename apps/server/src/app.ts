@@ -17,10 +17,12 @@ import { parseApiKeysFromCookies } from "./utils/cookie-parser";
 import { handleGitHubWebhook } from "./webhooks/github-webhook";
 import { getIndexingStatus } from "./routes/indexing-status";
 import { modelContextService } from "./services/model-context-service";
+import { ApiKeyValidator } from "./services/api-key-validator";
 
 const app = express();
 export const chatService = new ChatService();
 const initializationEngine = new TaskInitializationEngine();
+const apiKeyValidator = new ApiKeyValidator();
 
 const initiateTaskSchema = z.object({
   message: z.string().min(1, "Message is required"),
@@ -167,7 +169,8 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
 
       if (!initContext.validateAccess()) {
         const provider = initContext.getProvider();
-        const providerName = provider === "anthropic" ? "Anthropic" : "OpenAI";
+        const providerName = provider === "anthropic" ? "Anthropic" : 
+                         provider === "openrouter" ? "OpenRouter" : "OpenAI";
 
         await updateTaskStatus(taskId, "FAILED", "INIT");
 
@@ -254,15 +257,38 @@ app.get("/api/models", async (req, res) => {
   try {
     const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
     const availableModels = chatService.getAvailableModels(userApiKeys);
-    const modelsWithInfo = availableModels.map((modelId) => ({
-      ...ModelInfos[modelId],
-      id: modelId,
-    }));
+    const modelsWithInfo = availableModels.map((modelId) => ModelInfos[modelId]);
 
-    res.json({ models: modelsWithInfo });
+    res.json(modelsWithInfo);
   } catch (error) {
     console.error("Error fetching models:", error);
     res.status(500).json({ error: "Failed to fetch models" });
+  }
+});
+
+// Validate API keys
+app.post("/api/validate-keys", async (req, res) => {
+  try {
+    const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
+    
+    // Only validate keys that are present and not empty
+    const keysToValidate: Partial<Record<string, string>> = {};
+    if (userApiKeys.openai && userApiKeys.openai.trim()) {
+      keysToValidate.openai = userApiKeys.openai;
+    }
+    if (userApiKeys.anthropic && userApiKeys.anthropic.trim()) {
+      keysToValidate.anthropic = userApiKeys.anthropic;
+    }
+    if (userApiKeys.openrouter && userApiKeys.openrouter.trim()) {
+      keysToValidate.openrouter = userApiKeys.openrouter;
+    }
+
+    const validationResults = await apiKeyValidator.validateMultiple(keysToValidate);
+    
+    res.json(validationResults);
+  } catch (error) {
+    console.error("Error validating API keys:", error);
+    res.status(500).json({ error: "Failed to validate API keys" });
   }
 });
 

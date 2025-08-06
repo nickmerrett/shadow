@@ -12,8 +12,11 @@ import {
   useApiKeys,
   useSaveApiKey,
   useClearApiKey,
+  useApiKeyValidation,
+  useSaveApiKeyValidation,
 } from "@/hooks/use-api-keys";
-import { Loader2, Trash } from "lucide-react";
+import { useValidateApiKeys } from "@/hooks/use-api-key-validation";
+import { Loader2, Trash, CheckCircle, XCircle, AlertCircle, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useDebounceCallbackWithCancel } from "@/lib/debounce";
@@ -21,8 +24,11 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export function ModelSettings() {
   const { data: apiKeys, isLoading: isLoadingApiKeys } = useApiKeys();
+  const { data: validationState, isLoading: isLoadingValidation } = useApiKeyValidation();
   const saveApiKeyMutation = useSaveApiKey();
   const clearApiKeyMutation = useClearApiKey();
+  const validateApiKeysMutation = useValidateApiKeys();
+  const saveValidationMutation = useSaveApiKeyValidation();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -33,34 +39,110 @@ export function ModelSettings() {
   const [anthropicInput, setAnthropicInput] = useState(
     apiKeys?.anthropic ?? ""
   );
+  const [openrouterInput, setOpenrouterInput] = useState(
+    apiKeys?.openrouter ?? ""
+  );
   const [savingOpenai, setSavingOpenai] = useState(false);
   const [savingAnthropic, setSavingAnthropic] = useState(false);
+  const [savingOpenrouter, setSavingOpenrouter] = useState(false);
+  
+  const renderValidationIcon = (provider: string) => {
+    const result = validationState?.[provider as keyof typeof validationState];
+    if (!result) return null;
+
+    if (result.isValid) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <CheckCircle className="size-3.5 text-gray-400" />
+          </TooltipTrigger>
+          <TooltipContent>
+            Valid API key
+          </TooltipContent>
+        </Tooltip>
+      );
+    } else {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <XCircle className="size-3.5 text-gray-400" />
+          </TooltipTrigger>
+          <TooltipContent>
+            {result.error || "Invalid API key"}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+  };
+
+  const handleRevalidate = async () => {
+    try {
+      const results = await validateApiKeysMutation.mutateAsync();
+      // Save validation results for each provider
+      for (const [validationProvider, result] of Object.entries(results)) {
+        await saveValidationMutation.mutateAsync({
+          provider: validationProvider as any,
+          validation: result,
+        });
+      }
+    } catch (error) {
+      console.error("Revalidation failed:", error);
+    }
+  };
 
   useEffect(() => {
     setOpenaiInput(apiKeys?.openai ?? "");
     setAnthropicInput(apiKeys?.anthropic ?? "");
+    setOpenrouterInput(apiKeys?.openrouter ?? "");
   }, [apiKeys]);
 
-  const saveApiKey = async (provider: "openai" | "anthropic", key: string) => {
+  const saveApiKey = async (provider: "openai" | "anthropic" | "openrouter", key: string) => {
     // Only save if key is different from current saved value
     const currentKey =
-      provider === "openai" ? apiKeys?.openai : apiKeys?.anthropic;
+      provider === "openai" ? apiKeys?.openai : 
+      provider === "anthropic" ? apiKeys?.anthropic : 
+      apiKeys?.openrouter;
     if (key === currentKey) {
       if (provider === "openai") setSavingOpenai(false);
-      else setSavingAnthropic(false);
+      else if (provider === "anthropic") setSavingAnthropic(false);
+      else setSavingOpenrouter(false);
       return;
     }
 
     try {
       await saveApiKeyMutation.mutateAsync({ provider, key });
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+      
+      // Validate the key after saving if it's not empty
+      const trimmedKey = key.trim();
+      if (trimmedKey) {
+        try {
+          const results = await validateApiKeysMutation.mutateAsync();
+          // Save validation results for each provider
+          for (const [validationProvider, result] of Object.entries(results)) {
+            await saveValidationMutation.mutateAsync({
+              provider: validationProvider as any,
+              validation: result,
+            });
+          }
+        } catch (validationError) {
+          console.error("Validation failed:", validationError);
+        }
+      } else {
+        // Clear validation result if key is empty
+        await saveValidationMutation.mutateAsync({
+          provider,
+          validation: null,
+        });
+      }
     } catch (_error) {
-      toast.error(
-        `Failed to save ${provider === "openai" ? "OpenAI" : "Anthropic"} API key`
-      );
+      const providerName = provider === "openai" ? "OpenAI" : 
+                          provider === "anthropic" ? "Anthropic" : "OpenRouter";
+      toast.error(`Failed to save ${providerName} API key`);
     } finally {
       if (provider === "openai") setSavingOpenai(false);
-      else setSavingAnthropic(false);
+      else if (provider === "anthropic") setSavingAnthropic(false);
+      else setSavingOpenrouter(false);
     }
   };
 
@@ -78,6 +160,14 @@ export function ModelSettings() {
     200
   );
 
+  const {
+    debouncedCallback: debouncedSaveOpenrouter,
+    cancel: cancelOpenrouterSave,
+  } = useDebounceCallbackWithCancel(
+    (key: string) => saveApiKey("openrouter", key),
+    200
+  );
+
   const handleOpenaiChange = (value: string) => {
     setOpenaiInput(value);
     setSavingOpenai(true);
@@ -90,22 +180,38 @@ export function ModelSettings() {
     debouncedSaveAnthropic(value);
   };
 
-  const handleClearApiKey = async (provider: "openai" | "anthropic") => {
+  const handleOpenrouterChange = (value: string) => {
+    setOpenrouterInput(value);
+    setSavingOpenrouter(true);
+    debouncedSaveOpenrouter(value);
+  };
+
+  const handleClearApiKey = async (provider: "openai" | "anthropic" | "openrouter") => {
     try {
       await clearApiKeyMutation.mutateAsync(provider);
       if (provider === "openai") {
         setOpenaiInput("");
         cancelOpenaiSave();
         setSavingOpenai(false);
-      } else {
+      } else if (provider === "anthropic") {
         setAnthropicInput("");
         cancelAnthropicSave();
         setSavingAnthropic(false);
+      } else {
+        setOpenrouterInput("");
+        cancelOpenrouterSave();
+        setSavingOpenrouter(false);
       }
+      
+      // Clear validation result for this provider
+      await saveValidationMutation.mutateAsync({
+        provider,
+        validation: null,
+      });
     } catch (_error) {
-      toast.error(
-        `Failed to clear ${provider === "openai" ? "OpenAI" : "Anthropic"} API key`
-      );
+      const providerName = provider === "openai" ? "OpenAI" : 
+                          provider === "anthropic" ? "Anthropic" : "OpenRouter";
+      toast.error(`Failed to clear ${providerName} API key`);
     }
   };
 
@@ -124,12 +230,13 @@ export function ModelSettings() {
         <div className="flex w-full flex-col gap-2">
           <Label
             htmlFor="openai-key"
-            className="flex h-5 items-center font-normal"
+            className="flex h-5 items-center gap-2 font-normal"
           >
             OpenAI API Key
             {savingOpenai && (
               <Loader2 className="text-muted-foreground size-3 animate-spin" />
             )}
+            {renderValidationIcon("openai")}
           </Label>
           <div className="flex gap-2">
             <Input
@@ -139,22 +246,40 @@ export function ModelSettings() {
               onChange={(e) => handleOpenaiChange(e.target.value)}
             />
             {apiKeys?.openai && apiKeys.openai.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    className="text-muted-foreground hover:text-foreground"
-                    size="icon"
-                    onClick={() => handleClearApiKey("openai")}
-                    disabled={clearApiKeyMutation.isPending}
-                  >
-                    <Trash className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="end">
-                  Clear OpenAI API key
-                </TooltipContent>
-              </Tooltip>
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      className="text-muted-foreground hover:text-foreground"
+                      size="icon"
+                      onClick={handleRevalidate}
+                      disabled={validateApiKeysMutation.isPending}
+                    >
+                      <RotateCcw className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="end">
+                    Revalidate API keys
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      className="text-muted-foreground hover:text-foreground"
+                      size="icon"
+                      onClick={() => handleClearApiKey("openai")}
+                      disabled={clearApiKeyMutation.isPending}
+                    >
+                      <Trash className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="end">
+                    Clear OpenAI API key
+                  </TooltipContent>
+                </Tooltip>
+              </>
             )}
           </div>
         </div>
@@ -163,12 +288,13 @@ export function ModelSettings() {
         <div className="flex w-full flex-col gap-2">
           <Label
             htmlFor="anthropic-key"
-            className="flex h-5 items-center font-normal"
+            className="flex h-5 items-center gap-2 font-normal"
           >
             Anthropic API Key
             {savingAnthropic && (
               <Loader2 className="text-muted-foreground size-3 animate-spin" />
             )}
+            {renderValidationIcon("anthropic")}
           </Label>
           <div className="flex gap-2">
             <Input
@@ -178,22 +304,98 @@ export function ModelSettings() {
               onChange={(e) => handleAnthropicChange(e.target.value)}
             />
             {apiKeys?.anthropic && apiKeys.anthropic.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    className="text-muted-foreground hover:text-foreground"
-                    size="icon"
-                    onClick={() => handleClearApiKey("anthropic")}
-                    disabled={clearApiKeyMutation.isPending}
-                  >
-                    <Trash className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="end">
-                  Clear Anthropic API key
-                </TooltipContent>
-              </Tooltip>
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      className="text-muted-foreground hover:text-foreground"
+                      size="icon"
+                      onClick={handleRevalidate}
+                      disabled={validateApiKeysMutation.isPending}
+                    >
+                      <RotateCcw className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="end">
+                    Revalidate API keys
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      className="text-muted-foreground hover:text-foreground"
+                      size="icon"
+                      onClick={() => handleClearApiKey("anthropic")}
+                      disabled={clearApiKeyMutation.isPending}
+                    >
+                      <Trash className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="end">
+                    Clear Anthropic API key
+                  </TooltipContent>
+                </Tooltip>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* OpenRouter Section */}
+        <div className="flex w-full flex-col gap-2">
+          <Label
+            htmlFor="openrouter-key"
+            className="flex h-5 items-center gap-2 font-normal"
+          >
+            OpenRouter API Key
+            {savingOpenrouter && (
+              <Loader2 className="text-muted-foreground size-3 animate-spin" />
+            )}
+            {renderValidationIcon("openrouter")}
+          </Label>
+          <div className="flex gap-2">
+            <Input
+              id="openrouter-key"
+              placeholder="sk-or-placeholder..."
+              value={openrouterInput}
+              onChange={(e) => handleOpenrouterChange(e.target.value)}
+            />
+            {apiKeys?.openrouter && apiKeys.openrouter.length > 0 && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      className="text-muted-foreground hover:text-foreground"
+                      size="icon"
+                      onClick={handleRevalidate}
+                      disabled={validateApiKeysMutation.isPending}
+                    >
+                      <RotateCcw className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="end">
+                    Revalidate API keys
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      className="text-muted-foreground hover:text-foreground"
+                      size="icon"
+                      onClick={() => handleClearApiKey("openrouter")}
+                      disabled={clearApiKeyMutation.isPending}
+                    >
+                      <Trash className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="end">
+                    Clear OpenRouter API key
+                  </TooltipContent>
+                </Tooltip>
+              </>
             )}
           </div>
         </div>
