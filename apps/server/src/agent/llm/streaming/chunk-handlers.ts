@@ -15,7 +15,9 @@ export class ChunkHandlers {
   /**
    * Handle text-delta chunks
    */
-  handleTextDelta(chunk: AIStreamChunk & { type: "text-delta" }): StreamChunk | null {
+  handleTextDelta(
+    chunk: AIStreamChunk & { type: "text-delta" }
+  ): StreamChunk | null {
     if (chunk.textDelta) {
       return {
         type: "content",
@@ -103,14 +105,16 @@ export class ChunkHandlers {
     if (chunk.toolName in ToolResultSchemas) {
       toolCallMap.set(chunk.toolCallId, chunk.toolName as ToolName);
     } else {
-      console.warn(`[LLM] Invalid tool call streaming start: ${chunk.toolName}`);
+      console.warn(
+        `[LLM] Invalid tool call streaming start: ${chunk.toolName}`
+      );
     }
 
     return chunks;
   }
 
   /**
-   * Handle tool-call-delta chunks  
+   * Handle tool-call-delta chunks
    */
   handleToolCallDelta(
     chunk: AIStreamChunk & { type: "tool-call-delta" }
@@ -137,20 +141,39 @@ export class ChunkHandlers {
     chunk: AIStreamChunk & { type: "tool-result" },
     toolCallMap: Map<string, ToolName>
   ): StreamChunk | null {
+    console.log(`[CHUNK_DEBUG] Processing tool result:`, {
+      toolCallId: chunk.toolCallId,
+      resultType: typeof chunk.result,
+      resultPreview: JSON.stringify(chunk.result).substring(0, 100),
+      mapHasToolCall: toolCallMap.has(chunk.toolCallId),
+      mapSize: toolCallMap.size,
+    });
+
     const toolName = toolCallMap.get(chunk.toolCallId);
 
     if (!toolName) {
       console.warn(
-        `[LLM] Skipping result for invalid tool call ID: ${chunk.toolCallId}`
+        `[CHUNK_DEBUG] Skipping result for invalid tool call ID: ${chunk.toolCallId}`,
+        { availableIds: Array.from(toolCallMap.keys()) }
       );
       return null;
     }
 
+    console.log(
+      `[CHUNK_DEBUG] Found tool name ${toolName} for call ID ${chunk.toolCallId}`
+    );
+
     // Validate tool execution results (not parameters - those are handled by AI SDK repair)
     // This catches: malformed tool outputs, implementation bugs, external service failures
-    const validation = this.toolValidator.validateToolResult(toolName, chunk.result);
+    const validation = this.toolValidator.validateToolResult(
+      toolName,
+      chunk.result
+    );
 
     if (validation.isValid) {
+      console.log(
+        `[CHUNK_DEBUG] Tool result validation passed for ${toolName}`
+      );
       // Valid result - emit normal tool-result
       return {
         type: "tool-result",
@@ -162,10 +185,11 @@ export class ChunkHandlers {
       };
     } else {
       // Invalid result - emit tool-result with validation error
-      console.warn(
-        `[LLM] Tool validation failed for ${toolName}:`,
-        validation.errorDetails?.error
-      );
+      console.warn(`[CHUNK_DEBUG] Tool validation failed for ${toolName}:`, {
+        error: validation.errorDetails?.error,
+        suggestedFix: validation.errorDetails?.suggestedFix,
+        shouldEmitError: validation.shouldEmitError,
+      });
 
       return {
         type: "tool-result",

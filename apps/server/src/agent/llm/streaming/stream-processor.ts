@@ -97,12 +97,32 @@ export class StreamProcessor {
               tools: ToolSet;
               error: NoSuchToolError | InvalidToolArgumentsError;
             }): Promise<LanguageModelV1FunctionToolCall | null> => {
+              // Log error details for debugging
+              console.log(
+                `[REPAIR_DEBUG] Tool call repair triggered for ${toolCall.toolName}:`,
+                {
+                  errorType: error.constructor.name,
+                  errorMessage: error.message,
+                  isInvalidArgs: error instanceof InvalidToolArgumentsError,
+                  isNoSuchTool: error instanceof NoSuchToolError,
+                  originalArgs: toolCall.args,
+                  toolCallId: toolCall.toolCallId,
+                }
+              );
+
               // Only handle parameter validation errors, let other errors fail normally
               if (error.constructor.name !== "InvalidToolArgumentsError") {
+                console.log(
+                  `[REPAIR_DEBUG] Skipping repair - error type: ${error.constructor.name}, instanceof check: ${error instanceof InvalidToolArgumentsError}`
+                );
                 return null;
               }
 
               try {
+                console.log(
+                  `[REPAIR_DEBUG] Attempting repair for ${toolCall.toolName} with error: ${error.message}`
+                );
+
                 // Re-ask the model with error context
                 const repairResult = await generateText({
                   model: modelInstance,
@@ -121,12 +141,27 @@ export class StreamProcessor {
                   tools,
                 });
 
+                console.log(`[REPAIR_DEBUG] Repair result:`, {
+                  toolCallsCount: repairResult.toolCalls?.length || 0,
+                  toolCallNames:
+                    repairResult.toolCalls?.map((tc) => tc.toolName) || [],
+                  targetToolName: toolCall.toolName,
+                });
+
                 // Extract the first tool call that matches our tool name
                 const repairedToolCall = repairResult.toolCalls?.find(
                   (tc) => tc.toolName === toolCall.toolName
                 );
 
                 if (repairedToolCall) {
+                  console.log(
+                    `[REPAIR_DEBUG] Successfully repaired ${toolCall.toolName}:`,
+                    {
+                      originalArgs: toolCall.args,
+                      repairedArgs: JSON.stringify(repairedToolCall.args),
+                    }
+                  );
+
                   return {
                     toolCallType: "function" as const,
                     toolCallId: toolCall.toolCallId, // Keep original ID
@@ -136,10 +171,17 @@ export class StreamProcessor {
                 }
 
                 console.log(
-                  `[REPAIR] No matching tool call found in repair response`
+                  `[REPAIR_DEBUG] No matching tool call found in repair response for ${toolCall.toolName}`
                 );
                 return null;
-              } catch (_repairError) {
+              } catch (repairError) {
+                console.log(`[REPAIR_DEBUG] Repair attempt failed:`, {
+                  error:
+                    repairError instanceof Error
+                      ? repairError.message
+                      : String(repairError),
+                  toolName: toolCall.toolName,
+                });
                 return null;
               }
             },

@@ -26,12 +26,30 @@ export class ToolValidator {
       originalResult: unknown;
     };
   } {
+    console.log(`[VALIDATION_DEBUG] Validating result for ${toolName}:`, {
+      resultType: typeof result,
+      isNull: result === null,
+      isUndefined: result === undefined,
+      isArray: Array.isArray(result),
+      resultShape:
+        result && typeof result === "object"
+          ? Object.keys(result)
+          : "not-object",
+      resultPreview: JSON.stringify(result).substring(0, 200),
+    });
+
     try {
       // toolName is guaranteed to be valid, validate the result directly
       const schema = ToolResultSchemas[toolName];
+      console.log(`[VALIDATION_DEBUG] Using schema for ${toolName}:`, {
+        schemaExists: !!schema,
+        schemaType: schema?._def?.typeName,
+      });
+
       const validation = createValidator(schema)(result);
 
       if (validation.success) {
+        console.log(`[VALIDATION_DEBUG] Validation succeeded for ${toolName}`);
         return {
           isValid: true,
           validatedResult: validation.data!,
@@ -39,12 +57,18 @@ export class ToolValidator {
         };
       }
 
+      console.log(`[VALIDATION_DEBUG] Validation failed for ${toolName}:`, {
+        validationError: validation.error,
+        validationSuccess: validation.success,
+      });
+
       // Generate helpful error message for the LLM
       const errorMessage = `Tool call validation failed for ${toolName}: ${validation.error}`;
-      const suggestedFix = this.validationHelpers.generateToolValidationSuggestion(
-        toolName,
-        validation.error || ""
-      );
+      const suggestedFix =
+        this.validationHelpers.generateToolValidationSuggestion(
+          toolName,
+          validation.error || ""
+        );
 
       const errorResult: ValidationErrorResult = {
         success: false,
