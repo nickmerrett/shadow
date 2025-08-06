@@ -1,3 +1,5 @@
+import { ApiKeys } from "../api-keys";
+
 export interface LLMConfig {
   model: string;
   maxTokens?: number;
@@ -153,13 +155,7 @@ export function getMiniModelForProvider(mainModel: ModelType): ModelType {
 /**
  * Get available models based on user API keys
  */
-export function getAvailableModels(userApiKeys: {
-  openai?: string;
-  anthropic?: string;
-  openrouter?: string;
-  groq?: string;
-  ollama?: string;
-}): ModelType[] {
+export function getAvailableModels(userApiKeys: ApiKeys): ModelType[] {
   const models: ModelType[] = [];
 
   if (userApiKeys.anthropic) {

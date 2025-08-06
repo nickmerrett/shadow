@@ -65,8 +65,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Build update object with only provided fields
-    const updateData: { autoPullRequest?: boolean; enableDeepWiki?: boolean; memoriesEnabled?: boolean } =
-      {};
+    const updateData: {
+      autoPullRequest?: boolean;
+      enableDeepWiki?: boolean;
+      memoriesEnabled?: boolean;
+    } = {};
     if (autoPullRequest !== undefined)
       updateData.autoPullRequest = autoPullRequest;
     if (enableDeepWiki !== undefined)

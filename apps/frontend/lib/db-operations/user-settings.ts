@@ -9,7 +9,9 @@ export interface UserSettings {
   updatedAt: Date;
 }
 
-export async function getUserSettings(userId: string): Promise<UserSettings | null> {
+export async function getUserSettings(
+  userId: string
+): Promise<UserSettings | null> {
   const settings = await prisma.userSettings.findUnique({
     where: { userId },
   });
@@ -34,9 +36,12 @@ export async function updateUserSettings(
   userId: string,
   settings: { autoPullRequest?: boolean; enableDeepWiki?: boolean }
 ): Promise<UserSettings> {
-  const updateData: { autoPullRequest?: boolean; enableDeepWiki?: boolean } = {};
-  if (settings.autoPullRequest !== undefined) updateData.autoPullRequest = settings.autoPullRequest;
-  if (settings.enableDeepWiki !== undefined) updateData.enableDeepWiki = settings.enableDeepWiki;
+  const updateData: { autoPullRequest?: boolean; enableDeepWiki?: boolean } =
+    {};
+  if (settings.autoPullRequest !== undefined)
+    updateData.autoPullRequest = settings.autoPullRequest;
+  if (settings.enableDeepWiki !== undefined)
+    updateData.enableDeepWiki = settings.enableDeepWiki;
 
   return await prisma.userSettings.upsert({
     where: { userId },
@@ -49,15 +54,17 @@ export async function updateUserSettings(
   });
 }
 
-export async function getOrCreateUserSettings(userId: string): Promise<UserSettings> {
+export async function getOrCreateUserSettings(
+  userId: string
+): Promise<UserSettings> {
   let settings = await getUserSettings(userId);
-  
+
   if (!settings) {
-    settings = await createUserSettings(userId, { 
+    settings = await createUserSettings(userId, {
       autoPullRequest: false, // Default to false for autoPR
       enableDeepWiki: true, // Default to true for deepWiki
     });
   }
-  
+
   return settings;
 }
