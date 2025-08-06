@@ -11,6 +11,10 @@ import { useCallback, useMemo, memo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ModelType } from "@repo/types";
 import { useTaskStatus } from "@/hooks/use-task-status";
+import {
+  deduplicatePartsFromMap,
+  convertMapToPartsArray,
+} from "@/lib/streaming";
 
 function TaskPageContent() {
   const { taskId } = useParams<{ taskId: string }>();
@@ -28,7 +32,8 @@ function TaskPageContent() {
   const sendMessageMutation = useSendMessage();
 
   const {
-    streamingAssistantParts,
+    streamingPartsMap,
+    streamingPartsOrder,
     isStreaming,
     sendMessage,
     stopStream,
@@ -73,57 +78,77 @@ function TaskPageContent() {
     );
   }
 
-  // Combine real messages with current streaming content
+  // Combine real messages with current streaming content using modern Map-based deduplication
   const displayMessages = useMemo(() => {
     const msgs = [...messages];
 
-    console.log(
-      "streamingAssistantParts",
-      streamingAssistantParts,
-      "msgs",
-      msgs,
-      "\n\n"
-    );
+    // Only proceed if we have streaming parts or are actively streaming
+    if (streamingPartsMap.size === 0 && !isStreaming) {
+      return msgs;
+    }
 
-    // If streaming and we have parts, merge with existing or create new message
-    if (streamingAssistantParts.length > 0 || isStreaming) {
-      const lastMsg = msgs[msgs.length - 1];
-
+    // Find the last streaming assistant message (not tool message)
+    let lastStreamingIndex = -1;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const msg = msgs[i];
       if (
-        lastMsg &&
-        (lastMsg.role.toLowerCase() === "assistant" ||
-          lastMsg.role.toLowerCase() === "tool")
+        msg &&
+        msg.role.toLowerCase() === "assistant" &&
+        msg.metadata?.isStreaming === true
       ) {
-        // Merge existing parts with streaming parts
-        const existingParts = lastMsg.metadata?.parts || [];
-        const mergedParts = [...existingParts, ...streamingAssistantParts];
+        lastStreamingIndex = i;
+        break;
+      }
+    }
 
-        msgs[msgs.length - 1] = {
-          ...lastMsg,
+    if (lastStreamingIndex !== -1) {
+      // Merge with existing streaming assistant message using modern Map-based deduplication
+      const existingMsg = msgs[lastStreamingIndex];
+      if (existingMsg) {
+        const existingParts = existingMsg.metadata?.parts || [];
+        const mergedParts = deduplicatePartsFromMap(
+          existingParts,
+          streamingPartsMap,
+          streamingPartsOrder
+        );
+
+        msgs[lastStreamingIndex] = {
+          ...existingMsg,
           metadata: {
-            ...lastMsg.metadata,
+            ...existingMsg.metadata,
             isStreaming: true,
             parts: mergedParts,
           },
         };
-      } else {
-        // No existing assistant message, create new streaming one
-        msgs.push({
-          id: "streaming",
-          role: "assistant",
-          content: "", // Content will come from parts
-          createdAt: new Date().toISOString(),
-          llmModel: mostRecentMessageModel || "",
-          metadata: {
-            isStreaming: true,
-            parts: streamingAssistantParts,
-          },
-        });
       }
+    } else if (streamingPartsOrder.length > 0) {
+      // Create new streaming assistant message from Map data
+      const streamingParts = convertMapToPartsArray(
+        streamingPartsMap,
+        streamingPartsOrder
+      );
+
+      msgs.push({
+        id: "streaming",
+        role: "assistant",
+        content: "", // Content will come from parts
+        createdAt: new Date().toISOString(),
+        llmModel: mostRecentMessageModel || "",
+        metadata: {
+          isStreaming: true,
+          parts: streamingParts,
+        },
+      });
     }
 
     return msgs;
-  }, [messages, streamingAssistantParts, isStreaming, mostRecentMessageModel]);
+  }, [
+    messages,
+    streamingPartsMap,
+    streamingPartsOrder,
+    isStreaming,
+    mostRecentMessageModel,
+  ]);
 
   return (
     <div className="relative z-0 mx-auto flex w-full max-w-lg grow flex-col items-center px-4 sm:px-6">

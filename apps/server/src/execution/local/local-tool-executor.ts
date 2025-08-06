@@ -246,7 +246,7 @@ export class LocalToolExecutor implements ToolExecutor {
       }
 
       const resolvedPath = path.resolve(this.workspacePath, filePath);
-      
+
       // Read existing content
       let existingContent: string;
       try {
@@ -298,13 +298,13 @@ export class LocalToolExecutor implements ToolExecutor {
 
       // Perform replacement and calculate metrics
       const newContent = existingContent.replace(oldString, newString);
-      
+
       // Calculate line changes
       const oldLines = existingContent.split("\n");
       const newLines = newContent.split("\n");
       const oldLineCount = oldLines.length;
       const newLineCount = newLines.length;
-      
+
       const linesAdded = Math.max(0, newLineCount - oldLineCount);
       const linesRemoved = Math.max(0, oldLineCount - newLineCount);
 
@@ -409,8 +409,11 @@ export class LocalToolExecutor implements ToolExecutor {
           // Skip ignored directories
           if (IGNORE_DIRS.includes(entry.name)) continue;
 
-          const entryPath = normalizedPath === "." ? entry.name : `${normalizedPath}/${entry.name}`;
-          
+          const entryPath =
+            normalizedPath === "."
+              ? entry.name
+              : `${normalizedPath}/${entry.name}`;
+
           entries.push({
             name: entry.name,
             type: entry.isDirectory() ? "directory" : "file",
@@ -496,7 +499,7 @@ export class LocalToolExecutor implements ToolExecutor {
     try {
       // Build ripgrep command with file names and line numbers
       let command = `rg -n --with-filename "${query}" "${this.workspacePath}"`;
-      
+
       if (!options?.caseSensitive) {
         command += " -i";
       }
@@ -523,19 +526,22 @@ export class LocalToolExecutor implements ToolExecutor {
       const matches: string[] = [];
 
       for (const rawMatch of rawMatches) {
-        const colonIndex = rawMatch.indexOf(':');
-        const secondColonIndex = rawMatch.indexOf(':', colonIndex + 1);
-        
+        const colonIndex = rawMatch.indexOf(":");
+        const secondColonIndex = rawMatch.indexOf(":", colonIndex + 1);
+
         if (colonIndex > 0 && secondColonIndex > colonIndex) {
           const file = rawMatch.substring(0, colonIndex); // Full absolute path
-          const lineNumber = parseInt(rawMatch.substring(colonIndex + 1, secondColonIndex), 10);
+          const lineNumber = parseInt(
+            rawMatch.substring(colonIndex + 1, secondColonIndex),
+            10
+          );
           let content = rawMatch.substring(secondColonIndex + 1); // Complete line content
-          
+
           // Truncate content to 250 characters max
           if (content.length > 250) {
             content = content.substring(0, 250) + "...";
           }
-          
+
           detailedMatches.push({ file, lineNumber, content });
           matches.push(rawMatch); // Keep original format for backward compatibility
         } else {
@@ -554,7 +560,11 @@ export class LocalToolExecutor implements ToolExecutor {
       };
     } catch (error) {
       // ripgrep returns exit code 1 when no matches found, which is normal
-      if (error instanceof Error && (error.message.includes("exit code 1") || error.message.includes("Command failed: rg"))) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("exit code 1") ||
+          error.message.includes("Command failed: rg"))
+      ) {
         return {
           success: true,
           matches: [],
@@ -577,7 +587,6 @@ export class LocalToolExecutor implements ToolExecutor {
     }
   }
 
-
   async semanticSearch(
     query: string,
     repo: string,
@@ -596,7 +605,7 @@ export class LocalToolExecutor implements ToolExecutor {
         success: false,
         results: [],
         query: query,
-        searchTerms: query.split(/\s+/).filter(term => term.length > 0),
+        searchTerms: query.split(/\s+/).filter((term) => term.length > 0),
         message: `Semantic search failed for "${query}"`,
         error: error instanceof Error ? error.message : "Unknown error",
       };
@@ -665,11 +674,15 @@ export class LocalToolExecutor implements ToolExecutor {
           30000 // 30 second timeout
         );
 
+        const success = result.exitCode === 0;
         return {
-          success: true,
+          success,
           stdout: result.stdout.trim(),
           stderr: result.stderr.trim(),
-          message: `Command executed successfully: ${sanitizedCommand}`,
+          exitCode: result.exitCode,
+          message: success
+            ? `Command executed successfully: ${sanitizedCommand}`
+            : `Command failed with exit code ${result.exitCode}: ${sanitizedCommand}`,
           securityLevel: validation.securityLevel,
         };
       }
@@ -693,7 +706,7 @@ export class LocalToolExecutor implements ToolExecutor {
     command: string,
     args: string[],
     timeout: number
-  ): Promise<{ stdout: string; stderr: string }> {
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     return new Promise((resolve, reject) => {
       const child = spawn(command, args, {
         cwd: this.workspacePath,
@@ -725,20 +738,8 @@ export class LocalToolExecutor implements ToolExecutor {
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
-
-        if (code === 0) {
-          resolve({ stdout, stderr });
-        } else {
-          const error = new Error(
-            `Command failed with exit code ${code}: ${stderr || stdout}`
-          ) as Error & {
-            stdout: string;
-            stderr: string;
-          };
-          error.stdout = stdout;
-          error.stderr = stderr;
-          reject(error);
-        }
+        // Always resolve - let caller handle exit code
+        resolve({ stdout, stderr, exitCode: code || 0 });
       });
 
       // Handle process errors

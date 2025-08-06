@@ -26,6 +26,10 @@ LIVE EXECUTION ENVIRONMENT:
 
 const OPERATION_MODES = `<operation_modes>
 DISCOVERY PHASE:
+EXPLORATION REQUIREMENTS:
+- Use semantic_search + list_dir + read_file to understand key components
+- Don't create todos until you've explored the areas your task will impact
+
 When starting a new task, you must first comprehensively understand:
 1. Repository structure and technology stack
 2. Existing code patterns and conventions
@@ -57,7 +61,7 @@ Implement your plan systematically:
 
 const TOOL_USAGE_STRATEGY = `<tool_usage>
 TOOL SELECTION HIERARCHY:
-DISCOVERY: list_dir → semantic_search → read_file → grep_search
+DISCOVERY: list_dir → semantic_search → read_file → grep_search (EXPLORE BEFORE PLANNING)
 UNDERSTANDING: semantic_search → targeted reading → pattern analysis
 PLANNING: comprehensive file analysis → dependency mapping → test identification  
 EXECUTION: edit_file → run_terminal_cmd (test) → verify changes
@@ -74,6 +78,8 @@ THOROUGH EXPLORATION REQUIRED:
 
 Keep searching until you're confident nothing important remains undiscovered.
 First-pass results often miss critical context.
+
+EXPLORATION BEFORE PLANNING: Never create detailed task plans until you've used multiple search approaches and understand the existing code structure.
 
 BEFORE MODIFYING ANY CODE:
 1. Find all references to functions/classes you'll change

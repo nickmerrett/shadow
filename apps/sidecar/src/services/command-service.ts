@@ -76,11 +76,15 @@ export class CommandService extends EventEmitter {
         // For foreground commands, use secure spawn with timeout
         const result = await this.executeSecureCommand(baseCommand, args, workspaceDir, commandTimeout);
 
+        const success = result.exitCode === 0;
         return {
-          success: true,
+          success,
           stdout: result.stdout.trim(),
           stderr: result.stderr.trim(),
-          message: `Command executed successfully: ${baseCommand}`,
+          exitCode: result.exitCode,
+          message: success 
+            ? `Command executed successfully: ${baseCommand}`
+            : `Command failed with exit code ${result.exitCode}: ${baseCommand}`,
         };
       }
     } catch (error) {
@@ -182,7 +186,7 @@ export class CommandService extends EventEmitter {
     args: string[],
     cwd: string,
     timeout: number
-  ): Promise<{ stdout: string; stderr: string }> {
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     return new Promise((resolve, reject) => {
       const child = spawn(command, args, {
         cwd,
@@ -215,15 +219,8 @@ export class CommandService extends EventEmitter {
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
-
-        if (code === 0) {
-          resolve({ stdout, stderr });
-        } else {
-          const error = new Error(`Command failed with exit code ${code}: ${stderr || stdout}`) as Error & { stdout: string; stderr: string };
-          error.stdout = stdout;
-          error.stderr = stderr;
-          reject(error);
-        }
+        // Always resolve - let caller handle exit code
+        resolve({ stdout, stderr, exitCode: code || 0 });
       });
 
       // Handle process errors

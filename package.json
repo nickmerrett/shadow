@@ -46,8 +46,5 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ],
-  "dependencies": {
-    "@prisma/nextjs-monorepo-workaround-plugin": "6.13.0"
-  }
+  ]
 }

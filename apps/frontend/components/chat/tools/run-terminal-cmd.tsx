@@ -1,5 +1,5 @@
 import type { Message } from "@repo/types";
-import { Terminal } from "lucide-react";
+import { TerminalSquare } from "lucide-react";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { getToolResult } from "@repo/types";
 import { ToolTypes } from "@repo/types";
@@ -18,16 +18,17 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
   // Use typed tool result accessor
   const result = getToolResult(toolMeta, "run_terminal_cmd");
   const _output = result?.stdout || result?.stderr || "";
-  const _error = result?.error;
+  const _error = result?.stderr;
 
   const suffix = isBackground ? " (Background)" : undefined;
 
   return (
     <ToolComponent
-      icon={<Terminal />}
+      icon={<TerminalSquare />}
       type={ToolTypes.RUN_TERMINAL_CMD}
       title={command}
       suffix={suffix}
+      hasStdErr={!!_error}
       onClick={() => expandRightPanel()}
     />
   );

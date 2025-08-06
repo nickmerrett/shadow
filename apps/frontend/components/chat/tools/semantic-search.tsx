@@ -27,7 +27,7 @@ export function SemanticSearchTool({ message }: { message: Message }) {
     >
       {targetDirectories && targetDirectories.length > 0 && (
         <div className="mb-2 flex items-center gap-1">
-          <Folder className="text-muted-foreground size-3" />
+          <Folder className="text-muted-foreground size-4 shrink-0" />
           <div className="text-muted-foreground text-xs">
             in{" "}
             {targetDirectories.map((dir: string) => (
@@ -49,7 +49,7 @@ export function SemanticSearchTool({ message }: { message: Message }) {
             <div className="flex flex-col gap-0.5">
               {parsedResult.results.map((item) => (
                 <div key={item.id} className="flex items-center gap-2 py-px">
-                  <File className="size-4" />
+                  <File className="size-4 shrink-0" />
                   <span className="truncate">
                     {item.filePath}{" "}
                     {item.lineStart > 0 && (

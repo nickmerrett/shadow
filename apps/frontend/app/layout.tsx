@@ -10,7 +10,6 @@ import { cookies } from "next/headers";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { getUser } from "@/lib/auth/get-user";
-import { NextResponse } from "next/server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

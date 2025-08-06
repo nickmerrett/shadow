@@ -20,7 +20,7 @@ import { createTools } from "../../tools";
 import { ModelProvider } from "../models/model-provider";
 import { ChunkHandlers } from "./chunk-handlers";
 
-const MAX_STEPS = 50;
+const MAX_STEPS = 300;
 
 export class StreamProcessor {
   private modelProvider = new ModelProvider();
@@ -218,17 +218,19 @@ export class StreamProcessor {
       try {
         console.log("[DEBUG_STREAM] Calling streamText with config...");
         result = streamText(streamConfig);
-        
+
         // Handle environment difference: production returns Promise, local returns direct result
         const isPromise = result instanceof Promise;
         console.log("[DEBUG_STREAM] streamText returned Promise:", isPromise);
-        
+
         if (isPromise) {
           console.log("[DEBUG_STREAM] Awaiting Promise result...");
           result = await result;
           console.log("[DEBUG_STREAM] Promise resolved successfully");
         } else {
-          console.log("[DEBUG_STREAM] Direct result returned (local environment)");
+          console.log(
+            "[DEBUG_STREAM] Direct result returned (local environment)"
+          );
         }
       } catch (error) {
         console.error("[DEBUG_STREAM] streamText threw error:", error);
@@ -244,8 +246,14 @@ export class StreamProcessor {
       console.log("[DEBUG_STREAM] Result object analysis:");
       console.log("[DEBUG_STREAM] Result type:", typeof result);
       console.log("[DEBUG_STREAM] Result is null/undefined:", result == null);
-      console.log("[DEBUG_STREAM] Result constructor:", result?.constructor?.name);
-      console.log("[DEBUG_STREAM] Result is Promise:", result instanceof Promise);
+      console.log(
+        "[DEBUG_STREAM] Result constructor:",
+        result?.constructor?.name
+      );
+      console.log(
+        "[DEBUG_STREAM] Result is Promise:",
+        result instanceof Promise
+      );
 
       // Object.keys() doesn't show non-enumerable properties - check directly
       console.log("[DEBUG_STREAM] fullStream exists:", !!result.fullStream);
@@ -265,12 +273,24 @@ export class StreamProcessor {
         "[DEBUG_STREAM] All property names:",
         Object.keys(descriptors)
       );
-      
+
       // Additional debugging for production issue
-      console.log("[DEBUG_STREAM] Result JSON (first 200 chars):", JSON.stringify(result).substring(0, 200));
-      console.log("[DEBUG_STREAM] Result prototype:", Object.getPrototypeOf(result)?.constructor?.name);
-      console.log("[DEBUG_STREAM] Result own properties:", Object.getOwnPropertyNames(result));
-      console.log("[DEBUG_STREAM] Result symbols:", Object.getOwnPropertySymbols(result).map(s => s.toString()));
+      console.log(
+        "[DEBUG_STREAM] Result JSON (first 200 chars):",
+        JSON.stringify(result).substring(0, 200)
+      );
+      console.log(
+        "[DEBUG_STREAM] Result prototype:",
+        Object.getPrototypeOf(result)?.constructor?.name
+      );
+      console.log(
+        "[DEBUG_STREAM] Result own properties:",
+        Object.getOwnPropertyNames(result)
+      );
+      console.log(
+        "[DEBUG_STREAM] Result symbols:",
+        Object.getOwnPropertySymbols(result).map((s) => s.toString())
+      );
 
       // Note: StreamTextResult doesn't have an error property
       // Errors are handled through the stream itself or thrown during creation

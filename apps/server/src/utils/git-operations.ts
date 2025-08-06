@@ -403,8 +403,6 @@ export async function getFileChanges(
       { additions: 0, deletions: 0, totalFiles: 0 }
     );
 
-    console.log("[GIT_OPS] File changes:", fileChanges);
-
     return { fileChanges, diffStats };
   } catch (error) {
     console.error(

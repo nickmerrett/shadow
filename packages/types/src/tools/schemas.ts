@@ -303,35 +303,41 @@ export const WebSearchResultSchema = BaseResultSchema.extend({
 });
 
 export const AddMemoryResultSchema = BaseResultSchema.extend({
-  memory: z.object({
-    id: z.string(),
-    content: z.string(),
-    category: z.string(),
-    repoFullName: z.string(),
-    createdAt: z.date(),
-  }).optional(),
-});
-
-export const ListMemoriesResultSchema = BaseResultSchema.extend({
-  memories: z.array(
-    z.object({
+  memory: z
+    .object({
       id: z.string(),
       content: z.string(),
       category: z.string(),
       repoFullName: z.string(),
       createdAt: z.date(),
     })
-  ).optional(),
+    .optional(),
+});
+
+export const ListMemoriesResultSchema = BaseResultSchema.extend({
+  memories: z
+    .array(
+      z.object({
+        id: z.string(),
+        content: z.string(),
+        category: z.string(),
+        repoFullName: z.string(),
+        createdAt: z.date(),
+      })
+    )
+    .optional(),
   memoriesByCategory: z.record(z.array(z.any())).optional(),
   totalCount: z.number().optional(),
 });
 
 export const RemoveMemoryResultSchema = BaseResultSchema.extend({
-  removedMemory: z.object({
-    id: z.string(),
-    content: z.string(),
-    category: z.string(),
-  }).optional(),
+  removedMemory: z
+    .object({
+      id: z.string(),
+      content: z.string(),
+      category: z.string(),
+    })
+    .optional(),
 });
 
 export const CommandResultSchema = BaseResultSchema.extend({
@@ -340,6 +346,7 @@ export const CommandResultSchema = BaseResultSchema.extend({
   isBackground: z.boolean().optional(),
   command: z.string().optional(),
   securityLevel: z.string().optional(),
+  exitCode: z.number().optional(),
 });
 
 export const FileStatsResultSchema = BaseResultSchema.extend({
@@ -375,8 +382,12 @@ export type WriteResult = z.infer<typeof WriteResultSchema>;
 export type SearchReplaceResult = z.infer<typeof SearchReplaceResultSchema>;
 export type DeleteResult = z.infer<typeof DeleteResultSchema>;
 export type DirectoryListing = z.infer<typeof DirectoryListingSchema>;
-export type RecursiveDirectoryEntry = z.infer<typeof RecursiveDirectoryEntrySchema>;
-export type RecursiveDirectoryListing = z.infer<typeof RecursiveDirectoryListingSchema>;
+export type RecursiveDirectoryEntry = z.infer<
+  typeof RecursiveDirectoryEntrySchema
+>;
+export type RecursiveDirectoryListing = z.infer<
+  typeof RecursiveDirectoryListingSchema
+>;
 export type FileSearchResult = z.infer<typeof FileSearchResultSchema>;
 export type GrepMatch = z.infer<typeof GrepMatchSchema>;
 export type GrepResult = z.infer<typeof GrepResultSchema>;
@@ -453,7 +464,7 @@ export enum ToolTypes {
 export const TOOL_PREFIXES: Record<ToolTypes, string> = {
   [ToolTypes.EDIT_FILE]: "Edited",
   [ToolTypes.READ_FILE]: "Read",
-  [ToolTypes.SEARCH_REPLACE]: "Replaced in",
+  [ToolTypes.SEARCH_REPLACE]: "Edited",
   [ToolTypes.SEMANTIC_SEARCH]: "Semantic search",
   [ToolTypes.GREP_SEARCH]: "Grepped",
   [ToolTypes.FILE_SEARCH]: "Searched files",

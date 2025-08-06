@@ -1,4 +1,3 @@
-import { auth } from "@/lib/auth/auth";
 import { verifyTaskOwnership } from "@/lib/auth/verify-task-ownership";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
