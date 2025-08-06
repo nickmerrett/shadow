@@ -12,11 +12,7 @@ import {
   getModelDefaults,
 } from "@/lib/actions/api-keys";
 
-interface ProviderConfigProps {
-  provider: ApiKeyProvider;
-}
-
-export function ProviderConfig({ provider }: ProviderConfigProps) {
+export function ProviderConfig({ provider }: { provider: ApiKeyProvider }) {
   const { data: userSettings, isLoading: isLoadingSettings } =
     useUserSettings();
   const updateUserSettings = useUpdateUserSettings();
