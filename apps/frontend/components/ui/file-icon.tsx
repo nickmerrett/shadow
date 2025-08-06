@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { File } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import JavascriptIcon from "material-icon-theme/icons/javascript.svg";
@@ -121,6 +120,6 @@ export function FileIcon({ filename, className, style }: FileIconProps) {
     );
   }
 
-  // Fallback to generic file icon
-  return <File className={cn("shrink-0", className)} style={style} />;
+  // Return null for unsupported file types (no fallback)
+  return null;
 }

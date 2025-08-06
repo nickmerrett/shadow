@@ -15,6 +15,7 @@ export function DeleteFileTool({ message }: { message: Message }) {
       icon={<Trash2 className="text-destructive" />}
       type={ToolTypes.DELETE_FILE}
       title={filePath}
+      showFileIcon={filePath}
     />
   );
 }

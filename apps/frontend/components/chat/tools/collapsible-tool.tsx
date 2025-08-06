@@ -8,6 +8,7 @@ import {
   Expand,
 } from "lucide-react";
 import { useState } from "react";
+import { FileIcon } from "@/components/ui/file-icon";
 
 export function ToolComponent({
   icon,
@@ -17,6 +18,7 @@ export function ToolComponent({
   hasStdErr,
   prefix,
   suffix,
+  showFileIcon,
   collapsible = false,
   onClick,
   children,
@@ -26,6 +28,7 @@ export function ToolComponent({
   title: string;
   suffix?: string;
   prefix?: string;
+  showFileIcon?: string;
   changes?: {
     linesAdded: number;
     linesRemoved: number;
@@ -52,6 +55,9 @@ export function ToolComponent({
             <div className="whitespace-nowrap opacity-70">
               {prefix || TOOL_PREFIXES[type]}
             </div>
+          )}
+          {showFileIcon && (
+            <FileIcon filename={showFileIcon} className="size-3.5 opacity-70" />
           )}
           <div
             className={cn(
