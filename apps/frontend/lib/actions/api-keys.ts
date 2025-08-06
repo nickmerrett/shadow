@@ -54,9 +54,7 @@ export async function getModels(): Promise<ModelInfo[]> {
           ? await getAvailableModels(apiKeys, selectedModels)
           : await getAvailableModels(apiKeys); // Fallback to all available models
 
-      return models.map(
-        (modelId) => ModelInfos[modelId] || createDynamicModelInfo(modelId)
-      );
+      return models.map((modelId) => ModelInfos[modelId]);
     }
   } catch (error) {
     console.log("Could not fetch user settings, falling back to all models");
@@ -64,29 +62,13 @@ export async function getModels(): Promise<ModelInfo[]> {
 
   // Fallback if no user session or error occurred
   const availableModels = await getAvailableModels(apiKeys);
-  return availableModels.map(
-    (modelId) => ModelInfos[modelId] || createDynamicModelInfo(modelId)
-  );
+  return availableModels.map((modelId) => ModelInfos[modelId]);
 }
 
 export async function getAllPossibleModelsInfo(): Promise<ModelInfo[]> {
   const apiKeys = await getApiKeys();
   const allModels = await getAllPossibleModels(apiKeys);
-  return allModels.map(
-    (modelId) => ModelInfos[modelId] || createDynamicModelInfo(modelId)
-  );
-}
-
-/**
- * Create a dynamic ModelInfo for models not in our static list (e.g., Ollama models)
- */
-function createDynamicModelInfo(modelId: ModelType): ModelInfo {
-  // For now, assume any unknown model is Ollama
-  // return {
-  //   id: modelId,
-  //   name: modelId,
-  //   provider: "ollama",
-  // };
+  return allModels.map((modelId) => ModelInfos[modelId]);
 }
 
 export async function getModelDefaults(): Promise<{
