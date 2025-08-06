@@ -45,6 +45,12 @@ export const AvailableModels = {
   // OPENAI_GPT_OSS_20B: "openai/gpt-oss-20b",
   OPENROUTER_HORIZON_BETA: "openrouter/horizon-beta",
   MISTRAL_CODESTRAL_2508: "mistralai/codestral-2508",
+  DEEPSEEK_R1_0528: "deepseek/deepseek-r1-0528",
+  DEEPSEEK_CHAT_V3_0324: "deepseek/deepseek-chat-v3-0324",
+  OPENAI_CODEX_MINI: "openai/codex-mini",
+  QWEN_2_5_CODER_32B_INSTRUCT_FREE: "qwen/qwen-2.5-coder-32b-instruct:free",
+  MOONSHOT_KIMI_K2_FREE: "moonshotai/kimi-k2:free",
+  QWEN_3_235B_A22B_2507: "qwen/qwen3-235b-a22b-2507",
 
   // Groq models (commented out)
   // GROQ_MIXTRAL_8X7B: "mixtral-8x7b-32768",
@@ -212,12 +218,42 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
   // },
   [AvailableModels.OPENROUTER_HORIZON_BETA]: {
     id: AvailableModels.OPENROUTER_HORIZON_BETA,
-    name: "Horizon Beta",
+    name: "Horizon Beta (Free)",
     provider: "openrouter",
   },
   [AvailableModels.MISTRAL_CODESTRAL_2508]: {
     id: AvailableModels.MISTRAL_CODESTRAL_2508,
     name: "Codestral 2508",
+    provider: "openrouter",
+  },
+  [AvailableModels.DEEPSEEK_R1_0528]: {
+    id: AvailableModels.DEEPSEEK_R1_0528,
+    name: "DeepSeek R1 0528",
+    provider: "openrouter",
+  },
+  [AvailableModels.DEEPSEEK_CHAT_V3_0324]: {
+    id: AvailableModels.DEEPSEEK_CHAT_V3_0324,
+    name: "DeepSeek Chat V3 0324",
+    provider: "openrouter",
+  },
+  [AvailableModels.OPENAI_CODEX_MINI]: {
+    id: AvailableModels.OPENAI_CODEX_MINI,
+    name: "Codex Mini",
+    provider: "openrouter",
+  },
+  [AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE]: {
+    id: AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE,
+    name: "Qwen 2.5 Coder 32B Instruct (Free)",
+    provider: "openrouter",
+  },
+  [AvailableModels.MOONSHOT_KIMI_K2_FREE]: {
+    id: AvailableModels.MOONSHOT_KIMI_K2_FREE,
+    name: "Moonshot Kimi K2 (Free)",
+    provider: "openrouter",
+  },
+  [AvailableModels.QWEN_3_235B_A22B_2507]: {
+    id: AvailableModels.QWEN_3_235B_A22B_2507,
+    name: "Qwen 3 235B A22B 2507",
     provider: "openrouter",
   },
 
@@ -277,7 +313,13 @@ export async function getAllPossibleModels(
       // AvailableModels.OPENAI_GPT_OSS_120B,
       // AvailableModels.OPENAI_GPT_OSS_20B,
       AvailableModels.OPENROUTER_HORIZON_BETA,
-      AvailableModels.MISTRAL_CODESTRAL_2508
+      AvailableModels.MISTRAL_CODESTRAL_2508,
+      AvailableModels.DEEPSEEK_R1_0528,
+      AvailableModels.DEEPSEEK_CHAT_V3_0324,
+      AvailableModels.OPENAI_CODEX_MINI,
+      AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE,
+      AvailableModels.MOONSHOT_KIMI_K2_FREE,
+      AvailableModels.QWEN_3_235B_A22B_2507
     );
   }
 
@@ -333,7 +375,13 @@ export async function getDefaultSelectedModels(
       // AvailableModels.OPENAI_GPT_OSS_120B,
       // AvailableModels.OPENAI_GPT_OSS_20B,
       AvailableModels.OPENROUTER_HORIZON_BETA,
-      AvailableModels.MISTRAL_CODESTRAL_2508
+      AvailableModels.MISTRAL_CODESTRAL_2508,
+      AvailableModels.DEEPSEEK_R1_0528,
+      AvailableModels.DEEPSEEK_CHAT_V3_0324,
+      AvailableModels.OPENAI_CODEX_MINI,
+      AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE,
+      AvailableModels.MOONSHOT_KIMI_K2_FREE,
+      AvailableModels.QWEN_3_235B_A22B_2507
     );
   }
 
