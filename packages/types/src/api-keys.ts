@@ -7,6 +7,12 @@ export const API_KEY_PROVIDERS = {
   // OLLAMA: "ollama",
 } as const;
 
+export const API_KEY_PROVIDER_NAMES = {
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+  openrouter: "OpenRouter",
+} as const;
+
 export type ApiKeyProvider =
   (typeof API_KEY_PROVIDERS)[keyof typeof API_KEY_PROVIDERS];
 
