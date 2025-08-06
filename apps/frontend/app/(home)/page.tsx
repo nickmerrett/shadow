@@ -5,10 +5,9 @@ import {
   getGitHubRepositories,
   getGitHubStatus,
 } from "@/lib/github/github-api";
-import { getModels } from "@/lib/actions/get-models";
 import { getGitSelectorCookie } from "@/lib/actions/git-selector-cookie";
 import { getModelSelectorCookie } from "@/lib/actions/model-selector-cookie";
-import { getApiKeys } from "@/lib/actions/api-keys";
+import { getApiKeys, getModels } from "@/lib/actions/api-keys";
 import { getModelProvider, AvailableModels } from "@repo/types";
 import type { GitHubStatus } from "@/lib/github/types";
 import {

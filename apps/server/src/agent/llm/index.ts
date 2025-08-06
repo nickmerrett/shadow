@@ -1,11 +1,9 @@
-import { Message, ModelType, StreamChunk } from "@repo/types";
+import { Message, ModelType, StreamChunk, getAvailableModels } from "@repo/types";
 import type { ToolSet } from "ai";
-import { ModelTypes } from "./models/model-types";
 import { StreamProcessor } from "./streaming/stream-processor";
 import { PRGenerator } from "./pr-generation/pr-generator";
 
 export class LLMService {
-  private modelTypes = new ModelTypes();
   private streamProcessor = new StreamProcessor();
   private prGenerator = new PRGenerator();
 
@@ -43,7 +41,7 @@ export class LLMService {
     openai?: string;
     anthropic?: string;
   }): ModelType[] {
-    return this.modelTypes.getAvailableModels(userApiKeys);
+    return getAvailableModels(userApiKeys);
   }
 
   /**

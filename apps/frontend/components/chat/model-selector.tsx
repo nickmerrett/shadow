@@ -1,4 +1,4 @@
-import { ModelInfos, ModelType, getModelProvider } from "@repo/types";
+import { ModelInfos, ModelType } from "@repo/types";
 import { useEffect, useState } from "react";
 import { useModal } from "@/components/layout/modal-context";
 import {
@@ -14,7 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Box, Layers, Square } from "lucide-react";
 import { useModels } from "@/hooks/use-models";
-import { useApiKeys } from "@/hooks/use-api-keys";
 
 export function ModelSelector({
   isHome,
@@ -29,19 +28,6 @@ export function ModelSelector({
   const { openSettingsModal } = useModal();
 
   const { data: availableModels = [] } = useModels();
-  const { data: apiKeys } = useApiKeys();
-
-  // Filter models based on available API keys
-  const filteredModels = availableModels.filter((model) => {
-    const provider = getModelProvider(model.id as ModelType);
-    if (provider === "openai") {
-      return !!apiKeys?.openai;
-    }
-    if (provider === "anthropic") {
-      return !!apiKeys?.anthropic;
-    }
-    return true;
-  });
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -85,8 +71,8 @@ export function ModelSelector({
         className="flex flex-col gap-0.5 overflow-hidden rounded-lg p-0"
       >
         <div className="flex flex-col gap-0.5 rounded-lg p-1.5">
-          {filteredModels.length > 0 ? (
-            filteredModels.map((model) => (
+          {availableModels.length > 0 ? (
+            availableModels.map((model) => (
               <Button
                 key={model.id}
                 size="sm"

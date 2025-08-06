@@ -1,6 +1,6 @@
 import { router as IndexingRouter } from "@/indexing/index";
 import { prisma } from "@repo/db";
-import { ModelInfos, AvailableModels, ModelType } from "@repo/types";
+import { AvailableModels, ModelType } from "@repo/types";
 import cors from "cors";
 import express from "express";
 import http from "http";
@@ -13,7 +13,6 @@ import { getGitHubAccessToken } from "./github/auth/account-service";
 import { updateTaskStatus } from "./utils/task-status";
 import { createWorkspaceManager } from "./execution";
 import { filesRouter } from "./file-routes";
-import { parseApiKeysFromCookies } from "./utils/cookie-parser";
 import { handleGitHubWebhook } from "./webhooks/github-webhook";
 import { getIndexingStatus } from "./routes/indexing-status";
 import { modelContextService } from "./services/model-context-service";
@@ -249,22 +248,6 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
   }
 });
 
-// Get available models
-app.get("/api/models", async (req, res) => {
-  try {
-    const userApiKeys = parseApiKeysFromCookies(req.headers.cookie);
-    const availableModels = chatService.getAvailableModels(userApiKeys);
-    const modelsWithInfo = availableModels.map((modelId) => ({
-      ...ModelInfos[modelId],
-      id: modelId,
-    }));
-
-    res.json({ models: modelsWithInfo });
-  } catch (error) {
-    console.error("Error fetching models:", error);
-    res.status(500).json({ error: "Failed to fetch models" });
-  }
-});
 
 // Get chat messages for a task
 app.get("/api/tasks/:taskId/messages", async (req, res) => {
