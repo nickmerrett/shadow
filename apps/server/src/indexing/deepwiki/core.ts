@@ -426,7 +426,7 @@ async function buildTree(
     "**/.nyc_output/**",
   ];
 
-  const entries = await fg("**/*", {
+  const entries = await fg(["*", "*/*"], {
     cwd: rootPath,
     absolute: true,
     dot: true,
@@ -596,9 +596,7 @@ function getBasicFileInfo(filePath: string, fileSize?: number): string {
 async function summarizeFile(
   rootPath: string,
   rel: string,
-  modelProvider: ModelProvider,
-  context: TaskModelContext,
-  modelMini: ModelType
+  miniModelInstance: any
 ): Promise<string> {
   const abs = path.join(rootPath, rel);
 
@@ -641,9 +639,7 @@ async function summarizeFile(
       rel,
       src,
       emptySymbols,
-      modelProvider,
-      context,
-      modelMini
+      miniModelInstance
     );
   }
 
@@ -667,9 +663,7 @@ async function summarizeFile(
       rel,
       src,
       symbols,
-      modelProvider,
-      context,
-      modelMini
+      miniModelInstance
     );
   } else {
     const markdown = symbolsToMarkdown(symbols);
@@ -686,9 +680,7 @@ async function analyzeFileWithLLM(
   rel: string,
   src: string,
   symbols: Symbols,
-  modelProvider: ModelProvider,
-  context: TaskModelContext,
-  modelMini: ModelType
+  miniModelInstance: any
 ): Promise<string> {
   const ext = path.extname(rel).toLowerCase();
   const isDataFile =
@@ -696,6 +688,12 @@ async function analyzeFileWithLLM(
       ext
     );
   const isCritical = isCriticalFile(rel);
+  
+  // Skip analysis for extremely large files (over 50k chars ~ 12.5k tokens)
+  if (src.length > 50000) {
+    return `Large file: ${path.basename(rel)} (${Math.round(src.length/1000)}KB) - skipped analysis due to size`;
+  }
+  
   const maxTokens = isCritical ? 15000 : isDataFile ? 4000 : 8000;
 
   let truncatedSrc = src;
@@ -725,11 +723,9 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
   ];
 
   try {
-    const model = modelProvider.getModel(modelMini, context.getApiKeys());
-
     const { text } = await withTimeout(
       generateText({
-        model,
+        model: miniModelInstance,
         temperature: 0.6,
         messages,
         maxTokens: isCritical ? 3000 : 2048,
@@ -763,15 +759,12 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
 async function chat(
   messages: any[],
   budget: number,
-  modelProvider: ModelProvider,
-  context: TaskModelContext,
-  model: ModelType
+  mainModelInstance: any
 ): Promise<string> {
-  const modelInstance = modelProvider.getModel(model, context.getApiKeys());
 
   const { text } = await withTimeout(
     generateText({
-      model: modelInstance,
+      model: mainModelInstance,
       temperature: TEMP,
       messages,
       maxTokens: budget,
@@ -884,9 +877,7 @@ function analyzeDirectoryPatterns(node: TreeNode): string {
 async function summarizeDir(
   node: TreeNode,
   childSummaries: string[],
-  modelProvider: ModelProvider,
-  context: TaskModelContext,
-  model: ModelType,
+  mainModelInstance: any,
   rootPath?: string
 ): Promise<string> {
   if (!childSummaries || childSummaries.length === 0) {
@@ -949,16 +940,14 @@ Use bullet points, fragments, abbreviations. Directory: ${node.relPath}`;
     { role: "user" as const, content: userContent },
   ];
 
-  return chat(messages, budget, modelProvider, context, model);
+  return chat(messages, budget, mainModelInstance);
 }
 
 // Summarize root - simplified
 async function summarizeRoot(
   node: TreeNode,
   childSummaries: string[],
-  modelProvider: ModelProvider,
-  context: TaskModelContext,
-  model: ModelType
+  mainModelInstance: any
 ): Promise<string> {
   if (!childSummaries || childSummaries.length === 0) {
     return `Empty project: ${node.name}`;
@@ -991,7 +980,7 @@ Use bullet points and fragments. Ultra-concise technical descriptions only.`;
     { role: "user" as const, content: userContent },
   ];
 
-  return chat(messages, budget, modelProvider, context, model);
+  return chat(messages, budget, mainModelInstance);
 }
 
 /**
@@ -1048,6 +1037,8 @@ export async function runDeepWiki(
   );
 
   const modelProvider = new ModelProvider();
+  const miniModelInstance = modelProvider.getModel(miniModel, context.getApiKeys());
+  const mainModelInstance = modelProvider.getModel(mainModel, context.getApiKeys());
   const stats: ProcessingStats = {
     filesProcessed: 0,
     directoriesProcessed: 0,
@@ -1076,9 +1067,7 @@ export async function runDeepWiki(
         const summary = await summarizeFile(
           repoPath,
           rel,
-          modelProvider,
-          context,
-          miniModel
+          miniModelInstance
         );
         fileCache[rel] = summary;
         stats.filesProcessed++;
@@ -1135,9 +1124,7 @@ export async function runDeepWiki(
     node.summary = await summarizeDir(
       node,
       blocks,
-      modelProvider,
-      context,
-      mainModel,
+      mainModelInstance,
       repoPath
     );
     stats.directoriesProcessed++;
@@ -1152,9 +1139,7 @@ export async function runDeepWiki(
   root.summary = await summarizeRoot(
     root,
     topBlocks,
-    modelProvider,
-    context,
-    mainModel
+    mainModelInstance
   );
 
   const summaryContent = {
