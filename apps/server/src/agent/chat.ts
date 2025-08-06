@@ -1550,11 +1550,15 @@ export class ChatService {
 
       const newTaskId = nanoid();
 
+      const parentContext =
+        await modelContextService.getContextForTask(parentTaskId);
+
+      console.log("\n\n[CHAT] Parent context:", parentContext);
+
       // Create TaskModelContext for title generation
-      const context = await modelContextService.createContext(
-        parentTaskId, // Use parent task context for API keys
-        undefined, // No cookies in server context
-        model
+      const context = await modelContextService.copyContext(
+        newTaskId,
+        parentContext!
       );
 
       // Generate title and branch for the new task

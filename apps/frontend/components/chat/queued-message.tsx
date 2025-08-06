@@ -19,7 +19,7 @@ export function QueuedAction() {
   const label = isStackedPR ? "Queued Branch" : "Queued Message";
 
   return (
-    <div className="bg-card border-border absolute -top-12 left-0 flex w-full items-center justify-between gap-2 rounded-lg border py-1.5 pl-3 pr-1.5 text-sm">
+    <div className="bg-card border-border animate-in fade-in absolute -top-12 left-0 flex w-full items-center justify-between gap-2 rounded-lg border py-1.5 pl-3 pr-1.5 text-sm duration-150">
       <div className="flex items-center gap-1.5 overflow-hidden">
         <IconComponent className="size-4" />
         <span className="select-none whitespace-nowrap">{label}</span>
