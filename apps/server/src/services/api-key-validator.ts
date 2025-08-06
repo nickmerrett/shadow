@@ -1,11 +1,10 @@
-import { ApiKeyProvider, ApiKeyValidationResult } from "@repo/types";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { createGroq } from "@ai-sdk/groq";
-import { createOllama } from "ollama-ai-provider";
+import { ApiKeyProvider } from "@repo/types";
 
-export type ValidationResult = ApiKeyValidationResult;
+export interface ValidationResult {
+  isValid: boolean;
+  error?: string;
+  latencyMs: number;
+}
 
 export class ApiKeyValidator {
   /**
@@ -15,16 +14,8 @@ export class ApiKeyValidator {
     provider: ApiKeyProvider,
     apiKey: string
   ): Promise<ValidationResult> {
+    console.log(`Validating ${provider} API key...`);
     const startTime = Date.now();
-
-    // Skip validation for empty keys
-    if (!apiKey || !apiKey.trim()) {
-      return {
-        isValid: false,
-        error: "API key is empty",
-        latencyMs: Date.now() - startTime,
-      };
-    }
 
     try {
       switch (provider) {
@@ -34,20 +25,18 @@ export class ApiKeyValidator {
           return await this.validateAnthropic(apiKey, startTime);
         case "openrouter":
           return await this.validateOpenRouter(apiKey, startTime);
-        case "groq":
-          return await this.validateGroq(apiKey, startTime);
+        // case "groq":
+        //   return await this.validateGroq(apiKey, startTime);
         case "ollama":
           return await this.validateOllama(apiKey, startTime);
         default:
-          return {
-            isValid: false,
-            error: `Unsupported provider: ${provider}`,
-          };
+          throw new Error(`Unsupported provider: ${provider}`);
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error(`${provider} validation error:`, error?.message);
       return {
         isValid: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error?.message || "Unknown validation error",
         latencyMs: Date.now() - startTime,
       };
     }
@@ -259,86 +248,6 @@ export class ApiKeyValidator {
         return {
           isValid: false,
           error: `OpenRouter validation failed: ${error?.message || "Unknown error"}`,
-          latencyMs,
-        };
-      }
-    }
-  }
-
-  private async validateGroq(
-    apiKey: string,
-    startTime: number
-  ): Promise<ValidationResult> {
-    try {
-      console.log("[GROQ_VALIDATION] Starting validation for Groq API key");
-
-      // Make a simple API call to validate the key
-      const response = await fetch("https://api.groq.com/openai/v1/models", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "User-Agent": "Shadow-Agent/1.0",
-        },
-        signal: AbortSignal.timeout(5000),
-      });
-
-      const latencyMs = Date.now() - startTime;
-
-      console.log("[GROQ_VALIDATION] Response status:", response.status);
-
-      if (response.status === 200) {
-        console.log("[GROQ_VALIDATION] Validation successful");
-        return { isValid: true, latencyMs };
-      } else if (response.status === 401) {
-        console.log("[GROQ_VALIDATION] Invalid API key");
-        return {
-          isValid: false,
-          error: "Invalid Groq API key",
-          latencyMs,
-        };
-      } else if (response.status === 429) {
-        console.log("[GROQ_VALIDATION] Rate limit exceeded");
-        return {
-          isValid: false,
-          error: "Groq API rate limit exceeded",
-          latencyMs,
-        };
-      } else {
-        console.log("[GROQ_VALIDATION] Unexpected status:", response.status);
-        return {
-          isValid: false,
-          error: `Groq API returned status ${response.status}`,
-          latencyMs,
-        };
-      }
-    } catch (error: any) {
-      const latencyMs = Date.now() - startTime;
-
-      console.log("[GROQ_VALIDATION] Error:", error?.message);
-
-      // Handle specific error types
-      if (
-        error?.message?.includes("401") ||
-        error?.message?.includes("Unauthorized")
-      ) {
-        return {
-          isValid: false,
-          error: "Invalid Groq API key",
-          latencyMs,
-        };
-      } else if (
-        error?.message?.includes("429") ||
-        error?.message?.includes("rate limit")
-      ) {
-        return {
-          isValid: false,
-          error: "Groq API rate limit exceeded",
-          latencyMs,
-        };
-      } else {
-        return {
-          isValid: false,
-          error: `Groq validation failed: ${error?.message || "Unknown error"}`,
           latencyMs,
         };
       }

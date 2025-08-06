@@ -6,34 +6,98 @@ import {
   ApiKeys,
   ApiKeyValidation,
   getAvailableModels,
+  getAllPossibleModels,
+  getDefaultSelectedModels,
+  getDefaultSelectedMiniModels,
   ModelInfo,
   ModelInfos,
+  ModelType,
 } from "@repo/types";
+import { auth } from "@/lib/auth/auth";
+import { getUserSettings } from "@/lib/db-operations/user-settings";
 
 export type { ApiKeyProvider };
 
 export async function getApiKeys(): Promise<ApiKeys> {
   const cookieStore = await cookies();
-
   const openaiKey = cookieStore.get("openai-key")?.value;
   const anthropicKey = cookieStore.get("anthropic-key")?.value;
   const openrouterKey = cookieStore.get("openrouter-key")?.value;
-  const groqKey = cookieStore.get("groq-key")?.value;
+  // const groqKey = cookieStore.get("groq-key")?.value;
   const ollamaKey = cookieStore.get("ollama-key")?.value;
 
   return {
     openai: openaiKey || undefined,
     anthropic: anthropicKey || undefined,
     openrouter: openrouterKey || undefined,
-    groq: groqKey || undefined,
+    // groq: groqKey || undefined,
     ollama: ollamaKey || undefined,
   };
 }
 
 export async function getModels(): Promise<ModelInfo[]> {
   const apiKeys = await getApiKeys();
-  const availableModels = getAvailableModels(apiKeys);
-  return availableModels.map((modelId) => ModelInfos[modelId]);
+
+  try {
+    // Try to get user settings
+    const authHeaders = await import("next/headers").then((m) => m.headers());
+    const session = await auth.api.getSession({ headers: authHeaders });
+
+    if (session?.user?.id) {
+      const userSettings = await getUserSettings(session.user.id);
+      const selectedModels =
+        (userSettings?.selectedModels as ModelType[]) || [];
+
+      // If user has selected models, use them; otherwise use defaults
+      const models =
+        selectedModels.length > 0
+          ? await getAvailableModels(apiKeys, selectedModels)
+          : await getAvailableModels(apiKeys); // Fallback to all available models
+
+      return models.map(
+        (modelId) => ModelInfos[modelId] || createDynamicModelInfo(modelId)
+      );
+    }
+  } catch (error) {
+    console.log("Could not fetch user settings, falling back to all models");
+  }
+
+  // Fallback if no user session or error occurred
+  const availableModels = await getAvailableModels(apiKeys);
+  return availableModels.map(
+    (modelId) => ModelInfos[modelId] || createDynamicModelInfo(modelId)
+  );
+}
+
+export async function getAllPossibleModelsInfo(): Promise<ModelInfo[]> {
+  const apiKeys = await getApiKeys();
+  const allModels = await getAllPossibleModels(apiKeys);
+  return allModels.map(
+    (modelId) => ModelInfos[modelId] || createDynamicModelInfo(modelId)
+  );
+}
+
+/**
+ * Create a dynamic ModelInfo for models not in our static list (e.g., Ollama models)
+ */
+function createDynamicModelInfo(modelId: ModelType): ModelInfo {
+  // For now, assume any unknown model is Ollama
+  return {
+    id: modelId,
+    name: modelId,
+    provider: "ollama",
+  };
+}
+
+export async function getModelDefaults(): Promise<{
+  defaultModels: ModelType[];
+  defaultMiniModels: Record<string, ModelType>;
+}> {
+  const apiKeys = await getApiKeys();
+  return {
+    defaultModels: await getDefaultSelectedModels(apiKeys),
+    defaultMiniModels: getDefaultSelectedMiniModels(apiKeys),
+  };
 }
 
 export async function saveApiKey(provider: ApiKeyProvider, key: string | null) {
@@ -70,7 +134,7 @@ export async function getApiKeyValidation(): Promise<ApiKeyValidation> {
   const openaiValidation = cookieStore.get("openai-validation")?.value;
   const anthropicValidation = cookieStore.get("anthropic-validation")?.value;
   const openrouterValidation = cookieStore.get("openrouter-validation")?.value;
-  const groqValidation = cookieStore.get("groq-validation")?.value;
+  // const groqValidation = cookieStore.get("groq-validation")?.value;
   const ollamaValidation = cookieStore.get("ollama-validation")?.value;
 
   return {
@@ -81,7 +145,7 @@ export async function getApiKeyValidation(): Promise<ApiKeyValidation> {
     openrouter: openrouterValidation
       ? JSON.parse(openrouterValidation)
       : undefined,
-    groq: groqValidation ? JSON.parse(groqValidation) : undefined,
+    // groq: groqValidation ? JSON.parse(groqValidation) : undefined,
     ollama: ollamaValidation ? JSON.parse(ollamaValidation) : undefined,
   };
 }
