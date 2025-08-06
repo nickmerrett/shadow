@@ -616,16 +616,16 @@ export class TaskInitializationEngine {
     const agentMode = getAgentMode();
 
     // Fetch user settings to determine if Shadow Wiki generation should be enabled
-    let enableDeepWiki = true; // Default to true
+    let enableDeepWiki = false; // Default to false
     try {
       const userSettings = await prisma.userSettings.findUnique({
         where: { userId },
         select: { enableDeepWiki: true },
       });
-      enableDeepWiki = userSettings?.enableDeepWiki ?? true;
+      enableDeepWiki = userSettings?.enableDeepWiki ?? false;
     } catch (error) {
       console.warn(
-        `[TASK_INIT] Failed to fetch user settings for ${userId}, using default enableDeepWiki=true:`,
+        `[TASK_INIT] Failed to fetch user settings for ${userId}, using default enableDeepWiki=false:`,
         error
       );
     }
