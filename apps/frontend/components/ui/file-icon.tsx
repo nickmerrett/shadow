@@ -27,12 +27,7 @@ import RustIcon from "material-icon-theme/icons/rust.svg";
 import JavaIcon from "material-icon-theme/icons/java.svg";
 import YarnIcon from "material-icon-theme/icons/yarn.svg";
 import PnpmIcon from "material-icon-theme/icons/pnpm.svg";
-
-interface FileIconProps {
-  filename: string;
-  className?: string;
-  style?: React.CSSProperties;
-}
+import { File } from "lucide-react";
 
 // Map file extensions and names to imported SVG components
 const getFileIcon = (filename: string) => {
@@ -111,7 +106,17 @@ const getFileIcon = (filename: string) => {
   }
 };
 
-export function FileIcon({ filename, className, style }: FileIconProps) {
+export function FileIcon({
+  filename,
+  className,
+  style,
+  useFallback = false,
+}: {
+  filename: string;
+  className?: string;
+  style?: React.CSSProperties;
+  useFallback?: boolean;
+}) {
   const IconComponent = useMemo(() => getFileIcon(filename), [filename]);
 
   if (IconComponent) {
@@ -121,5 +126,7 @@ export function FileIcon({ filename, className, style }: FileIconProps) {
   }
 
   // Return null for unsupported file types (no fallback)
-  return null;
+  return useFallback ? (
+    <File className={cn("shrink-0", className)} style={style} />
+  ) : null;
 }

@@ -171,7 +171,7 @@ export function FileExplorer({
                 </>
               )
             ) : (
-              <FileIcon filename={node.name} className="size-4" />
+              <FileIcon filename={node.name} className="size-4" useFallback />
             )}
             <span className="truncate text-sm">{node.name}</span>
           </div>

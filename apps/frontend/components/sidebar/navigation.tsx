@@ -18,6 +18,9 @@ import { statusColorsConfig } from "./status";
 import { useTask } from "@/hooks/use-task";
 import { useMemo } from "react";
 import { LogoHover } from "../graphics/logo/logo-hover";
+import { TaskStatus } from "@repo/db";
+
+const PINGING_STATUSES: TaskStatus[] = ["INITIALIZING", "RUNNING"];
 
 export function SidebarNavigation({
   sidebarView,
@@ -52,8 +55,13 @@ export function SidebarNavigation({
         <div className={cn("relative size-2 rounded-full", statusColor)}>
           <div
             className={cn(
-              "absolute -left-px -top-px size-2.5 animate-ping rounded-full opacity-25",
-              statusColor
+              "absolute -left-px -top-px size-2.5 rounded-full opacity-25",
+              statusColor,
+              task?.status
+                ? PINGING_STATUSES.includes(task.status)
+                  ? "animate-ping"
+                  : ""
+                : ""
             )}
           />
         </div>

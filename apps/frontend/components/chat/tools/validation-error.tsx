@@ -17,13 +17,13 @@ export function ValidationErrorTool({
 
   return (
     <ToolComponent
-      icon={<AlertTriangle className="text-yellow-600" />}
+      icon={<AlertTriangle />}
       type="warning"
       title={`${toolName} - Validation Error`}
       collapsible
     >
       <div className="flex flex-col gap-1">
-        <div className="font-medium text-yellow-600">{error.error}</div>
+        <div className="font-medium">{error.error}</div>
         {error.suggestedFix && (
           <div>
             <strong>Suggestion:</strong> {error.suggestedFix}

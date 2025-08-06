@@ -62,15 +62,7 @@ export function ToolComponent({
           {showFileIcon && (
             <FileIcon filename={showFileIcon} className="size-3.5 opacity-70" />
           )}
-          <div
-            className={cn(
-              "truncate",
-              type === "error" && "text-destructive",
-              type === "warning" && "text-yellow-600"
-            )}
-          >
-            {title}
-          </div>
+          <div className="truncate">{title}</div>
           {hasStdErr && (
             <AlertCircle className="text-destructive ml-1 shrink-0" />
           )}
@@ -89,11 +81,7 @@ export function ToolComponent({
         <div className="flex w-full items-start overflow-hidden">
           <div className="h-4.5 flex w-6 shrink-0 items-center justify-end">
             <CornerDownRight
-              className={cn(
-                "size-3",
-                type === "error" && "text-destructive",
-                type === "warning" && "text-yellow-600"
-              )}
+              className={cn("size-3", type === "error" && "text-destructive")}
             />
           </div>
           <div className="flex grow flex-col gap-2 overflow-hidden pl-2 text-[13px]">
