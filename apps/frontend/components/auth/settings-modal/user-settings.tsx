@@ -42,7 +42,7 @@ export function UserSettings() {
   };
 
   const handleShadowWikiToggle = (checked: boolean) => {
-    updateUserSettings.mutate({ enableDeepWiki: checked });
+    updateUserSettings.mutate({ enableShadowWiki: checked });
   };
 
   const handleIndexingToggle = (checked: boolean) => {
@@ -131,7 +131,7 @@ export function UserSettings() {
               </label>
               <Checkbox
                 id="shadow-wiki"
-                checked={userSettings?.enableDeepWiki ?? true}
+                checked={userSettings?.enableShadowWiki ?? true}
                 onCheckedChange={handleShadowWikiToggle}
                 disabled={isLoadingSettings || updateUserSettings.isPending}
               />

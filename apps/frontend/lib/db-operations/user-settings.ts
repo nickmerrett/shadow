@@ -4,7 +4,7 @@ export interface UserSettings {
   id: string;
   userId: string;
   autoPullRequest: boolean;
-  enableDeepWiki: boolean;
+  enableShadowWiki: boolean;
   memoriesEnabled: boolean;
   selectedModels: string[];
   enableIndexing: boolean;
@@ -26,7 +26,7 @@ export async function createUserSettings(
   userId: string,
   settings: {
     autoPullRequest: boolean;
-    enableDeepWiki?: boolean;
+    enableShadowWiki?: boolean;
     memoriesEnabled?: boolean;
     selectedModels?: string[];
     enableIndexing?: boolean;
@@ -36,7 +36,7 @@ export async function createUserSettings(
     data: {
       userId,
       autoPullRequest: settings.autoPullRequest,
-      enableDeepWiki: settings.enableDeepWiki ?? true,
+      enableShadowWiki: settings.enableShadowWiki ?? true,
       memoriesEnabled: settings.memoriesEnabled ?? true,
       selectedModels: settings.selectedModels ?? [],
       enableIndexing: settings.enableIndexing ?? false,
@@ -50,7 +50,7 @@ export async function updateUserSettings(
   userId: string,
   settings: {
     autoPullRequest?: boolean;
-    enableDeepWiki?: boolean;
+    enableShadowWiki?: boolean;
     memoriesEnabled?: boolean;
     selectedModels?: string[];
     enableIndexing?: boolean;
@@ -59,7 +59,7 @@ export async function updateUserSettings(
   try {
     const updateData: {
       autoPullRequest?: boolean;
-      enableDeepWiki?: boolean;
+      enableShadowWiki?: boolean;
       memoriesEnabled?: boolean;
       selectedModels?: string[];
       enableIndexing?: boolean;
@@ -67,8 +67,8 @@ export async function updateUserSettings(
 
     if (settings.autoPullRequest !== undefined)
       updateData.autoPullRequest = settings.autoPullRequest;
-    if (settings.enableDeepWiki !== undefined)
-      updateData.enableDeepWiki = settings.enableDeepWiki;
+    if (settings.enableShadowWiki !== undefined)
+      updateData.enableShadowWiki = settings.enableShadowWiki;
     if (settings.memoriesEnabled !== undefined)
       updateData.memoriesEnabled = settings.memoriesEnabled;
     if (settings.selectedModels !== undefined)
@@ -80,7 +80,7 @@ export async function updateUserSettings(
     const createData: {
       userId: string;
       autoPullRequest?: boolean;
-      enableDeepWiki?: boolean;
+      enableShadowWiki?: boolean;
       memoriesEnabled?: boolean;
       selectedModels?: string[];
       enableIndexing?: boolean;
@@ -94,10 +94,10 @@ export async function updateUserSettings(
     )
       createData.autoPullRequest = settings.autoPullRequest;
     if (
-      settings.enableDeepWiki !== undefined &&
-      settings.enableDeepWiki !== true
+      settings.enableShadowWiki !== undefined &&
+      settings.enableShadowWiki !== true
     )
-      createData.enableDeepWiki = settings.enableDeepWiki;
+      createData.enableShadowWiki = settings.enableShadowWiki;
     if (
       settings.memoriesEnabled !== undefined &&
       settings.memoriesEnabled !== true
@@ -135,7 +135,7 @@ export async function getOrCreateUserSettings(
   if (!settings) {
     settings = await createUserSettings(userId, {
       autoPullRequest: false,
-      enableDeepWiki: false,
+      enableShadowWiki: false,
       memoriesEnabled: true,
       selectedModels: [],
       enableIndexing: false,

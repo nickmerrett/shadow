@@ -22,13 +22,13 @@ export function getStepsForMode(
   options?: { enableDeepWiki?: boolean; enableIndexing?: boolean },
 ): InitStatus[] {
   const steps: InitStatus[] = [];
-  const enableDeepWiki = options?.enableDeepWiki ?? true; // Default to true
+  const enableShadowWiki = options?.enableDeepWiki ?? true; // Default to true
   const enableIndexing = options?.enableIndexing ?? true; // Default to true
 
   if (mode === "remote") {
     steps.push("CREATE_VM", "WAIT_VM_READY", "VERIFY_VM_WORKSPACE");
 
-    if (enableDeepWiki) {
+    if (enableShadowWiki) {
       steps.push("GENERATE_SHADOW_WIKI");
     }
 
@@ -38,7 +38,7 @@ export function getStepsForMode(
   } else {
     steps.push("PREPARE_WORKSPACE");
 
-    if (enableDeepWiki) {
+    if (enableShadowWiki) {
       steps.push("GENERATE_SHADOW_WIKI");
     }
 

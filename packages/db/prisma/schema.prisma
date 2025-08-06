@@ -103,7 +103,6 @@ model Task {
   messages                    ChatMessage[]     @relation("TaskMessages")
   user                        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions                    TaskSession[]
-  commands                    TerminalCommand[]
   todos                       Todo[]
   memories                    Memory[]
   stackedTaskCreationMessages ChatMessage[]     @relation("StackedTask")
@@ -163,20 +162,6 @@ model ChatMessage {
   @@index([llmModel, createdAt])
 }
 
-model TerminalCommand {
-  id           String    @id @default(cuid())
-  command      String
-  output       String?
-  exitCode     Int?
-  workingDir   String?
-  isBackground Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  completedAt  DateTime?
-  taskId       String
-  task         Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@index([taskId, createdAt])
-}
 
 model TaskSession {
   id           String    @id @default(cuid())
@@ -295,7 +280,7 @@ model UserSettings {
   userId          String   @unique
   memoriesEnabled Boolean  @default(true)
   autoPullRequest Boolean  @default(false)
-  enableDeepWiki  Boolean  @default(true)
+  enableShadowWiki  Boolean  @default(true)
   enableIndexing  Boolean  @default(false)
   selectedModels  String[] @default([])
   createdAt       DateTime @default(now())
@@ -305,13 +290,6 @@ model UserSettings {
   @@map("user_settings")
 }
 
-enum FileOp {
-  CREATE
-  UPDATE
-  DELETE
-  RENAME
-  MOVE
-}
 
 enum MemoryCategory {
   INFRA
