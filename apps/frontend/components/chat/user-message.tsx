@@ -166,7 +166,12 @@ export function UserMessage({
                       <X className="size-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="top" align="end" shortcut="esc">
+                  <TooltipContent
+                    side="top"
+                    align="end"
+                    shortcut="esc"
+                    sideOffset={10}
+                  >
                     Cancel Editing
                   </TooltipContent>
                 </Tooltip>
