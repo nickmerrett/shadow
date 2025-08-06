@@ -14,6 +14,7 @@ import type {
   TaskStatusUpdateEvent,
   ModelType,
   FileNode,
+  QueuedActionUI,
 } from "@repo/types";
 import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
@@ -299,7 +300,7 @@ export function useTaskSocket(taskId: string | undefined) {
       taskId: string;
       messages: Message[];
       mostRecentMessageModel: ModelType | null;
-      queuedMessage: string | null;
+      queuedAction: QueuedActionUI | null;
     }) {
       if (data.taskId === taskId) {
         queryClient.setQueryData<TaskMessages>(["task-messages", taskId], {
@@ -307,8 +308,8 @@ export function useTaskSocket(taskId: string | undefined) {
           mostRecentMessageModel: data.mostRecentMessageModel,
         });
         queryClient.setQueryData(
-          ["queued-message", taskId],
-          data.queuedMessage
+          ["queued-action", taskId],
+          data.queuedAction
         );
 
         // Clear streaming state with O(1) operations

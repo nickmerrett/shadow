@@ -564,10 +564,10 @@ export function createSocketServer(
           taskId: data.taskId,
           messages: history,
           mostRecentMessageModel: (task?.mainModel as ModelType) || null,
-          // If complete is true, the queued message will automatically get sent, so set it to empty string so the frontend removes it from the queue UI
-          queuedMessage: data.complete
+          // If complete is true, the queued action will automatically get sent, so set it to null so the frontend removes it from the queue UI
+          queuedAction: data.complete
             ? null
-            : chatService.getQueuedAction(data.taskId) || null,
+            : chatService.getQueuedAction(data.taskId),
         });
       } catch (error) {
         console.error("Error getting chat history:", error);

@@ -5,6 +5,7 @@ import {
   Message,
   MessageMetadata,
   ModelType,
+  QueuedActionUI,
 } from "@repo/types";
 import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import { randomUUID } from "crypto";
@@ -1268,8 +1269,25 @@ export class ChatService {
     return this.llmService.getAvailableModels(userApiKeys);
   }
 
-  getQueuedAction(taskId: string): string | undefined {
-    return this.queuedActions.get(taskId)?.data.message;
+  getQueuedAction(taskId: string): QueuedActionUI | null {
+    const action = this.queuedActions.get(taskId);
+    if (!action) return null;
+
+    // Model is now required for both action types
+    const model = action.type === 'stacked-pr' 
+      ? action.data.model
+      : action.data.context?.getMainModel();
+
+    if (!model) {
+      console.warn(`[CHAT] No model available for queued ${action.type} action in task ${taskId}`);
+      return null;
+    }
+
+    return {
+      type: action.type,
+      message: action.data.message,
+      model,
+    };
   }
 
   clearQueuedAction(taskId: string): void {

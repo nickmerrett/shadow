@@ -34,7 +34,7 @@ import { RepoIssues } from "./repo-issues";
 import type { GitHubIssue } from "@repo/types";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { QueuedMessage } from "./queued-message";
+import { QueuedAction } from "./queued-message";
 import { ModelSelector } from "./model-selector";
 import { generateIssuePrompt } from "@/lib/github/issue-prompt";
 
@@ -114,7 +114,11 @@ export function PromptForm({
       }
       console.log("queue");
       onSubmit?.(message, selectedModel, true);
-      queryClient.setQueryData(["queued-message", taskId], message);
+      queryClient.setQueryData(["queued-action", taskId], {
+        type: "message",
+        message,
+        model: selectedModel,
+      });
       setMessage("");
     };
 
@@ -135,6 +139,13 @@ export function PromptForm({
       }
       console.log("Creating stacked PR");
       onCreateStackedPR?.(message, selectedModel, queue);
+      if (queue) {
+        queryClient.setQueryData(["queued-action", taskId], {
+          type: "stacked-pr",
+          message,
+          model: selectedModel,
+        });
+      }
       setMessage("");
     };
 
@@ -421,7 +432,7 @@ export function PromptForm({
           <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-[calc(4rem-1px)] -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
         )}
 
-        <QueuedMessage />
+        <QueuedAction />
 
         {/* Wrapper div with textarea styling */}
         {/* Outer div acts as a border, with a border-radius 1px larger than the inner div and 1px padding */}
