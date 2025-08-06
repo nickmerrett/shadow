@@ -1,5 +1,5 @@
 import type { Message } from "@repo/types";
-import { Replace } from "lucide-react";
+import { Edit3 } from "lucide-react";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { getToolResult } from "@repo/types";
 import { ToolTypes } from "@repo/types";
@@ -27,7 +27,7 @@ export function SearchReplaceTool({ message }: { message: Message }) {
 
   return (
     <ToolComponent
-      icon={<Replace />}
+      icon={<Edit3 />}
       type={ToolTypes.SEARCH_REPLACE}
       title={filePath}
       changes={changes}

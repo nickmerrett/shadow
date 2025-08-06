@@ -201,13 +201,19 @@ export function AssistantMessage({
             toolResult?.result &&
             typeof toolResult.result === "object" &&
             "success" in toolResult.result &&
-            toolResult.result.success === false;
+            toolResult.result.success === false &&
+            // Exclude terminal commands that actually executed (have exitCode)
+            !(
+              part.toolName === "run_terminal_cmd" &&
+              "exitCode" in toolResult.result
+            );
 
           if (isValidationError) {
             return (
               <ValidationErrorTool
                 key={`validation-error-${groupIndex}`}
                 toolName={part.toolName}
+                toolCallId={part.toolCallId}
                 args={part.args as Record<string, unknown>}
                 error={toolResult.result as ValidationErrorResult}
               />

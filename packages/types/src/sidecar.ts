@@ -22,8 +22,6 @@ export interface ErrorResponse {
 
 // === File Operations ===
 
-
-
 export const SearchReplaceRequestSchema = z.object({
   path: z.string().optional(),
   oldString: z.string(),
@@ -146,6 +144,7 @@ export interface CommandResponse extends SidecarResponse {
   isBackground?: boolean;
   command?: string;
   securityLevel?: CommandSecurityLevel;
+  exitCode?: number;
 }
 
 export interface BackgroundCommandResponse extends SidecarResponse {
