@@ -401,6 +401,16 @@ Shadow provides a comprehensive set of tools for AI agents:
 4. Test in both local and remote modes
 5. Submit a pull request
 
-## License
+# Brought To You By
 
-[License information to be added]
+[Ishaan Dey](https://github.com/ishaan1013)
+- Software Engineering @ University of Waterloo, Prev @ Vercel
+- Architecture, design, remote mode implementation, full-stack & agent workflow
+
+[Rajan Agarwal](https://github.com/rajansagarwal)
+- Software Engineering @ University of Waterloo, MoTS Intern @ Amazon AGI Lab
+- Codebase understanding, search/indexing/memory algorithms, LLM integrations, interface
+
+[Elijah Kurien](https://github.com/elijahkurien)
+- Software Engineering @ University of Waterloo, MoTS Intern @ Yutori
+- Semantic Search infrastrucutre, context compaction
