@@ -1,15 +1,10 @@
 import { HomePageContent } from "@/components/chat/home";
 import { HomeLayoutWrapper } from "@/components/layout/home-layout";
 import { getUser } from "@/lib/auth/get-user";
-import {
-  getGitHubRepositories,
-  getGitHubStatus,
-} from "@/lib/github/github-api";
 import { getGitSelectorCookie } from "@/lib/actions/git-selector-cookie";
 import { getModelSelectorCookie } from "@/lib/actions/model-selector-cookie";
 import { getApiKeys, getModels } from "@/lib/actions/api-keys";
 import { getModelProvider, AvailableModels } from "@repo/types";
-import type { GitHubStatus } from "@/lib/github/types";
 import {
   dehydrate,
   HydrationBoundary,
@@ -59,40 +54,6 @@ export default async function Home() {
   timings.getApiKeys = apiKeysDuration;
 
   const prefetchTimings: Record<string, number> = {};
-  
-  const githubStatusPromise = timeOperation("GitHub Status", () =>
-    queryClient
-      .prefetchQuery({
-        queryKey: ["github", "status"],
-        queryFn: () => getGitHubStatus(user?.id),
-      })
-      .catch((error) => {
-        console.log(
-          "Could not prefetch GitHub status:",
-          error?.message || error
-        );
-      })
-  ).then(({ result, duration }) => {
-    prefetchTimings.githubStatus = duration;
-    return result;
-  });
-
-  const githubReposPromise = timeOperation("GitHub Repositories", () =>
-    queryClient
-      .prefetchQuery({
-        queryKey: ["github", "repositories"],
-        queryFn: () => getGitHubRepositories(user?.id),
-      })
-      .catch((error) => {
-        console.log(
-          "Could not prefetch GitHub repositories:",
-          error?.message || error
-        );
-      })
-  ).then(({ result, duration }) => {
-    prefetchTimings.githubRepositories = duration;
-    return result;
-  });
 
   const modelsPromise = timeOperation("Models", () =>
     queryClient
@@ -122,21 +83,16 @@ export default async function Home() {
     return result;
   });
 
-  const prefetchPromises = [githubStatusPromise, githubReposPromise, modelsPromise, apiKeysPromise];
+  const prefetchPromises = [modelsPromise, apiKeysPromise];
 
   const prefetchStart = performance.now();
   await Promise.allSettled(prefetchPromises);
   const prefetchTotal = performance.now() - prefetchStart;
   timings.prefetchTotal = prefetchTotal;
 
-  const githubStatus = queryClient.getQueryData<GitHubStatus>([
-    "github",
-    "status",
-  ]);
-
-  // If the GitHub app installation disconnected or expired, don't use our saved cookie
-  const shouldDeleteGitCookie =
-    !!initialGitCookieState && !!githubStatus && !githubStatus.isAppInstalled;
+  // Since we're not prefetching GitHub status anymore, we can't check installation status
+  // The GitCookieDestroyer component will handle this when GitHub components load
+  const shouldDeleteGitCookie = false;
 
   // Validate saved model against available API keys
   const { result: initialSelectedModel, duration: validationDuration } = timeSync("Model Validation", () => {
@@ -184,10 +140,9 @@ export default async function Home() {
     console.log('├── Prefetch Operations:');
     console.log(`│   ├── Total Prefetch Time: ${timings.prefetchTotal.toFixed(2)}ms${timings.prefetchTotal > slowThreshold ? ' ⚠️ SLOW' : ''}`);
     if (Object.keys(prefetchTimings).length > 0) {
-      console.log(`│   ├── GitHub Status: ${(prefetchTimings.githubStatus || 0).toFixed(2)}ms${(prefetchTimings.githubStatus || 0) > slowThreshold ? ' ⚠️ SLOW' : ''}`);
-      console.log(`│   ├── GitHub Repositories: ${(prefetchTimings.githubRepositories || 0).toFixed(2)}ms${(prefetchTimings.githubRepositories || 0) > slowThreshold ? ' ⚠️ SLOW' : ''}`);
       console.log(`│   ├── Models: ${(prefetchTimings.models || 0).toFixed(2)}ms${(prefetchTimings.models || 0) > slowThreshold ? ' ⚠️ SLOW' : ''}`);
       console.log(`│   └── API Keys: ${(prefetchTimings.apiKeys || 0).toFixed(2)}ms${(prefetchTimings.apiKeys || 0) > slowThreshold ? ' ⚠️ SLOW' : ''}`);
+      console.log(`│   📝 Note: GitHub data loads on-demand when user opens selector`);
     }
     console.log('├── Other Operations:');
     console.log(`│   └── Model Validation: ${timings.modelValidation.toFixed(2)}ms${timings.modelValidation > slowThreshold ? ' ⚠️ SLOW' : ''}`);
