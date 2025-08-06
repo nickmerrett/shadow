@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Tooltip,
   TooltipContent,
@@ -20,15 +21,25 @@ import {
   Loader2,
   Trash,
   CheckCircle,
-  XCircle,
-  Settings,
   X,
+  Settings,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useDebounceCallbackWithCancel } from "@/lib/debounce";
 import { useQueryClient } from "@tanstack/react-query";
-import { ProviderConfigModal } from "./provider-config-modal";
+import { ModelType } from "@repo/types";
+import {
+  useUserSettings,
+  useUpdateUserSettings,
+} from "@/hooks/use-user-settings";
+import {
+  getAllPossibleModelsInfo,
+  getModelDefaults,
+} from "@/lib/actions/api-keys";
+import { cn } from "@/lib/utils";
 
 export function ModelSettings() {
   const { data: apiKeys, isLoading: isLoadingApiKeys } = useApiKeys();
@@ -39,6 +50,16 @@ export function ModelSettings() {
   const validateApiKeysMutation = useValidateApiKeys();
   const saveValidationMutation = useSaveApiKeyValidation();
   const queryClient = useQueryClient();
+
+  // Model selection state
+  const { data: userSettings, isLoading: isLoadingSettings } =
+    useUserSettings();
+  const updateUserSettings = useUpdateUserSettings();
+  const [allModels, setAllModels] = useState<any[]>([]);
+  const [defaults, setDefaults] = useState<{
+    defaultModels: ModelType[];
+  }>({ defaultModels: [] });
+  const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
 
   useEffect(() => {
     console.log("apiKeys", apiKeys);
@@ -51,14 +72,48 @@ export function ModelSettings() {
   const [openrouterInput, setOpenrouterInput] = useState(
     apiKeys?.openrouter ?? ""
   );
-  // const [ollamaInput, setOllamaInput] = useState(apiKeys?.ollama ?? "");
   const [savingOpenai, setSavingOpenai] = useState(false);
   const [savingAnthropic, setSavingAnthropic] = useState(false);
   const [savingOpenrouter, setSavingOpenrouter] = useState(false);
-  // const [savingOllama, setSavingOllama] = useState(false);
-  const [configModalProvider, setConfigModalProvider] = useState<string | null>(
-    null
-  );
+
+  // Load model data when component mounts
+  useEffect(() => {
+    const loadModelData = async () => {
+      try {
+        const [modelsInfo, defaultsInfo] = await Promise.all([
+          getAllPossibleModelsInfo(),
+          getModelDefaults(),
+        ]);
+        setAllModels(modelsInfo);
+        setDefaults(defaultsInfo);
+      } catch (error) {
+        console.error("Failed to load model data:", error);
+      }
+    };
+    loadModelData();
+  }, []);
+
+  const getSelectedModels = (): ModelType[] => {
+    if (
+      userSettings?.selectedModels &&
+      userSettings.selectedModels.length > 0
+    ) {
+      return userSettings.selectedModels as ModelType[];
+    }
+    return defaults.defaultModels;
+  };
+
+  const handleModelToggle = (modelId: ModelType) => {
+    const currentSelected = getSelectedModels();
+    const isSelected = currentSelected.includes(modelId);
+    const newSelected = isSelected
+      ? currentSelected.filter((id) => id !== modelId)
+      : [...currentSelected, modelId];
+
+    updateUserSettings.mutate({ selectedModels: newSelected });
+  };
+
+  const selectedModels = getSelectedModels();
 
   const renderValidationIcon = (provider: string) => {
     const result = validationState?.[provider as keyof typeof validationState];
@@ -89,7 +144,6 @@ export function ModelSettings() {
     setOpenaiInput(apiKeys?.openai ?? "");
     setAnthropicInput(apiKeys?.anthropic ?? "");
     setOpenrouterInput(apiKeys?.openrouter ?? "");
-    // setOllamaInput(apiKeys?.ollama ?? "");
   }, [apiKeys]);
 
   const saveApiKey = async (
@@ -109,7 +163,6 @@ export function ModelSettings() {
       if (provider === "openai") setSavingOpenai(false);
       else if (provider === "anthropic") setSavingAnthropic(false);
       else if (provider === "openrouter") setSavingOpenrouter(false);
-      // else setSavingOllama(false);
       return;
     }
 
@@ -159,7 +212,7 @@ export function ModelSettings() {
         });
         queryClient.invalidateQueries({ queryKey: ["api-key-validation"] });
       }
-    } catch (_error) {
+    } catch (error) {
       const providerName =
         provider === "openai"
           ? "OpenAI"
@@ -173,7 +226,6 @@ export function ModelSettings() {
       if (provider === "openai") setSavingOpenai(false);
       else if (provider === "anthropic") setSavingAnthropic(false);
       else if (provider === "openrouter") setSavingOpenrouter(false);
-      // else setSavingOllama(false);
     }
   };
 
@@ -199,12 +251,6 @@ export function ModelSettings() {
     200
   );
 
-  // const { debouncedCallback: debouncedSaveOllama, cancel: cancelOllamaSave } =
-  //   useDebounceCallbackWithCancel(
-  //     (key: string) => saveApiKey("ollama", key),
-  //     200
-  //   );
-
   const handleOpenaiChange = (value: string) => {
     setOpenaiInput(value);
     setSavingOpenai(true);
@@ -223,12 +269,6 @@ export function ModelSettings() {
     debouncedSaveOpenrouter(value);
   };
 
-  // const handleOllamaChange = (value: string) => {
-  //   // setOllamaInput(value);
-  //   // setSavingOllama(true);
-  //   // debouncedSaveOllama(value);
-  // };
-
   const handleClearApiKey = async (
     provider: "openai" | "anthropic" | "openrouter"
   ) => {
@@ -246,10 +286,6 @@ export function ModelSettings() {
         setOpenrouterInput("");
         cancelOpenrouterSave();
         setSavingOpenrouter(false);
-      } else {
-        // setOllamaInput("");
-        // cancelOllamaSave();
-        // setSavingOllama(false);
       }
 
       // Clear validation result for this provider
@@ -282,238 +318,146 @@ export function ModelSettings() {
     );
   }
 
+  const providers = [
+    {
+      key: "openai",
+      name: "OpenAI",
+      input: openaiInput,
+      saving: savingOpenai,
+      handleChange: handleOpenaiChange,
+    },
+    {
+      key: "anthropic",
+      name: "Anthropic",
+      input: anthropicInput,
+      saving: savingAnthropic,
+      handleChange: handleAnthropicChange,
+    },
+    {
+      key: "openrouter",
+      name: "OpenRouter",
+      input: openrouterInput,
+      saving: savingOpenrouter,
+      handleChange: handleOpenrouterChange,
+    },
+  ];
+
   return (
-    <>
-      <div className="flex w-full grow flex-col gap-6">
-        {/* OpenAI Section */}
-        <div className="flex w-full flex-col gap-2">
-          <Label
-            htmlFor="openai-key"
-            className="flex h-5 items-center gap-2 font-normal"
-          >
-            OpenAI API Key
-            {savingOpenai && (
-              <Loader2 className="text-muted-foreground size-3 animate-spin" />
-            )}
-            {renderValidationIcon("openai")}
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              id="openai-key"
-              placeholder="sk-placeholder..."
-              value={openaiInput}
-              onChange={(e) => handleOpenaiChange(e.target.value)}
-            />
-            {apiKeys?.openai && apiKeys.openai.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    className="text-muted-foreground hover:text-foreground"
-                    size="icon"
-                    onClick={() => setConfigModalProvider("openai")}
-                  >
-                    <Settings className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="end">
-                  Configure OpenAI models
-                </TooltipContent>
-              </Tooltip>
-            )}
-            {apiKeys?.openai && apiKeys.openai.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    className="text-muted-foreground hover:text-foreground"
-                    size="icon"
-                    onClick={() => handleClearApiKey("openai")}
-                    disabled={clearApiKeyMutation.isPending}
-                  >
-                    <Trash className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="end">
-                  Clear OpenAI API key
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        </div>
+    <div className="flex w-full flex-col gap-6">
+      {providers.map((provider) => {
+        const isExpanded = expandedProvider === provider.key;
+        const hasValidKey =
+          apiKeys?.[provider.key as keyof typeof apiKeys] &&
+          (apiKeys[provider.key as keyof typeof apiKeys] as string)?.length > 0;
+        const providerModels = allModels.filter(
+          (m) => m.provider === provider.key
+        );
 
-        {/* Anthropic Section */}
-        <div className="flex w-full flex-col gap-2">
-          <Label
-            htmlFor="anthropic-key"
-            className="flex h-5 items-center gap-2 font-normal"
-          >
-            Anthropic API Key
-            {savingAnthropic && (
-              <Loader2 className="text-muted-foreground size-3 animate-spin" />
-            )}
-            {renderValidationIcon("anthropic")}
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              id="anthropic-key"
-              placeholder="sk-ant-placeholder..."
-              value={anthropicInput}
-              onChange={(e) => handleAnthropicChange(e.target.value)}
-            />
-            {apiKeys?.anthropic && apiKeys.anthropic.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    className="text-muted-foreground hover:text-foreground"
-                    size="icon"
-                    onClick={() => setConfigModalProvider("anthropic")}
-                  >
-                    <Settings className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="end">
-                  Configure Anthropic models
-                </TooltipContent>
-              </Tooltip>
-            )}
-            {apiKeys?.anthropic && apiKeys.anthropic.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    className="text-muted-foreground hover:text-foreground"
-                    size="icon"
-                    onClick={() => handleClearApiKey("anthropic")}
-                    disabled={clearApiKeyMutation.isPending}
-                  >
-                    <Trash className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="end">
-                  Clear Anthropic API key
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        </div>
+        return (
+          <div key={provider.key} className="flex w-full flex-col gap-2">
+            <Label
+              htmlFor={`${provider.key}-key`}
+              className="flex h-5 items-center gap-2 font-normal"
+            >
+              {provider.name} API Key
+              {provider.saving && (
+                <Loader2 className="text-muted-foreground size-3 animate-spin" />
+              )}
+              {renderValidationIcon(provider.key)}
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id={`${provider.key}-key`}
+                placeholder={`sk-${provider.key === "openai" ? "" : provider.key === "anthropic" ? "ant-" : "or-"}placeholder...`}
+                value={provider.input}
+                onChange={(e) => provider.handleChange(e.target.value)}
+              />
+              {hasValidKey && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      className="text-muted-foreground hover:text-foreground"
+                      size="icon"
+                      onClick={() =>
+                        setExpandedProvider(isExpanded ? null : provider.key)
+                      }
+                    >
+                      {isExpanded ? (
+                        <ChevronUp className="size-4" />
+                      ) : (
+                        <ChevronDown className="size-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="end">
+                    {isExpanded ? "Hide" : "Configure"} {provider.name} models
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {hasValidKey && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      className="text-muted-foreground hover:text-foreground"
+                      size="icon"
+                      onClick={() => handleClearApiKey(provider.key as any)}
+                    >
+                      <Trash className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="end">
+                    Clear {provider.name} API key
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
 
-        {/* OpenRouter Section */}
-        <div className="flex w-full flex-col gap-2">
-          <Label
-            htmlFor="openrouter-key"
-            className="flex h-5 items-center gap-2 font-normal"
-          >
-            OpenRouter API Key
-            {savingOpenrouter && (
-              <Loader2 className="text-muted-foreground size-3 animate-spin" />
-            )}
-            {renderValidationIcon("openrouter")}
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              id="openrouter-key"
-              placeholder="sk-or-placeholder..."
-              value={openrouterInput}
-              onChange={(e) => handleOpenrouterChange(e.target.value)}
-            />
-            {apiKeys?.openrouter && apiKeys.openrouter.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    className="text-muted-foreground hover:text-foreground"
-                    size="icon"
-                    onClick={() => setConfigModalProvider("openrouter")}
-                  >
-                    <Settings className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="end">
-                  Configure OpenRouter models
-                </TooltipContent>
-              </Tooltip>
-            )}
-            {apiKeys?.openrouter && apiKeys.openrouter.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    className="text-muted-foreground hover:text-foreground"
-                    size="icon"
-                    onClick={() => handleClearApiKey("openrouter")}
-                    disabled={clearApiKeyMutation.isPending}
-                  >
-                    <Trash className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="end">
-                  Clear OpenRouter API key
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        </div>
+            {/* Expandable Model Selection */}
+            {isExpanded && hasValidKey && (
+              <div className="mt-3 space-y-3">
+                <div>
+                  <h4 className="text-sm font-medium mb-2">
+                    {provider.name} Models
+                  </h4>
+                  <div className="space-y-2">
+                    {providerModels.map((model) => (
+                      <div
+                        key={model.id}
+                        className="flex items-center space-x-2"
+                      >
+                        <Checkbox
+                          id={`model-${model.id}`}
+                          checked={selectedModels.includes(model.id)}
+                          onCheckedChange={(checked) =>
+                            handleModelToggle(model.id)
+                          }
+                          disabled={
+                            isLoadingSettings || updateUserSettings.isPending
+                          }
+                        />
+                        <label
+                          htmlFor={`model-${model.id}`}
+                          className="text-sm cursor-pointer"
+                        >
+                          {model.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-        {/* Ollama Section */}
-        {/* <div className="flex w-full flex-col gap-2">
-          <Label
-            htmlFor="ollama-key"
-            className="flex h-5 items-center gap-2 font-normal"
-          >
-            Ollama API Key
-            {savingOllama && (
-              <Loader2 className="text-muted-foreground size-3 animate-spin" />
-            )}
-            {renderValidationIcon("ollama")}
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              id="ollama-key"
-              type="text"
-              placeholder="Enter your Ollama API key"
-              value={ollamaInput}
-              onChange={(e) => handleOllamaChange(e.target.value)}
-            />
-            {apiKeys?.ollama && apiKeys.ollama.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    className="text-muted-foreground hover:text-foreground"
-                    size="icon"
-                    onClick={() => setConfigModalProvider("ollama")}
-                  >
-                    <Settings className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="end">
-                  Configure Ollama models
-                </TooltipContent>
-              </Tooltip>
-            )}
-            {apiKeys?.ollama && apiKeys.ollama.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    className="text-muted-foreground hover:text-foreground"
-                    size="icon"
-                    onClick={() => handleClearApiKey("ollama")}
-                    disabled={clearApiKeyMutation.isPending}
-                  >
-                    <Trash className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="end">
-                  Clear Ollama API key
-                </TooltipContent>
-              </Tooltip>
+                {(isLoadingSettings || updateUserSettings.isPending) && (
+                  <div className="flex items-center justify-center py-2">
+                    <Loader2 className="size-4 animate-spin" />
+                  </div>
+                )}
+              </div>
             )}
           </div>
-        </div> */}
-      </div>
+        );
+      })}
 
       <div className="text-muted-foreground flex w-full flex-col gap-1 border-t pt-4 text-xs">
         <span>Shadow is BYOK; you must provide an API key to use models.</span>
@@ -524,12 +468,6 @@ export function ModelSettings() {
           Please ensure your keys have high enough rate limits for the agent!
         </span>
       </div>
-
-      <ProviderConfigModal
-        open={!!configModalProvider}
-        onOpenChange={(open) => !open && setConfigModalProvider(null)}
-        provider={configModalProvider || ""}
-      />
-    </>
+    </div>
   );
 }
