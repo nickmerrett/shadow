@@ -164,8 +164,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       const initContext = await modelContextService.createContext(
         taskId,
         req.headers.cookie,
-        model as ModelType,
-        userId
+        model as ModelType
       );
 
       if (!initContext.validateAccess()) {
@@ -494,8 +493,7 @@ app.post("/api/tasks/:taskId/pull-request", async (req, res) => {
     // Get or refresh model context for PR creation
     const modelContext = await modelContextService.refreshContext(
       taskId,
-      req.headers.cookie,
-      task.userId
+      req.headers.cookie
     );
 
     if (modelContext) {
