@@ -46,8 +46,14 @@ export async function generateTaskTitleAndBranch(
       modelConfig.provider === "openai"
         ? openai(modelConfig.modelChoice)
         : modelConfig.provider === "anthropic"
-        ? anthropic(modelConfig.modelChoice)
-        : createOpenRouter({ apiKey: apiKeys.openrouter! }).chat(modelConfig.modelChoice);
+          ? anthropic(modelConfig.modelChoice)
+          : createOpenRouter({
+              apiKey: apiKeys.openrouter!,
+              headers: {
+                "HTTP-Referer": "https://shadowrealm.ai",
+                "X-Title": "Shadow Agent",
+              },
+            }).chat(modelConfig.modelChoice);
 
     const { text: generatedText } = await generateText({
       model,
