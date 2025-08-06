@@ -7,8 +7,12 @@ export function DeleteFileTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
-  const { args } = toolMeta;
+  const { args, status } = toolMeta;
   const filePath = args.target_file as string;
+
+  const isLoading = status === "RUNNING";
+  const loadingText =
+    isLoading && filePath ? `Deleting ${filePath}...` : undefined;
 
   return (
     <ToolComponent
@@ -16,6 +20,8 @@ export function DeleteFileTool({ message }: { message: Message }) {
       type={ToolTypes.DELETE_FILE}
       title={filePath}
       showFileIcon={filePath}
+      isLoading={isLoading}
+      loadingText={loadingText}
     />
   );
 }

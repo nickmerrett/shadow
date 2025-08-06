@@ -225,10 +225,15 @@ export function AssistantMessage({
           const isInProgress = isStreamingMessage
             ? !part.argsComplete || !toolResult // Streaming: check both
             : !toolResult; // Database: only check result exists
-          console.log("isInProgress", isInProgress);
           const status = isInProgress ? "RUNNING" : "COMPLETED";
 
           // Create a proper tool message for rendering
+          // Merge regular args with partial args from streaming
+          const mergedArgs = {
+            ...(part.args || {}),
+            ...(part.partialArgs || {}), // Partial args take precedence during streaming
+          } as Record<string, unknown>;
+
           const toolMessage: Message = {
             id: `${message.id}-tool-${part.toolCallId}`,
             role: "tool",
@@ -238,10 +243,12 @@ export function AssistantMessage({
             metadata: {
               tool: {
                 name: part.toolName,
-                args: part.args as Record<string, unknown>,
+                args: mergedArgs,
                 status,
                 result: toolResult?.result as ToolResultTypes["result"],
               },
+              streamingState: part.streamingState,
+              partialArgs: part.partialArgs,
             },
           };
 

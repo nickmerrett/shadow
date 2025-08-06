@@ -6,6 +6,7 @@ import {
   createStreamingPartAdder,
   createStreamingStateCleaner,
 } from "@/lib/streaming";
+import { extractStreamingArgs } from "@/lib/streaming-args";
 import { useQueryClient } from "@tanstack/react-query";
 import type {
   AssistantMessagePart,
@@ -429,17 +430,17 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "tool-call":
           if (chunk.toolCall) {
-            console.log("Tool call:", chunk.toolCall);
+            // console.log("Tool call:", chunk.toolCall);
 
             const toolCallPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
               toolName: chunk.toolCall.name,
-              args: chunk.toolCall.args, // Complete args
+              args: chunk.toolCall.args,
               streamingState: "complete",
               argsComplete: true,
             };
-            // REPLACE existing part with complete version
+            // replace existing part with complete version
             addStreamingPart(toolCallPart, chunk.toolCall.id);
           }
           break;
@@ -456,23 +457,38 @@ export function useTaskSocket(taskId: string | undefined) {
               streamingState: "starting",
               argsComplete: false,
             };
-            // Use SAME ID as final tool call - critical for deduplication!
+            // use same id as final tool call
             addStreamingPart(toolCallStartPart, chunk.toolCallStart.id);
+
+            console.log(
+              "streamingPartsMap after tool call start",
+              streamingPartsMap
+            );
           }
           break;
 
         case "tool-call-delta":
           if (chunk.toolCallDelta) {
-            console.log("Tool call delta:", chunk.toolCallDelta);
-
             // Update existing part with accumulated args
             const existingPart = streamingPartsMap.get(chunk.toolCallDelta.id);
+            console.log("Tool call delta:", chunk.toolCallDelta, existingPart);
             if (existingPart?.type === "tool-call") {
+              // Accumulate the args text
+              const newAccumulatedText =
+                (existingPart.accumulatedArgsText || "") +
+                chunk.toolCallDelta.argsTextDelta;
+
+              // Extract partial arguments using regex patterns
+              const partialArgs = extractStreamingArgs(
+                newAccumulatedText,
+                chunk.toolCallDelta.name
+              );
+
               const updatedPart: ToolCallPart = {
                 ...existingPart,
                 streamingState: "streaming",
-                // Note: For v1, we'll keep args empty and just track state
-                // TODO: Accumulate args from argsTextDelta (JSON parsing)
+                accumulatedArgsText: newAccumulatedText,
+                partialArgs,
               };
               addStreamingPart(updatedPart, chunk.toolCallDelta.id);
             }

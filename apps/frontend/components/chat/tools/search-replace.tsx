@@ -25,12 +25,18 @@ export function SearchReplaceTool({ message }: { message: Message }) {
       ? { linesAdded, linesRemoved }
       : undefined;
 
+  const isLoading = status === "RUNNING";
+  const loadingText =
+    isLoading && filePath ? `Editing ${filePath}...` : undefined;
+
   return (
     <ToolComponent
       icon={<Edit3 />}
       type={ToolTypes.SEARCH_REPLACE}
       title={filePath}
       changes={changes}
+      isLoading={isLoading}
+      loadingText={loadingText}
       onClick={() => {
         updateSelectedFilePath(filePath);
         expandRightPanel();

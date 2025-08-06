@@ -17,13 +17,28 @@ export function EditFileTool({ message }: { message: Message }) {
   const linesAdded = result?.linesAdded || 0;
   const linesRemoved = result?.linesRemoved || 0;
 
+  // streaming state from message metadata (can use later)
+  const _streamingState = message.metadata?.streamingState;
+  const _partialArgs = message.metadata?.partialArgs;
+
   const changes =
     status === "COMPLETED" && (linesAdded > 0 || linesRemoved > 0)
       ? { linesAdded, linesRemoved }
       : undefined;
 
   const isLoading = status === "RUNNING";
-  const loadingText = isLoading ? "Generating code..." : undefined;
+
+  // Generate better loading text based on available information
+  let loadingText: string | undefined;
+  if (isLoading) {
+    if (filePath) {
+      // We have complete or partial filename
+      loadingText = `Editing ${filePath}...`;
+    } else {
+      // Fallback when no filename available yet
+      loadingText = "Generating code...";
+    }
+  }
 
   return (
     <ToolComponent
