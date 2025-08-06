@@ -1,5 +1,4 @@
 import { NextResponse, NextRequest } from "next/server";
-import { db } from "@repo/db";
 import { verifyTaskOwnership } from "@/lib/auth/verify-task-ownership";
 
 export async function GET(

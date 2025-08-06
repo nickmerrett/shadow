@@ -19,6 +19,7 @@ import {
   GitPushResponse,
   GitCommitRequest,
   GitPushRequest,
+  RecursiveDirectoryListing,
 } from "@repo/types";
 import { CommandResult } from "../interfaces/types";
 import { performSemanticSearch } from "@/utils/semantic-search";
@@ -263,6 +264,36 @@ export class RemoteToolExecutor implements ToolExecutor {
         error: error instanceof Error ? error.message : "Unknown error",
         path: relativeWorkspacePath,
         message: `Failed to list directory: ${relativeWorkspacePath}`,
+      };
+    }
+  }
+
+  /**
+   * Recursively list all directory contents in VM filesystem (optimized for file tree building)
+   */
+  async listDirectoryRecursive(
+    relativeWorkspacePath: string = "."
+  ): Promise<RecursiveDirectoryListing> {
+    try {
+      const response = await this.makeSidecarRequest<RecursiveDirectoryListing>(
+        `/api/files/list-recursive`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            path: relativeWorkspacePath,
+          }),
+        }
+      );
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        entries: [],
+        basePath: relativeWorkspacePath,
+        totalCount: 0,
+        message: `Failed to list directory recursively: ${relativeWorkspacePath}`,
       };
     }
   }

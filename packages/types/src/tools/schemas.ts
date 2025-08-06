@@ -241,6 +241,19 @@ export const DirectoryListingSchema = BaseResultSchema.extend({
   path: z.string(),
 });
 
+export const RecursiveDirectoryEntrySchema = z.object({
+  name: z.string(),
+  type: z.enum(["file", "directory"]),
+  relativePath: z.string(),
+  isDirectory: z.boolean(),
+});
+
+export const RecursiveDirectoryListingSchema = BaseResultSchema.extend({
+  entries: z.array(RecursiveDirectoryEntrySchema),
+  basePath: z.string(),
+  totalCount: z.number(),
+});
+
 export const FileSearchResultSchema = BaseResultSchema.extend({
   files: z.array(z.string()),
   query: z.string(),
@@ -362,6 +375,8 @@ export type WriteResult = z.infer<typeof WriteResultSchema>;
 export type SearchReplaceResult = z.infer<typeof SearchReplaceResultSchema>;
 export type DeleteResult = z.infer<typeof DeleteResultSchema>;
 export type DirectoryListing = z.infer<typeof DirectoryListingSchema>;
+export type RecursiveDirectoryEntry = z.infer<typeof RecursiveDirectoryEntrySchema>;
+export type RecursiveDirectoryListing = z.infer<typeof RecursiveDirectoryListingSchema>;
 export type FileSearchResult = z.infer<typeof FileSearchResultSchema>;
 export type GrepMatch = z.infer<typeof GrepMatchSchema>;
 export type GrepResult = z.infer<typeof GrepResultSchema>;

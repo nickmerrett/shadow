@@ -12,7 +12,7 @@ import { createSocketServer } from "./socket";
 import { getGitHubAccessToken } from "./github/auth/account-service";
 import { updateTaskStatus } from "./utils/task-status";
 import { createWorkspaceManager } from "./execution";
-import { filesRouter } from "./file-routes";
+import { filesRouter } from "./files/router";
 import { handleGitHubWebhook } from "./webhooks/github-webhook";
 import { getIndexingStatus } from "./routes/indexing-status";
 import { modelContextService } from "./services/model-context-service";
@@ -247,7 +247,6 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
     res.status(500).json({ error: "Failed to initiate task" });
   }
 });
-
 
 // Get chat messages for a task
 app.get("/api/tasks/:taskId/messages", async (req, res) => {
