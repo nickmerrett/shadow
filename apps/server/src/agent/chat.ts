@@ -23,6 +23,7 @@ import { nanoid } from "nanoid";
 import { MessageRole } from "@repo/db";
 import {
   emitStreamChunk,
+  emitToTask,
   endStream,
   handleStreamError,
   startStream,
@@ -1220,6 +1221,13 @@ export class ChatService {
     try {
       switch (queuedAction.type) {
         case "message":
+          // Emit event for regular messages before processing
+          emitToTask(taskId, "queued-action-processing", {
+            taskId,
+            type: queuedAction.type,
+            message: queuedAction.data.message,
+            model: queuedAction.data.context.getMainModel(),
+          });
           await this._processQueuedMessage(queuedAction.data, taskId);
           break;
         case "stacked-pr":
@@ -1273,12 +1281,15 @@ export class ChatService {
     if (!action) return null;
 
     // Model is now required for both action types
-    const model = action.type === 'stacked-pr' 
-      ? action.data.model
-      : action.data.context?.getMainModel();
+    const model =
+      action.type === "stacked-pr"
+        ? action.data.model
+        : action.data.context?.getMainModel();
 
     if (!model) {
-      console.warn(`[CHAT] No model available for queued ${action.type} action in task ${taskId}`);
+      console.warn(
+        `[CHAT] No model available for queued ${action.type} action in task ${taskId}`
+      );
       return null;
     }
 
@@ -1578,6 +1589,16 @@ export class ChatService {
       console.log(
         `[CHAT] Successfully created stacked task ${newTaskId} from parent ${parentTaskId}`
       );
+
+      // Emit event to frontend for optimistic message display with full context
+      emitToTask(parentTaskId, "queued-action-processing", {
+        taskId: parentTaskId,
+        type: "stacked-pr",
+        message,
+        model,
+        shadowBranch,
+        title,
+      });
     } catch (error) {
       console.error(`[CHAT] Error in _createStackedTaskInternal:`, error);
       throw error;

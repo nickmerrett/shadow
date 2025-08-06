@@ -240,7 +240,7 @@ async function verifyTaskAccess(
   }
 }
 
-function emitToTask(
+export function emitToTask(
   taskId: string,
   event: keyof ServerToClientEvents,
   data: unknown

@@ -632,6 +632,53 @@ export function useTaskSocket(taskId: string | undefined) {
     }
 
 
+    function onQueuedActionProcessing(data: {
+      taskId: string;
+      type: "message" | "stacked-pr";
+      message: string;
+      model: ModelType;
+      shadowBranch?: string;
+      title?: string;
+    }) {
+      if (data.taskId === taskId) {
+        console.log(`[TASK_SOCKET] Processing queued ${data.type}:`, data);
+        
+        // Add optimistic user message to chat
+        const optimisticMessage: Message = {
+          id: `temp-queued-${Date.now()}`,
+          role: "user",
+          content: data.message.trim(),
+          llmModel: data.model,
+          createdAt: new Date().toISOString(),
+          metadata: { isStreaming: false },
+          pullRequestSnapshot: undefined,
+          // For stacked PRs, we have additional context from the generated task
+          ...(data.type === "stacked-pr" && data.shadowBranch && {
+            stackedTask: {
+              id: "temp", // Will be replaced with real stackedTaskId when backend saves the message
+              title: data.title || data.message.trim(),
+            }
+          }),
+        };
+
+        queryClient.setQueryData<TaskMessages>(
+          ["task-messages", taskId],
+          (old) => {
+            const currentMessages = old?.messages || [];
+            const updatedMessages = [...currentMessages, optimisticMessage];
+
+            return {
+              messages: updatedMessages,
+              mostRecentMessageModel: data.model,
+            };
+          }
+        );
+
+        // Clear the queued action display since it's now processing
+        queryClient.setQueryData(["queued-action", taskId], null);
+      }
+    }
+
     function onTaskStatusUpdate(data: TaskStatusUpdateEvent) {
       if (data.taskId === taskId) {
         console.log(`[TASK_SOCKET] Received task status update:`, data);
@@ -693,6 +740,7 @@ export function useTaskSocket(taskId: string | undefined) {
     socket.on("stream-complete", onStreamComplete);
     socket.on("stream-error", onStreamError);
     socket.on("message-error", onMessageError);
+    socket.on("queued-action-processing", onQueuedActionProcessing);
     socket.on("task-status-updated", onTaskStatusUpdate);
 
     return () => {
@@ -704,6 +752,7 @@ export function useTaskSocket(taskId: string | undefined) {
       socket.off("stream-complete", onStreamComplete);
       socket.off("stream-error", onStreamError);
       socket.off("message-error", onMessageError);
+      socket.off("queued-action-processing", onQueuedActionProcessing);
       socket.off("task-status-updated", onTaskStatusUpdate);
     };
   }, [socket, taskId, queryClient]);

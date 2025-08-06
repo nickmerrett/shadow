@@ -66,6 +66,14 @@ export interface ServerToClientEvents {
   "terminal-error": (data: { error: string }) => void;
 
   "task-status-updated": (data: TaskStatusUpdateEvent) => void;
+  "queued-action-processing": (data: {
+    taskId: string;
+    type: "message" | "stacked-pr";
+    message: string;
+    model: ModelType;
+    shadowBranch?: string;
+    title?: string;
+  }) => void;
 }
 
 export interface ClientToServerEvents {
