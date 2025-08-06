@@ -288,8 +288,8 @@ export function PromptForm({
       } else {
         if (isStreaming && !message.trim()) {
           onStopStream?.();
-        } else {
-          // For the task page, we have a custom double-enter flow so don't handle submission here
+        } else if (message.trim()) {
+          handleOpenMessageOptions();
         }
       }
     },
@@ -306,6 +306,12 @@ export function PromptForm({
     },
     [isHome, handleSubmit]
   );
+
+  const handleOpenMessageOptions = useCallback(() => {
+    if (!isHome && message.trim()) {
+      setIsMessageOptionsOpen(true);
+    }
+  }, [isHome, message.trim()]);
 
   // Keyboard shortcuts, including submission handling for task page
   useEffect(() => {
@@ -346,7 +352,7 @@ export function PromptForm({
       } else {
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
-          setIsMessageOptionsOpen(true);
+          handleOpenMessageOptions();
         } else if (event.key === "Escape" && event.metaKey) {
           event.preventDefault();
           if (isStreaming) {
@@ -358,7 +364,13 @@ export function PromptForm({
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [isHome, isMessageOptionsOpen, messageOptions, isStreaming]);
+  }, [
+    isHome,
+    isMessageOptionsOpen,
+    messageOptions,
+    isStreaming,
+    handleOpenMessageOptions,
+  ]);
 
   const handleCreateTaskForIssue = (issue: GitHubIssue) => {
     if (!repo || !branch || isPending) {
@@ -405,7 +417,9 @@ export function PromptForm({
       isPending ||
       !selectedModel ||
       isInitializing ||
-      (isHome && (!repo || !branch || !message.trim())),
+      (isHome
+        ? !repo || !branch || !message.trim()
+        : !isStreaming && !message.trim()),
     [
       isMessageOptionsOpen,
       isPending,
@@ -505,15 +519,18 @@ export function PromptForm({
             </div>
           )}
 
-          <div className="bg-background absolute inset-px -z-10 rounded-[calc(var(--radius)+1px)]" />
           {isHome && (
-            <div className="absolute inset-0 -z-20 overflow-hidden rounded-[calc(var(--radius)+1px)]">
-              <div className="new-task-pulse rotate-left absolute top-1/2 aspect-square w-full -translate-y-1/2"></div>
-              <div className="new-task-pulse rotate-right absolute top-1/2 aspect-square w-full -translate-y-1/2"></div>
-            </div>
+            <>
+              <div className="bg-background absolute inset-px -z-10 rounded-[calc(var(--radius)+1px)]" />
+              <div className="absolute inset-0 -z-20 overflow-hidden rounded-[calc(var(--radius)+1px)]">
+                <div className="new-task-pulse rotate-left absolute top-1/2 aspect-square w-full -translate-y-1/2"></div>
+                <div className="new-task-pulse rotate-right absolute top-1/2 aspect-square w-full -translate-y-1/2"></div>
+              </div>
+            </>
           )}
 
           <div className="from-card/10 to-card relative flex min-h-24 flex-col rounded-lg bg-gradient-to-t">
+            <div className="bg-background absolute inset-0 -z-20 rounded-[calc(var(--radius)+1px)]" />
             <Textarea
               ref={textareaRef}
               autoFocus
