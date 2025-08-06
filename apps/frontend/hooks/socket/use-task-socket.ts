@@ -306,10 +306,7 @@ export function useTaskSocket(taskId: string | undefined) {
           messages: data.messages,
           mostRecentMessageModel: data.mostRecentMessageModel,
         });
-        queryClient.setQueryData(
-          ["queued-action", taskId],
-          data.queuedAction
-        );
+        queryClient.setQueryData(["queued-action", taskId], data.queuedAction);
 
         // Clear streaming state with O(1) operations
         setStreamingPartsMap(new Map());
@@ -631,7 +628,6 @@ export function useTaskSocket(taskId: string | undefined) {
       clearStreamingState();
     }
 
-
     function onQueuedActionProcessing(data: {
       taskId: string;
       type: "message" | "stacked-pr";
@@ -642,7 +638,7 @@ export function useTaskSocket(taskId: string | undefined) {
     }) {
       if (data.taskId === taskId) {
         console.log(`[TASK_SOCKET] Processing queued ${data.type}:`, data);
-        
+
         // Add optimistic user message to chat
         const optimisticMessage: Message = {
           id: `temp-queued-${Date.now()}`,
@@ -653,12 +649,14 @@ export function useTaskSocket(taskId: string | undefined) {
           metadata: { isStreaming: false },
           pullRequestSnapshot: undefined,
           // For stacked PRs, we have additional context from the generated task
-          ...(data.type === "stacked-pr" && data.shadowBranch && {
-            stackedTask: {
-              id: "temp", // Will be replaced with real stackedTaskId when backend saves the message
-              title: data.title || data.message.trim(),
-            }
-          }),
+          ...(data.type === "stacked-pr" &&
+            data.shadowBranch && {
+              stackedTask: {
+                id: "temp",
+                title: data.title || data.message.trim(),
+                shadowBranch: data.shadowBranch,
+              },
+            }),
         };
 
         queryClient.setQueryData<TaskMessages>(

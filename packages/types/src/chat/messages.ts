@@ -40,6 +40,7 @@ export type Message = {
   stackedTask?: {
     id: string;
     title: string;
+    shadowBranch?: string;
   };
 };
 
