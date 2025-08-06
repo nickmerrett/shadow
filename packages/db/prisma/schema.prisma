@@ -88,24 +88,24 @@ model Task {
   // Used for context-aware operations (commits, PR generation, etc.)
   mainModel                   String?
   workspacePath               String?
-  initStatus                  InitStatus        @default(INACTIVE)
+  initStatus                  InitStatus    @default(INACTIVE)
   scheduledCleanupAt          DateTime?
   initializationError         String?
-  workspaceCleanedUp          Boolean           @default(false)
-  createdAt                   DateTime          @default(now())
-  updatedAt                   DateTime          @updatedAt
+  workspaceCleanedUp          Boolean       @default(false)
+  createdAt                   DateTime      @default(now())
+  updatedAt                   DateTime      @updatedAt
   userId                      String
   baseBranch                  String
   baseCommitSha               String
   shadowBranch                String
   pullRequestNumber           Int?
   githubIssueId               String?
-  messages                    ChatMessage[]     @relation("TaskMessages")
-  user                        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages                    ChatMessage[] @relation("TaskMessages")
+  user                        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions                    TaskSession[]
   todos                       Todo[]
   memories                    Memory[]
-  stackedTaskCreationMessages ChatMessage[]     @relation("StackedTask")
+  stackedTaskCreationMessages ChatMessage[] @relation("StackedTask")
 
   codebaseUnderstandingId String?
   codebaseUnderstanding   CodebaseUnderstanding? @relation(fields: [codebaseUnderstandingId], references: [id])
@@ -161,7 +161,6 @@ model ChatMessage {
   @@index([taskId, role, sequence])
   @@index([llmModel, createdAt])
 }
-
 
 model TaskSession {
   id           String    @id @default(cuid())
@@ -288,7 +287,6 @@ model UserSettings {
 
   @@map("user_settings")
 }
-
 
 enum MemoryCategory {
   INFRA
