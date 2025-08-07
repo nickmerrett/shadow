@@ -7,6 +7,7 @@ import {
   ModelType,
   ApiKeys,
   QueuedActionUI,
+  generateTaskId,
 } from "@repo/types";
 import { TextPart, ToolCallPart, ToolResultPart } from "ai";
 import { randomUUID } from "crypto";
@@ -20,7 +21,6 @@ import { PRManager } from "../services/pr-manager";
 import { modelContextService } from "../services/model-context-service";
 import { TaskModelContext } from "../services/task-model-context";
 import { generateTaskTitleAndBranch } from "../utils/title-generation";
-import { nanoid } from "nanoid";
 import { MessageRole } from "@repo/db";
 import {
   emitStreamChunk,
@@ -1546,7 +1546,7 @@ export class ChatService {
         throw new Error("Unauthorized to create stacked task");
       }
 
-      const newTaskId = nanoid();
+      const newTaskId = generateTaskId();
 
       const parentContext =
         await modelContextService.getContextForTask(parentTaskId);

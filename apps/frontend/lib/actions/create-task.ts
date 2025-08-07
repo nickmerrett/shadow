@@ -7,7 +7,7 @@ import { after } from "next/server";
 import { z, ZodIssue } from "zod";
 import { generateTaskTitleAndBranch } from "./generate-title-branch";
 import { saveResizableTaskLayoutCookie } from "./resizable-task-cookie";
-import { nanoid } from "nanoid";
+import { generateTaskId } from "@repo/types";
 
 const createTaskSchema = z.object({
   message: z
@@ -54,7 +54,7 @@ export async function createTask(formData: FormData) {
 
   const { message, model, repoUrl, baseBranch, repoFullName } = validation.data;
 
-  const taskId = nanoid();
+  const taskId = generateTaskId();
   let task: Task;
 
   try {

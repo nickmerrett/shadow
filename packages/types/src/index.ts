@@ -26,6 +26,7 @@ export * from "./sidecar";
 
 // === Initialization Types ===
 export * from "./init/steps";
+export * from "./init/task-id";
 
 // === Utilities ===
 export * from "./utils/title-generation";

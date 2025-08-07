@@ -30,7 +30,6 @@
     "dotenv": "^17.2.1",
     "fast-glob": "^3.3.3",
     "ignore": "^6.0.2",
-    "nanoid": "^5.1.5",
     "node-fetch": "^3.3.2",
     "ollama-ai-provider": "^1.2.0",
     "socket.io": "^4.8.1",
