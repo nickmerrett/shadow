@@ -32,8 +32,6 @@ export const AvailableModels = {
   CLAUDE_OPUS_4: "claude-opus-4-20250514",
   CLAUDE_SONNET_4: "claude-sonnet-4-20250514",
   CLAUDE_3_7_SONNET: "claude-3-7-sonnet-20250219",
-  CLAUDE_3_5_SONNET_20241022: "claude-3-5-sonnet-20241022",
-  CLAUDE_3_5_SONNET_20240620: "claude-3-5-sonnet-20240620",
   CLAUDE_3_5_HAIKU: "claude-3-5-haiku-20241022",
   CLAUDE_3_OPUS: "claude-3-opus-20240229",
   CLAUDE_3_SONNET: "claude-3-sonnet-20240229",
@@ -169,16 +167,7 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "Claude 3.7 Sonnet",
     provider: "anthropic",
   },
-  [AvailableModels.CLAUDE_3_5_SONNET_20241022]: {
-    id: AvailableModels.CLAUDE_3_5_SONNET_20241022,
-    name: "Claude 3.5 Sonnet (Oct 2024)",
-    provider: "anthropic",
-  },
-  [AvailableModels.CLAUDE_3_5_SONNET_20240620]: {
-    id: AvailableModels.CLAUDE_3_5_SONNET_20240620,
-    name: "Claude 3.5 Sonnet (Jun 2024)",
-    provider: "anthropic",
-  },
+
   [AvailableModels.CLAUDE_3_5_HAIKU]: {
     id: AvailableModels.CLAUDE_3_5_HAIKU,
     name: "Claude 3.5 Haiku",
@@ -292,8 +281,7 @@ export async function getAllPossibleModels(
     models.push(
       AvailableModels.CLAUDE_OPUS_4,
       AvailableModels.CLAUDE_SONNET_4,
-      AvailableModels.CLAUDE_3_7_SONNET,
-      AvailableModels.CLAUDE_3_5_SONNET_20240620
+      AvailableModels.CLAUDE_3_7_SONNET
     );
   }
 
@@ -363,8 +351,7 @@ export async function getDefaultSelectedModels(
     defaultModels.push(
       AvailableModels.CLAUDE_OPUS_4, // default
       AvailableModels.CLAUDE_SONNET_4, // default
-      AvailableModels.CLAUDE_3_7_SONNET, // default
-      AvailableModels.CLAUDE_3_5_SONNET_20240620 // default
+      AvailableModels.CLAUDE_3_7_SONNET // default
     );
   }
 
