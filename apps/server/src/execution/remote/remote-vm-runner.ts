@@ -199,6 +199,12 @@ export class RemoteVMRunner {
                 mountPath: "/workspace",
               },
             ],
+            securityContext: {
+              runAsUser: 1001,
+              runAsGroup: 1001,
+              allowPrivilegeEscalation: false,
+              readOnlyRootFilesystem: false,
+            },
           },
         ],
         containers: [
