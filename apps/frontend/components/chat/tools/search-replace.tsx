@@ -13,8 +13,6 @@ export function SearchReplaceTool({ message }: { message: Message }) {
 
   const { args, status } = toolMeta;
   const filePath = args.file_path as string;
-  // const oldString = args.old_string as string;
-  // const newString = args.new_string as string;
 
   const result = getToolResult(toolMeta, "search_replace");
   const linesAdded = result?.linesAdded || 0;
@@ -33,6 +31,7 @@ export function SearchReplaceTool({ message }: { message: Message }) {
       type={ToolTypes.SEARCH_REPLACE}
       title={filePath}
       changes={changes}
+      showFileIcon={filePath}
       isLoading={isLoading}
       onClick={() => {
         updateSelectedFilePath(filePath);
