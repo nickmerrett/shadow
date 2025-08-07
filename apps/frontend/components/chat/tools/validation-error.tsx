@@ -19,7 +19,8 @@ export function ValidationErrorTool({
     <ToolComponent
       icon={<AlertTriangle />}
       type="warning"
-      title={`${toolName} - Validation Error`}
+      prefix="Validation Error"
+      title={`(${toolName})`}
       collapsible
     >
       <div className="flex flex-col gap-1">
