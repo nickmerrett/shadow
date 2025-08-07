@@ -8,6 +8,7 @@ import { z, ZodIssue } from "zod";
 import { generateTaskTitleAndBranch } from "./generate-title-branch";
 import { saveResizableTaskLayoutCookie } from "./resizable-task-cookie";
 import { generateTaskId } from "@repo/types";
+import { makeBackendRequest } from "../make-backend-request";
 
 const createTaskSchema = z.object({
   message: z
@@ -95,14 +96,12 @@ export async function createTask(formData: FormData) {
     after(async () => {
       try {
         // Initiate the task on the backend
-        const baseUrl =
-          process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
         // Forward cookies from the original request
         const requestHeaders = await headers();
         const cookieHeader = requestHeaders.get("cookie");
 
-        const response = await fetch(
-          `${baseUrl}/api/tasks/${task.id}/initiate`,
+        const response = await makeBackendRequest(
+          `/api/tasks/${task.id}/initiate`,
           {
             method: "POST",
             headers: {

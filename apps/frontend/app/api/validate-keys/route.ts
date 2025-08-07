@@ -1,4 +1,5 @@
 import { getUser } from "@/lib/auth/get-user";
+import { makeBackendRequest } from "@/lib/make-backend-request";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -15,14 +16,11 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
-
     // Forward cookies from the original request
     const requestHeaders = await headers();
     const cookieHeader = requestHeaders.get("cookie");
 
-    const response = await fetch(`${baseUrl}/api/validate-keys`, {
+    const response = await makeBackendRequest(`/api/validate-keys`, {
       method: "POST",
       headers: {
         ...(cookieHeader && { Cookie: cookieHeader }),

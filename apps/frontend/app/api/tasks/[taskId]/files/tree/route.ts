@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { verifyTaskOwnership } from "@/lib/auth/verify-task-ownership";
+import { makeBackendRequest } from "@/lib/make-backend-request";
 
 export async function GET(
   _req: NextRequest,
@@ -12,10 +13,8 @@ export async function GET(
     if (error) return error;
 
     // Proxy request to backend server
-    const backendUrl =
-      process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
-    const response = await fetch(
-      `${backendUrl}/api/tasks/${taskId}/files/tree`
+    const response = await makeBackendRequest(
+      `/api/tasks/${taskId}/files/tree`
     );
 
     if (!response.ok) {
