@@ -441,7 +441,7 @@ export function PromptForm({
       <form
         onSubmit={handleSubmit}
         className={cn(
-          "relative z-0 flex w-full max-w-lg flex-col",
+          "relative z-0 flex w-full flex-col",
           !isHome && "bg-background sticky bottom-0 pb-6"
         )}
       >
