@@ -2,6 +2,7 @@ import { watch, FSWatcher } from 'fs';
 import { join, relative } from 'path';
 import { emitStreamChunk } from '../socket';
 import { stat } from 'fs/promises';
+import { GitignoreChecker } from '../utils/gitignore-parser';
 
 interface FileSystemChangeEvent {
   operation: 'file-created' | 'file-modified' | 'file-deleted' | 'directory-created' | 'directory-deleted';
@@ -22,6 +23,7 @@ export class LocalFileSystemWatcher {
   private changeBuffer = new Map<string, FileSystemChangeEvent>();
   private flushTimer: NodeJS.Timeout | null = null;
   private readonly debounceMs = 100;
+  private gitignoreChecker: GitignoreChecker | null = null;
 
   constructor(taskId: string) {
     this.taskId = taskId;
@@ -38,6 +40,9 @@ export class LocalFileSystemWatcher {
     }
 
     this.watchedPath = workspacePath;
+    
+    // Initialize gitignore checker
+    this.gitignoreChecker = new GitignoreChecker(workspacePath);
 
     try {
       console.log(`[LOCAL_FS_WATCHER] Starting filesystem watch for task ${this.taskId} at ${workspacePath}`);
@@ -116,9 +121,14 @@ export class LocalFileSystemWatcher {
   }
 
   /**
-   * Determine if a file should be ignored based on common patterns
+   * Determine if a file should be ignored based on gitignore rules and common patterns
    */
   private shouldIgnoreFile(filePath: string): boolean {
+    if (this.gitignoreChecker) {
+      return this.gitignoreChecker.shouldIgnoreFile(filePath);
+    }
+
+    // Fallback to legacy patterns if gitignore checker is not available
     const ignorePatterns = [
       /^\.git\//, // Git files
       /^node_modules\//, // Node.js dependencies

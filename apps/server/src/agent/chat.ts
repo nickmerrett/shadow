@@ -832,20 +832,6 @@ export class ChatService {
     // Get system prompt with available tools context
     const taskSystemPrompt = await getSystemPrompt(availableTools);
 
-    console.log(`[CHAT] Task MODEL:`, context.getMainModel());
-
-    // Debug API key context before LLM call
-    console.log(`[API_KEY_DEBUG] Context provider: ${context.getProvider()}`);
-    console.log(
-      `[API_KEY_DEBUG] Context validates access: ${context.validateAccess()}`
-    );
-    console.log(
-      `[API_KEY_DEBUG] API key for provider: ${context.getProviderApiKey() ? "PRESENT" : "MISSING"}`
-    );
-    console.log(
-      `[API_KEY_DEBUG] API keys object: ${JSON.stringify(Object.keys(context.getApiKeys()))}`
-    );
-
     try {
       for await (const chunk of this.llmService.createMessageStream(
         taskSystemPrompt,
@@ -1672,17 +1658,6 @@ export class ChatService {
         throw new Error(`Parent task context not found for ${parentTaskId}`);
       }
 
-      // Debug parent context
-      console.log(
-        `[API_KEY_DEBUG] Parent context validation: ${parentContext.validateAccess()}`
-      );
-      console.log(
-        `[API_KEY_DEBUG] Parent API keys available: ${JSON.stringify(Object.keys(parentContext.getApiKeys()))}`
-      );
-      console.log(
-        `[API_KEY_DEBUG] Parent provider: ${parentContext.getProvider()}`
-      );
-
       // Create new task context inheriting parent's API keys
       const newTaskContext =
         await modelContextService.createContextWithInheritedKeys(
@@ -1690,17 +1665,6 @@ export class ChatService {
           model,
           parentContext.getApiKeys()
         );
-
-      // Debug new context
-      console.log(
-        `[API_KEY_DEBUG] New context validation: ${newTaskContext.validateAccess()}`
-      );
-      console.log(
-        `[API_KEY_DEBUG] New context API keys available: ${JSON.stringify(Object.keys(newTaskContext.getApiKeys()))}`
-      );
-      console.log(
-        `[API_KEY_DEBUG] New context provider: ${newTaskContext.getProvider()}`
-      );
 
       // Start task initialization in background (non-blocking)
       // This will handle workspace setup, VM creation, etc.
