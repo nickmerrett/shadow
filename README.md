@@ -1,47 +1,36 @@
 # Shadow
 
-A remote, autonomous coding agent for complex and long-running tasks. Shadow provides hardware-isolated execution environments for AI agents to work on GitHub repositories with real-time collaboration, semantic code search, and comprehensive task management.
+A remote, autonomous coding agent for complex and long-running tasks. Shadow provides hardware-isolated execution environments for AI agents to work on GitHub repositories with real-time collaboration, semantic code search, and long-horizon task management. 
 
-## Core Features
-
-### Task Management
+### Agent Environment (The Shadow Realm)
 - GitHub repository integration with branch management
-- Real-time task status tracking and progress updates
-- Automatic workspace setup and cleanup
 - Pull request generation with AI-authored commits
+- Real-time task status tracking and progress updates
+- Automatic workspace setup and cleanup on Micro-VMs
+- Kata QEMU containers for hardware-level isolation
+- Command validation and sanitization, workspace boundary enforcement, path traversal protection
 
-### AI Agent System
-- Multi-provider LLM support (Anthropic Claude, OpenAI GPT-4, OpenRouter)
+### Code Generation & Understanding
+- Multi-provider LLM support (Anthropic, OpenAI, OpenRouter)
 - Streaming chat interface with real-time responses
 - Tool execution with file operations, terminal commands, and code search
 - Memory system for repository-specific knowledge retention
-
-### Code Understanding
-- Semantic code search powered by embeddings
-- Repository indexing with background processing
+- Semantic code search, background processing
 - Shadow Wiki generation for comprehensive codebase documentation
-- File system watching for real-time updates
-
-### Security & Isolation
-- Kata QEMU containers for hardware-level isolation
-- Command validation and sanitization
-- Path traversal protection
-- Workspace boundary enforcement
 
 ## Execution Modes
 
 Shadow supports two execution modes through an abstraction layer:
 
-### Local Mode (Development)
+### Local Mode
 - Direct filesystem execution on the host machine
 - Fast iteration and debugging
 - Used for development and testing
 
-### Remote Mode (Production)
+### Remote Mode (Optional)
 - Hardware-isolated execution in Kata QEMU containers
 - True VM isolation via QEMU hypervisor
 - Kubernetes orchestration with bare metal nodes
-- Production-grade security and scalability
 
 Mode selection is controlled by `NODE_ENV` and `AGENT_MODE` environment variables.
 
@@ -185,7 +174,7 @@ npm run build --filter=server
 npm run build --filter=sidecar
 ```
 
-## Production Deployment
+## Production Deployment (Optional)
 
 ### Remote Infrastructure (AWS EKS)
 
@@ -283,3 +272,5 @@ Shadow provides a comprehensive set of tools for AI agents:
 3. Make your changes with proper TypeScript types
 4. Test in both local and remote modes
 5. Submit a pull request
+   
+We're excited to see what you've built with Shadow!
