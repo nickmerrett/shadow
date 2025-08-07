@@ -433,6 +433,7 @@ export function PromptForm({
       repo,
       branch,
       message.trim(),
+      isStreaming,
     ]
   );
 

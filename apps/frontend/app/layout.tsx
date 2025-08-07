@@ -54,15 +54,21 @@ export default async function RootLayout({
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
 
   if (process.env.VERCEL_ENV === "production") {
+    console.log("PROD: Applying whitelist");
     const user = await getUser();
 
     // Only apply whitelist once user has logged in
     if (!user) {
+      console.log("PROD: Not logged in");
       return;
     }
 
+    console.log("PROD: User logged in", user);
+
     // Example: WHITELIST="user1@example.com,user2@example.com,admin@company.com"
     const whitelist = process.env.WHITELIST?.split(",") ?? [];
+
+    console.log("PROD: Whitelist", whitelist);
 
     if (!whitelist.includes(user?.email ?? "")) {
       return (
