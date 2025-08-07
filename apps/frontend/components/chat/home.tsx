@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { LogoHover } from "../graphics/logo/logo-hover";
 import { PromptForm } from "./prompt-form";
 import type { FilteredRepository } from "@/lib/github/types";
@@ -16,12 +16,12 @@ export function HomePageContent({
   } | null;
   initialSelectedModel?: ModelType | null;
 }) {
-  const [isFocused, setIsFocused] = useState(true);
+  const [isPending, startTransition] = useTransition();
 
   return (
     <div className="mx-auto mt-20 flex w-full max-w-xl flex-col items-center gap-10 overflow-hidden p-4">
-      <div className="font-departureMono flex items-center gap-4 text-3xl font-medium tracking-tighter">
-        <LogoHover size="lg" forceAnimate={isFocused} />
+      <div className="font-departureMono flex select-none items-center gap-4 text-3xl font-medium tracking-tighter">
+        <LogoHover size="lg" forceAnimate={isPending} />
         Code with{" "}
         <span className="text-muted-foreground inline-flex items-center gap-2">
           Shadow
@@ -29,10 +29,9 @@ export function HomePageContent({
       </div>
       <PromptForm
         isHome
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
         initialGitCookieState={initialGitCookieState}
         initialSelectedModel={initialSelectedModel}
+        transition={{ isPending, startTransition }}
       />
     </div>
   );
