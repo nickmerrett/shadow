@@ -10,6 +10,7 @@ import localFont from "next/font/local";
 import { cookies } from "next/headers";
 import { Toaster } from "sonner";
 import "./globals.css";
+import { getUser } from "@/lib/auth/get-user";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,6 +52,22 @@ export default async function RootLayout({
 }>) {
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
+
+  if (process.env.VERCEL_ENV === "production") {
+    const user = await getUser();
+    // Example: WHITELIST="user1@example.com,user2@example.com,admin@company.com"
+    const whitelist = process.env.WHITELIST?.split(",") ?? [];
+
+    if (!whitelist.includes(user?.email ?? "")) {
+      return (
+        <html>
+          <body>
+            <div>Unauthorized</div>
+          </body>
+        </html>
+      );
+    }
+  }
 
   return (
     <html lang="en" suppressHydrationWarning>
