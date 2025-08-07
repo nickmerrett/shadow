@@ -31,6 +31,7 @@ import {
   type TypedSocket,
 } from "../socket";
 import config from "../config";
+import { getGitHubAppEmail, getGitHubAppName } from "../config/shared";
 import {
   updateTaskStatus,
   updateTaskActivity,
@@ -237,8 +238,8 @@ export class ChatService {
         // Commit changes with Shadow as author and user as co-author
         const committed = await gitManager.commitChangesIfAny(
           {
-            name: "Shadow",
-            email: "noreply@shadowrealm.ai",
+            name: getGitHubAppName(config),
+            email: getGitHubAppEmail(config),
           },
           {
             name: task.user.name,
@@ -476,8 +477,8 @@ export class ChatService {
       // Commit changes with Shadow as author and user as co-author
       const commitResponse = await toolExecutor.commitChanges({
         user: {
-          name: "Shadow",
-          email: "noreply@shadowrealm.ai",
+          name: getGitHubAppName(config),
+          email: getGitHubAppEmail(config),
         },
         coAuthor: {
           name: task.user.name,

@@ -150,7 +150,9 @@ export class GitManager {
       const apiKey = context.getApiKeyForOperation("commit-msg");
 
       if (!apiKey) {
-        console.warn("[GIT_MANAGER] No API key available for commit message generation");
+        console.warn(
+          "[GIT_MANAGER] No API key available for commit message generation"
+        );
         return "Update code via Shadow agent";
       }
 
@@ -179,7 +181,6 @@ Commit message:`,
     }
   }
 
-
   /**
    * Stage all changes and commit with the given options
    */
@@ -202,8 +203,8 @@ Commit message:`,
         }
       }
 
-      // Build commit command with co-author if provided
-      let commitCmd = `commit -m "${commitMessage}"`;
+      // Build commit command with explicit author and co-author if provided
+      let commitCmd = `commit --author="${options.user.name} <${options.user.email}>" -m "${commitMessage}"`;
       if (options.coAuthor) {
         commitCmd += ` -m "" -m "Co-authored-by: ${options.coAuthor.name} <${options.coAuthor.email}>"`;
       }
@@ -217,7 +218,6 @@ Commit message:`,
       throw error;
     }
   }
-
 
   /**
    * Push the current branch to remote
@@ -364,7 +364,6 @@ Commit message:`,
       throw error;
     }
   }
-
 }
 
 export default GitManager;

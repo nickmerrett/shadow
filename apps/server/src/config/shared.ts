@@ -22,6 +22,8 @@ export const sharedConfigSchema = z.object({
   GITHUB_CLIENT_ID: z.string(),
   GITHUB_CLIENT_SECRET: z.string(),
   GITHUB_WEBHOOK_SECRET: z.string().optional(),
+  GITHUB_APP_USER_ID: z.string(),
+  GITHUB_APP_SLUG: z.string(),
 
   // Repository limits
   MAX_REPO_SIZE_MB: z.coerce.number().default(500),
@@ -55,6 +57,8 @@ export const createSharedConfig = (
   githubClientId: data.GITHUB_CLIENT_ID,
   githubClientSecret: data.GITHUB_CLIENT_SECRET,
   githubWebhookSecret: data.GITHUB_WEBHOOK_SECRET,
+  githubAppUserId: data.GITHUB_APP_USER_ID,
+  githubAppSlug: data.GITHUB_APP_SLUG,
 
   // Repository
   maxRepoSizeMB: data.MAX_REPO_SIZE_MB,
@@ -71,3 +75,17 @@ export const createSharedConfig = (
 });
 
 export type SharedConfig = ReturnType<typeof createSharedConfig>;
+
+/**
+ * Generate GitHub App bot email format
+ */
+export const getGitHubAppEmail = (config: SharedConfig): string => {
+  return `${config.githubAppUserId}+${config.githubAppSlug}[bot]@users.noreply.github.com`;
+};
+
+/**
+ * Generate GitHub App bot name format
+ */
+export const getGitHubAppName = (config: SharedConfig): string => {
+  return `${config.githubAppSlug}[bot]`;
+};
