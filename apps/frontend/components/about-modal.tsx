@@ -1,23 +1,39 @@
+"use client";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { LogoHover } from "@/components/graphics/logo/logo-hover";
 
-export default function AboutPage() {
+interface AboutModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function AboutModal({ open, onOpenChange }: AboutModalProps) {
   return (
-    <div className="relative flex size-full max-h-svh flex-col overflow-y-auto">
-      <div className="relative z-0 mx-auto flex w-full max-w-4xl flex-col items-center px-4 sm:px-6">
-        <div className="font-departureMono flex items-center gap-4 text-3xl font-medium tracking-tighter pt-20">
-          <LogoHover size="lg" forceAnimate />
-          About{" "}
-          <span className="text-muted-foreground inline-flex items-center gap-2">
-            Shadow
-          </span>
-        </div>
-        <div className="prose prose-gray dark:prose-invert max-w-none text-center">
-          <div className="space-y-6 text-left">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-full max-w-[calc(100%-2rem)] sm:max-w-3xl max-h-[90vh] overflow-hidden">
+        <DialogHeader className="border-b pb-4 mb-4">
+          <DialogTitle className="font-departureMono flex items-center gap-4 text-2xl font-medium tracking-tighter">
+            <LogoHover size="md" forceAnimate />
+            About{" "}
+            <span className="text-muted-foreground inline-flex items-center gap-2">
+              Shadow
+            </span>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="overflow-y-auto max-h-[calc(90vh-120px)] pr-2">
+          <div className="space-y-6">
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold tracking-tight">
+              <h2 className="text-xl font-semibold tracking-tight">
                 What is Shadow?
               </h2>
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="text-muted-foreground leading-relaxed text-pretty">
                 Shadow is a powerful AI coding agent designed to work alongside
                 developers, understanding your codebase and helping you build
                 better software. Think of it as having an intelligent coding
@@ -25,7 +41,7 @@ export default function AboutPage() {
                 context, and help you implement features, fix bugs, and improve
                 your code.
               </p>
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="text-muted-foreground leading-relaxed text-pretty">
                 Unlike traditional AI coding assistants that work in isolation,
                 Shadow integrates deeply with your GitHub repositories. It can
                 analyze your entire codebase, understand the relationships
@@ -35,7 +51,7 @@ export default function AboutPage() {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold tracking-tight">
+              <h2 className="text-xl font-semibold tracking-tight">
                 How It Works
               </h2>
               <p className="text-muted-foreground leading-relaxed text-pretty">
@@ -46,7 +62,7 @@ export default function AboutPage() {
               </p>
 
               <div className="space-y-3">
-                <h3 className="text-lg font-medium">Tree-Sitter Parsing</h3>
+                <h3 className="text-base font-medium">Tree-Sitter Parsing</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
                   Shadow uses tree-sitter parsers for JavaScript, TypeScript,
                   and TSX to extract symbols, function definitions, and import
@@ -56,7 +72,9 @@ export default function AboutPage() {
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-lg font-medium">Shadow Wiki Generation</h3>
+                <h3 className="text-base font-medium">
+                  Shadow Wiki Generation
+                </h3>
                 <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
                   The system creates hierarchical summaries using the buildTree
                   function, processing files in batches with dynamic sizing. It
@@ -71,7 +89,19 @@ export default function AboutPage() {
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-lg font-medium">Memory System</h3>
+                <h3 className="text-base font-medium">
+                  File Processing Pipeline
+                </h3>
+                <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                  Files are filtered using shouldSkipFile, with special handling
+                  for critical files like package.json and configuration files.
+                  Large files over 50KB are truncated, and binary files are
+                  automatically excluded from analysis.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-base font-medium">Memory System</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
                   Shadow uses a repository-specific memory system that stores
                   knowledge about your codebase. Memories are categorized and
@@ -81,7 +111,7 @@ export default function AboutPage() {
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-lg font-medium">Semantic Indexing</h3>
+                <h3 className="text-base font-medium">Semantic Indexing</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
                   Code is processed through an embedding pipeline using models
                   like Jina or local transformers. The system creates vector
@@ -92,7 +122,7 @@ export default function AboutPage() {
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-lg font-medium">Execution Environment</h3>
+                <h3 className="text-base font-medium">Execution Environment</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
                   Shadow supports both local and remote execution modes. Remote
                   mode uses Kata QEMU containers on AWS EKS with hardware-level
@@ -102,7 +132,7 @@ export default function AboutPage() {
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-lg font-medium">Tool System</h3>
+                <h3 className="text-base font-medium">Tool System</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
                   The agent has access to comprehensive tools including file
                   operations (read_file, edit_file, search_replace), terminal
@@ -114,7 +144,7 @@ export default function AboutPage() {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold tracking-tight">
+              <h2 className="text-xl font-semibold tracking-tight">
                 The Experience
               </h2>
               <p className="text-muted-foreground leading-relaxed text-pretty">
@@ -132,7 +162,7 @@ export default function AboutPage() {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold tracking-tight">
+              <h2 className="text-xl font-semibold tracking-tight">
                 AWS Infrastructure
               </h2>
               <p className="text-muted-foreground leading-relaxed text-pretty">
@@ -149,11 +179,11 @@ export default function AboutPage() {
               </p>
             </section>
 
-            <section className="space-y-4 mb-20">
-              <h2 className="text-2xl font-semibold tracking-tight">Team</h2>
+            <section className="space-y-4">
+              <h2 className="text-xl font-semibold tracking-tight">Team</h2>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <h3 className="text-lg font-medium">
+                  <h3 className="text-base font-medium">
                     <a
                       href="https://x.com/ishaandey_"
                       target="_blank"
@@ -170,7 +200,7 @@ export default function AboutPage() {
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-lg font-medium">
+                  <h3 className="text-base font-medium">
                     <a
                       href="https://x.com/_rajanagarwal"
                       target="_blank"
@@ -188,7 +218,7 @@ export default function AboutPage() {
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-lg font-medium">
+                  <h3 className="text-base font-medium">
                     <a
                       href="https://x.com/elijahkurien"
                       target="_blank"
@@ -208,7 +238,7 @@ export default function AboutPage() {
             </section>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -17,9 +17,10 @@ import { useSidebar } from "../ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { statusColorsConfig } from "./status";
 import { useTask } from "@/hooks/use-task";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { LogoHover } from "../graphics/logo/logo-hover";
 import { TaskStatus } from "@repo/db";
+import { AboutModal } from "../about-modal";
 
 const PINGING_STATUSES: TaskStatus[] = ["INITIALIZING", "RUNNING"];
 
@@ -38,6 +39,7 @@ export function SidebarNavigation({
   const { open, toggleSidebar } = useSidebar();
   const { task } = useTask(currentTaskId ?? "");
   const { openSettingsModal } = useModal();
+  const [aboutModalOpen, setAboutModalOpen] = useState(false);
 
   const currentTaskStatus = task?.status;
 
@@ -218,10 +220,12 @@ export function SidebarNavigation({
       <div className="flex flex-col gap-3">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="iconSm" variant="ghost" asChild>
-              <Link href="/about">
-                <Info />
-              </Link>
+            <Button
+              size="iconSm"
+              variant="ghost"
+              onClick={() => setAboutModalOpen(true)}
+            >
+              <Info />
             </Button>
           </TooltipTrigger>
           <TooltipContent lighter side="right">
@@ -245,6 +249,7 @@ export function SidebarNavigation({
         </Tooltip>
         <UserMenu />
       </div>
+      <AboutModal open={aboutModalOpen} onOpenChange={setAboutModalOpen} />
     </div>
   );
 }
