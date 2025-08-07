@@ -6,6 +6,7 @@ import {
   Play,
   Plus,
   Settings,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { SidebarView } from ".";
@@ -214,7 +215,19 @@ export function SidebarNavigation({
           {pageSpecificViewTrigger}
         </div>
       </div>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="iconSm" variant="ghost" asChild>
+              <Link href="/about">
+                <Info />
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent lighter side="right">
+            About
+          </TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
