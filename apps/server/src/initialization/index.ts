@@ -615,21 +615,23 @@ export class TaskInitializationEngine {
   async getDefaultStepsForTask(userId: string): Promise<InitStatus[]> {
     const agentMode = getAgentMode();
 
-    // Fetch user settings to determine if Shadow Wiki generation should be enabled
+    // Fetch user settings to determine if Shadow Wiki generation and indexing should be enabled
     let enableShadowWiki = false; // Default to false
+    let enableIndexing = false; // Default to false
     try {
       const userSettings = await prisma.userSettings.findUnique({
         where: { userId },
-        select: { enableShadowWiki: true },
+        select: { enableShadowWiki: true, enableIndexing: true },
       });
       enableShadowWiki = userSettings?.enableShadowWiki ?? false;
+      enableIndexing = userSettings?.enableIndexing ?? false;
     } catch (error) {
       console.warn(
-        `[TASK_INIT] Failed to fetch user settings for ${userId}, using default enableShadowWiki=false:`,
+        `[TASK_INIT] Failed to fetch user settings for ${userId}, using defaults enableShadowWiki=false, enableIndexing=false:`,
         error,
       );
     }
 
-    return getStepsForMode(agentMode, { enableShadowWiki });
+    return getStepsForMode(agentMode, { enableShadowWiki, enableIndexing });
   }
 }
