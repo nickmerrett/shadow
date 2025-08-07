@@ -7,6 +7,7 @@ export interface UserSettings {
   enableShadowWiki: boolean;
   memoriesEnabled: boolean;
   selectedModels: string[];
+  enableIndexing: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,6 +29,7 @@ export async function createUserSettings(
     enableShadowWiki?: boolean;
     memoriesEnabled?: boolean;
     selectedModels?: string[];
+    enableIndexing?: boolean;
   }
 ): Promise<UserSettings> {
   const result = await prisma.userSettings.create({
@@ -37,6 +39,7 @@ export async function createUserSettings(
       enableShadowWiki: settings.enableShadowWiki ?? true,
       memoriesEnabled: settings.memoriesEnabled ?? true,
       selectedModels: settings.selectedModels ?? [],
+      enableIndexing: settings.enableIndexing ?? false,
     },
   });
 
@@ -50,6 +53,7 @@ export async function updateUserSettings(
     enableShadowWiki?: boolean;
     memoriesEnabled?: boolean;
     selectedModels?: string[];
+    enableIndexing?: boolean;
   }
 ): Promise<UserSettings> {
   try {
@@ -58,6 +62,7 @@ export async function updateUserSettings(
       enableShadowWiki?: boolean;
       memoriesEnabled?: boolean;
       selectedModels?: string[];
+      enableIndexing?: boolean;
     } = {};
 
     if (settings.autoPullRequest !== undefined)
@@ -68,6 +73,8 @@ export async function updateUserSettings(
       updateData.memoriesEnabled = settings.memoriesEnabled;
     if (settings.selectedModels !== undefined)
       updateData.selectedModels = settings.selectedModels;
+    if (settings.enableIndexing !== undefined)
+      updateData.enableIndexing = settings.enableIndexing;
 
     // Build create data object with only non-default values
     const createData: {
@@ -76,6 +83,7 @@ export async function updateUserSettings(
       enableShadowWiki?: boolean;
       memoriesEnabled?: boolean;
       selectedModels?: string[];
+      enableIndexing?: boolean;
     } = {
       userId,
     };
@@ -100,6 +108,11 @@ export async function updateUserSettings(
       settings.selectedModels.length > 0
     )
       createData.selectedModels = settings.selectedModels;
+    if (
+      settings.enableIndexing !== undefined &&
+      settings.enableIndexing !== false
+    )
+      createData.enableIndexing = settings.enableIndexing;
 
     const result = await prisma.userSettings.upsert({
       where: { userId },
@@ -125,6 +138,7 @@ export async function getOrCreateUserSettings(
       enableShadowWiki: false,
       memoriesEnabled: true,
       selectedModels: [],
+      enableIndexing: false,
     });
   }
 

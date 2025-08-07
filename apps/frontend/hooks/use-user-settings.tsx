@@ -14,6 +14,7 @@ interface UserSettings {
   enableShadowWiki: boolean;
   memoriesEnabled: boolean;
   selectedModels: string[];
+  enableIndexing: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +24,7 @@ type UpdateUserSettingsParams = {
   memoriesEnabled?: boolean;
   enableShadowWiki?: boolean;
   selectedModels?: string[];
+  enableIndexing?: boolean;
 };
 
 interface UserSettingsResponse {
@@ -52,6 +54,7 @@ async function updateUserSettingsAPI(settings: {
   memoriesEnabled?: boolean;
   enableShadowWiki?: boolean;
   selectedModels?: string[];
+  enableIndexing?: boolean;
 }): Promise<UserSettings> {
   const response = await fetch("/api/user-settings", {
     method: "POST",

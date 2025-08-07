@@ -112,7 +112,7 @@ class PineconeHandler {
       return autoEmbedRecords.length;
     } catch (error) {
       logger.error(`[PINECONE_SERVICE] Error upserting records: ${error}`);
-      throw error;
+      return 0;
     }
   }
   // Chunks Graph records into smaller chunks if there are too many LOC in a batch
@@ -215,14 +215,16 @@ class PineconeHandler {
       logger.warn("[PINECONE_SERVICE] Pinecone is disabled, skipping search");
       return [];
     }
-    const response = await this.client
-      .namespace(request.namespace)
-      .searchRecords({
-        query: {
-          topK: request.topK || 15,
-          inputs: { text: request.query },
-        },
-      }); // Search based on topK and query
+    
+    try {
+      const response = await this.client
+        .namespace(request.namespace)
+        .searchRecords({
+          query: {
+            topK: request.topK || 15,
+            inputs: { text: request.query },
+          },
+        }); // Search based on topK and query
     /*
     {
       "result": {
@@ -240,8 +242,12 @@ class PineconeHandler {
       }
     }
     */
-    const hits = response.result?.hits || [];
-    return hits as CodebaseSearchResponse[];
+      const hits = response.result?.hits || [];
+      return hits as CodebaseSearchResponse[];
+    } catch (error) {
+      logger.error(`[PINECONE_SERVICE] Error searching records: ${error}`);
+      return [];
+    }
   }
 }
 

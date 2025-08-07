@@ -19,10 +19,11 @@ export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
  */
 export function getStepsForMode(
   mode: "local" | "remote",
-  options?: { enableShadowWiki?: boolean },
+  options?: { enableShadowWiki?: boolean; enableIndexing?: boolean },
 ): InitStatus[] {
   const steps: InitStatus[] = [];
   const enableShadowWiki = options?.enableShadowWiki ?? true; // Default to true
+  const enableIndexing = options?.enableIndexing ?? true; // Default to true
 
   if (mode === "remote") {
     steps.push("CREATE_VM", "WAIT_VM_READY", "VERIFY_VM_WORKSPACE");
@@ -31,7 +32,9 @@ export function getStepsForMode(
       steps.push("GENERATE_SHADOW_WIKI");
     }
 
-    steps.push("INDEX_REPOSITORY");
+    if (enableIndexing) {
+      steps.push("INDEX_REPOSITORY");
+    }
   } else {
     steps.push("PREPARE_WORKSPACE");
 
@@ -39,7 +42,9 @@ export function getStepsForMode(
       steps.push("GENERATE_SHADOW_WIKI");
     }
 
-    steps.push("INDEX_REPOSITORY");
+    if (enableIndexing) {
+      steps.push("INDEX_REPOSITORY");
+    }
   }
 
   return steps;

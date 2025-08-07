@@ -54,13 +54,20 @@ export async function performSemanticSearch(
     return parsedData;
   } catch (error) {
     console.error("[SEMANTIC_SEARCH_ERROR]", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isConnectionError = errorMessage.toLowerCase().includes('pinecone') || 
+                             errorMessage.toLowerCase().includes('connection') ||
+                             errorMessage.toLowerCase().includes('network');
+    
     return {
       success: false,
       results: [],
       query,
       searchTerms: query.split(/\s+/),
-      message: `Semantic search failed for "${query}"`,
-      error: error instanceof Error ? error.message : String(error),
+      message: isConnectionError 
+        ? `Semantic search is currently unavailable. Please try again later.`
+        : `Semantic search failed for "${query}": ${errorMessage}`,
+      error: errorMessage,
     };
   }
 }

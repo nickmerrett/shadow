@@ -35,6 +35,7 @@ import { Loader2 } from "lucide-react";
 import { useIndexingStatus } from "@/hooks/use-indexing-status";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchIndexApi } from "@/lib/actions/index-repo";
+import { useUserSettings } from "@/hooks/use-user-settings";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -112,6 +113,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   // Use indexing status hook for unified status tracking
   const { data: indexingStatus } = useIndexingStatus(task?.repoFullName || "");
+  const { data: userSettings } = useUserSettings();
 
   const completedTodos = useMemo(
     () => todos.filter((todo) => todo.status === "COMPLETED").length,
@@ -284,17 +286,21 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                     </Link>
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuSeparator className="bg-sidebar-border" />
-                <DropdownMenuItem
-                  onClick={handleIndexRepo}
-                  disabled={isIndexingDisabled}
-                  className="hover:bg-sidebar-border!"
-                >
-                  <RefreshCcw
-                    className={`text-foreground size-4 shrink-0 ${isIndexing ? "animate-spin" : ""}`}
-                  />
-                  <span>{getIndexingButtonText()}</span>
-                </DropdownMenuItem>
+                {userSettings?.enableIndexing && (
+                  <>
+                    <DropdownMenuSeparator className="bg-sidebar-border" />
+                    <DropdownMenuItem
+                      onClick={handleIndexRepo}
+                      disabled={isIndexingDisabled}
+                      className="hover:bg-sidebar-border!"
+                    >
+                      <RefreshCcw
+                        className={`text-foreground size-4 shrink-0 ${isIndexing ? "animate-spin" : ""}`}
+                      />
+                      <span>{getIndexingButtonText()}</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
