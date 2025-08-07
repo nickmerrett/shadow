@@ -419,6 +419,8 @@ store_secrets() {
     GITHUB_CLIENT_ID=$(grep "^GITHUB_CLIENT_ID=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
     GITHUB_CLIENT_SECRET=$(grep "^GITHUB_CLIENT_SECRET=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
     GITHUB_WEBHOOK_SECRET=$(grep "^GITHUB_WEBHOOK_SECRET=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+    GITHUB_APP_USER_ID=$(grep "^GITHUB_APP_USER_ID=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+    GITHUB_APP_SLUG=$(grep "^GITHUB_APP_SLUG=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
     VM_IMAGE_REGISTRY=$(grep "^VM_IMAGE_REGISTRY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
     set -e
     
@@ -432,6 +434,8 @@ store_secrets() {
     log "  GITHUB_CLIENT_ID: $GITHUB_CLIENT_ID"
     log "  GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:0:10}${GITHUB_CLIENT_SECRET:+...}"
     log "  GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:0:10}${GITHUB_WEBHOOK_SECRET:+...}"
+    log "  GITHUB_APP_USER_ID: $GITHUB_APP_USER_ID"
+    log "  GITHUB_APP_SLUG: $GITHUB_APP_SLUG"
     log "  VM_IMAGE_REGISTRY: $VM_IMAGE_REGISTRY"
     
     # Validate required secrets
@@ -552,6 +556,28 @@ store_secrets() {
             --name "/shadow/github-webhook-secret" \
             --value "$GITHUB_WEBHOOK_SECRET" \
             --type "SecureString" \
+            --overwrite \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE"
+    fi
+    
+    if [[ -n "$GITHUB_APP_USER_ID" ]]; then
+        log "Storing GitHub App User ID..."
+        aws ssm put-parameter \
+            --name "/shadow/github-app-user-id" \
+            --value "$GITHUB_APP_USER_ID" \
+            --type "String" \
+            --overwrite \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE"
+    fi
+    
+    if [[ -n "$GITHUB_APP_SLUG" ]]; then
+        log "Storing GitHub App Slug..."
+        aws ssm put-parameter \
+            --name "/shadow/github-app-slug" \
+            --value "$GITHUB_APP_SLUG" \
+            --type "String" \
             --overwrite \
             --region "$AWS_REGION" \
             --profile "$AWS_PROFILE"
@@ -781,6 +807,8 @@ create_task_definition() {
         {"name": "GITHUB_CLIENT_ID", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-client-id"},
         {"name": "GITHUB_CLIENT_SECRET", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-client-secret"},
         {"name": "GITHUB_WEBHOOK_SECRET", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-webhook-secret"},
+        {"name": "GITHUB_APP_USER_ID", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-app-user-id"},
+        {"name": "GITHUB_APP_SLUG", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-app-slug"},
         {"name": "VM_IMAGE_REGISTRY", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/vm-image-registry"}
       ],
       "logConfiguration": {
