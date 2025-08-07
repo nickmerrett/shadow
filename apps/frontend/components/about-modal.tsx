@@ -89,18 +89,6 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-base font-medium">
-                  File Processing Pipeline
-                </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
-                  Files are filtered using shouldSkipFile, with special handling
-                  for critical files like package.json and configuration files.
-                  Large files over 50KB are truncated, and binary files are
-                  automatically excluded from analysis.
-                </p>
-              </div>
-
-              <div className="space-y-3">
                 <h3 className="text-base font-medium">Memory System</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
                   Shadow uses a repository-specific memory system that stores
