@@ -1,5 +1,5 @@
 import type { Message, SemanticSearchToolResult } from "@repo/types";
-import { File, Folder, ScanSearch } from "lucide-react";
+import { File, Folder, ScanSearch, Plus } from "lucide-react";
 import { ToolTypes } from "@repo/types";
 import { ToolComponent } from "./collapsible-tool";
 
@@ -47,7 +47,7 @@ export function SemanticSearchTool({ message }: { message: Message }) {
         (parsedResult ? (
           parsedResult.success ? (
             <div className="flex flex-col gap-0.5">
-              {parsedResult.results.map((item) => (
+              {parsedResult.results.slice(0, 10).map((item) => (
                 <div key={item.id} className="flex items-center gap-2 py-px">
                   <File className="size-4 shrink-0" />
                   <span className="truncate">
@@ -63,6 +63,12 @@ export function SemanticSearchTool({ message }: { message: Message }) {
                   </span>
                 </div>
               ))}
+              {parsedResult.results.length > 10 && (
+                <div className="text-muted-foreground flex items-center gap-2 py-px">
+                  <Plus className="size-4" />
+                  <span>{parsedResult.results.length - 10} more...</span>
+                </div>
+              )}
               {parsedResult.results.length === 0 && <div>No results found</div>}
             </div>
           ) : (

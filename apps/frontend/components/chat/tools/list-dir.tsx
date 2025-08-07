@@ -1,5 +1,5 @@
 import type { Message, DirectoryListing } from "@repo/types";
-import { File, Folder, FolderOpen } from "lucide-react";
+import { File, Folder, FolderOpen, Plus } from "lucide-react";
 import { ToolTypes } from "@repo/types";
 import { ToolComponent } from "./collapsible-tool";
 
@@ -28,7 +28,7 @@ export function ListDirTool({ message }: { message: Message }) {
         <div>
           {parsedResult?.success && parsedResult.contents ? (
             <div className="flex flex-col gap-0.5">
-              {parsedResult.contents.map((item) => (
+              {parsedResult.contents.slice(0, 10).map((item) => (
                 <div key={item.name} className="flex items-center gap-2 py-px">
                   {item.isDirectory ? (
                     <Folder className="size-4" />
@@ -38,6 +38,12 @@ export function ListDirTool({ message }: { message: Message }) {
                   <span>{item.name}</span>
                 </div>
               ))}
+              {parsedResult.contents.length > 10 && (
+                <div className="text-muted-foreground flex items-center gap-2 py-px">
+                  <Plus className="size-4" />
+                  <span>{parsedResult.contents.length - 10} more...</span>
+                </div>
+              )}
               {parsedResult.contents.length === 0 && <div>Empty directory</div>}
             </div>
           ) : (
