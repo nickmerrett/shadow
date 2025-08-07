@@ -1,10 +1,6 @@
 export type Role = "user" | "assistant" | "tool" | "system";
 
 export const models = {
-  claude_3_5_sonnet: {
-    name: "claude-3-5-sonnet",
-    isReasoning: false,
-  },
   claude_3_7_sonnet: {
     name: "claude-3-7-sonnet",
     isReasoning: true,
