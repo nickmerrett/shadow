@@ -55,6 +55,12 @@ export default async function RootLayout({
 
   if (process.env.VERCEL_ENV === "production") {
     const user = await getUser();
+
+    // Only apply whitelist once user has logged in
+    if (!user) {
+      return;
+    }
+
     // Example: WHITELIST="user1@example.com,user2@example.com,admin@company.com"
     const whitelist = process.env.WHITELIST?.split(",") ?? [];
 

@@ -27,7 +27,7 @@ const sizes = {
   },
 };
 
-export function LogoHover({
+export function LogoBurst({
   forceAnimate,
   size = "md",
   className,
