@@ -3,6 +3,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { ModelProvider } from "@/agent/llm/models/model-provider";
 import { TaskModelContext } from "./task-model-context";
+import { braintrustService } from "../agent/llm/observability/braintrust-service";
 
 const execAsync = promisify(exec);
 
@@ -169,6 +170,11 @@ Git diff:
 ${diff}
 
 Commit message:`,
+        experimental_telemetry: braintrustService.getTelemetryConfig({
+          operation: "commit-message-generation",
+          model,
+          diffLength: diff.length,
+        }),
       });
 
       const commitMessage = text.trim().replace(/^["']|["']$/g, ""); // Remove quotes if present

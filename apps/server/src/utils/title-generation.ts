@@ -8,6 +8,7 @@ import {
   getTitleGenerationModel,
 } from "@repo/types";
 import { TaskModelContext } from "../services/task-model-context";
+import { braintrustService } from "../agent/llm/observability/braintrust-service";
 
 export async function generateTaskTitleAndBranch(
   taskId: string,
@@ -63,6 +64,12 @@ export async function generateTaskTitleAndBranch(
 "${userPrompt}"
 
 Return ONLY the title.`,
+      experimental_telemetry: braintrustService.getTelemetryConfig({
+        taskId,
+        operation: "title-generation",
+        provider: modelConfig.provider,
+        model: modelConfig.modelChoice,
+      }),
     });
 
     const title = cleanTitle(generatedText);

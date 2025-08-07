@@ -20,6 +20,7 @@ import type { LanguageModelV1FunctionToolCall } from "@ai-sdk/provider";
 import { createTools } from "../../tools";
 import { ModelProvider } from "../models/model-provider";
 import { ChunkHandlers } from "./chunk-handlers";
+import { braintrustService } from "../observability/braintrust-service";
 
 const MAX_STEPS = 100;
 
@@ -84,6 +85,12 @@ export class StreamProcessor {
         maxSteps: MAX_STEPS,
         ...(enableTools && tools && { tools, toolCallStreaming: true }),
         ...(abortSignal && { abortSignal }),
+        experimental_telemetry: braintrustService.getTelemetryConfig({
+          taskId,
+          modelProvider,
+          enableTools,
+          messageCount: finalMessages.length,
+        }),
         ...(enableTools &&
           tools && {
             experimental_repairToolCall: async ({
@@ -141,6 +148,12 @@ export class StreamProcessor {
                     },
                   ],
                   tools,
+                  experimental_telemetry: braintrustService.getTelemetryConfig({
+                    taskId,
+                    operation: "tool-repair",
+                    toolName: toolCall.toolName,
+                    errorType: error.constructor.name,
+                  }),
                 });
 
                 console.log(`[REPAIR_DEBUG] Repair result:`, {

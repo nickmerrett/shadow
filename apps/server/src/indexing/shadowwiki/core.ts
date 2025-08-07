@@ -10,6 +10,7 @@ import { ModelProvider } from "@/agent/llm/models/model-provider";
 import { ModelType, ApiKeys } from "@repo/types";
 import { generateText } from "ai";
 import { TaskModelContext } from "@/services/task-model-context";
+import { braintrustService } from "../../agent/llm/observability/braintrust-service";
 
 // Configuration
 const TEMP = 0.15;
@@ -730,6 +731,12 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
         temperature: 0.6,
         messages,
         maxTokens: isCritical ? 3000 : 2048,
+        experimental_telemetry: braintrustService.getTelemetryConfig({
+          operation: "shadowwiki-file-summary",
+          filePath: file.path,
+          isCritical,
+          fileSize: file.size,
+        }),
       }),
       60000,
       `LLM analysis of ${rel}`
@@ -769,6 +776,11 @@ async function chat(
       temperature: TEMP,
       messages,
       maxTokens: budget,
+      experimental_telemetry: braintrustService.getTelemetryConfig({
+        operation: "shadowwiki-directory-summary",
+        messageCount: messages.length,
+        budget,
+      }),
     }),
     45000,
     "Directory/root summary generation"

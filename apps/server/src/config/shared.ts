@@ -39,6 +39,13 @@ export const sharedConfigSchema = z.object({
   USE_PINECONE: z
     .union([z.boolean(), z.string().transform((val) => val === "true")])
     .default(false),
+
+  // Braintrust observability (optional for all environments)
+  BRAINTRUST_API_KEY: z.string().optional(),
+  BRAINTRUST_PROJECT_ID: z.string().optional(),
+  ENABLE_BRAINTRUST: z
+    .union([z.boolean(), z.string().transform((val) => val === "true")])
+    .default(false),
 });
 
 /**
@@ -72,6 +79,11 @@ export const createSharedConfig = (
   model: data.MODEL,
   modelMini: data.MODEL_MINI,
   usePinecone: data.USE_PINECONE,
+
+  // Braintrust
+  braintrustApiKey: data.BRAINTRUST_API_KEY,
+  braintrustProjectId: data.BRAINTRUST_PROJECT_ID,
+  enableBraintrust: data.ENABLE_BRAINTRUST,
 });
 
 export type SharedConfig = ReturnType<typeof createSharedConfig>;
