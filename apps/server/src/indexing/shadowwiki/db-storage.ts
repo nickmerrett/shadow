@@ -1,9 +1,10 @@
 import { db } from "@repo/db";
+import { generateTaskId } from "@repo/types";
 
 /**
  * Simple database storage for codebase understanding summaries
  * Uses the new Prisma CodebaseUnderstanding model linked to tasks
- * 
+ *
  * Note: taskId is used ONLY for database operations and task linking,
  * never included in the actual content to keep it portable across tasks
  */
@@ -57,8 +58,11 @@ export class CodebaseUnderstandingStorage {
           codebaseUnderstanding = existing;
         } else {
           // Create new
+          const codebaseUnderstandingId = generateTaskId();
+
           codebaseUnderstanding = await db.codebaseUnderstanding.create({
             data: {
+              id: codebaseUnderstandingId,
               repoFullName,
               repoUrl,
               content: summaryContent,
