@@ -97,7 +97,7 @@ export class ChatService {
     taskId: string,
     messageData: {
       content: string;
-      role: "USER" | "ASSISTANT" | "TOOL" | "SYSTEM";
+      role: "USER" | "ASSISTANT" | "SYSTEM";
       llmModel: string;
       metadata?: MessageMetadata;
       finishReason?: string;
@@ -227,56 +227,6 @@ export class ChatService {
     });
   }
 
-  async saveToolMessage(
-    taskId: string,
-    toolName: string,
-    toolArgs: Record<string, unknown>,
-    toolResult: string,
-    sequence: number | undefined,
-    llmModel: string,
-    metadata?: MessageMetadata
-  ): Promise<ChatMessage> {
-    // If no sequence provided, generate atomically
-    if (sequence === undefined) {
-      return await this.createMessageWithAtomicSequence(taskId, {
-        content: toolResult,
-        role: "TOOL",
-        llmModel,
-        metadata: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(metadata as any),
-          tool: {
-            name: toolName,
-            args: toolArgs,
-            status: "COMPLETED",
-            result: toolResult,
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
-      });
-    }
-
-    return await prisma.chatMessage.create({
-      data: {
-        taskId,
-        content: toolResult,
-        role: "TOOL",
-        sequence,
-        llmModel,
-        metadata: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(metadata as any),
-          tool: {
-            name: toolName,
-            args: toolArgs,
-            status: "COMPLETED",
-            result: toolResult,
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
-      },
-    });
-  }
 
   /**
    * Commit changes to git if there are any changes after an LLM response
@@ -861,7 +811,6 @@ export class ChatService {
     let finishReason: MessageMetadata["finishReason"];
     let hasError = false;
 
-    const toolCallSequences = new Map<string, number>();
 
     // Track active reasoning parts for signature association
     const activeReasoningParts: Map<number, ReasoningPart> = new Map();
@@ -1051,27 +1000,6 @@ export class ChatService {
             });
           }
 
-          // ALSO save separate tool message for backward compatibility and separate tool results
-          const toolSequence = await this.getNextSequence(taskId);
-          toolCallSequences.set(chunk.toolCall.id, toolSequence);
-
-          await this.saveToolMessage(
-            taskId,
-            chunk.toolCall.name,
-            chunk.toolCall.args,
-            "Running...", // Placeholder content
-            toolSequence,
-            context.getMainModel(),
-            {
-              tool: {
-                name: chunk.toolCall.name,
-                args: chunk.toolCall.args,
-                status: "RUNNING",
-                result: undefined,
-              },
-              isStreaming: true,
-            }
-          );
         }
 
         // Update tool results when they complete
@@ -1108,43 +1036,6 @@ export class ChatService {
             });
           }
 
-          const toolSequence = toolCallSequences.get(chunk.toolResult.id);
-          if (toolSequence !== undefined) {
-            // Find and update the tool message with the result
-            const toolMessage = await prisma.chatMessage.findFirst({
-              where: {
-                taskId,
-                sequence: toolSequence,
-                role: "TOOL",
-              },
-            });
-
-            if (toolMessage) {
-              // Convert result to string for content field, keep object in metadata
-              const resultString =
-                typeof chunk.toolResult.result === "string"
-                  ? chunk.toolResult.result
-                  : JSON.stringify(chunk.toolResult.result);
-
-              await prisma.chatMessage.update({
-                where: { id: toolMessage.id },
-                data: {
-                  content: resultString,
-                  metadata: {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    ...(toolMessage.metadata as any),
-                    tool: {
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      ...(toolMessage.metadata as any)?.tool,
-                      status: "COMPLETED",
-                      result: chunk.toolResult.result, // Keep as object for type safety
-                    },
-                    isStreaming: false,
-                  },
-                },
-              });
-            }
-          }
         }
 
         // Handle error chunks from LLM service

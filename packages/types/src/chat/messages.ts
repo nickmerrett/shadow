@@ -124,10 +124,6 @@ export const isAssistantMessage = (
 ): message is Message & { role: "assistant" } =>
   message.role.toLowerCase() === "assistant";
 
-export const isToolMessage = (
-  message: Message
-): message is Message & { role: "tool" } =>
-  message.role.toLowerCase() === "tool";
 
 export const isSystemMessage = (
   message: Message

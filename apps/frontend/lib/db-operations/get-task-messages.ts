@@ -31,7 +31,7 @@ export async function getTaskMessages(taskId: string): Promise<Message[]> {
 
     const finalMessages: Message[] = messages.map((msg) => ({
       id: msg.id,
-      role: msg.role as "user" | "assistant" | "tool",
+      role: msg.role as "user" | "assistant" | "system",
       content: msg.content,
       createdAt: msg.createdAt.toISOString(),
       llmModel: msg.llmModel,

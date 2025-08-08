@@ -1,5 +1,5 @@
 import type { Message } from "@repo/types";
-import { isAssistantMessage, isToolMessage, isUserMessage } from "@repo/types";
+import { isAssistantMessage, isUserMessage } from "@repo/types";
 import { AssistantMessage } from "./assistant-message";
 import { UserMessage } from "./user-message";
 import InitializingAnimation from "../task/initializing-animation";
@@ -58,17 +58,11 @@ function MessagesComponent({
   // Used to properly space the initializing animation
   const userMessageWrapperRef = useRef<HTMLButtonElement>(null);
 
-  // Filter out standalone tool messages - they're already rendered within assistant message parts
-  const filteredMessages = useMemo(
-    () => messages.filter((message) => !isToolMessage(message)),
-    [messages]
-  );
-
   // Group messages into pairs of [user, assistant] or single messages
   // This is for sticky user message grouping, so that there's a bottom boundary
   const messageGroups = useMemo(
-    () => groupMessages(filteredMessages),
-    [filteredMessages]
+    () => groupMessages(messages),
+    [messages]
   );
 
   return (
