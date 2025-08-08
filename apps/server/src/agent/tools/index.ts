@@ -24,6 +24,13 @@ import type { TerminalEntry } from "@repo/types";
 // Map to track active filesystem watchers by task ID
 const activeFileSystemWatchers = new Map<string, LocalFileSystemWatcher>();
 
+/**
+ * Get the active filesystem watcher for a task (local mode only)
+ */
+export function getFileSystemWatcher(taskId: string): LocalFileSystemWatcher | null {
+  return activeFileSystemWatchers.get(taskId) || null;
+}
+
 // Terminal entry counters for unique IDs per task
 const taskTerminalCounters = new Map<string, number>();
 

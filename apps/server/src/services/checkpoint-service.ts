@@ -9,6 +9,8 @@ import { GitManager } from "./git-manager";
 import { emitStreamChunk } from "../socket";
 import { getFileChanges } from "../utils/git-operations";
 import { createToolExecutor } from "../execution";
+import { getFileSystemWatcher } from "../agent/tools";
+import config from "../config";
 
 /**
  * CheckpointService handles creating and restoring message-level checkpoints
@@ -167,7 +169,10 @@ export class CheckpointService {
       );
       const gitManager = new GitManager(task.workspacePath);
 
-      // 2. Handle uncommitted changes
+      // 2. Pause filesystem watcher to prevent spurious events from git operations
+      await this.pauseFilesystemWatcher(taskId);
+
+      // 3. Handle uncommitted changes
       console.log(`[CHECKPOINT] 🔍 Checking for uncommitted changes...`);
       const hasChanges = await gitManager.hasChanges();
       if (hasChanges) {
@@ -182,7 +187,7 @@ export class CheckpointService {
         console.log(`[CHECKPOINT] ✨ Workspace is clean, no need to stash`);
       }
 
-      // 3. Restore git state
+      // 4. Restore git state
       console.log(
         `[CHECKPOINT] ⏪ Attempting git checkout to ${checkpoint.commitSha}...`
       );
@@ -197,28 +202,21 @@ export class CheckpointService {
         );
       }
 
-      // 4. Restore todo state
-      console.log(
-        `[CHECKPOINT] 📝 Restoring todo state (${checkpoint.todoSnapshot.length} todos)...`
-      );
+      // Restore todo state
       await this.restoreTodoState(taskId, checkpoint.todoSnapshot);
-      console.log(`[CHECKPOINT] ✅ Successfully restored todo state`);
-
-      // 5. Emit todo update to frontend for real-time sync
-      console.log(`[CHECKPOINT] 🔗 Emitting todo update to frontend...`);
       this.emitTodoUpdate(taskId, checkpoint.todoSnapshot);
 
-      // 6. Recompute and emit file state after git checkout
+      // Wait for git state to settle, then recompute and emit file state
+      await new Promise((resolve) => setTimeout(resolve, 150));
       await this.recomputeAndEmitFileState(taskId);
 
-      console.log(
-        `[CHECKPOINT] 🎉 Successfully restored to message ${checkpointMessage.id} at commit ${checkpoint.commitSha}`
-      );
+      // Resume filesystem watcher after fs-override has been sent
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await this.resumeFilesystemWatcher(taskId);
+
+      console.log(`[CHECKPOINT] Restored to message ${checkpointMessage.id}`);
     } catch (error) {
-      console.error(
-        `[CHECKPOINT] ❌ Failed to restore checkpoint for message ${targetMessageId}:`,
-        error
-      );
+      console.error(`[CHECKPOINT] Failed to restore checkpoint:`, error);
       // Continue with edit flow even if restore fails
     }
   }
@@ -309,9 +307,14 @@ export class CheckpointService {
 
       // Compute current file changes using existing git diff logic
       console.log(`[CHECKPOINT] 📁 Computing file changes from git diff...`);
-      const { fileChanges, diffStats } = await getFileChanges(taskId, task.baseBranch);
+      const { fileChanges, diffStats } = await getFileChanges(
+        taskId,
+        task.baseBranch
+      );
       console.log(`[CHECKPOINT] ✅ Found ${fileChanges.length} file changes`);
-      console.log(`[CHECKPOINT] 📊 Diff stats: +${diffStats.additions} -${diffStats.deletions} (${diffStats.totalFiles} files)`);
+      console.log(
+        `[CHECKPOINT] 📊 Diff stats: +${diffStats.additions} -${diffStats.deletions} (${diffStats.totalFiles} files)`
+      );
 
       // Get current codebase tree using tool executor
       console.log(`[CHECKPOINT] 🌳 Computing codebase tree...`);
@@ -438,6 +441,9 @@ export class CheckpointService {
 
       const gitManager = new GitManager(task.workspacePath);
 
+      // Pause filesystem watcher to prevent spurious events from git operations
+      await this.pauseFilesystemWatcher(taskId);
+
       // Handle uncommitted changes
       console.log(`[CHECKPOINT] 🔍 Checking for uncommitted changes...`);
       const hasChanges = await gitManager.hasChanges();
@@ -454,42 +460,26 @@ export class CheckpointService {
       }
 
       // Restore git state to initial commit
-      console.log(
-        `[CHECKPOINT] ⏪ Attempting git checkout to initial state ${task.baseCommitSha}...`
-      );
       const success = await gitManager.safeCheckoutCommit(task.baseCommitSha);
       if (!success) {
-        console.warn(
-          `[CHECKPOINT] ⚠️ Could not checkout to initial commit ${task.baseCommitSha}, continuing with current state`
-        );
-      } else {
-        console.log(
-          `[CHECKPOINT] ✅ Successfully checked out to initial commit ${task.baseCommitSha}`
-        );
+        console.warn(`[CHECKPOINT] Could not checkout to initial commit`);
       }
 
       // Clear all todos (initial state has none)
-      console.log(
-        `[CHECKPOINT] 📝 Clearing all todos to restore initial empty state...`
-      );
       await this.restoreTodoState(taskId, []); // Empty array = no todos
-      console.log(`[CHECKPOINT] ✅ Successfully cleared all todos`);
-
-      // Emit empty todo update to frontend
-      console.log(`[CHECKPOINT] 🔗 Emitting empty todo update to frontend...`);
       this.emitTodoUpdate(taskId, []);
 
-      // Recompute and emit file state after git checkout
+      // Wait for git state to settle, then recompute and emit file state
+      await new Promise((resolve) => setTimeout(resolve, 150));
       await this.recomputeAndEmitFileState(taskId);
 
-      console.log(
-        `[CHECKPOINT] 🎉 Successfully restored to initial repository state at commit ${task.baseCommitSha}`
-      );
+      // Resume filesystem watcher after fs-override has been sent
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await this.resumeFilesystemWatcher(taskId);
+
+      console.log(`[CHECKPOINT] Restored to initial state`);
     } catch (error) {
-      console.error(
-        `[CHECKPOINT] ❌ Failed to restore to initial state for task ${taskId}:`,
-        error
-      );
+      console.error(`[CHECKPOINT] Failed to restore to initial state:`, error);
       // Continue with edit flow even if restore fails
     }
   }
@@ -531,6 +521,96 @@ export class CheckpointService {
       id: string;
       metadata: MessageMetadata;
     } | null;
+  }
+
+  /**
+   * Pause filesystem watcher to prevent spurious events during git operations
+   */
+  private async pauseFilesystemWatcher(taskId: string): Promise<void> {
+    try {
+      if (config.agentMode === "local") {
+        // Local mode: pause the local filesystem watcher
+        const watcher = getFileSystemWatcher(taskId);
+        if (watcher) {
+          // Pause local watcher
+          watcher.pause();
+        } else {
+          // No local watcher found
+        }
+      } else {
+        // Remote mode: call sidecar API to pause watcher
+        const toolExecutor = await createToolExecutor(taskId);
+        try {
+          // Call sidecar API to pause filesystem watcher
+          // Access the sidecar URL through the private property (casting to any for access)
+          const sidecarUrl = (toolExecutor as any).sidecarUrl;
+          const response = await fetch(`${sidecarUrl}/api/watcher/pause`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (response.ok) {
+            const result = await response.json() as { message: string };
+            // Remote watcher paused successfully
+          } else {
+            const error = await response.text();
+            console.warn(`[CHECKPOINT] Failed to pause remote watcher: ${error}`);
+          }
+        } catch (error) {
+          console.warn(`[CHECKPOINT] Failed to pause remote watcher for task ${taskId}:`, error);
+        }
+      }
+    } catch (error) {
+      console.warn(`[CHECKPOINT] Error pausing filesystem watcher for task ${taskId}:`, error);
+      // Non-blocking - continue even if watcher pause fails
+    }
+  }
+
+  /**
+   * Resume filesystem watcher after git operations are complete
+   */
+  private async resumeFilesystemWatcher(taskId: string): Promise<void> {
+    try {
+      if (config.agentMode === "local") {
+        // Local mode: resume the local filesystem watcher
+        const watcher = getFileSystemWatcher(taskId);
+        if (watcher) {
+          // Resume local watcher
+          watcher.resume();
+        } else {
+          // No local watcher found
+        }
+      } else {
+        // Resume remote watcher
+        const toolExecutor = await createToolExecutor(taskId);
+        try {
+          // Call sidecar API to resume filesystem watcher
+          // Access the sidecar URL through the private property (casting to any for access)
+          const sidecarUrl = (toolExecutor as any).sidecarUrl;
+          const response = await fetch(`${sidecarUrl}/api/watcher/resume`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (response.ok) {
+            const result = await response.json() as { message: string };
+            // Remote watcher resumed successfully
+          } else {
+            const error = await response.text();
+            console.warn(`[CHECKPOINT] Failed to resume remote watcher: ${error}`);
+          }
+        } catch (error) {
+          console.warn(`[CHECKPOINT] Failed to resume remote watcher for task ${taskId}:`, error);
+        }
+      }
+    } catch (error) {
+      console.warn(`[CHECKPOINT] Error resuming filesystem watcher for task ${taskId}:`, error);
+      // Non-blocking - continue even if watcher resume fails
+    }
   }
 }
 

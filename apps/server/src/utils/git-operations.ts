@@ -374,6 +374,13 @@ export async function getFileChanges(
   }
 
   try {
+    // Refresh git index to ensure consistency after potential checkout operations
+    await execAsync("git update-index --refresh", { cwd: workspacePath }).catch(
+      () => {
+        // Non-blocking - update-index may fail if no changes, which is fine
+      }
+    );
+
     const now = new Date().toISOString();
     const allFiles = new Map<string, FileChange>();
 
