@@ -21,6 +21,7 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
+    "ignore": "^6.0.2",
     "socket.io-client": "^4.7.2",
     "winston": "^3.17.0",
     "zod": "^3.24.1"

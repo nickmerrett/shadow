@@ -88,8 +88,6 @@ export async function buildFileTree(
   dirPath: string = "."
 ): Promise<FileNode[]> {
   try {
-    console.log(`[FILE_TREE] Using recursive listing for path: ${dirPath}`);
-
     const recursiveListing = await executor.listDirectoryRecursive(dirPath);
 
     if (!recursiveListing.success) {
@@ -97,9 +95,6 @@ export async function buildFileTree(
       return [];
     }
 
-    console.log(
-      `[FILE_TREE] Recursive listing returned ${recursiveListing.totalCount} entries`
-    );
     return buildTreeFromEntries(recursiveListing.entries);
   } catch (error) {
     console.error("[FILE_TREE_BUILD_ERROR]", error);

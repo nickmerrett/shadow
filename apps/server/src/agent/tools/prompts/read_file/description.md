@@ -1,5 +1,5 @@
 Read the contents of a file. the output of this tool call will be the 1-indexed file contents from start_line_one_indexed to end_line_one_indexed_inclusive, together with a summary of the lines outside start_line_one_indexed and end_line_one_indexed_inclusive.
-Note that this call can view at most 250 lines at a time and 200 lines minimum.
+Note that this call can view at most 150 lines at a time and 50 lines minimum.
 Always use relative paths from the workspace root, not absolute paths.
 
 When using this tool to gather information, it's your responsibility to ensure you have the COMPLETE context. Specifically, each time you call this command you should:

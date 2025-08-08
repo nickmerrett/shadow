@@ -19,7 +19,8 @@
   "dependencies": {
     "@repo/command-security": "*",
     "@repo/db": "*",
-    "ai": "^3.4.33"
+    "ai": "^3.4.33",
+    "nanoid": "^3.3.11"
   },
   "devDependencies": {
     "@repo/eslint-config": "^0.0.0",

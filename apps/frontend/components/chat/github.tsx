@@ -52,7 +52,8 @@ export function GithubConnection({
 }) {
   const [repoSearch, setRepoSearch] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
-  const [collapsedOrgs, setCollapsedOrgs] = useState<Set<string>>(new Set());
+  const [openGroupNames, setOpenGroupNames] = useState<Set<string>>(new Set());
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   const {
     data: githubStatus,
@@ -116,19 +117,12 @@ export function GithubConnection({
     }))
     .filter((group) => group.repositories.length > 0);
 
+  const orderedGroups = filteredGroups;
+  const defaultOwnerGroupName = orderedGroups[0]?.name ?? null;
+
   const filteredBranches = branches.filter((branch) =>
     branch.name.toLowerCase().includes(branchSearch.toLowerCase())
   );
-
-  const toggleOrgCollapse = (orgName: string) => {
-    const newCollapsed = new Set(collapsedOrgs);
-    if (newCollapsed.has(orgName)) {
-      newCollapsed.delete(orgName);
-    } else {
-      newCollapsed.add(orgName);
-    }
-    setCollapsedOrgs(newCollapsed);
-  };
 
   const handleRepoSelect = (repo: Repository) => {
     setSelectedRepo(repo);
@@ -278,52 +272,71 @@ export function GithubConnection({
             <span className="text-[13px]">Loading repositories...</span>
           </div>
         ) : (
-          filteredGroups.map((group) => (
-            <Collapsible
-              key={group.name}
-              open={!collapsedOrgs.has(group.name)}
-              onOpenChange={() => toggleOrgCollapse(group.name)}
-            >
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground !px-4.5 h-6 w-full gap-2 text-[13px] font-normal hover:bg-transparent"
-                >
-                  <Folder className="size-3.5" />
-                  {group.name}
-
-                  <ChevronDown
-                    className={cn(
-                      "ml-auto transition-transform",
-                      collapsedOrgs.has(group.name) ? "-rotate-90" : "rotate-0"
-                    )}
-                  />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="flex flex-col gap-1 px-2 py-1">
-                {group.repositories.map((repo) => (
+          orderedGroups.map((group) => {
+            const isOpen = hasInteracted
+              ? openGroupNames.has(group.name)
+              : group.name === defaultOwnerGroupName ||
+                openGroupNames.has(group.name);
+            return (
+              <Collapsible
+                key={group.name}
+                open={isOpen}
+                onOpenChange={(open) => {
+                  setHasInteracted(true);
+                  setOpenGroupNames((prev) => {
+                    const next = new Set(prev);
+                    if (open) {
+                      next.add(group.name);
+                    } else {
+                      next.delete(group.name);
+                    }
+                    return next;
+                  });
+                }}
+              >
+                <CollapsibleTrigger asChild>
                   <Button
-                    key={repo.id}
                     variant="ghost"
                     size="sm"
-                    className="hover:bg-accent w-full justify-between text-sm font-normal"
-                    onClick={() => handleRepoSelect(repo)}
+                    className="text-muted-foreground !px-4.5 h-6 w-full gap-2 text-[13px] font-normal hover:bg-transparent"
                   >
-                    <span className="truncate">{repo.name}</span>
-                    <span className="text-muted-foreground">
-                      {repo.pushed_at ? formatTimeAgo(repo.pushed_at) : ""}
-                    </span>
+                    <Folder className="size-3.5" />
+                    {group.name}
+
+                    <ChevronDown
+                      className={cn(
+                        "ml-auto transition-transform",
+                        isOpen ? "rotate-0" : "-rotate-90"
+                      )}
+                    />
                   </Button>
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          ))
+                </CollapsibleTrigger>
+                <CollapsibleContent className="flex flex-col gap-1 px-2 py-1">
+                  {group.repositories.map((repo) => (
+                    <Button
+                      key={repo.id}
+                      variant="ghost"
+                      size="sm"
+                      className="hover:bg-accent w-full justify-between text-sm font-normal"
+                      onClick={() => handleRepoSelect(repo)}
+                    >
+                      <span className="truncate">{repo.name}</span>
+                      <span className="text-muted-foreground">
+                        {repo.pushed_at ? formatTimeAgo(repo.pushed_at) : ""}
+                      </span>
+                    </Button>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })
         )}
       </div>
-      <ManageGithubButton
-        link={`https://github.com/settings/installations/${githubStatus?.installationId}`}
-      />
+      {githubStatus?.installationId && (
+        <ManageGithubButton
+          link={`https://github.com/settings/installations/${githubStatus.installationId}`}
+        />
+      )}
     </div>
   );
 
@@ -369,9 +382,11 @@ export function GithubConnection({
         )}
       </div>
 
-      <ManageGithubButton
-        link={`https://github.com/settings/installations/${githubStatus?.installationId}`}
-      />
+      {githubStatus?.installationId && (
+        <ManageGithubButton
+          link={`https://github.com/settings/installations/${githubStatus.installationId}`}
+        />
+      )}
     </div>
   );
 

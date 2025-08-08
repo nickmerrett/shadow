@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { LogoHover } from "../graphics/logo/logo-hover";
 import { PromptForm } from "./prompt-form";
+import { WelcomeModal } from "../welcome-modal";
+import { useAuthSession } from "../auth/session-provider";
 import type { FilteredRepository } from "@/lib/github/types";
 import type { ModelType } from "@repo/types";
+
+const WELCOME_MODAL_SHOWN_KEY = "shadow-welcome-modal-shown";
+const WELCOME_MODAL_DELAY = 500;
 
 export function HomePageContent({
   initialGitCookieState,
@@ -16,12 +21,35 @@ export function HomePageContent({
   } | null;
   initialSelectedModel?: ModelType | null;
 }) {
-  const [isFocused, setIsFocused] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+
+  const { session, isLoading } = useAuthSession();
+  useEffect(() => {
+    // Only show welcome modal for authenticated users on first visit
+    if (!isLoading && session) {
+      const hasSeenWelcome = localStorage.getItem(WELCOME_MODAL_SHOWN_KEY);
+
+      if (!hasSeenWelcome) {
+        setTimeout(() => {
+          setShowWelcomeModal(true);
+        }, WELCOME_MODAL_DELAY);
+      }
+    }
+  }, [session, isLoading]);
+
+  const handleWelcomeModalClose = (open: boolean) => {
+    setShowWelcomeModal(open);
+    if (!open) {
+      localStorage.setItem(WELCOME_MODAL_SHOWN_KEY, "true");
+    }
+  };
 
   return (
     <div className="mx-auto mt-20 flex w-full max-w-xl flex-col items-center gap-10 overflow-hidden p-4">
-      <div className="font-departureMono flex items-center gap-4 text-3xl font-medium tracking-tighter">
-        <LogoHover size="lg" forceAnimate={isFocused} />
+      <div className="font-departureMono flex select-none items-center gap-4 text-3xl font-medium tracking-tighter">
+        <LogoHover size="lg" forceAnimate={isPending} />
         Code with{" "}
         <span className="text-muted-foreground inline-flex items-center gap-2">
           Shadow
@@ -29,10 +57,14 @@ export function HomePageContent({
       </div>
       <PromptForm
         isHome
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
         initialGitCookieState={initialGitCookieState}
         initialSelectedModel={initialSelectedModel}
+        transition={{ isPending, startTransition }}
+      />
+
+      <WelcomeModal
+        open={showWelcomeModal}
+        onOpenChange={handleWelcomeModalClose}
       />
     </div>
   );

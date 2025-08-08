@@ -12,9 +12,6 @@ import { ToolValidator } from "../validation/tool-validator";
 export class ChunkHandlers {
   private toolValidator = new ToolValidator();
 
-  /**
-   * Handle text-delta chunks
-   */
   handleTextDelta(
     chunk: AIStreamChunk & { type: "text-delta" }
   ): StreamChunk | null {
@@ -27,9 +24,6 @@ export class ChunkHandlers {
     return null;
   }
 
-  /**
-   * Handle tool-call chunks
-   */
   handleToolCall(
     chunk: AIStreamChunk & { type: "tool-call" },
     toolCallMap: Map<string, ToolName>
@@ -238,9 +232,6 @@ export class ChunkHandlers {
     return chunks;
   }
 
-  /**
-   * Handle error chunks
-   */
   handleError(chunk: AIStreamChunk & { type: "error" }): StreamChunk {
     return {
       type: "error",
@@ -249,6 +240,36 @@ export class ChunkHandlers {
           ? chunk.error.message
           : "Unknown error occurred",
       finishReason: "error",
+    };
+  }
+
+  handleReasoning(
+    chunk: AIStreamChunk & { type: "reasoning" }
+  ): StreamChunk | null {
+    if (chunk.textDelta) {
+      return {
+        type: "reasoning",
+        reasoning: chunk.textDelta,
+      };
+    }
+    return null;
+  }
+
+  handleReasoningSignature(
+    chunk: AIStreamChunk & { type: "reasoning-signature" }
+  ): StreamChunk | null {
+    return {
+      type: "reasoning-signature",
+      reasoningSignature: chunk.signature,
+    };
+  }
+
+  handleRedactedReasoning(
+    chunk: AIStreamChunk & { type: "redacted-reasoning" }
+  ): StreamChunk | null {
+    return {
+      type: "redacted-reasoning",
+      redactedReasoningData: chunk.data,
     };
   }
 }

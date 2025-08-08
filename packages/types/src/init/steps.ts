@@ -19,7 +19,7 @@ export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
  */
 export function getStepsForMode(
   mode: "local" | "remote",
-  options?: { enableShadowWiki?: boolean; enableIndexing?: boolean },
+  options?: { enableShadowWiki?: boolean; enableIndexing?: boolean }
 ): InitStatus[] {
   const steps: InitStatus[] = [];
   const enableShadowWiki = options?.enableShadowWiki ?? true; // Default to true

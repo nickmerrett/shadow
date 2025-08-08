@@ -19,7 +19,6 @@ export interface ValidationErrorResult {
 export interface StreamChunk {
   type:
     | "content"
-    | "thinking"
     | "usage"
     | "complete"
     | "error"
@@ -27,15 +26,21 @@ export interface StreamChunk {
     | "tool-call-start"
     | "tool-call-delta"
     | "tool-result"
+    | "reasoning"
+    | "reasoning-signature"
+    | "redacted-reasoning"
     | "init-progress"
     | "fs-change"
+    | "fs-override"
     | "todo-update";
 
   // For content chunks
   content?: string;
 
-  // For thinking/reasoning chunks
-  thinking?: string;
+  // For reasoning chunks
+  reasoning?: string;              // Incremental reasoning text delta
+  reasoningSignature?: string;     // Verification signature
+  redactedReasoningData?: string;  // Complete redacted reasoning block
 
   usage?: CompletionTokenUsage & {
     // Provider-specific tokens
@@ -89,6 +94,29 @@ export interface StreamChunk {
     timestamp: number;
     source: "local" | "remote";
     isDirectory: boolean;
+  };
+
+  // For complete filesystem state override (checkpoint restoration)
+  fsOverride?: {
+    fileChanges: Array<{
+      filePath: string;
+      operation: "CREATE" | "UPDATE" | "DELETE" | "RENAME";
+      additions: number;
+      deletions: number;
+      createdAt: string;
+    }>;
+    diffStats: {
+      additions: number;
+      deletions: number;
+      totalFiles: number;
+    };
+    codebaseTree: Array<{
+      name: string;
+      type: "file" | "folder";
+      path: string;
+      children?: any[]; // Recursive structure
+    }>;
+    message: string;
   };
 
   // For todo updates

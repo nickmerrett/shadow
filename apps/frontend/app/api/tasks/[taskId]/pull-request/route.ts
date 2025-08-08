@@ -1,4 +1,5 @@
 import { verifyTaskOwnership } from "@/lib/auth/verify-task-ownership";
+import { makeBackendRequest } from "@/lib/make-backend-request";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -13,13 +14,11 @@ export async function POST(
     if (error) return error;
 
     // Forward request to backend
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
     const requestHeaders = await headers();
     const cookieHeader = requestHeaders.get("cookie");
 
-    const response = await fetch(
-      `${baseUrl}/api/tasks/${taskId}/pull-request`,
+    const response = await makeBackendRequest(
+      `/api/tasks/${taskId}/pull-request`,
       {
         method: "POST",
         headers: {

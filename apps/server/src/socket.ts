@@ -79,7 +79,9 @@ async function getTerminalHistory(taskId: string): Promise<TerminalEntry[]> {
         throw new Error(`Sidecar URL not available for remote task ${taskId}`);
       }
 
-      const response = await fetch(`${sidecarUrl}/api/terminal/history?count=100`);
+      const response = await fetch(
+        `${sidecarUrl}/api/terminal/history?count=100`
+      );
       if (!response.ok) {
         throw new Error(`Sidecar terminal API error: ${response.status}`);
       }
@@ -558,18 +560,10 @@ export function createSocketServer(
           return;
         }
 
-        const [history, task] = await Promise.all([
-          chatService.getChatHistory(data.taskId),
-          prisma.task.findUnique({
-            where: { id: data.taskId },
-            select: { mainModel: true },
-          }),
-        ]);
-
+        const history = await chatService.getChatHistory(data.taskId);
         socket.emit("chat-history", {
           taskId: data.taskId,
           messages: history,
-          mostRecentMessageModel: (task?.mainModel as ModelType) || null,
           // If complete is true, the queued action will automatically get sent, so set it to null so the frontend removes it from the queue UI
           queuedAction: data.complete
             ? null
@@ -805,6 +799,7 @@ export function emitStreamChunk(chunk: StreamChunk, taskId: string) {
   }
 
   if (chunk.type === "complete") {
+    console.log(`[SOCKET] Chunk type: complete for task ${taskId}`);
     endStream(taskId);
   }
 }

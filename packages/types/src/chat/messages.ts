@@ -7,13 +7,24 @@ import type {
 } from "ai";
 import { ToolExecutionStatusType } from "../tools/execution";
 import { ToolResultTypes } from "../tools/schemas";
-import type { PullRequestSnapshot, TaskStatus } from "@repo/db";
+import type { PullRequestSnapshot, TaskStatus, Todo } from "@repo/db";
 
 // Error part type for AI SDK error chunks
 export interface ErrorPart {
   type: "error";
   error: string;
   finishReason?: FinishReason;
+}
+
+export interface ReasoningPart {
+  type: "reasoning";
+  text: string;
+  signature?: string;
+}
+
+export interface RedactedReasoningPart {
+  type: "redacted-reasoning";
+  data: string;
 }
 
 // Extended ToolCallPart with streaming state tracking
@@ -33,6 +44,8 @@ export type AssistantMessagePart =
   | TextPart
   | ToolCallPart
   | ToolResultPart
+  | ReasoningPart
+  | RedactedReasoningPart
   | ErrorPart;
 
 export type CompletionTokenUsage = {
@@ -40,6 +53,13 @@ export type CompletionTokenUsage = {
   completionTokens: number;
   totalTokens: number;
 };
+
+export interface CheckpointData {
+  commitSha: string;
+  todoSnapshot: Todo[];
+  createdAt: string;
+  workspaceState: "clean" | "dirty";
+}
 
 export type Message = {
   id: string;
@@ -59,11 +79,6 @@ export type Message = {
 };
 
 export interface MessageMetadata {
-  thinking?: {
-    content: string;
-    duration: number; // seconds
-  };
-
   tool?: {
     name: string;
     args: Record<string, unknown>;
@@ -89,6 +104,9 @@ export interface MessageMetadata {
 
   // Finish reason
   finishReason?: FinishReason;
+
+  // Checkpointing data for time-travel editing
+  checkpoint?: CheckpointData;
 }
 
 // Type guards for runtime type checking

@@ -422,6 +422,7 @@ store_secrets() {
     GITHUB_APP_USER_ID=$(grep "^GITHUB_APP_USER_ID=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
     GITHUB_APP_SLUG=$(grep "^GITHUB_APP_SLUG=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
     VM_IMAGE_REGISTRY=$(grep "^VM_IMAGE_REGISTRY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+    SHADOW_API_KEY=$(grep "^SHADOW_API_KEY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
     set -e
     
     # Debug: Show extracted values (first 20 chars for sensitive data)
@@ -437,6 +438,7 @@ store_secrets() {
     log "  GITHUB_APP_USER_ID: $GITHUB_APP_USER_ID"
     log "  GITHUB_APP_SLUG: $GITHUB_APP_SLUG"
     log "  VM_IMAGE_REGISTRY: $VM_IMAGE_REGISTRY"
+    log "  SHADOW_API_KEY: ${SHADOW_API_KEY:0:20}${SHADOW_API_KEY:+...}"
     
     # Validate required secrets
     if [[ -z "$K8S_TOKEN" ]]; then
@@ -455,6 +457,10 @@ store_secrets() {
     
     if [[ -z "$GITHUB_CLIENT_SECRET" ]]; then
         error "GITHUB_CLIENT_SECRET extraction failed - check .env.production format and contents"
+    fi
+    
+    if [[ -z "$SHADOW_API_KEY" ]]; then
+        error "SHADOW_API_KEY extraction failed - check .env.production format and contents"
     fi
     
     if [[ -z "$VM_IMAGE_REGISTRY" ]]; then
@@ -592,6 +598,17 @@ store_secrets() {
         --region "$AWS_REGION" \
         --profile "$AWS_PROFILE"; then
         error "Failed to store VM image registry in Parameter Store. Check AWS permissions for ssm:PutParameter on /shadow/* path"
+    fi
+    
+    log "Storing Shadow API key..."
+    if ! aws ssm put-parameter \
+        --name "/shadow/shadow-api-key" \
+        --value "$SHADOW_API_KEY" \
+        --type "SecureString" \
+        --overwrite \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE"; then
+        error "Failed to store Shadow API key in Parameter Store. Check AWS permissions for ssm:PutParameter on /shadow/* path"
     fi
     
     log "All secrets stored in Parameter Store successfully"
@@ -809,7 +826,8 @@ create_task_definition() {
         {"name": "GITHUB_WEBHOOK_SECRET", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-webhook-secret"},
         {"name": "GITHUB_APP_USER_ID", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-app-user-id"},
         {"name": "GITHUB_APP_SLUG", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-app-slug"},
-        {"name": "VM_IMAGE_REGISTRY", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/vm-image-registry"}
+        {"name": "VM_IMAGE_REGISTRY", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/vm-image-registry"},
+        {"name": "SHADOW_API_KEY", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/shadow-api-key"}
       ],
       "logConfiguration": {
         "logDriver": "awslogs",

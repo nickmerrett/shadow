@@ -9,7 +9,7 @@
 3. If insufficient, proactively call again to view missing lines
 4. When in doubt, gather more information
 
-**Line Limits**: 250 lines max, 200 lines minimum per call
+**Line Limits**: 150 lines max, 50 lines minimum per call
 
 **When to Read Entire File:**
 - ONLY if file has been edited or manually attached by user

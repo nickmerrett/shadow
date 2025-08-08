@@ -2,7 +2,7 @@ import type { Message } from "@repo/types";
 import { Eye } from "lucide-react";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { ToolTypes } from "@repo/types";
-import { ToolComponent } from "./collapsible-tool";
+import { ToolComponent } from "./tool";
 
 export function ReadFileTool({ message }: { message: Message }) {
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();

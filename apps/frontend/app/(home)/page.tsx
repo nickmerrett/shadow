@@ -1,6 +1,5 @@
 import { HomePageContent } from "@/components/chat/home";
 import { HomeLayoutWrapper } from "@/components/layout/home-layout";
-import { getUser } from "@/lib/auth/get-user";
 import { getGitSelectorCookie } from "@/lib/actions/git-selector-cookie";
 import { getModelSelectorCookie } from "@/lib/actions/model-selector-cookie";
 import { getApiKeys, getModels } from "@/lib/actions/api-keys";
@@ -12,9 +11,7 @@ import {
 } from "@tanstack/react-query";
 import { GitCookieDestroyer } from "@/components/task/git-cookie-destroyer";
 
-
 export default async function Home() {
-  const user = await getUser();
   const queryClient = new QueryClient();
   const initialGitCookieState = await getGitSelectorCookie();
   const savedModel = await getModelSelectorCookie();
@@ -64,15 +61,12 @@ export default async function Home() {
           initialSelectedModel = null;
         }
       } else {
-        // Invalid model, clear it
         initialSelectedModel = null;
       }
     } catch (_error) {
-      // Error validating model, clear it
       initialSelectedModel = null;
     }
   }
-
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

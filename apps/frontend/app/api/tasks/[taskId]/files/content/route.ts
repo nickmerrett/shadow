@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { db } from "@repo/db";
 import { getUser } from "@/lib/auth/get-user";
+import { makeBackendRequest } from "@/lib/make-backend-request";
 
 export async function GET(
   request: NextRequest,
@@ -50,11 +51,9 @@ export async function GET(
     }
 
     // Proxy request to backend server
-    const backendUrl =
-      process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
     const params = new URLSearchParams({ path: filePath });
-    const response = await fetch(
-      `${backendUrl}/api/tasks/${taskId}/files/content?${params}`
+    const response = await makeBackendRequest(
+      `/api/tasks/${taskId}/files/content?${params}`
     );
 
     if (!response.ok) {

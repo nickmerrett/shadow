@@ -1,6 +1,6 @@
 import type { ValidationErrorResult } from "@repo/types";
 import { AlertTriangle } from "lucide-react";
-import { ToolComponent } from "./collapsible-tool";
+import { ToolComponent } from "./tool";
 
 export function ValidationErrorTool({
   toolName,
@@ -19,7 +19,8 @@ export function ValidationErrorTool({
     <ToolComponent
       icon={<AlertTriangle />}
       type="warning"
-      title={`${toolName} - Validation Error`}
+      prefix="Validation Error"
+      title={`(${toolName})`}
       collapsible
     >
       <div className="flex flex-col gap-1">

@@ -332,6 +332,33 @@ Commit message:`,
   }
 
   /**
+   * Stash uncommitted changes with timestamped message for safety before git operations
+   */
+  async stashChanges(message: string = `Auto-stash-${Date.now()}`): Promise<void> {
+    try {
+      await this.execGit(`stash push -m "${message}"`);
+      console.log(`[GIT_MANAGER] Stashed changes: ${message}`);
+    } catch (error) {
+      console.warn(`[GIT_MANAGER] Failed to stash changes:`, error);
+      // Non-blocking - continue with operations
+    }
+  }
+
+  /**
+   * Safely checkout to specific commit with error handling
+   */
+  async safeCheckoutCommit(commitSha: string): Promise<boolean> {
+    try {
+      await this.execGit(`checkout ${commitSha}`);
+      console.log(`[GIT_MANAGER] Successfully checked out to commit ${commitSha}`);
+      return true;
+    } catch (error) {
+      console.warn(`[GIT_MANAGER] Cannot checkout to ${commitSha}:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Commit changes after an LLM response if there are any
    */
   async commitChangesIfAny(

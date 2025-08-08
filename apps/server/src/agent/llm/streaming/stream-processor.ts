@@ -16,7 +16,10 @@ import {
   InvalidToolArgumentsError,
   ToolSet,
 } from "ai";
-import type { LanguageModelV1FunctionToolCall } from "@ai-sdk/provider";
+import type {
+  LanguageModelV1FunctionToolCall,
+  LanguageModelV1ProviderMetadata,
+} from "@ai-sdk/provider";
 import { createTools } from "../../tools";
 import { ModelProvider } from "../models/model-provider";
 import { ChunkHandlers } from "./chunk-handlers";
@@ -76,13 +79,34 @@ export class StreamProcessor {
         finalMessages = coreMessages;
       }
 
+      const reasoningProviderOptions: LanguageModelV1ProviderMetadata = {
+        anthropic: {
+          thinking: {
+            type: "enabled",
+            budgetTokens: 12000,
+          },
+        },
+        ...(model === "gpt-5-2025-08-07"
+          ? {
+              openai: {
+                reasoningEffort: "high",
+              },
+            }
+          : {}),
+      };
+
       const streamConfig = {
         model: modelInstance,
         ...(isAnthropicModel ? {} : { system: systemPrompt }),
         messages: finalMessages,
-        maxTokens: 4096,
         temperature: 0.7,
         maxSteps: MAX_STEPS,
+        providerOptions: reasoningProviderOptions,
+        ...(isAnthropicModel && {
+          headers: {
+            "anthropic-beta": "interleaved-thinking-2025-05-14",
+          },
+        }),
         ...(enableTools && tools && { tools, toolCallStreaming: true }),
         ...(abortSignal && { abortSignal }),
         experimental_telemetry: braintrustService.getTelemetryConfig({
@@ -288,11 +312,7 @@ export class StreamProcessor {
         return;
       }
 
-      // Use fullStream to get real-time tool calls and results
-      let chunkCount = 0;
       for await (const chunk of result.fullStream as AsyncIterable<AIStreamChunk>) {
-        chunkCount++;
-
         switch (chunk.type) {
           case "text-delta": {
             const streamChunk = this.chunkHandlers.handleTextDelta(chunk);
@@ -347,6 +367,32 @@ export class StreamProcessor {
           case "finish": {
             const streamChunks = this.chunkHandlers.handleFinish(chunk, model);
             for (const streamChunk of streamChunks) {
+              yield streamChunk;
+            }
+            break;
+          }
+
+          case "reasoning": {
+            const streamChunk = this.chunkHandlers.handleReasoning(chunk);
+            if (streamChunk) {
+              yield streamChunk;
+            }
+            break;
+          }
+
+          case "reasoning-signature": {
+            const streamChunk =
+              this.chunkHandlers.handleReasoningSignature(chunk);
+            if (streamChunk) {
+              yield streamChunk;
+            }
+            break;
+          }
+
+          case "redacted-reasoning": {
+            const streamChunk =
+              this.chunkHandlers.handleRedactedReasoning(chunk);
+            if (streamChunk) {
               yield streamChunk;
             }
             break;
