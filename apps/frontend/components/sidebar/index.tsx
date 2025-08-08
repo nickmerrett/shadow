@@ -68,7 +68,11 @@ export function SidebarViews({
   } = useCodebases(initialCodebases);
 
   const [sidebarView, setSidebarView] = useState<SidebarView>(
-    currentTaskId ? "agent" : "tasks"
+    currentTaskId
+      ? "agent"
+      : currentCodebaseId
+        ? "codebase-understanding"
+        : "tasks"
   );
 
   // Initial render trick to avoid hydration issues on navigation
@@ -78,6 +82,9 @@ export function SidebarViews({
       isInitialRender.current = false;
       return;
     }
+    console.log("currentTaskId", currentTaskId);
+    console.log("currentCodebaseId", currentCodebaseId);
+
     if (currentTaskId) {
       setSidebarView("agent");
     } else if (currentCodebaseId) {
