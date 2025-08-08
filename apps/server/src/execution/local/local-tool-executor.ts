@@ -238,10 +238,10 @@ export class LocalToolExecutor implements ToolExecutor {
     filePath: string,
     oldString: string,
     newString: string,
-    providedIsNewFile?: boolean
+    _providedIsNewFile?: boolean
   ): Promise<SearchReplaceResult> {
     try {
-      // Note: providedIsNewFile parameter is ignored for search/replace operations
+      // Note: _providedIsNewFile parameter is ignored for search/replace operations
       // since they can only be performed on existing files (isNewFile is always false)
       
       // Input validation

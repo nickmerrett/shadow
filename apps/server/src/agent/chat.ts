@@ -44,6 +44,7 @@ import {
 import { createToolExecutor } from "../execution";
 import { memoryService } from "../services/memory-service";
 import { TaskInitializationEngine } from "@/initialization";
+import { databaseBatchService } from "../services/database-batch-service";
 
 // Discriminated union types for queued actions
 type QueuedMessageAction = {
@@ -534,6 +535,7 @@ export class ChatService {
     }));
   }
 
+
   /**
    * Handle follow-up logic for tasks
    */
@@ -830,23 +832,15 @@ export class ChatService {
             );
             assistantMessageId = assistantMsg.id;
           } else {
-            // Update existing assistant message with current parts
+            // Schedule batched database update instead of immediate update
             if (assistantMessageId) {
-              const fullContent = assistantParts
-                .filter((part) => part.type === "text")
-                .map((part) => (part as TextPart).text)
-                .join("");
-
-              await prisma.chatMessage.update({
-                where: { id: assistantMessageId },
-                data: {
-                  content: fullContent,
-                  metadata: {
-                    isStreaming: true,
-                    parts: assistantParts,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  } as any,
-                },
+              databaseBatchService.scheduleAssistantUpdate(taskId, {
+                messageId: assistantMessageId,
+                assistantParts: [...assistantParts], // Copy array
+                context,
+                usageMetadata,
+                finishReason,
+                lastUpdateTime: Date.now(),
               });
             }
           }
@@ -897,23 +891,15 @@ export class ChatService {
             activeReasoningParts.delete(reasoningCounter);
             reasoningCounter++;
 
-            // Update assistant message with finalized reasoning part
+            // Schedule batched update with finalized reasoning part
             if (assistantMessageId) {
-              const fullContent = assistantParts
-                .filter((part) => part.type === "text")
-                .map((part) => (part as TextPart).text)
-                .join("");
-
-              await prisma.chatMessage.update({
-                where: { id: assistantMessageId },
-                data: {
-                  content: fullContent,
-                  metadata: {
-                    isStreaming: true,
-                    parts: assistantParts,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  } as any,
-                },
+              databaseBatchService.scheduleAssistantUpdate(taskId, {
+                messageId: assistantMessageId,
+                assistantParts: [...assistantParts], // Copy array
+                context,
+                usageMetadata,
+                finishReason,
+                lastUpdateTime: Date.now(),
               });
             }
           }
@@ -944,22 +930,14 @@ export class ChatService {
             );
             assistantMessageId = assistantMsg.id;
           } else if (assistantMessageId) {
-            // Update existing assistant message with redacted reasoning part
-            const fullContent = assistantParts
-              .filter((part) => part.type === "text")
-              .map((part) => (part as TextPart).text)
-              .join("");
-
-            await prisma.chatMessage.update({
-              where: { id: assistantMessageId },
-              data: {
-                content: fullContent,
-                metadata: {
-                  isStreaming: true,
-                  parts: assistantParts,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } as any,
-              },
+            // Schedule batched update with redacted reasoning part
+            databaseBatchService.scheduleAssistantUpdate(taskId, {
+              messageId: assistantMessageId,
+              assistantParts: [...assistantParts], // Copy array
+              context,
+              usageMetadata,
+              finishReason,
+              lastUpdateTime: Date.now(),
             });
           }
         }
@@ -975,23 +953,15 @@ export class ChatService {
           };
           assistantParts.push(toolCallPart);
 
-          // Update assistant message with tool call part
+          // Schedule batched update with tool call part
           if (assistantMessageId) {
-            const fullContent = assistantParts
-              .filter((part) => part.type === "text")
-              .map((part) => (part as TextPart).text)
-              .join("");
-
-            await prisma.chatMessage.update({
-              where: { id: assistantMessageId },
-              data: {
-                content: fullContent,
-                metadata: {
-                  isStreaming: true,
-                  parts: assistantParts,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } as any,
-              },
+            databaseBatchService.scheduleAssistantUpdate(taskId, {
+              messageId: assistantMessageId,
+              assistantParts: [...assistantParts], // Copy array
+              context,
+              usageMetadata,
+              finishReason,
+              lastUpdateTime: Date.now(),
             });
           }
 
@@ -1040,23 +1010,15 @@ export class ChatService {
 
           assistantParts.push(toolResultPart);
 
-          // Update assistant message with tool result part
+          // Schedule batched update with tool result part
           if (assistantMessageId) {
-            const fullContent = assistantParts
-              .filter((part) => part.type === "text")
-              .map((part) => (part as TextPart).text)
-              .join("");
-
-            await prisma.chatMessage.update({
-              where: { id: assistantMessageId },
-              data: {
-                content: fullContent,
-                metadata: {
-                  isStreaming: true,
-                  parts: assistantParts,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } as any,
-              },
+            databaseBatchService.scheduleAssistantUpdate(taskId, {
+              messageId: assistantMessageId,
+              assistantParts: [...assistantParts], // Copy array
+              context,
+              usageMetadata,
+              finishReason,
+              lastUpdateTime: Date.now(),
             });
           }
 
@@ -1129,8 +1091,12 @@ export class ChatService {
           };
           assistantParts.push(errorPart);
 
-          // Update assistant message with error part if we have one
+          // Flush any pending updates and immediately update with error
           if (assistantMessageId) {
+            // Clear pending timer and flush immediately on error
+            console.log(`[CHAT] Error occurred, immediately flushing DB update for task ${taskId}`);
+            databaseBatchService.clear(taskId);
+            
             const fullContent = assistantParts
               .filter((part) => part.type === "text")
               .map((part) => (part as TextPart).text)
@@ -1184,32 +1150,41 @@ export class ChatService {
       }
       activeReasoningParts.clear();
 
-      // Update final assistant message with complete metadata
-      if (assistantMessageId && usageMetadata) {
-        const fullContent = assistantParts
-          .filter((part) => part.type === "text")
-          .map((part) => (part as TextPart).text)
-          .join("");
+      // Flush any pending updates and perform final update with complete metadata
+      if (assistantMessageId) {
+        // Clear any pending timer and flush immediately for final update
+        console.log(`[CHAT] Stream completed, performing final DB update for task ${taskId}`);
+        databaseBatchService.clear(taskId);
+        
+        if (usageMetadata) {
+          const fullContent = assistantParts
+            .filter((part) => part.type === "text")
+            .map((part) => (part as TextPart).text)
+            .join("");
 
-        const finalMetadata: MessageMetadata = {
-          usage: usageMetadata,
-          finishReason,
-          isStreaming: false,
-          parts: assistantParts,
-        };
+          const finalMetadata: MessageMetadata = {
+            usage: usageMetadata,
+            finishReason,
+            isStreaming: false,
+            parts: assistantParts,
+          };
 
-        await prisma.chatMessage.update({
-          where: { id: assistantMessageId },
-          data: {
-            content: fullContent,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            metadata: finalMetadata as any,
-            promptTokens: usageMetadata.promptTokens,
-            completionTokens: usageMetadata.completionTokens,
-            totalTokens: usageMetadata.totalTokens,
-            finishReason: finishReason,
-          },
-        });
+          await prisma.chatMessage.update({
+            where: { id: assistantMessageId },
+            data: {
+              content: fullContent,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              metadata: finalMetadata as any,
+              promptTokens: usageMetadata.promptTokens,
+              completionTokens: usageMetadata.completionTokens,
+              totalTokens: usageMetadata.totalTokens,
+              finishReason: finishReason,
+            },
+          });
+        } else {
+          // If no usage metadata, just flush any pending updates
+          await databaseBatchService.flushAssistantUpdate(taskId);
+        }
       }
 
       // Update task status and schedule cleanup based on how stream ended
@@ -1395,6 +1370,9 @@ export class ChatService {
       abortController.abort();
       this.activeStreams.delete(taskId);
     }
+
+    // Flush any pending database updates before stopping
+    await databaseBatchService.flushAssistantUpdate(taskId);
 
     // Update task status to stopped when manually stopped by user
     await updateTaskStatus(taskId, "STOPPED", "CHAT");
@@ -1738,6 +1716,9 @@ export class ChatService {
 
       // Clean up queued actions
       this.queuedActions.delete(taskId);
+      
+      // Clean up batched database updates
+      databaseBatchService.clear(taskId);
     } catch (error) {
       console.error(
         `[CHAT] Error cleaning up ChatService memory for task ${taskId}:`,
