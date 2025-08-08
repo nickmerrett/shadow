@@ -234,7 +234,6 @@ export class ChatService {
 
         const hasChanges = await gitManager.hasChanges();
         if (!hasChanges) {
-          console.log(`[CHAT] No changes to commit for task ${taskId}`);
           return false;
         }
 
@@ -250,13 +249,6 @@ export class ChatService {
           },
           context
         );
-
-        if (committed) {
-          console.log(
-            `[CHAT] Successfully committed changes for task ${taskId}`
-          );
-        }
-
         return committed;
       } else {
         return await this.commitChangesRemoteMode(taskId, task, context);
@@ -312,8 +304,6 @@ export class ChatService {
     context?: TaskModelContext
   ): Promise<void> {
     try {
-      console.log(`[CHAT] Attempting to create PR for task ${taskId}`);
-
       const task = await prisma.task.findUnique({
         where: { id: taskId },
         include: { user: true },
@@ -385,8 +375,6 @@ export class ChatService {
     context?: TaskModelContext
   ): Promise<void> {
     try {
-      console.log(`[CHAT] Checking user auto-PR setting for task ${taskId}`);
-
       const task = await prisma.task.findUnique({
         where: { id: taskId },
         include: {
@@ -407,15 +395,8 @@ export class ChatService {
       const autoPREnabled = task.user.userSettings?.autoPullRequest ?? true;
 
       if (!autoPREnabled) {
-        console.log(
-          `[CHAT] Auto-PR disabled for user ${task.userId}, skipping PR creation`
-        );
         return;
       }
-
-      console.log(
-        `[CHAT] Auto-PR enabled for user ${task.userId}, creating PR`
-      );
 
       // Use the existing createPRIfNeeded method
       await this.createPRIfNeeded(taskId, workspacePath, messageId, context);
@@ -440,10 +421,6 @@ export class ChatService {
     context: TaskModelContext
   ): Promise<boolean> {
     try {
-      console.log(
-        `[CHAT] Checking for changes to commit in remote mode for task ${taskId}`
-      );
-
       // Create tool executor for this task
       const toolExecutor = await createToolExecutor(taskId);
 
@@ -458,9 +435,6 @@ export class ChatService {
       }
 
       if (!statusResponse.hasChanges) {
-        console.log(
-          `[CHAT] No changes to commit for task ${taskId} in remote mode`
-        );
         return false;
       }
 
@@ -516,10 +490,6 @@ export class ChatService {
         );
         // Don't throw here - commit succeeded even if push failed
       }
-
-      console.log(
-        `[CHAT] Successfully committed changes for task ${taskId} in remote mode`
-      );
       return true;
     } catch (error) {
       console.error(
@@ -587,14 +557,7 @@ export class ChatService {
       if (task.initStatus === "INACTIVE") {
         // If task has scheduled cleanup, cancel it since user wants to resume
         if (task.scheduledCleanupAt) {
-          console.log(
-            `[CHAT] Resuming task ${taskId} with scheduled cleanup, cancelling cleanup`
-          );
           await cancelTaskCleanup(taskId);
-        } else {
-          console.log(
-            `[CHAT] Resuming inactive task ${taskId}, requires re-initialization`
-          );
         }
 
         // Set task to INITIALIZING to trigger workspace spin-up
@@ -681,10 +644,6 @@ export class ChatService {
 
     if (queue) {
       if (this.activeStreams.has(taskId)) {
-        console.log(
-          `[CHAT] Queuing message for task ${taskId} (stream in progress)`
-        );
-
         // Support only one queued action at a time for now, can extend to a list later
         // Override the existing queued action if it exists
         this.queuedActions.set(taskId, {
@@ -700,9 +659,6 @@ export class ChatService {
     } else {
       // queue=false: interrupt any active stream and process immediately
       if (this.activeStreams.has(taskId)) {
-        console.log(
-          `[CHAT] Interrupting active stream for task ${taskId} due to new message`
-        );
         await this.stopStream(taskId);
 
         // Override queued action if it exists
@@ -803,13 +759,6 @@ export class ChatService {
       llmModel: context.getMainModel(),
     });
 
-    console.log(
-      `[CHAT] Processing message for task ${taskId} with ${messages.length} context messages`
-    );
-    console.log(
-      `[CHAT] Using model: ${context.getMainModel()}, Tools enabled: ${enableTools}`
-    );
-
     startStream(taskId);
 
     // Create AbortController for this stream
@@ -852,7 +801,6 @@ export class ChatService {
         availableTools
       )) {
         if (this.stopRequested.has(taskId)) {
-          console.log(`[CHAT] Stop requested during stream for task ${taskId}`);
           break;
         }
 
@@ -1068,11 +1016,6 @@ export class ChatService {
               isStreaming: true,
             }
           );
-
-          console.log(
-            `[TOOL_CALL] ${chunk.toolCall.name}:`,
-            chunk.toolCall.args
-          );
         }
 
         // Update tool results when they complete
@@ -1154,16 +1097,6 @@ export class ChatService {
               });
             }
           }
-
-          //   console.log(
-          //     `[TOOL_RESULT] ${chunk.toolResult.id}:`,
-          //     "content" in chunk.toolResult.result
-          //       ? {
-          //           ...chunk.toolResult.result,
-          //           content: chunk.toolResult.result.content?.slice(0, 50),
-          //         }
-          //       : chunk.toolResult.result
-          //   );
         }
 
         // Handle error chunks from LLM service
@@ -1246,10 +1179,7 @@ export class ChatService {
       const wasStoppedEarly = this.stopRequested.has(taskId);
 
       // Finalize any remaining reasoning parts that didn't receive signatures
-      for (const [index, reasoningPart] of activeReasoningParts.entries()) {
-        console.log(
-          `[CHAT] Finalizing remaining reasoning part ${index} without signature`
-        );
+      for (const reasoningPart of activeReasoningParts.values()) {
         assistantParts.push(reasoningPart);
       }
       activeReasoningParts.clear();
@@ -1281,10 +1211,6 @@ export class ChatService {
           },
         });
       }
-
-      console.log(`[CHAT] Completed processing for task ${taskId}`);
-      console.log(`[CHAT] Assistant parts: ${assistantParts.length}`);
-      console.log(`[CHAT] Tool calls executed: ${toolCallSequences.size}`);
 
       // Update task status and schedule cleanup based on how stream ended
       if (hasError) {
@@ -1320,15 +1246,9 @@ export class ChatService {
 
           // Create checkpoint after successful completion and commit
           if (changesCommitted && assistantMessageId) {
-            console.log(
-              `[CHAT] 📸 Creating checkpoint after successful response: task=${taskId}, message=${assistantMessageId}`
-            );
             await checkpointService.createCheckpoint(
               taskId,
               assistantMessageId
-            );
-            console.log(
-              `[CHAT] ✅ Checkpoint creation completed after successful response`
             );
           }
         } catch (error) {
@@ -1382,10 +1302,6 @@ export class ChatService {
     }
 
     this.queuedActions.delete(taskId);
-
-    console.log(
-      `[CHAT] Processing queued ${queuedAction.type} for task ${taskId}`
-    );
 
     try {
       switch (queuedAction.type) {
@@ -1474,13 +1390,10 @@ export class ChatService {
     // Mark stop requested so generator exits early
     this.stopRequested.add(taskId);
 
-    console.log(`[CHAT] Stopping stream for task ${taskId}`);
-
     const abortController = this.activeStreams.get(taskId);
     if (abortController) {
       abortController.abort();
       this.activeStreams.delete(taskId);
-      console.log(`[CHAT] Stream stopped for task ${taskId}`);
     }
 
     // Update task status to stopped when manually stopped by user
@@ -1502,8 +1415,6 @@ export class ChatService {
     context: TaskModelContext;
     workspacePath?: string;
   }): Promise<void> {
-    console.log(`[CHAT] Editing user message ${messageId} in task ${taskId}`);
-
     // First, stop any active stream and clear queued messages
     if (this.activeStreams.has(taskId)) {
       await this.stopStream(taskId);
@@ -1533,15 +1444,6 @@ export class ChatService {
       throw new Error("Edited message not found");
     }
 
-    // Restore checkpoint state before deleting subsequent messages
-    console.log(
-      `[CHAT] 🔄 About to restore checkpoint for message editing: task=${taskId}, message=${messageId}`
-    );
-    await checkpointService.restoreCheckpoint(taskId, messageId);
-    console.log(
-      `[CHAT] ✅ Checkpoint restoration completed for message editing`
-    );
-
     // Delete all messages that come after the edited message
     await prisma.chatMessage.deleteMany({
       where: {
@@ -1551,10 +1453,6 @@ export class ChatService {
         },
       },
     });
-
-    console.log(
-      `[CHAT] Deleted messages after sequence ${editedMessage.sequence} in task ${taskId}`
-    );
 
     // Get chat history up to the edited message
     const history = await this.getChatHistory(taskId);
@@ -1577,10 +1475,6 @@ export class ChatService {
         }
         return msg;
       });
-
-    console.log(
-      `[CHAT] Re-processing from edited message with ${messages.length} context messages`
-    );
 
     // Start streaming from the edited message
     // Update context with new model if it has changed
@@ -1633,13 +1527,8 @@ export class ChatService {
     socket: TypedSocket;
   }): Promise<void> {
     try {
-      console.log(`[CHAT] Creating stacked PR for parent task ${parentTaskId}`);
-
       // If there's an active stream and queue is true, queue the stacked PR
       if (this.activeStreams.has(parentTaskId) && queue) {
-        console.log(
-          `[CHAT] Queuing stacked PR for task ${parentTaskId} (stream in progress)`
-        );
         this.queuedActions.set(parentTaskId, {
           type: "stacked-pr",
           data: {
@@ -1707,8 +1596,6 @@ export class ChatService {
       const parentContext =
         await modelContextService.getContextForTask(parentTaskId);
 
-      console.log("\n\n[CHAT] Parent context:", parentContext);
-
       // Create TaskModelContext for title generation
       const context = await modelContextService.copyContext(
         newTaskId,
@@ -1771,10 +1658,6 @@ export class ChatService {
         parentTaskId
       );
 
-      console.log(
-        `[CHAT] Successfully created stacked task ${newTaskId} from parent ${parentTaskId}`
-      );
-
       // Emit event to frontend for optimistic message display with full context
       emitToTask(parentTaskId, "queued-action-processing", {
         taskId: parentTaskId,
@@ -1801,8 +1684,6 @@ export class ChatService {
     parentTaskId: string
   ): Promise<void> {
     try {
-      console.log(`[CHAT] Initializing stacked task ${taskId}`);
-
       const initializationEngine = new TaskInitializationEngine();
 
       await updateTaskStatus(taskId, "RUNNING", "CHAT");
@@ -1864,8 +1745,6 @@ export class ChatService {
    * Clean up task-related memory structures
    */
   cleanupTask(taskId: string): void {
-    console.log(`[CHAT] Cleaning up ChatService memory for task ${taskId}`);
-
     try {
       // Clean up active streams
       const abortController = this.activeStreams.get(taskId);
@@ -1876,10 +1755,6 @@ export class ChatService {
 
       // Clean up queued actions
       this.queuedActions.delete(taskId);
-
-      console.log(
-        `[CHAT] Successfully cleaned up ChatService memory for task ${taskId}`
-      );
     } catch (error) {
       console.error(
         `[CHAT] Error cleaning up ChatService memory for task ${taskId}:`,
