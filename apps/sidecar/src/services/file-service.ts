@@ -13,6 +13,7 @@ import {
   DirectoryEntry,
   RecursiveDirectoryListing,
   RecursiveDirectoryEntry,
+  MAX_LINES_PER_READ,
 } from "@repo/types";
 
 export class FileService {
@@ -54,8 +55,7 @@ export class FileService {
         };
       }
 
-      // Handle line range reading with clamping and pagination (max 150 lines)
-      const MAX_LINES_PER_READ = 150;
+      // Handle line range reading with clamping and pagination (max lines per page)
       const requestedStart = startLine ?? 1;
       const safeStart = Math.max(
         1,

@@ -33,6 +33,7 @@ import {
   GitPushRequest,
   RecursiveDirectoryListing,
   RecursiveDirectoryEntry,
+  MAX_LINES_PER_READ,
 } from "@repo/types";
 import { CommandResult } from "../interfaces/types";
 import { performSemanticSearch } from "@/utils/semantic-search";
@@ -77,7 +78,6 @@ export class LocalToolExecutor implements ToolExecutor {
         };
       }
       // Clamp and paginate line range
-      const MAX_LINES_PER_READ = 150;
       const requestedStart = options?.startLineOneIndexed ?? 1;
       const safeStart = Math.max(
         1,
