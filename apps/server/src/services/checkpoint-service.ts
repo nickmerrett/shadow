@@ -13,6 +13,8 @@ export class CheckpointService {
    * Create a checkpoint for a message after successful completion
    */
   async createCheckpoint(taskId: string, messageId: string): Promise<void> {
+    console.log(`[CHECKPOINT] ✨ Starting checkpoint creation for task ${taskId}, message ${messageId}`);
+    
     try {
       // Get workspace path from task
       const task = await prisma.task.findUnique({
@@ -21,24 +23,33 @@ export class CheckpointService {
       });
 
       if (!task?.workspacePath) {
-        console.warn(`[CHECKPOINT] No workspace path found for task ${taskId}`);
+        console.warn(`[CHECKPOINT] ❌ No workspace path found for task ${taskId}`);
         return;
       }
 
+      console.log(`[CHECKPOINT] 📁 Using workspace path: ${task.workspacePath}`);
       const gitManager = new GitManager(task.workspacePath);
 
       // 1. Ensure all changes are committed (reuse existing logic)
+      console.log(`[CHECKPOINT] 🔍 Checking for uncommitted changes...`);
       const hasChanges = await gitManager.hasChanges();
       if (hasChanges) {
         console.warn(
-          `[CHECKPOINT] Skipping checkpoint creation - workspace has uncommitted changes`
+          `[CHECKPOINT] ⚠️ Skipping checkpoint creation - workspace has uncommitted changes`
         );
         return; // Skip checkpoint if workspace is dirty
       }
 
       // 2. Capture current state
+      console.log(`[CHECKPOINT] 📸 Capturing current state...`);
       const commitSha = await gitManager.getCurrentCommitSha();
       const todoSnapshot = await this.getTodoSnapshot(taskId);
+      
+      console.log(`[CHECKPOINT] 🎯 Captured commit SHA: ${commitSha}`);
+      console.log(`[CHECKPOINT] 📝 Captured ${todoSnapshot.length} todos`);
+      if (todoSnapshot.length > 0) {
+        console.log(`[CHECKPOINT] Todo statuses: ${todoSnapshot.map(t => `${t.content.substring(0, 30)}... (${t.status})`).join(', ')}`);
+      }
 
       // 3. Get existing message metadata
       const existingMessage = await prisma.chatMessage.findUnique({
@@ -70,11 +81,11 @@ export class CheckpointService {
       });
 
       console.log(
-        `[CHECKPOINT] Created for message ${messageId} at commit ${commitSha}`
+        `[CHECKPOINT] ✅ Successfully created checkpoint for message ${messageId} at commit ${commitSha}`
       );
     } catch (error) {
       console.error(
-        `[CHECKPOINT] Failed to create checkpoint for message ${messageId}:`,
+        `[CHECKPOINT] ❌ Failed to create checkpoint for message ${messageId}:`,
         error
       );
       // Non-blocking - don't fail the chat flow
@@ -88,22 +99,31 @@ export class CheckpointService {
     taskId: string,
     targetMessageId: string
   ): Promise<void> {
+    console.log(`[CHECKPOINT] 🔄 Starting checkpoint restoration for task ${taskId}, target message ${targetMessageId}`);
+    
     try {
       // 1. Find the most recent assistant message at or before target with checkpoint data
+      console.log(`[CHECKPOINT] 🔍 Looking for checkpoint message at or before target...`);
       const checkpointMessage = await this.findCheckpointMessage(
         taskId,
         targetMessageId
       );
 
       if (!checkpointMessage?.metadata?.checkpoint) {
-        console.warn(
-          `[CHECKPOINT] No checkpoint found for restoration to message ${targetMessageId}`
+        console.log(
+          `[CHECKPOINT] 📍 No checkpoint found - restoring to initial repository state for message ${targetMessageId}`
         );
+        await this.restoreToInitialState(taskId);
         return;
       }
 
       const checkpoint = checkpointMessage.metadata
         .checkpoint as CheckpointData;
+        
+      console.log(`[CHECKPOINT] 🎯 Found checkpoint from message ${checkpointMessage.id}`);
+      console.log(`[CHECKPOINT] 📅 Checkpoint created at: ${checkpoint.createdAt}`);
+      console.log(`[CHECKPOINT] 🎯 Target commit SHA: ${checkpoint.commitSha}`);
+      console.log(`[CHECKPOINT] 📝 Checkpoint has ${checkpoint.todoSnapshot.length} todos`);
 
       // Get workspace path from task
       const task = await prisma.task.findUnique({
@@ -112,39 +132,50 @@ export class CheckpointService {
       });
 
       if (!task?.workspacePath) {
-        console.warn(`[CHECKPOINT] No workspace path found for task ${taskId}`);
+        console.warn(`[CHECKPOINT] ❌ No workspace path found for task ${taskId}`);
         return;
       }
 
+      console.log(`[CHECKPOINT] 📁 Using workspace path: ${task.workspacePath}`);
       const gitManager = new GitManager(task.workspacePath);
 
       // 2. Handle uncommitted changes
+      console.log(`[CHECKPOINT] 🔍 Checking for uncommitted changes...`);
       const hasChanges = await gitManager.hasChanges();
       if (hasChanges) {
+        console.log(`[CHECKPOINT] 📦 Stashing uncommitted changes before restoration...`);
         await gitManager.stashChanges(`Pre-revert-${Date.now()}`);
-        console.log(`[CHECKPOINT] Stashed uncommitted changes before restore`);
+        console.log(`[CHECKPOINT] ✅ Stashed uncommitted changes before restore`);
+      } else {
+        console.log(`[CHECKPOINT] ✨ Workspace is clean, no need to stash`);
       }
 
       // 3. Restore git state
+      console.log(`[CHECKPOINT] ⏪ Attempting git checkout to ${checkpoint.commitSha}...`);
       const success = await gitManager.safeCheckoutCommit(checkpoint.commitSha);
       if (!success) {
         console.warn(
-          `[CHECKPOINT] Could not checkout to ${checkpoint.commitSha}, continuing with current state`
+          `[CHECKPOINT] ⚠️ Could not checkout to ${checkpoint.commitSha}, continuing with current state`
         );
+      } else {
+        console.log(`[CHECKPOINT] ✅ Successfully checked out to commit ${checkpoint.commitSha}`);
       }
 
       // 4. Restore todo state
+      console.log(`[CHECKPOINT] 📝 Restoring todo state (${checkpoint.todoSnapshot.length} todos)...`);
       await this.restoreTodoState(taskId, checkpoint.todoSnapshot);
+      console.log(`[CHECKPOINT] ✅ Successfully restored todo state`);
 
       // 5. Emit todo update to frontend for real-time sync
+      console.log(`[CHECKPOINT] 🔗 Emitting todo update to frontend...`);
       this.emitTodoUpdate(taskId, checkpoint.todoSnapshot);
 
       console.log(
-        `[CHECKPOINT] Restored to message ${checkpointMessage.id} at commit ${checkpoint.commitSha}`
+        `[CHECKPOINT] 🎉 Successfully restored to message ${checkpointMessage.id} at commit ${checkpoint.commitSha}`
       );
     } catch (error) {
       console.error(
-        `[CHECKPOINT] Failed to restore checkpoint for message ${targetMessageId}:`,
+        `[CHECKPOINT] ❌ Failed to restore checkpoint for message ${targetMessageId}:`,
         error
       );
       // Continue with edit flow even if restore fails
@@ -168,12 +199,17 @@ export class CheckpointService {
     taskId: string,
     snapshot: Todo[]
   ): Promise<void> {
+    console.log(`[CHECKPOINT] 💾 Starting database transaction to restore todos...`);
+    
     await prisma.$transaction(async (tx) => {
       // Delete current todos
-      await tx.todo.deleteMany({ where: { taskId } });
+      console.log(`[CHECKPOINT] 🗑️ Deleting current todos for task ${taskId}...`);
+      const deleteResult = await tx.todo.deleteMany({ where: { taskId } });
+      console.log(`[CHECKPOINT] ✅ Deleted ${deleteResult.count} existing todos`);
 
       // Recreate from snapshot
       if (snapshot.length > 0) {
+        console.log(`[CHECKPOINT] ➕ Creating ${snapshot.length} todos from snapshot...`);
         await tx.todo.createMany({
           data: snapshot.map((todo) => ({
             id: todo.id,
@@ -185,10 +221,13 @@ export class CheckpointService {
             updatedAt: new Date(), // Update timestamp
           })),
         });
+        console.log(`[CHECKPOINT] ✅ Successfully created ${snapshot.length} todos from snapshot`);
+      } else {
+        console.log(`[CHECKPOINT] 📝 No todos in snapshot, task will have empty todo list`);
       }
     });
 
-    console.log(`[CHECKPOINT] Restored ${snapshot.length} todos from snapshot`);
+    console.log(`[CHECKPOINT] ✅ Database transaction completed - restored ${snapshot.length} todos from snapshot`);
   }
 
   /**
@@ -233,7 +272,73 @@ export class CheckpointService {
   }
 
   /**
-   * Find the most recent assistant message with checkpoint data at or before the target message
+   * Restore workspace to initial repository state (before any assistant changes)
+   */
+  private async restoreToInitialState(taskId: string): Promise<void> {
+    console.log(`[CHECKPOINT] 🏁 Restoring to initial repository state for task ${taskId}`);
+    
+    try {
+      // Get task's initial commit SHA and workspace path
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { workspacePath: true, baseCommitSha: true },
+      });
+
+      if (!task?.workspacePath || !task?.baseCommitSha) {
+        console.warn(`[CHECKPOINT] ❌ Missing workspace path or base commit SHA for task ${taskId}`);
+        return;
+      }
+
+      console.log(`[CHECKPOINT] 📁 Using workspace path: ${task.workspacePath}`);
+      console.log(`[CHECKPOINT] 🎯 Target base commit SHA: ${task.baseCommitSha}`);
+      
+      const gitManager = new GitManager(task.workspacePath);
+
+      // Handle uncommitted changes
+      console.log(`[CHECKPOINT] 🔍 Checking for uncommitted changes...`);
+      const hasChanges = await gitManager.hasChanges();
+      if (hasChanges) {
+        console.log(`[CHECKPOINT] 📦 Stashing uncommitted changes before initial state restoration...`);
+        await gitManager.stashChanges(`Pre-initial-restore-${Date.now()}`);
+        console.log(`[CHECKPOINT] ✅ Stashed uncommitted changes before restore`);
+      } else {
+        console.log(`[CHECKPOINT] ✨ Workspace is clean, no need to stash`);
+      }
+
+      // Restore git state to initial commit
+      console.log(`[CHECKPOINT] ⏪ Attempting git checkout to initial state ${task.baseCommitSha}...`);
+      const success = await gitManager.safeCheckoutCommit(task.baseCommitSha);
+      if (!success) {
+        console.warn(
+          `[CHECKPOINT] ⚠️ Could not checkout to initial commit ${task.baseCommitSha}, continuing with current state`
+        );
+      } else {
+        console.log(`[CHECKPOINT] ✅ Successfully checked out to initial commit ${task.baseCommitSha}`);
+      }
+
+      // Clear all todos (initial state has none)
+      console.log(`[CHECKPOINT] 📝 Clearing all todos to restore initial empty state...`);
+      await this.restoreTodoState(taskId, []); // Empty array = no todos
+      console.log(`[CHECKPOINT] ✅ Successfully cleared all todos`);
+
+      // Emit empty todo update to frontend
+      console.log(`[CHECKPOINT] 🔗 Emitting empty todo update to frontend...`);
+      this.emitTodoUpdate(taskId, []);
+
+      console.log(
+        `[CHECKPOINT] 🎉 Successfully restored to initial repository state at commit ${task.baseCommitSha}`
+      );
+    } catch (error) {
+      console.error(
+        `[CHECKPOINT] ❌ Failed to restore to initial state for task ${taskId}:`,
+        error
+      );
+      // Continue with edit flow even if restore fails
+    }
+  }
+
+  /**
+   * Find the most recent assistant message with checkpoint data strictly before the target message
    */
   private async findCheckpointMessage(
     taskId: string,
@@ -250,12 +355,12 @@ export class CheckpointService {
       return null;
     }
 
-    // Find the most recent assistant message at or before this sequence with checkpoint data
+    // Find the most recent assistant message strictly before this sequence with checkpoint data
     const checkpointMessage = await prisma.chatMessage.findFirst({
       where: {
         taskId,
         role: "ASSISTANT",
-        sequence: { lte: targetMessage.sequence },
+        sequence: { lt: targetMessage.sequence },
         metadata: {
           path: ["checkpoint"],
           not: "null",

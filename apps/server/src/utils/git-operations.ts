@@ -114,9 +114,6 @@ async function getUncommittedChanges(
   allFiles: Map<string, FileChange>,
   now: string
 ) {
-  const startTime = Date.now();
-  console.log("[GIT_OPS] Getting uncommitted changes");
-
   const statusCommand = "git status --porcelain";
   const { stdout: uncommittedOutput } = await execAsync(statusCommand, {
     cwd: workspacePath,
@@ -152,10 +149,6 @@ async function getUncommittedChanges(
 
     // Phase 2: Get diff stats for all uncommitted files in parallel
     if (uncommittedFiles.length > 0) {
-      console.log(
-        `[GIT_OPS] Getting diff stats for ${uncommittedFiles.length} uncommitted files in parallel`
-      );
-
       const diffStatsPromises = uncommittedFiles.map(
         async ({ filePath, status }) => {
           try {
@@ -358,9 +351,6 @@ async function getUncommittedChanges(
       }
     }
   }
-
-  const endTime = Date.now();
-  console.log(`[GIT_OPS] Uncommitted changes took ${endTime - startTime}ms`);
 }
 
 /**
