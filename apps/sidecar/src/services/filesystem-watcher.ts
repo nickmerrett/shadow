@@ -15,6 +15,7 @@ export class FileSystemWatcher {
   private flushTimer: NodeJS.Timeout | null = null;
   private readonly debounceMs = 100; // Debounce rapid changes
   private gitignoreChecker: GitignoreChecker | null = null;
+  private isPaused = false;
 
   constructor(taskId: string, socketClient: SocketClient) {
     this.taskId = taskId;
@@ -86,6 +87,12 @@ export class FileSystemWatcher {
    * Handle individual filesystem events
    */
   private handleFileSystemEvent(eventType: string, filename: string): void {
+    // Skip processing if watcher is paused
+    if (this.isPaused) {
+      // Skip - paused
+      return;
+    }
+
     // Filter out noise from common directories/files
     if (this.shouldIgnoreFile(filename)) {
       return;
@@ -217,6 +224,45 @@ export class FileSystemWatcher {
     );
 
     return !hasExtension || endsWithCommonDir;
+  }
+
+  /**
+   * Pause filesystem watching (stop processing events)
+   */
+  pause(): void {
+    if (!this.isPaused) {
+      logger.info(`[FS_WATCHER] Paused`);
+      this.isPaused = true;
+      
+      // Clear any pending flush timer
+      if (this.flushTimer) {
+        clearTimeout(this.flushTimer);
+        this.flushTimer = null;
+      }
+      
+      // Clear the change buffer to avoid processing stale events
+      this.changeBuffer.clear();
+    }
+  }
+
+  /**
+   * Resume filesystem watching (start processing events again)
+   */
+  resume(): void {
+    if (this.isPaused) {
+      logger.info(`[FS_WATCHER] Resumed`);
+      this.isPaused = false;
+      
+      // Clear buffer again to ensure no stale events from pause period
+      this.changeBuffer.clear();
+    }
+  }
+
+  /**
+   * Check if watcher is currently paused
+   */
+  isPausedState(): boolean {
+    return this.isPaused;
   }
 
   /**

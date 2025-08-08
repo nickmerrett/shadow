@@ -24,6 +24,7 @@ export class LocalFileSystemWatcher {
   private flushTimer: NodeJS.Timeout | null = null;
   private readonly debounceMs = 100;
   private gitignoreChecker: GitignoreChecker | null = null;
+  private isPaused = false;
 
   constructor(taskId: string) {
     this.taskId = taskId;
@@ -71,6 +72,11 @@ export class LocalFileSystemWatcher {
    * Handle individual file system change events
    */
   private async handleFileChange(eventType: string, filename: string): Promise<void> {
+    // Skip processing if watcher is paused
+    if (this.isPaused) {
+      return;
+    }
+
     const fullPath = join(this.watchedPath, filename);
     const relativePath = relative(this.watchedPath, fullPath);
 
@@ -153,11 +159,18 @@ export class LocalFileSystemWatcher {
       return;
     }
 
+    // Check if paused - if so, clear buffer but don't emit
+    if (this.isPaused) {
+      this.changeBuffer.clear();
+      this.flushTimer = null;
+      return;
+    }
+
     const changes = Array.from(this.changeBuffer.values());
     this.changeBuffer.clear();
     this.flushTimer = null;
 
-    console.log(`[LOCAL_FS_WATCHER] Flushing ${changes.length} filesystem changes for task ${this.taskId}`);
+    console.log(`[LOCAL_FS_WATCHER] Flushing ${changes.length} changes`);
 
     // Emit each change as a stream chunk
     for (const change of changes) {
@@ -194,6 +207,45 @@ export class LocalFileSystemWatcher {
   }
 
   /**
+   * Pause filesystem watching (stop processing events)
+   */
+  pause(): void {
+    if (!this.isPaused) {
+      console.log(`[LOCAL_FS_WATCHER] Paused`);
+      this.isPaused = true;
+      
+      // Clear any pending flush timer
+      if (this.flushTimer) {
+        clearTimeout(this.flushTimer);
+        this.flushTimer = null;
+      }
+      
+      // Clear the change buffer to avoid processing stale events
+      this.changeBuffer.clear();
+    }
+  }
+
+  /**
+   * Resume filesystem watching (start processing events again)
+   */
+  resume(): void {
+    if (this.isPaused) {
+      console.log(`[LOCAL_FS_WATCHER] Resumed`);
+      this.isPaused = false;
+      
+      // Clear buffer again to ensure no stale events from pause period
+      this.changeBuffer.clear();
+    }
+  }
+
+  /**
+   * Check if watcher is currently paused
+   */
+  isPausedState(): boolean {
+    return this.isPaused;
+  }
+
+  /**
    * Get watcher statistics
    */
   getStats() {
@@ -201,6 +253,7 @@ export class LocalFileSystemWatcher {
       taskId: this.taskId,
       watchedPath: this.watchedPath,
       isWatching: this.isWatching(),
+      isPaused: this.isPaused,
       pendingChanges: this.changeBuffer.size
     };
   }
