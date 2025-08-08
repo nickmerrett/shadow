@@ -16,7 +16,10 @@ import {
   InvalidToolArgumentsError,
   ToolSet,
 } from "ai";
-import type { LanguageModelV1FunctionToolCall } from "@ai-sdk/provider";
+import type {
+  LanguageModelV1FunctionToolCall,
+  LanguageModelV1ProviderMetadata,
+} from "@ai-sdk/provider";
 import { createTools } from "../../tools";
 import { ModelProvider } from "../models/model-provider";
 import { ChunkHandlers } from "./chunk-handlers";
@@ -75,7 +78,7 @@ export class StreamProcessor {
         finalMessages = coreMessages;
       }
 
-      const reasoningProviderOptions = {
+      const reasoningProviderOptions: LanguageModelV1ProviderMetadata = {
         anthropic: {
           thinking: {
             type: "enabled",
@@ -83,9 +86,11 @@ export class StreamProcessor {
           },
         },
         openai: {
-          reasoningEffort: "high",
+          reasoning: {
+            effort: "high",
+          },
         },
-      };
+      } as const;
 
       const streamConfig = {
         model: modelInstance,
