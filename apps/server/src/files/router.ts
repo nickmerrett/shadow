@@ -102,9 +102,10 @@ router.get("/:taskId/files/content", async (req, res) => {
 
     if (!statsResult.success) {
       // Check if it's a file not found error (ENOENT)
-      const isFileNotFound = statsResult.error?.includes('ENOENT') || 
-                             statsResult.error?.includes('no such file or directory');
-      
+      const isFileNotFound =
+        statsResult.error?.includes("ENOENT") ||
+        statsResult.error?.includes("no such file or directory");
+
       return res.status(isFileNotFound ? 404 : 400).json({
         success: false,
         error: statsResult.error || "Failed to get file stats",
@@ -157,8 +158,6 @@ router.get("/:taskId/files/content", async (req, res) => {
 router.get("/:taskId/file-changes", async (req, res) => {
   try {
     const { taskId } = req.params;
-
-    console.log("taskId", taskId);
 
     // Validate task exists and get full status
     const task = await prisma.task.findUnique({
@@ -219,8 +218,6 @@ router.get("/:taskId/file-changes", async (req, res) => {
     // Check if workspace has git repository
     const hasGit = await hasGitRepository(taskId);
 
-    console.log("hasGit", hasGit);
-
     if (!hasGit) {
       return res.json({
         success: true,
@@ -233,8 +230,6 @@ router.get("/:taskId/file-changes", async (req, res) => {
       taskId,
       task.baseBranch
     );
-
-    console.log("fileChanges", fileChanges);
 
     res.json({
       success: true,
