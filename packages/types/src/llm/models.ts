@@ -14,13 +14,9 @@ export const AvailableModels = {
   GPT_5: "gpt-5-2025-08-07",
   GPT_4_1: "gpt-4.1",
   GPT_4_1_MINI: "gpt-4.1-mini",
-  GPT_4_1_NANO: "gpt-4.1-nano",
   GPT_4O: "gpt-4o",
   GPT_4O_MINI: "gpt-4o-mini",
   GPT_4O_AUDIO_PREVIEW: "gpt-4o-audio-preview",
-  GPT_4_TURBO: "gpt-4-turbo",
-  GPT_4: "gpt-4",
-  GPT_3_5_TURBO: "gpt-3.5-turbo",
   // O1: "o1",
   // O1_MINI: "o1-mini",
   // O1_PREVIEW: "o1-preview",
@@ -30,13 +26,9 @@ export const AvailableModels = {
   CHATGPT_4O_LATEST: "chatgpt-4o-latest",
 
   // Anthropic models
-  CLAUDE_OPUS_4: "claude-opus-4-20250514",
+  CLAUDE_OPUS_4: "claude-opus-4-1-20250805",
   CLAUDE_SONNET_4: "claude-sonnet-4-20250514",
-  CLAUDE_3_7_SONNET: "claude-3-7-sonnet-20250219",
   CLAUDE_3_5_HAIKU: "claude-3-5-haiku-20241022",
-  CLAUDE_3_OPUS: "claude-3-opus-20240229",
-  CLAUDE_3_SONNET: "claude-3-sonnet-20240229",
-  CLAUDE_3_HAIKU: "claude-3-haiku-20240307",
 
   // OpenRouter models
   XAI_GROK_3: "x-ai/grok-3",
@@ -86,11 +78,6 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "GPT-4.1 Mini",
     provider: "openai",
   },
-  [AvailableModels.GPT_4_1_NANO]: {
-    id: AvailableModels.GPT_4_1_NANO,
-    name: "GPT-4.1 Nano",
-    provider: "openai",
-  },
   [AvailableModels.GPT_4O]: {
     id: AvailableModels.GPT_4O,
     name: "GPT-4o",
@@ -104,21 +91,6 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
   [AvailableModels.GPT_4O_AUDIO_PREVIEW]: {
     id: AvailableModels.GPT_4O_AUDIO_PREVIEW,
     name: "GPT-4o Audio Preview",
-    provider: "openai",
-  },
-  [AvailableModels.GPT_4_TURBO]: {
-    id: AvailableModels.GPT_4_TURBO,
-    name: "GPT-4 Turbo",
-    provider: "openai",
-  },
-  [AvailableModels.GPT_4]: {
-    id: AvailableModels.GPT_4,
-    name: "GPT-4",
-    provider: "openai",
-  },
-  [AvailableModels.GPT_3_5_TURBO]: {
-    id: AvailableModels.GPT_3_5_TURBO,
-    name: "GPT-3.5 Turbo",
     provider: "openai",
   },
   // [AvailableModels.O1]: {
@@ -160,7 +132,7 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
   // Anthropic models
   [AvailableModels.CLAUDE_OPUS_4]: {
     id: AvailableModels.CLAUDE_OPUS_4,
-    name: "Claude Opus 4",
+    name: "Claude Opus 4.1",
     provider: "anthropic",
   },
   [AvailableModels.CLAUDE_SONNET_4]: {
@@ -168,30 +140,10 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "Claude Sonnet 4",
     provider: "anthropic",
   },
-  [AvailableModels.CLAUDE_3_7_SONNET]: {
-    id: AvailableModels.CLAUDE_3_7_SONNET,
-    name: "Claude 3.7 Sonnet",
-    provider: "anthropic",
-  },
 
   [AvailableModels.CLAUDE_3_5_HAIKU]: {
     id: AvailableModels.CLAUDE_3_5_HAIKU,
     name: "Claude 3.5 Haiku",
-    provider: "anthropic",
-  },
-  [AvailableModels.CLAUDE_3_OPUS]: {
-    id: AvailableModels.CLAUDE_3_OPUS,
-    name: "Claude 3 Opus",
-    provider: "anthropic",
-  },
-  [AvailableModels.CLAUDE_3_SONNET]: {
-    id: AvailableModels.CLAUDE_3_SONNET,
-    name: "Claude 3 Sonnet",
-    provider: "anthropic",
-  },
-  [AvailableModels.CLAUDE_3_HAIKU]: {
-    id: AvailableModels.CLAUDE_3_HAIKU,
-    name: "Claude 3 Haiku",
     provider: "anthropic",
   },
 
@@ -286,8 +238,7 @@ export async function getAllPossibleModels(
   if (userApiKeys.anthropic) {
     models.push(
       AvailableModels.CLAUDE_OPUS_4,
-      AvailableModels.CLAUDE_SONNET_4,
-      AvailableModels.CLAUDE_3_7_SONNET
+      AvailableModels.CLAUDE_SONNET_4
     );
   }
 
@@ -358,8 +309,7 @@ export async function getDefaultSelectedModels(
   if (userApiKeys.anthropic) {
     defaultModels.push(
       AvailableModels.CLAUDE_OPUS_4, // default
-      AvailableModels.CLAUDE_SONNET_4, // default
-      AvailableModels.CLAUDE_3_7_SONNET // default
+      AvailableModels.CLAUDE_SONNET_4 // default
     );
   }
 
