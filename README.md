@@ -110,42 +110,6 @@ npm run dev --filter=server
 npm run dev --filter=sidecar
 ```
 
-### Environment Configuration
-
-Key environment variables for development:
-
-
-Server .env:
-```bash
-DATABASE_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
-
-PINECONE_API_KEY="" # TODO: Set this to your Pinecone API key
-PINECONE_INDEX_NAME="shadow"
-
-GITHUB_CLIENT_ID= # TODO: Set this to your GitHub client ID
-GITHUB_CLIENT_SECRET= # TODO: Set this to your GitHub client secret
-GITHUB_WEBHOOK_SECRET= # TODO: Set this to your GitHub webhook secret
-
-# Workspace directory for local agent:
-WORKSPACE_DIR= # TODO: Set this to your local workspace directory
-
-```
-
-Frontend .env:
-```bash
-NEXT_PUBLIC_SERVER_URL="http://localhost:4000"
-
-BETTER_AUTH_SECRET= # TODO: Set this to your BetterAuth secret
-
-GITHUB_APP_ID= # TODO: Set this to your GitHub app ID (same as server .env)
-GITHUB_APP_SLUG= # TODO: Set this to your GitHub app slug (same as server .env)
-GITHUB_PRIVATE_KEY= # TODO: Set this to your GitHub private key (same as server .env)
-GITHUB_CLIENT_ID= # TODO: Set this to your GitHub client ID (same as server .env)
-GITHUB_CLIENT_SECRET= # TODO: Set this to your GitHub client secret (same as server .env)
-
-DATABASE_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
-```
-
 ## Development Commands
 
 ### Linting and Formatting
@@ -292,3 +256,17 @@ Shadow provides a comprehensive set of tools for AI agents:
 5. Submit a pull request
    
 We're excited to see what you've built with Shadow!
+
+### Troubleshooting
+
+If you encounter the following issues here are some solutions:
+
+#### Error:
+```bash
+error TS2307: Cannot find module '@repo/db' or its corresponding type declarations.
+```
+
+Solution: Ensure you build the project before running it:
+```bash
+npm run build
+```
