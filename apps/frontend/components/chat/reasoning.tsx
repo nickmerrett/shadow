@@ -11,6 +11,8 @@ export function ReasoningComponent({
   isLoading?: boolean;
   forceOpen?: boolean;
 }) {
+  const trimmedPart = part.text.trim();
+
   return (
     <ToolComponent
       icon={<ChevronDown />}
@@ -20,7 +22,7 @@ export function ReasoningComponent({
       type={ToolTypes.REASONING}
     >
       <div className="text-muted-foreground whitespace-pre-wrap pb-1 text-sm">
-        {part.text}
+        {trimmedPart}
       </div>
     </ToolComponent>
   );
