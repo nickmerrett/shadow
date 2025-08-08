@@ -33,7 +33,6 @@ export class BraintrustService {
       metadata: {
         service: "shadow-agent",
         environment: config.nodeEnv,
-        version: process.env.npm_package_version || "unknown",
         nodeVersion: process.version,
         timestamp: new Date().toISOString(),
         ...metadata,

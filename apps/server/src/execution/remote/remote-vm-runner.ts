@@ -34,19 +34,10 @@ export class RemoteVMRunner {
     k8sApiUrl?: string;
     token?: string;
   }) {
-    // Get configuration from environment variables (set by ECS task definition)
-    const k8sHost =
-      options.k8sApiUrl ||
-      config.kubernetesServiceHost ||
-      process.env.KUBERNETES_SERVICE_HOST;
-    const k8sPort =
-      config.kubernetesServicePort ||
-      process.env.KUBERNETES_SERVICE_PORT ||
-      "443";
-    const serviceAccountToken =
-      options.token ||
-      config.k8sServiceAccountToken ||
-      process.env.K8S_SERVICE_ACCOUNT_TOKEN;
+    // Get configuration from config (set by environment variables)
+    const k8sHost = options.k8sApiUrl || config.kubernetesServiceHost;
+    const k8sPort = config.kubernetesServicePort || "443";
+    const serviceAccountToken = options.token || config.k8sServiceAccountToken;
 
     console.log(`[REMOTE_VM_RUNNER] Configuring Kubernetes client`, {
       host: k8sHost,

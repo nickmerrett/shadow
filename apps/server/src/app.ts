@@ -6,6 +6,7 @@ import cors from "cors";
 import express from "express";
 import http from "http";
 import { z } from "zod";
+import config, { getCorsOrigins } from "./config";
 import { ChatService } from "./agent/chat";
 import { TaskInitializationEngine } from "./initialization";
 import { errorHandler } from "./middleware/error-handler";
@@ -36,11 +37,7 @@ const initiateTaskSchema = z.object({
 const socketIOServer = http.createServer(app);
 createSocketServer(socketIOServer);
 
-// Determine CORS origins based on environment
-const corsOrigins =
-  process.env.NODE_ENV === "production"
-    ? ["https://shadow-agent-dev.vercel.app", "https://www.shadowrealm.ai"]
-    : ["http://localhost:3000"];
+const corsOrigins = getCorsOrigins(config);
 
 console.log(`[CORS] Allowing origins:`, corsOrigins);
 

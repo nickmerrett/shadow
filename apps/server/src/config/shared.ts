@@ -37,6 +37,9 @@ export const sharedConfigSchema = z.object({
   // Repository limits
   MAX_REPO_SIZE_MB: z.coerce.number().default(500),
 
+  // CORS configuration
+  CORS_ORIGINS: z.string().optional(),
+
   // Vector database (optional for all environments)
   PINECONE_API_KEY: z.string().optional(),
   PINECONE_INDEX_NAME: z.string().default("shadow"),
@@ -79,6 +82,9 @@ export const createSharedConfig = (
   // Repository
   maxRepoSizeMB: data.MAX_REPO_SIZE_MB,
 
+  // CORS
+  corsOrigins: data.CORS_ORIGINS,
+
   // Vector DB
   pineconeApiKey: data.PINECONE_API_KEY,
   pineconeIndexName: data.PINECONE_INDEX_NAME,
@@ -109,4 +115,14 @@ export const getGitHubAppEmail = (config: SharedConfig): string => {
  */
 export const getGitHubAppName = (config: SharedConfig): string => {
   return `${config.githubAppSlug}[bot]`;
+};
+
+/**
+ * Parse CORS origins from comma-separated string
+ */
+export const getCorsOrigins = (config: SharedConfig): string[] => {
+  if (!config.corsOrigins) {
+    return [];
+  }
+  return config.corsOrigins.split(',').map(origin => origin.trim());
 };
