@@ -9,13 +9,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { useModal } from "@/components/layout/modal-context";
 import { LogoBurst } from "./graphics/logo/logo-burst";
+import { Check } from "lucide-react";
+import { useGitHubStatus } from "@/hooks/use-github-status";
 
-interface WelcomeModalProps {
+export function WelcomeModal({
+  open,
+  onOpenChange,
+}: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-export function WelcomeModal({ open, onOpenChange }: WelcomeModalProps) {
+}) {
   const { openSettingsModal } = useModal();
 
   const handleConnectGitHub = () => {
@@ -27,6 +30,8 @@ export function WelcomeModal({ open, onOpenChange }: WelcomeModalProps) {
     // onOpenChange(false);
     openSettingsModal("models");
   };
+
+  const { data: githubStatus } = useGitHubStatus();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -42,16 +47,25 @@ export function WelcomeModal({ open, onOpenChange }: WelcomeModalProps) {
             (accessible outside this modal):
           </p>
 
-          <div className="mt-4 flex items-start gap-3">
+          <div className="mt-3 flex items-start gap-3">
             <div className="bg-primary text-primary-foreground mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-medium">
               1
             </div>
             <div className="flex flex-col items-start gap-0.5">
-              <p className="font-medium">Connect the Shadow GitHub App</p>
+              <div className="flex items-center gap-2">
+                <p className="font-medium">Connect the Shadow GitHub App</p>
+                {githubStatus?.isAppInstalled && (
+                  <Check className="size-4 text-green-400" />
+                )}
+              </div>
               <p className="text-muted-foreground pb-2 text-sm">
                 Gives Shadow access to work on your existing repositories.
               </p>
-              <Button variant="secondary" onClick={handleConnectGitHub}>
+              <Button
+                disabled={githubStatus?.isAppInstalled}
+                variant="secondary"
+                onClick={handleConnectGitHub}
+              >
                 Connect GitHub
               </Button>
             </div>

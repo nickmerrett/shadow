@@ -8,6 +8,9 @@ import { useAuthSession } from "../auth/session-provider";
 import type { FilteredRepository } from "@/lib/github/types";
 import type { ModelType } from "@repo/types";
 
+const WELCOME_MODAL_SHOWN_KEY = "shadow-welcome-modal-shown";
+const WELCOME_MODAL_DELAY = 500;
+
 export function HomePageContent({
   initialGitCookieState,
   initialSelectedModel,
@@ -26,11 +29,12 @@ export function HomePageContent({
   useEffect(() => {
     // Only show welcome modal for authenticated users on first visit
     if (!isLoading && session) {
-      const hasSeenWelcome = localStorage.getItem("shadow-welcome-modal-shown");
+      const hasSeenWelcome = localStorage.getItem(WELCOME_MODAL_SHOWN_KEY);
+
       if (!hasSeenWelcome) {
         setTimeout(() => {
           setShowWelcomeModal(true);
-        }, 500);
+        }, WELCOME_MODAL_DELAY);
       }
     }
   }, [session, isLoading]);
@@ -38,7 +42,7 @@ export function HomePageContent({
   const handleWelcomeModalClose = (open: boolean) => {
     setShowWelcomeModal(open);
     if (!open) {
-      localStorage.setItem("shadow-welcome-modal-shown", "true");
+      localStorage.setItem(WELCOME_MODAL_SHOWN_KEY, "true");
     }
   };
 
