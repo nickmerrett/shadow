@@ -158,9 +158,6 @@ NEXT_PUBLIC_VERCEL_ENV=development
 BETTER_AUTH_SECRET=dev-secret
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
-
-# Optional: Force GitHub App usage for testing (defaults to false)
-# NEXT_PUBLIC_FORCE_GITHUB_APP=false
 ```
 
 Notes:
