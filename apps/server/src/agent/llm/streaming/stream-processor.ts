@@ -114,6 +114,12 @@ export class StreamProcessor {
         maxTokens: 4096,
         temperature: 0.7,
         maxSteps: MAX_STEPS,
+        providerOptions: reasoningProviderOptions,
+        ...(isAnthropicModel && {
+          headers: {
+            "anthropic-beta": "interleaved-thinking-2025-05-14",
+          },
+        }),
         ...(providerOptions && { providerOptions }),
         ...(isAnthropicModel && {
           headers: {
