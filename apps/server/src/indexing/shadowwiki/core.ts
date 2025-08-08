@@ -8,7 +8,7 @@ import { CodebaseUnderstandingStorage } from "./db-storage";
 import TS from "tree-sitter-typescript";
 import { ModelProvider } from "@/agent/llm/models/model-provider";
 import { ModelType, ApiKeys } from "@repo/types";
-import { generateText } from "ai";
+import { CoreMessage, generateText, LanguageModel } from "ai";
 import { TaskModelContext } from "@/services/task-model-context";
 import { braintrustService } from "../../agent/llm/observability/braintrust-service";
 
@@ -597,7 +597,7 @@ function getBasicFileInfo(filePath: string, fileSize?: number): string {
 async function summarizeFile(
   rootPath: string,
   rel: string,
-  miniModelInstance: any,
+  miniModelInstance: LanguageModel,
   skipLLM: boolean = false
 ): Promise<string> {
   const abs = path.join(rootPath, rel);
@@ -637,12 +637,7 @@ async function summarizeFile(
       calls: new Set(),
       imports: new Set(),
     };
-    return await analyzeFileWithLLM(
-      rel,
-      src,
-      emptySymbols,
-      miniModelInstance
-    );
+    return await analyzeFileWithLLM(rel, src, emptySymbols, miniModelInstance);
   }
 
   if (!isParseableFile(src, rel)) {
@@ -661,12 +656,7 @@ async function summarizeFile(
   const needsDeepAnalysis = analyzeFileComplexity(symbols, src.length);
 
   if (needsDeepAnalysis && !skipLLM) {
-    return await analyzeFileWithLLM(
-      rel,
-      src,
-      symbols,
-      miniModelInstance
-    );
+    return await analyzeFileWithLLM(rel, src, symbols, miniModelInstance);
   } else {
     const markdown = symbolsToMarkdown(symbols);
     if (markdown) {
@@ -682,7 +672,7 @@ async function analyzeFileWithLLM(
   rel: string,
   src: string,
   symbols: Symbols,
-  miniModelInstance: any
+  miniModelInstance: LanguageModel
 ): Promise<string> {
   const ext = path.extname(rel).toLowerCase();
   const isDataFile =
@@ -690,12 +680,12 @@ async function analyzeFileWithLLM(
       ext
     );
   const isCritical = isCriticalFile(rel);
-  
+
   // Skip analysis for extremely large files (over 50k chars ~ 12.5k tokens)
   if (src.length > 50000) {
-    return `Large file: ${path.basename(rel)} (${Math.round(src.length/1000)}KB) - skipped analysis due to size`;
+    return `Large file: ${path.basename(rel)} (${Math.round(src.length / 1000)}KB) - skipped analysis due to size`;
   }
-  
+
   const maxTokens = isCritical ? 15000 : isDataFile ? 4000 : 8000;
 
   let truncatedSrc = src;
@@ -733,9 +723,6 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
         maxTokens: isCritical ? 3000 : 2048,
         experimental_telemetry: braintrustService.getTelemetryConfig({
           operation: "shadowwiki-file-summary",
-          filePath: file.path,
-          isCritical,
-          fileSize: file.size,
         }),
       }),
       60000,
@@ -765,11 +752,10 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
 
 // LLM chat function - simplified
 async function chat(
-  messages: any[],
+  messages: Array<CoreMessage>,
   budget: number,
-  mainModelInstance: any
+  mainModelInstance: LanguageModel
 ): Promise<string> {
-
   const { text } = await withTimeout(
     generateText({
       model: mainModelInstance,
@@ -890,7 +876,7 @@ function analyzeDirectoryPatterns(node: TreeNode): string {
 async function summarizeDir(
   node: TreeNode,
   childSummaries: string[],
-  mainModelInstance: any,
+  mainModelInstance: LanguageModel,
   rootPath?: string
 ): Promise<string> {
   if (!childSummaries || childSummaries.length === 0) {
@@ -960,7 +946,7 @@ Use bullet points, fragments, abbreviations. Directory: ${node.relPath}`;
 async function summarizeRoot(
   node: TreeNode,
   childSummaries: string[],
-  mainModelInstance: any
+  mainModelInstance: LanguageModel
 ): Promise<string> {
   if (!childSummaries || childSummaries.length === 0) {
     return `Empty project: ${node.name}`;
@@ -1050,8 +1036,14 @@ export async function runShadowWiki(
   );
 
   const modelProvider = new ModelProvider();
-  const miniModelInstance = modelProvider.getModel(miniModel, context.getApiKeys());
-  const mainModelInstance = modelProvider.getModel(mainModel, context.getApiKeys());
+  const miniModelInstance = modelProvider.getModel(
+    miniModel,
+    context.getApiKeys()
+  );
+  const mainModelInstance = modelProvider.getModel(
+    mainModel,
+    context.getApiKeys()
+  );
   const stats: ProcessingStats = {
     filesProcessed: 0,
     directoriesProcessed: 0,
@@ -1076,14 +1068,19 @@ export async function runShadowWiki(
   console.log(`[SHADOW-WIKI] Processing ${allFiles.length} files in batches`);
 
   // Dynamic batch size based on total files to prevent overwhelming large codebases
-  const BATCH_SIZE = Math.max(10, Math.min(50, Math.ceil(allFiles.length / 50)));
+  const BATCH_SIZE = Math.max(
+    10,
+    Math.min(50, Math.ceil(allFiles.length / 50))
+  );
   console.log(`[SHADOW-WIKI] Using batch size: ${BATCH_SIZE}`);
-  
+
   for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
     const batch = allFiles.slice(i, i + BATCH_SIZE);
     const skipLLM = consecutiveLLMFailures >= MAX_CONSECUTIVE_FAILURES;
     if (skipLLM && i === 0) {
-      console.warn(`[SHADOW-WIKI] Too many consecutive LLM failures (${consecutiveLLMFailures}), switching to symbol-only analysis`);
+      console.warn(
+        `[SHADOW-WIKI] Too many consecutive LLM failures (${consecutiveLLMFailures}), switching to symbol-only analysis`
+      );
     }
 
     const batchTasks = batch.map(async (rel) => {
@@ -1112,7 +1109,8 @@ export async function runShadowWiki(
 
     if (i + BATCH_SIZE < allFiles.length) {
       // Dynamic delay based on codebase size - smaller for larger codebases
-      const delay = allFiles.length > 1000 ? 200 : allFiles.length > 500 ? 350 : 500;
+      const delay =
+        allFiles.length > 1000 ? 200 : allFiles.length > 500 ? 350 : 500;
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
@@ -1165,11 +1163,7 @@ export async function runShadowWiki(
     return `## ${c.name}\n${c.summary || "_missing_"}`;
   });
 
-  root.summary = await summarizeRoot(
-    root,
-    topBlocks,
-    mainModelInstance
-  );
+  root.summary = await summarizeRoot(root, topBlocks, mainModelInstance);
 
   const summaryContent = {
     rootSummary: root.summary,
