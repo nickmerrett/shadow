@@ -352,6 +352,32 @@ export class StreamProcessor {
             break;
           }
 
+          case "reasoning": {
+            const streamChunk = this.chunkHandlers.handleReasoning(chunk);
+            if (streamChunk) {
+              yield streamChunk;
+            }
+            break;
+          }
+
+          case "reasoning-signature": {
+            const streamChunk =
+              this.chunkHandlers.handleReasoningSignature(chunk);
+            if (streamChunk) {
+              yield streamChunk;
+            }
+            break;
+          }
+
+          case "redacted-reasoning": {
+            const streamChunk =
+              this.chunkHandlers.handleRedactedReasoning(chunk);
+            if (streamChunk) {
+              yield streamChunk;
+            }
+            break;
+          }
+
           case "error": {
             const streamChunk = this.chunkHandlers.handleError(chunk);
             yield streamChunk;

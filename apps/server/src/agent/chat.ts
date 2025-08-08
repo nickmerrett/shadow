@@ -7,6 +7,8 @@ import {
   ModelType,
   ApiKeys,
   QueuedActionUI,
+  ReasoningPart,
+  RedactedReasoningPart,
   generateTaskId,
 } from "@repo/types";
 import { TextPart, ToolCallPart, ToolResultPart } from "ai";
@@ -823,6 +825,10 @@ export class ChatService {
 
     const toolCallSequences = new Map<string, number>();
 
+    // Track active reasoning parts for signature association
+    const activeReasoningParts: Map<number, ReasoningPart> = new Map();
+    let reasoningCounter = 0;
+
     // Create tools first so we can generate system prompt based on available tools
     let availableTools: ToolSet | undefined;
     if (enableTools && taskId) {
@@ -894,6 +900,116 @@ export class ChatService {
                 },
               });
             }
+          }
+        }
+
+        // Handle reasoning content chunks
+        if (chunk.type === "reasoning" && chunk.reasoning) {
+          // Create new reasoning part or continue existing one
+          const currentReasoning = activeReasoningParts.get(
+            reasoningCounter
+          ) || {
+            type: "reasoning" as const,
+            text: "",
+          };
+
+          const updatedReasoning: ReasoningPart = {
+            ...currentReasoning,
+            text: currentReasoning.text + chunk.reasoning,
+          };
+
+          activeReasoningParts.set(reasoningCounter, updatedReasoning);
+
+          // Create assistant message on first reasoning chunk if not already created
+          if (assistantSequence === null) {
+            assistantSequence = await this.getNextSequence(taskId);
+            const assistantMsg = await this.saveAssistantMessage(
+              taskId,
+              chunk.reasoning, // Store some content for backward compatibility
+              context.getMainModel(),
+              assistantSequence,
+              {
+                isStreaming: true,
+                parts: assistantParts,
+              }
+            );
+            assistantMessageId = assistantMsg.id;
+          }
+        }
+
+        if (chunk.type === "reasoning-signature" && chunk.reasoningSignature) {
+          // Add signature to current reasoning part
+          const currentReasoning = activeReasoningParts.get(reasoningCounter);
+          if (currentReasoning) {
+            currentReasoning.signature = chunk.reasoningSignature;
+            // Finalize this reasoning part
+            assistantParts.push(currentReasoning);
+            reasoningCounter++;
+
+            // Update assistant message with finalized reasoning part
+            if (assistantMessageId) {
+              const fullContent = assistantParts
+                .filter((part) => part.type === "text")
+                .map((part) => (part as TextPart).text)
+                .join("");
+
+              await prisma.chatMessage.update({
+                where: { id: assistantMessageId },
+                data: {
+                  content: fullContent,
+                  metadata: {
+                    isStreaming: true,
+                    parts: assistantParts,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } as any,
+                },
+              });
+            }
+          }
+        }
+
+        if (
+          chunk.type === "redacted-reasoning" &&
+          chunk.redactedReasoningData
+        ) {
+          const redactedPart: RedactedReasoningPart = {
+            type: "redacted-reasoning" as const,
+            data: chunk.redactedReasoningData,
+          };
+          assistantParts.push(redactedPart);
+
+          // Create assistant message if not already created
+          if (assistantSequence === null) {
+            assistantSequence = await this.getNextSequence(taskId);
+            const assistantMsg = await this.saveAssistantMessage(
+              taskId,
+              "[Redacted reasoning]", // Store placeholder content
+              context.getMainModel(),
+              assistantSequence,
+              {
+                isStreaming: true,
+                parts: assistantParts,
+              }
+            );
+            assistantMessageId = assistantMsg.id;
+          } else if (assistantMessageId) {
+            // Update existing assistant message with redacted reasoning part
+            const fullContent = assistantParts
+              .filter((part) => part.type === "text")
+              .map((part) => (part as TextPart).text)
+              .join("");
+
+            await prisma.chatMessage.update({
+              where: { id: assistantMessageId },
+              data: {
+                content: fullContent,
+                metadata: {
+                  isStreaming: true,
+                  parts: assistantParts,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } as any,
+              },
+            });
           }
         }
 
@@ -1120,6 +1236,15 @@ export class ChatService {
 
       // Check if stream was stopped early
       const wasStoppedEarly = this.stopRequested.has(taskId);
+
+      // Finalize any remaining reasoning parts that didn't receive signatures
+      for (const [index, reasoningPart] of activeReasoningParts.entries()) {
+        console.log(
+          `[CHAT] Finalizing remaining reasoning part ${index} without signature`
+        );
+        assistantParts.push(reasoningPart);
+      }
+      activeReasoningParts.clear();
 
       // Update final assistant message with complete metadata
       if (assistantMessageId && usageMetadata) {
