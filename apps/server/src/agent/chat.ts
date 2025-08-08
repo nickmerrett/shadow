@@ -1454,28 +1454,6 @@ export class ChatService {
       },
     });
 
-    // Get chat history up to the edited message
-    const history = await this.getChatHistory(taskId);
-
-    // Process the edited message as if it were a new message
-    // Filter out tool messages and stacked-PR messages, use the updated content
-    const messages: Message[] = history
-      .filter(
-        (msg) =>
-          (msg.role === "user" && !msg.stackedTaskId) ||
-          msg.role === "assistant"
-      )
-      .map((msg) => {
-        if (msg.id === messageId) {
-          return {
-            ...msg,
-            content: newContent,
-            llmModel: newModel,
-          };
-        }
-        return msg;
-      });
-
     // Start streaming from the edited message
     // Update context with new model if it has changed
     if (context.getMainModel() !== newModel) {
