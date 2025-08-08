@@ -18,6 +18,11 @@
     "db:prod:push": "./scripts/db-prod.sh db push",
     "db:prod:studio": "./scripts/db-prod.sh studio",
     "db:prod:migrate": "./scripts/db-prod.sh migrate deploy",
+    "db:prod:reset": "./scripts/db-prod.sh migrate reset --force",
+    "db:prod:reset:push": "./scripts/db-prod.sh db push --force-reset",
+    "db:prod:migrate:status": "./scripts/db-prod.sh migrate status",
+    "db:prod:migrate:resolve": "./scripts/db-prod.sh migrate resolve",
+    "db:prod:migrate:diff": "./scripts/db-prod.sh migrate diff",
     "generate": "turbo run generate"
   },
   "prisma": {
