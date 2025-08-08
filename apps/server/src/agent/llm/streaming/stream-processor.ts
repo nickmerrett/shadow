@@ -75,6 +75,18 @@ export class StreamProcessor {
         finalMessages = coreMessages;
       }
 
+      const reasoningProviderOptions = {
+        anthropic: {
+          thinking: {
+            type: "enabled",
+            budgetTokens: 12000,
+          },
+        },
+        openai: {
+          reasoningEffort: "high",
+        },
+      };
+
       const streamConfig = {
         model: modelInstance,
         ...(isAnthropicModel ? {} : { system: systemPrompt }),
@@ -82,6 +94,7 @@ export class StreamProcessor {
         maxTokens: 4096,
         temperature: 0.7,
         maxSteps: MAX_STEPS,
+        providerOptions: reasoningProviderOptions,
         ...(enableTools && tools && { tools, toolCallStreaming: true }),
         ...(abortSignal && { abortSignal }),
         ...(enableTools &&
