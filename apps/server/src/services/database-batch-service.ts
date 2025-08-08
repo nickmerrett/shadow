@@ -16,7 +16,6 @@ type AssistantUpdateData = {
 export class DatabaseBatchService {
   private pendingUpdates: Map<string, NodeJS.Timeout> = new Map();
   private updateBuffer: Map<string, AssistantUpdateData> = new Map();
-  private lastFlushTime: number | null = null;
   private static readonly DB_UPDATE_INTERVAL_MS = 1000;
 
   constructor() {
@@ -60,14 +59,7 @@ export class DatabaseBatchService {
       return;
     }
 
-    // Calculate time difference since last flush
-    const now = Date.now();
-    const timeDiff = this.lastFlushTime ? now - this.lastFlushTime : null;
-    const timeDiffStr = timeDiff !== null ? `${timeDiff}ms since last flush` : 'first flush';
-
-    console.log(
-      `[DB_BATCH] Flushing update for task ${taskId} (${timeDiffStr})`
-    );
+    console.log(`[DB_BATCH] Flushing update for task ${taskId}`);
 
     try {
       // Build full content from text parts
@@ -103,8 +95,6 @@ export class DatabaseBatchService {
         },
       });
 
-      // Update last flush time after successful write
-      this.lastFlushTime = Date.now();
     } catch (error) {
       console.error(
         `[DB_BATCH] Failed to flush DB update for task ${taskId}:`,
