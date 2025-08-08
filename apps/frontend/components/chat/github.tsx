@@ -321,9 +321,11 @@ export function GithubConnection({
           ))
         )}
       </div>
-      <ManageGithubButton
-        link={`https://github.com/settings/installations/${githubStatus?.installationId}`}
-      />
+      {githubStatus?.installationId && (
+        <ManageGithubButton
+          link={`https://github.com/settings/installations/${githubStatus.installationId}`}
+        />
+      )}
     </div>
   );
 
@@ -369,9 +371,11 @@ export function GithubConnection({
         )}
       </div>
 
-      <ManageGithubButton
-        link={`https://github.com/settings/installations/${githubStatus?.installationId}`}
-      />
+      {githubStatus?.installationId && (
+        <ManageGithubButton
+          link={`https://github.com/settings/installations/${githubStatus.installationId}`}
+        />
+      )}
     </div>
   );
 

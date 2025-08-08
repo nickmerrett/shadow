@@ -14,8 +14,13 @@ if (!GITHUB_APP_ID || !GITHUB_PRIVATE_KEY) {
 const IS_PRODUCTION = process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
 const PERSONAL_GITHUB_TOKEN =
   process.env.GITHUB_PERSONAL_ACCESS_TOKEN || process.env.GITHUB_TOKEN;
+const FORCE_GITHUB_APP = process.env.NEXT_PUBLIC_FORCE_GITHUB_APP === "true";
 
 export function isPersonalTokenMode(): boolean {
+  // If forcing GitHub App usage, always use GitHub App mode
+  if (FORCE_GITHUB_APP) {
+    return false;
+  }
   return !IS_PRODUCTION && !!PERSONAL_GITHUB_TOKEN;
 }
 

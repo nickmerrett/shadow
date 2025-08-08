@@ -19,8 +19,6 @@ import {
   UserRepository,
 } from "./types";
 
-// Environment-based mode selection delegated to github-app helpers
-
 function filterRepositoryData(repo: UserRepository): FilteredRepository {
   return {
     id: repo.id,
@@ -145,13 +143,16 @@ export async function getGitHubStatus(
       };
     }
 
-    // Local development convenience: allow personal token without installing the GitHub App
-    if (isPersonalTokenMode()) {
+    // Local development convenience: in non-production, hide the connect variant
+    // unless explicitly forcing GitHub App usage
+    const isProduction = process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
+    const forceGitHubApp = process.env.NEXT_PUBLIC_FORCE_GITHUB_APP === "true";
+    if (!isProduction && !forceGitHubApp) {
       return {
         isConnected: true,
         isAppInstalled: true, // treat as installed so UI works seamlessly
         installationUrl: undefined,
-        message: "Using personal GitHub token (non-production)",
+        message: "Local mode: GitHub treated as connected",
       };
     }
 
