@@ -549,6 +549,40 @@ export function useTaskSocket(taskId: string | undefined) {
           }
           break;
 
+        case "fs-override":
+          if (chunk.fsOverride) {
+            console.log("File state override:", chunk.fsOverride.message);
+
+            // Replace entire file state (not optimistic merge)
+            queryClient.setQueryData(
+              ["task", taskId],
+              (oldData: TaskWithDetails) => {
+                if (!oldData) return oldData;
+                return {
+                  ...oldData,
+                  fileChanges: chunk.fsOverride!.fileChanges,
+                  diffStats: chunk.fsOverride!.diffStats,
+                };
+              }
+            );
+
+            queryClient.setQueryData(
+              ["codebase-tree", taskId],
+              (oldData: CodebaseTreeResponse) => {
+                if (!oldData) return oldData;
+                return {
+                  success: true,
+                  tree: chunk.fsOverride!.codebaseTree,
+                };
+              }
+            );
+
+            console.log(
+              `[FS_OVERRIDE] Updated file state: ${chunk.fsOverride.fileChanges.length} changes, ${chunk.fsOverride.codebaseTree.length} tree entries, diff stats: +${chunk.fsOverride.diffStats.additions} -${chunk.fsOverride.diffStats.deletions} (${chunk.fsOverride.diffStats.totalFiles} files)`
+            );
+          }
+          break;
+
         case "complete":
           setIsStreaming(false);
           console.log("Stream completed");
