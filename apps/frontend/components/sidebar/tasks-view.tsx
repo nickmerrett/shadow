@@ -6,7 +6,15 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Task } from "@repo/db";
-import { ChevronDown, Folder, GitBranch, Search, X, List, Archive } from "lucide-react";
+import {
+  ChevronDown,
+  Folder,
+  GitBranch,
+  Search,
+  X,
+  List,
+  Archive,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -186,8 +194,9 @@ export function SidebarTasksView({
             <ContextMenuItem
               onClick={() => handleArchiveTask(task.id)}
               disabled={archiveTask.isPending}
+              className="text-muted-foreground hover:text-foreground"
             >
-              <Archive className="mr-2 h-4 w-4" />
+              <Archive className="size-3.5 text-inherit" />
               Archive
             </ContextMenuItem>
           </ContextMenuContent>
