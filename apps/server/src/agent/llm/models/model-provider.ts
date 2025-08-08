@@ -26,7 +26,9 @@ export class ModelProvider {
         const anthropicClient = createAnthropic({
           apiKey: userApiKeys.anthropic,
         });
-        return anthropicClient(modelId);
+        const model = anthropicClient(modelId);
+        console.log(`[MODEL_PROVIDER] Created Anthropic model: ${modelId}`);
+        return model;
       }
 
       case "openai": {
@@ -39,7 +41,9 @@ export class ModelProvider {
         console.log("Creating OpenAI client with API key");
 
         const openaiClient = createOpenAI({ apiKey: userApiKeys.openai });
-        return openaiClient(modelId);
+        const model = openaiClient(modelId);
+        console.log(`[MODEL_PROVIDER] Created OpenAI model: ${modelId}`);
+        return model;
       }
 
       case "openrouter": {
@@ -60,7 +64,9 @@ export class ModelProvider {
               "X-Title": "Shadow Agent",
             },
           });
-          return openrouterClient.chat(modelId);
+          const model = openrouterClient.chat(modelId);
+          console.log(`[MODEL_PROVIDER] Created OpenRouter model: ${modelId}`);
+          return model;
         } catch (error) {
           console.error("OpenRouter client creation failed:", error);
           throw error;

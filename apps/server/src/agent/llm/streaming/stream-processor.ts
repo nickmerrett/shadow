@@ -23,6 +23,7 @@ import type {
 import { createTools } from "../../tools";
 import { ModelProvider } from "../models/model-provider";
 import { ChunkHandlers } from "./chunk-handlers";
+import { braintrustService } from "../observability/braintrust-service";
 
 const MAX_STEPS = 100;
 
@@ -108,6 +109,21 @@ export class StreamProcessor {
         }),
         ...(enableTools && tools && { tools, toolCallStreaming: true }),
         ...(abortSignal && { abortSignal }),
+        experimental_telemetry: braintrustService.getOperationTelemetry(
+          "chat-stream",
+          {
+            taskId,
+            modelProvider,
+            model,
+            enableTools,
+            messageCount: finalMessages.length,
+            maxSteps: MAX_STEPS,
+            temperature: 0.7,
+            hasWorkspace: !!workspacePath,
+            hasTools: enableTools && !!tools,
+            isAnthropicModel,
+          }
+        ),
         ...(enableTools &&
           tools && {
             experimental_repairToolCall: async ({
@@ -165,6 +181,16 @@ export class StreamProcessor {
                     },
                   ],
                   tools,
+                  experimental_telemetry: braintrustService.getOperationTelemetry(
+                    "tool-repair",
+                    {
+                      taskId,
+                      toolName: toolCall.toolName,
+                      errorType: error.constructor.name,
+                      originalArgs: toolCall.args,
+                      modelProvider,
+                    }
+                  ),
                 });
 
                 console.log(`[REPAIR_DEBUG] Repair result:`, {
