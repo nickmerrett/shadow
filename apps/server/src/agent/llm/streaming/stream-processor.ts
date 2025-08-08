@@ -95,9 +95,11 @@ export class StreamProcessor {
         temperature: 0.7,
         maxSteps: MAX_STEPS,
         providerOptions: reasoningProviderOptions,
-        headers: {
-          "anthropic-beta": "interleaved-thinking-2025-05-14",
-        },
+        ...(isAnthropicModel && {
+          headers: {
+            "anthropic-beta": "interleaved-thinking-2025-05-14",
+          },
+        }),
         ...(enableTools && tools && { tools, toolCallStreaming: true }),
         ...(abortSignal && { abortSignal }),
         ...(enableTools &&
