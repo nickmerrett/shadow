@@ -95,7 +95,6 @@ export class StreamProcessor {
         model: modelInstance,
         ...(isAnthropicModel ? {} : { system: systemPrompt }),
         messages: finalMessages,
-        maxTokens: 4096,
         temperature: 0.7,
         maxSteps: MAX_STEPS,
         providerOptions: reasoningProviderOptions,
