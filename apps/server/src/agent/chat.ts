@@ -1155,15 +1155,15 @@ export class ChatService {
             }
           }
 
-          console.log(
-            `[TOOL_RESULT] ${chunk.toolResult.id}:`,
-            "content" in chunk.toolResult.result
-              ? {
-                  ...chunk.toolResult.result,
-                  content: chunk.toolResult.result.content?.slice(0, 50),
-                }
-              : chunk.toolResult.result
-          );
+          //   console.log(
+          //     `[TOOL_RESULT] ${chunk.toolResult.id}:`,
+          //     "content" in chunk.toolResult.result
+          //       ? {
+          //           ...chunk.toolResult.result,
+          //           content: chunk.toolResult.result.content?.slice(0, 50),
+          //         }
+          //       : chunk.toolResult.result
+          //   );
         }
 
         // Handle error chunks from LLM service
