@@ -137,6 +137,13 @@ GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxx
 # Local mode
 NODE_ENV=development
 AGENT_MODE=local
+
+# Optional: Pinecone for semantic search
+PINECONE_API_KEY="" # TODO: Set this to your Pinecone API key
+PINECONE_INDEX_NAME="shadow"
+
+# Workspace directory for local agent:
+WORKSPACE_DIR= # TODO: Set this to your local workspace directory
 ```
 
 `apps/frontend/.env.local`
@@ -154,7 +161,7 @@ GITHUB_CLIENT_SECRET=
 ```
 
 Notes:
-- With `GITHUB_PERSONAL_ACCESS_TOKEN` set on the server and `NEXT_PUBLIC_VERCEL_ENV` not equal to `production`, the backend uses your PAT for repo/branch/issue queries. The frontend’s GitHub selector works immediately.
+- With `GITHUB_PERSONAL_ACCESS_TOKEN` set on the server and `NEXT_PUBLIC_VERCEL_ENV` not equal to `production`, the backend uses your PAT for repo/branch/issue queries. The frontend's GitHub selector works immediately.
 - In this local PAT mode, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_APP_USER_ID`, and `GITHUB_APP_SLUG` are NOT required by the server.
 - Production continues to require the GitHub App configuration and OAuth secrets.
 
@@ -175,11 +182,26 @@ GITHUB_WEBHOOK_SECRET=optional
 
 NODE_ENV=production
 AGENT_MODE=remote
+
+# Optional: Pinecone for semantic search
+PINECONE_API_KEY=...
+PINECONE_INDEX_NAME="shadow"
 ```
 
 `apps/frontend/.env`
 ```bash
 NEXT_PUBLIC_VERCEL_ENV=production
+NEXT_PUBLIC_SERVER_URL="http://localhost:4000"
+
+BETTER_AUTH_SECRET= # TODO: Set this to your BetterAuth secret
+
+GITHUB_APP_ID= # TODO: Set this to your GitHub app ID (same as server .env)
+GITHUB_APP_SLUG= # TODO: Set this to your GitHub app slug (same as server .env)
+GITHUB_PRIVATE_KEY= # TODO: Set this to your GitHub private key (same as server .env)
+GITHUB_CLIENT_ID= # TODO: Set this to your GitHub client ID (same as server .env)
+GITHUB_CLIENT_SECRET= # TODO: Set this to your GitHub client secret (same as server .env)
+
+DATABASE_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
 ```
 
 ## Development Commands
