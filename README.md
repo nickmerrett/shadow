@@ -112,20 +112,74 @@ npm run dev --filter=sidecar
 
 ### Environment Configuration
 
-Key environment variables for development:
+Set variables in the following files:
+- Frontend: `apps/frontend/.env.local`
+- Server: `apps/server/.env`
+- Database: `packages/db/.env`
 
+#### Quick start (local, no GitHub App install)
+Use a personal GitHub token so the GitHub selector works instantly without installing our app.
+
+1) Create a GitHub Personal Access Token with scopes: `repo`, `read:org`.
+2) Add env vars:
+
+`apps/server/.env`
 ```bash
-# Database
+# Required
 DATABASE_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
+BETTER_AUTH_SECRET="dev-secret"
 
-# Authentication
-BETTER_AUTH_SECRET="your-secret"
-GITHUB_CLIENT_ID="your-github-client-id"
-GITHUB_CLIENT_SECRET="your-github-client-secret"
+# Personal token mode (local): either var works
+GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxx
+# or
+# GITHUB_TOKEN=ghp_xxx
 
-# Execution Mode
-AGENT_MODE="local"  # or "remote" for production
-NODE_ENV="development"
+# Local mode
+NODE_ENV=development
+AGENT_MODE=local
+```
+
+`apps/frontend/.env.local`
+```bash
+# Point frontend to your server if needed
+NEXT_PUBLIC_SERVER_URL=http://localhost:4000
+
+# Marks environment; any value other than "production" enables local behavior
+NEXT_PUBLIC_VERCEL_ENV=development
+
+# Optional (only if you want OAuth login locally)
+BETTER_AUTH_SECRET=dev-secret
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+```
+
+Notes:
+- With `GITHUB_PERSONAL_ACCESS_TOKEN` set on the server and `NEXT_PUBLIC_VERCEL_ENV` not equal to `production`, the backend uses your PAT for repo/branch/issue queries. The frontend’s GitHub selector works immediately.
+- In this local PAT mode, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_APP_USER_ID`, and `GITHUB_APP_SLUG` are NOT required by the server.
+- Production continues to require the GitHub App configuration and OAuth secrets.
+
+#### Full configuration (production / GitHub App)
+If you deploy or want to test with the GitHub App, set these server vars instead of the PAT:
+
+`apps/server/.env`
+```bash
+DATABASE_URL=postgres://...
+BETTER_AUTH_SECRET=your-secret
+
+# GitHub OAuth & App
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+GITHUB_APP_USER_ID=...
+GITHUB_APP_SLUG=...
+GITHUB_WEBHOOK_SECRET=optional
+
+NODE_ENV=production
+AGENT_MODE=remote
+```
+
+`apps/frontend/.env`
+```bash
+NEXT_PUBLIC_VERCEL_ENV=production
 ```
 
 ## Development Commands
