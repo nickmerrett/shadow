@@ -114,18 +114,34 @@ npm run dev --filter=sidecar
 
 Key environment variables for development:
 
+
+Server .env:
 ```bash
-# Database
 DATABASE_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
 
-# Authentication
-BETTER_AUTH_SECRET="your-secret"
-GITHUB_CLIENT_ID="your-github-client-id"
-GITHUB_CLIENT_SECRET="your-github-client-secret"
+PINECONE_API_KEY="" # TODO: Set this to your Pinecone API key
+PINECONE_INDEX_NAME="shadow"
 
-# Execution Mode
-AGENT_MODE="local"  # or "remote" for production
-NODE_ENV="development"
+GITHUB_CLIENT_ID= # TODO: Set this to your GitHub client ID
+GITHUB_CLIENT_SECRET= # TODO: Set this to your GitHub client secret
+GITHUB_WEBHOOK_SECRET= # TODO: Set this to your GitHub webhook secret
+
+# Workspace directory for local agent:
+WORKSPACE_DIR= # TODO: Set this to your local workspace directory
+
+```
+```bash
+NEXT_PUBLIC_SERVER_URL="http://localhost:4000"
+
+BETTER_AUTH_SECRET= # TODO: Set this to your BetterAuth secret
+
+GITHUB_APP_ID= # TODO: Set this to your GitHub app ID (same as server .env)
+GITHUB_APP_SLUG= # TODO: Set this to your GitHub app slug (same as server .env)
+GITHUB_PRIVATE_KEY= # TODO: Set this to your GitHub private key (same as server .env)
+GITHUB_CLIENT_ID= # TODO: Set this to your GitHub client ID (same as server .env)
+GITHUB_CLIENT_SECRET= # TODO: Set this to your GitHub client secret (same as server .env)
+
+DATABASE_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
 ```
 
 ## Development Commands
