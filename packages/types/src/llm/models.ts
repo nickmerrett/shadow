@@ -11,6 +11,7 @@ export interface LLMConfig {
 // Model Selection
 export const AvailableModels = {
   // OpenAI models
+  GPT_5: "gpt-5-2025-08-07",
   GPT_4_1: "gpt-4.1",
   GPT_4_1_MINI: "gpt-4.1-mini",
   GPT_4_1_NANO: "gpt-4.1-nano",
@@ -70,6 +71,11 @@ export interface ModelInfo {
 
 export const ModelInfos: Record<ModelType, ModelInfo> = {
   // OpenAI models
+  [AvailableModels.GPT_5]: {
+    id: AvailableModels.GPT_5,
+    name: "GPT-5",
+    provider: "openai",
+  },
   [AvailableModels.GPT_4_1]: {
     id: AvailableModels.GPT_4_1,
     name: "GPT-4.1",
@@ -287,6 +293,7 @@ export async function getAllPossibleModels(
 
   if (userApiKeys.openai) {
     models.push(
+      AvailableModels.GPT_5,
       AvailableModels.GPT_4_1,
       AvailableModels.GPT_4O,
       AvailableModels.GPT_4O_MINI
@@ -340,6 +347,7 @@ export async function getDefaultSelectedModels(
   // Add defaults for each provider (matching the user's request)
   if (userApiKeys.openai) {
     defaultModels.push(
+      AvailableModels.GPT_5, // default
       AvailableModels.GPT_4_1, // default
       AvailableModels.GPT_4O // default
       // AvailableModels.O3, // default
