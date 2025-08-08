@@ -16,10 +16,10 @@ import {
   InvalidToolArgumentsError,
   ToolSet,
 } from "ai";
-  import type {
-    LanguageModelV1FunctionToolCall,
-    LanguageModelV1ProviderMetadata,
-  } from "@ai-sdk/provider";
+import type {
+  LanguageModelV1FunctionToolCall,
+  LanguageModelV1ProviderMetadata,
+} from "@ai-sdk/provider";
 import { createTools } from "../../tools";
 import { ModelProvider } from "../models/model-provider";
 import { ChunkHandlers } from "./chunk-handlers";
