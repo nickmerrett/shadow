@@ -6,9 +6,11 @@ import { z } from "zod";
  */
 // Support local development without GitHub App by allowing a personal token.
 // IMPORTANT: Do NOT relax requirements in production even if a PAT is set.
+const FORCE_GITHUB_APP = process.env.FORCE_GITHUB_APP === "true";
 const USING_PAT =
   process.env.NODE_ENV !== "production" &&
-  !!(process.env.GITHUB_PERSONAL_ACCESS_TOKEN || process.env.GITHUB_TOKEN);
+  !!(process.env.GITHUB_PERSONAL_ACCESS_TOKEN || process.env.GITHUB_TOKEN) &&
+  !FORCE_GITHUB_APP;
 
 export const sharedConfigSchema = z.object({
   // Server configuration
