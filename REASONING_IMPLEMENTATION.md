@@ -162,52 +162,89 @@ reasoning-signature(sig: "sig2")                  // Block 1 finalized → count
 
 ## Current Status
 
-### ✅ What's Working:
+### ✅ What's Working (Phase 1 + Phase 2):
+**Backend (Phase 1):**
 - AI SDK reasoning chunks are captured and processed
 - Reasoning content flows through server pipeline  
 - WebSocket emits reasoning chunks to frontend clients
 - Reasoning parts stored in database for persistence
 - Multiple reasoning blocks per message handled correctly
+
+**Frontend (Phase 2):**
+- Frontend processes all reasoning chunk types correctly
+- Reasoning content flows through to streaming parts map
+- Multi-block reasoning works on frontend
+- Stream state recovery works for reasoning content
+- Ready for UI component consumption
+
+**System-Wide:**
 - TypeScript compilation passes for all packages
+- No breaking changes to existing functionality
+- Legacy "thinking" code completely removed
 
 ### 📋 Testing Completed:
-- TypeScript type checking passes
+- TypeScript type checking passes across all packages
 - All packages compile successfully
-- No breaking changes to existing functionality
+- Frontend reasoning state management tested
+- Stream state recovery logic implemented
 
 ### 🔍 How to Test:
 1. **WebSocket Inspection**: Browser dev tools → Network → WS tab during Claude 4 chat
 2. **Database Verification**: Check message metadata after stream completion  
 3. **Console Monitoring**: Server logs show reasoning chunk processing
+4. **Frontend State**: Console log streaming parts map to see reasoning parts
 
-## Phase 2: Frontend Implementation (TODO)
+## Phase 2: Frontend Implementation (COMPLETED ✅)
 
-### What's Needed:
-1. **Frontend Parts Processing**: Update `apps/frontend/hooks/socket/use-task-socket.ts`
-   - Add reasoning chunk handling in `onStreamChunk`
-   - Manage incremental reasoning text accumulation
-   - Handle multiple reasoning blocks in parts map
+### What Was Implemented:
+
+1. **Frontend Parts Processing**: Updated `apps/frontend/hooks/socket/use-task-socket.ts`
+   ✅ Added reasoning imports (`ReasoningPart`, `RedactedReasoningPart`)
+   ✅ Added reasoning state tracking variables (`activeReasoningParts`, `reasoningCounter`)
+   ✅ Updated `clearStreamingState` to reset reasoning state
+   ✅ Implemented reasoning chunk handling in `onStreamChunk`:
    
-2. **Stream State Recovery**: Update `onStreamState` 
-   - Reconstruct reasoning parts from chunk history on reconnection
-   - Handle reasoning counter state properly
+   ```typescript
+   case "reasoning":
+     // Accumulates reasoning text for current block
+     // Tracks reasoning block IDs for multiple blocks
+     
+   case "reasoning-signature":  
+     // Finalizes current reasoning part with signature
+     // Adds to streaming parts map and increments counter
+     
+   case "redacted-reasoning":
+     // Adds complete redacted reasoning part immediately
+   ```
 
-3. **UI Components**: Create reasoning display components (separate task)
+2. **Stream State Recovery**: Updated `onStreamState` 
+   ✅ Reconstruct reasoning parts from chunk history on reconnection
+   ✅ Handle reasoning counter state properly during replay
+   ✅ Process incomplete reasoning parts correctly
+   ✅ Update frontend reasoning state to match replayed state
 
-### Frontend Implementation Plan:
-```typescript
-// In onStreamChunk handler
-case "reasoning":
-  // Accumulate reasoning text for current block
-  // Track reasoning block IDs for multiple blocks
+3. **Stream Completion Cleanup**: 
+   ✅ Added cleanup logic in "complete" case to finalize remaining reasoning parts
+   ✅ Removed legacy thinking display code from `assistant-message.tsx`
+   ✅ All TypeScript compilation passes
 
-case "reasoning-signature":  
-  // Finalize current reasoning part with signature
-  // Add to streaming parts map
+### Implementation Details:
 
-case "redacted-reasoning":
-  // Add complete redacted reasoning part
-```
+**Frontend State Management:**
+- `activeReasoningParts: Map<number, ReasoningPart>` - tracks incomplete reasoning blocks
+- `reasoningCounter: number` - provides unique IDs for reasoning blocks  
+- State is reset in `clearStreamingState()` and properly managed during reconnection
+
+**Multi-Block Reasoning Support:**
+- Each reasoning block gets tracked separately by counter ID
+- Signatures mark completion and finalize parts into streaming parts map
+- Counter increments ensure unique block identification
+- Incomplete parts are handled gracefully on stream completion
+
+**Parts Integration:**
+- Reasoning parts added to streaming parts map with stable IDs (`reasoning-${counter}`)
+- Proper order maintained in `streamingPartsOrder`
+- Follows existing patterns for part ID generation
 
 ## Configuration Notes
 
@@ -245,7 +282,8 @@ const reasoningProviderOptions = {
 - `apps/server/src/agent/chat.ts`
 
 ### Frontend (Phase 2):
-- `apps/frontend/hooks/socket/use-task-socket.ts` (TODO)
+- `apps/frontend/hooks/socket/use-task-socket.ts` ✅
+- `apps/frontend/components/chat/assistant-message.tsx` ✅ (removed legacy thinking)
 
 ## Important Notes
 
@@ -267,14 +305,16 @@ const reasoningProviderOptions = {
 
 ## Next Steps
 
-When ready for Phase 2:
-1. Review this documentation
-2. Implement frontend reasoning chunk processing
-3. Add UI components for reasoning display
-4. Test end-to-end reasoning flow
+**Phase 3 (Future): UI Components**
+When ready to display reasoning to users:
+1. Create reasoning display components (expandable/collapsible)
+2. Add reasoning parts rendering in `assistant-message.tsx`
+3. Style reasoning blocks to differentiate from regular text
+4. Add signature verification UI (optional)
+5. Test end-to-end reasoning display
 
 ---
 
-*Implementation completed: Phase 1*  
-*Last updated: [Current Date]*
-*Ready for Phase 2: Frontend consumption*
+*Implementation completed: Phase 1 + Phase 2*  
+*Last updated: 2025-08-08*
+*Status: Ready for reasoning display UI (Phase 3)*

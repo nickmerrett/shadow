@@ -1,7 +1,7 @@
 "use client";
 
 import { useSocket } from "./use-socket";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { extractStreamingArgs } from "@/lib/streaming-args";
 import { useStreamingPartsMap } from "../use-streaming-parts-map";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,6 +14,8 @@ import type {
   FileNode,
   QueuedActionUI,
   ToolCallPart,
+  ReasoningPart,
+  RedactedReasoningPart,
 } from "@repo/types";
 import { TextPart, ToolResultPart } from "ai";
 import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
@@ -255,6 +257,15 @@ export function useTaskSocket(taskId: string | undefined) {
   const [streamingPartsOrder, setStreamingPartsOrder] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
 
+  const [activeReasoningParts, setActiveReasoningParts] = useState<
+    Map<number, ReasoningPart>
+  >(new Map());
+
+  // Ref counters for ID generation (no re-renders needed)
+  const textCounterRef = useRef(0);
+  const redactedReasoningCounterRef = useRef(0);
+  const reasoningCounterRef = useRef(0);
+
   const addStreamingPart = useCallback(
     (part: AssistantMessagePart, id: string) => {
       streamingParts.update((prev) => {
@@ -273,6 +284,12 @@ export function useTaskSocket(taskId: string | undefined) {
     streamingParts.clear();
     setStreamingPartsOrder([]);
     setIsStreaming(false);
+    setActiveReasoningParts(new Map());
+    
+    // Reset all ref counters
+    textCounterRef.current = 0;
+    redactedReasoningCounterRef.current = 0;
+    reasoningCounterRef.current = 0;
   }, [streamingParts]);
 
   // Join/leave task room
@@ -330,6 +347,11 @@ export function useTaskSocket(taskId: string | undefined) {
         const newPartsMap = new Map<string, AssistantMessagePart>();
         const newPartsOrder: string[] = [];
         let textCounter = 0;
+
+        // Track reasoning state during replay
+        const replayActiveReasoningParts = new Map<number, ReasoningPart>();
+        let replayReasoningCounter = 0;
+        let replayRedactedReasoningCounter = 0;
 
         state.chunks.forEach((chunk) => {
           if (chunk.type === "content" && chunk.content) {
@@ -397,8 +419,82 @@ export function useTaskSocket(taskId: string | undefined) {
             };
             newPartsMap.set(partId, toolResultPart);
             newPartsOrder.push(partId);
+          } else if (chunk.type === "reasoning" && chunk.reasoning) {
+            // Accumulate reasoning text for current block
+            const currentReasoning = replayActiveReasoningParts.get(
+              replayReasoningCounter
+            ) || {
+              type: "reasoning" as const,
+              text: "",
+            };
+
+            const updatedReasoning: ReasoningPart = {
+              ...currentReasoning,
+              text: currentReasoning.text + chunk.reasoning,
+            };
+            replayActiveReasoningParts.set(
+              replayReasoningCounter,
+              updatedReasoning
+            );
+          } else if (
+            chunk.type === "reasoning-signature" &&
+            chunk.reasoningSignature
+          ) {
+            const currentReasoning = replayActiveReasoningParts.get(
+              replayReasoningCounter
+            );
+            if (currentReasoning) {
+              const finalizedReasoning: ReasoningPart = {
+                ...currentReasoning,
+                signature: chunk.reasoningSignature,
+              };
+
+              // Add to parts map with stable ID
+              const partId = `reasoning-${replayReasoningCounter}`;
+              newPartsMap.set(partId, finalizedReasoning);
+              newPartsOrder.push(partId);
+
+              // Clean up and increment
+              replayActiveReasoningParts.delete(replayReasoningCounter);
+              replayReasoningCounter++;
+            }
+          } else if (
+            chunk.type === "redacted-reasoning" &&
+            chunk.redactedReasoningData
+          ) {
+            // Add complete redacted reasoning part
+            const redactedReasoningPart: RedactedReasoningPart = {
+              type: "redacted-reasoning",
+              data: chunk.redactedReasoningData,
+            };
+
+            // Use sequential counter for stable ID
+            const partId = `redacted-reasoning-${replayRedactedReasoningCounter++}`;
+            newPartsMap.set(partId, redactedReasoningPart);
+            newPartsOrder.push(partId);
           }
         });
+
+        // Handle any remaining incomplete reasoning parts from replay
+        for (const [
+          index,
+          reasoningPart,
+        ] of replayActiveReasoningParts.entries()) {
+          console.log(
+            `[STREAM_STATE] Adding incomplete reasoning part ${index} from replay`
+          );
+          const partId = `reasoning-${index}`;
+          newPartsMap.set(partId, reasoningPart);
+          newPartsOrder.push(partId);
+        }
+
+        // Update frontend reasoning state to match the replayed state
+        setActiveReasoningParts(replayActiveReasoningParts);
+        
+        // Sync all ref counters to match replayed state
+        textCounterRef.current = textCounter;
+        redactedReasoningCounterRef.current = replayRedactedReasoningCounter;
+        reasoningCounterRef.current = replayReasoningCounter;
 
         streamingParts.update(() => newPartsMap);
         setStreamingPartsOrder(newPartsOrder);
@@ -419,7 +515,7 @@ export function useTaskSocket(taskId: string | undefined) {
               type: "text",
               text: chunk.content,
             };
-            addStreamingPart(textPart, `text-${Date.now()}-${Math.random()}`);
+            addStreamingPart(textPart, `text-${textCounterRef.current++}`);
           }
           break;
 
@@ -552,6 +648,15 @@ export function useTaskSocket(taskId: string | undefined) {
         case "complete":
           setIsStreaming(false);
           console.log("Stream completed");
+
+          // Finalize any remaining reasoning parts that didn't receive signatures
+          for (const [index, reasoningPart] of activeReasoningParts.entries()) {
+            console.log(
+              `[STREAM_COMPLETE] Finalizing remaining reasoning part ${index} without signature`
+            );
+            addStreamingPart(reasoningPart, `reasoning-${index}`);
+          }
+
           if (taskId) {
             socket.emit("get-chat-history", { taskId, complete: true });
           }
@@ -567,6 +672,70 @@ export function useTaskSocket(taskId: string | undefined) {
           console.log("Usage:", chunk.usage);
           break;
 
+        case "reasoning":
+          if (chunk.reasoning) {
+            // Create new reasoning part or continue existing one
+            const currentReasoning = activeReasoningParts.get(
+              reasoningCounterRef.current
+            ) || {
+              type: "reasoning" as const,
+              text: "",
+            };
+
+            const updatedReasoning: ReasoningPart = {
+              ...currentReasoning,
+              text: currentReasoning.text + chunk.reasoning,
+            };
+
+            setActiveReasoningParts((prev) => {
+              const newMap = new Map(prev);
+              newMap.set(reasoningCounterRef.current, updatedReasoning);
+              return newMap;
+            });
+          }
+          break;
+
+        case "reasoning-signature":
+          if (chunk.reasoningSignature) {
+            // Finalize current reasoning part with signature
+            const currentReasoning = activeReasoningParts.get(reasoningCounterRef.current);
+            if (currentReasoning) {
+              const finalizedReasoning: ReasoningPart = {
+                ...currentReasoning,
+                signature: chunk.reasoningSignature,
+              };
+
+              // Add completed reasoning part to streaming parts map
+              addStreamingPart(
+                finalizedReasoning,
+                `reasoning-${reasoningCounterRef.current}`
+              );
+
+              // Remove from active parts and increment counter
+              setActiveReasoningParts((prev) => {
+                const newMap = new Map(prev);
+                newMap.delete(reasoningCounterRef.current);
+                return newMap;
+              });
+              reasoningCounterRef.current++;
+            }
+          }
+          break;
+
+        case "redacted-reasoning":
+          if (chunk.redactedReasoningData) {
+            const redactedReasoningPart: RedactedReasoningPart = {
+              type: "redacted-reasoning",
+              data: chunk.redactedReasoningData,
+            };
+
+            // Add immediately to streaming parts map with sequential ID
+            addStreamingPart(
+              redactedReasoningPart,
+              `redacted-reasoning-${redactedReasoningCounterRef.current++}`
+            );
+          }
+          break;
 
         case "init-progress":
           if (chunk.initProgress) {

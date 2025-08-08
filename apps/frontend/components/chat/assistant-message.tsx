@@ -6,13 +6,7 @@ import type {
   ValidationErrorResult,
   ToolCallPart,
 } from "@repo/types";
-import {
-  ChevronDown,
-  AlertCircle,
-  Copy,
-  Check,
-  MoreHorizontal,
-} from "lucide-react";
+import { AlertCircle, Copy, Check, MoreHorizontal } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import { MemoizedMarkdown } from "./memoized-markdown";
 import { ToolMessage } from "./tools";
@@ -66,43 +60,12 @@ export function AssistantMessage({
   message: Message;
   taskId: string;
 }) {
-  const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
   const [isMoreDropdownOpen, setIsMoreDropdownOpen] = useState(false);
   const {
     copyToClipboard: copyMessageContent,
     isCopied: isMessageContentCopied,
   } = useCopyToClipboard();
   const { copyToClipboard: copyMessageId } = useCopyToClipboard();
-
-  // TODO(Ishaan) test with a reasoning model
-  if (message.metadata?.thinking) {
-    return (
-      <div>
-        <div
-          className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50"
-          onClick={() => setIsThinkingExpanded(!isThinkingExpanded)}
-        >
-          <span className="text-muted-foreground">
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 transition-transform",
-                isThinkingExpanded ? "rotate-180" : ""
-              )}
-            />
-            Thinking ({message.metadata.thinking.duration}s)
-          </span>
-        </div>
-        {isThinkingExpanded && (
-          <div className="ml-6 rounded p-3 text-sm">
-            <MemoizedMarkdown
-              content={message.metadata.thinking.content}
-              id={`${message.id}-thinking`}
-            />
-          </div>
-        )}
-      </div>
-    );
-  }
 
   const toolResultsMap = useMemo(() => {
     const map = new Map<string, { result: unknown; toolName: string }>();
@@ -245,6 +208,7 @@ export function AssistantMessage({
             } else {
               // For all other tools, hide until complete to avoid errors with incomplete data
               // This can be removed once support is added for streaming all tool calls
+              // For the initial launch we'll leave at this
               return null;
             }
           }
