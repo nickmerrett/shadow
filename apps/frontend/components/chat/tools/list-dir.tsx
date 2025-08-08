@@ -1,7 +1,7 @@
 import type { Message, DirectoryListing } from "@repo/types";
 import { File, Folder, FolderOpen, Plus } from "lucide-react";
 import { ToolTypes } from "@repo/types";
-import { ToolComponent } from "./collapsible-tool";
+import { ToolComponent } from "./tool";
 
 export function ListDirTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
@@ -39,7 +39,7 @@ export function ListDirTool({ message }: { message: Message }) {
                 </div>
               ))}
               {parsedResult.contents.length > 10 && (
-                <div className="text-muted-foreground flex items-center gap-2 py-px">
+                <div className="flex items-center gap-2 py-px opacity-70">
                   <Plus className="size-4" />
                   <span>{parsedResult.contents.length - 10} more...</span>
                 </div>

@@ -1,12 +1,7 @@
 import { db } from "@repo/db";
-import { ModelType, type Message } from "@repo/types";
+import { type Message } from "@repo/types";
 
-export type TaskMessages = {
-  messages: Message[];
-  mostRecentMessageModel: ModelType | null;
-};
-
-export async function getTaskMessages(taskId: string): Promise<TaskMessages> {
+export async function getTaskMessages(taskId: string): Promise<Message[]> {
   try {
     // Fetch both messages and task's mainModel in parallel for efficiency
     const [messages, task] = await Promise.all([
@@ -47,12 +42,9 @@ export async function getTaskMessages(taskId: string): Promise<TaskMessages> {
       stackedTask: msg.stackedTask || undefined,
     }));
 
-    // Use the mainModel field directly instead of scanning through all messages
-    const mostRecentMessageModel = task?.mainModel as ModelType | null;
-
-    return { messages: finalMessages, mostRecentMessageModel };
+    return finalMessages;
   } catch (err) {
     console.error("Failed to fetch task messages", err);
-    return { messages: [], mostRecentMessageModel: null };
+    return [];
   }
 }

@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSocket } from "./socket/use-socket";
-import { ModelType } from "@repo/types";
-import { TaskMessages } from "@/lib/db-operations/get-task-messages";
+import { Message, ModelType } from "@repo/types";
 
 interface EditMessageParams {
   taskId: string;
@@ -36,42 +35,33 @@ export function useEditMessage() {
       await queryClient.cancelQueries({ queryKey: ["task-messages", taskId] });
 
       // Snapshot the previous value
-      const previousMessages = queryClient.getQueryData<TaskMessages>([
+      const previousMessages = queryClient.getQueryData<Message[]>([
         "task-messages",
         taskId,
       ]);
 
       // Optimistically update the edited message and truncate following messages
-      queryClient.setQueryData<TaskMessages>(
-        ["task-messages", taskId],
-        (old) => {
-          if (!old) return { messages: [], mostRecentMessageModel: null };
+      queryClient.setQueryData<Message[]>(["task-messages", taskId], (old) => {
+        if (!old) return [];
 
-          const messageIndex = old.messages.findIndex(
-            (msg) => msg.id === messageId
-          );
-          if (messageIndex === -1 || !old.messages[messageIndex]) return old;
+        const messageIndex = old.findIndex((msg) => msg.id === messageId);
+        if (messageIndex === -1 || !old[messageIndex]) return old;
 
-          // Update the edited message and truncate all messages after it
-          const updatedMessages = old.messages.slice(0, messageIndex + 1);
+        // Update the edited message and truncate all messages after it
+        const updatedMessages = old.slice(0, messageIndex + 1);
 
-          updatedMessages[messageIndex] = {
-            ...old.messages[messageIndex],
-            content: newContent,
-            llmModel: newModel,
-            pullRequestSnapshot:
-              old.messages[messageIndex]?.pullRequestSnapshot,
-            metadata: {
-              ...old.messages[messageIndex]?.metadata,
-            },
-          };
+        updatedMessages[messageIndex] = {
+          ...old[messageIndex],
+          content: newContent,
+          llmModel: newModel,
+          pullRequestSnapshot: old[messageIndex]?.pullRequestSnapshot,
+          metadata: {
+            ...old[messageIndex]?.metadata,
+          },
+        };
 
-          return {
-            messages: updatedMessages,
-            mostRecentMessageModel: newModel,
-          };
-        }
-      );
+        return updatedMessages;
+      });
 
       // Return a context object with the snapshotted value
       return { previousMessages };

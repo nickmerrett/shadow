@@ -3,7 +3,7 @@ import { Edit3 } from "lucide-react";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 import { getToolResult } from "@repo/types";
 import { ToolTypes } from "@repo/types";
-import { ToolComponent } from "./collapsible-tool";
+import { ToolComponent } from "./tool";
 
 export function SearchReplaceTool({ message }: { message: Message }) {
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();

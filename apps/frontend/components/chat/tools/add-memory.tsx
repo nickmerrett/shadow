@@ -1,7 +1,7 @@
 import type { Message } from "@repo/types";
 import { Brain } from "lucide-react";
 import { ToolTypes } from "@repo/types";
-import { ToolComponent } from "./collapsible-tool";
+import { ToolComponent } from "./tool";
 
 export function AddMemoryTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;

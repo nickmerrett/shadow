@@ -12,9 +12,9 @@ export async function GET(
     const { error, user: _user } = await verifyTaskOwnership(taskId);
     if (error) return error;
 
-    const { messages, mostRecentMessageModel } = await getTaskMessages(taskId);
+    const messages = await getTaskMessages(taskId);
 
-    return NextResponse.json({ messages, mostRecentMessageModel });
+    return NextResponse.json(messages);
   } catch (error) {
     console.error("Error fetching messages:", error);
     return NextResponse.json(

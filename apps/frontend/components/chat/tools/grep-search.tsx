@@ -1,7 +1,7 @@
 import type { Message, GrepResult } from "@repo/types";
 import { Filter, File, Search, Plus } from "lucide-react";
 import { ToolTypes } from "@repo/types";
-import { ToolComponent } from "./collapsible-tool";
+import { ToolComponent } from "./tool";
 import { getToolResult } from "@repo/types";
 
 export function GrepSearchTool({ message }: { message: Message }) {
@@ -62,7 +62,7 @@ export function GrepSearchTool({ message }: { message: Message }) {
                 </div>
               ))}
               {result.detailedMatches.length > 10 && (
-                <div className="text-muted-foreground flex items-center gap-2 py-px">
+                <div className="flex items-center gap-2 py-px opacity-70">
                   <Plus className="size-4" />
                   <span>{result.detailedMatches.length - 10} more...</span>
                 </div>
@@ -87,7 +87,7 @@ export function GrepSearchTool({ message }: { message: Message }) {
                 );
               })}
               {result.matches.length > 10 && (
-                <div className="text-muted-foreground flex items-center gap-2 py-px">
+                <div className="flex items-center gap-2 py-px opacity-70">
                   <Plus className="size-4" />
                   <span>{result.matches.length - 10} more...</span>
                 </div>

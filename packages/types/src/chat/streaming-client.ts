@@ -19,7 +19,6 @@ export interface ValidationErrorResult {
 export interface StreamChunk {
   type:
     | "content"
-    | "thinking"
     | "usage"
     | "complete"
     | "error"
@@ -27,6 +26,9 @@ export interface StreamChunk {
     | "tool-call-start"
     | "tool-call-delta"
     | "tool-result"
+    | "reasoning"
+    | "reasoning-signature"
+    | "redacted-reasoning"
     | "init-progress"
     | "fs-change"
     | "todo-update";
@@ -34,8 +36,10 @@ export interface StreamChunk {
   // For content chunks
   content?: string;
 
-  // For thinking/reasoning chunks
-  thinking?: string;
+  // For reasoning chunks
+  reasoning?: string;              // Incremental reasoning text delta
+  reasoningSignature?: string;     // Verification signature
+  redactedReasoningData?: string;  // Complete redacted reasoning block
 
   usage?: CompletionTokenUsage & {
     // Provider-specific tokens

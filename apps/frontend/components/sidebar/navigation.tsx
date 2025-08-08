@@ -218,7 +218,7 @@ export function SidebarNavigation({
         </div>
       </div>
       <div className="flex flex-col gap-3">
-        <Tooltip>
+        {/* <Tooltip>
           <TooltipTrigger asChild>
             <Button
               size="iconSm"
@@ -231,7 +231,7 @@ export function SidebarNavigation({
           <TooltipContent lighter side="right">
             About
           </TooltipContent>
-        </Tooltip>
+        </Tooltip> */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

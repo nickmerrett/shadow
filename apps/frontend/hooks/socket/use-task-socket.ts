@@ -1,7 +1,7 @@
 "use client";
 
 import { useSocket } from "./use-socket";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { extractStreamingArgs } from "@/lib/streaming-args";
 import { useStreamingPartsMap } from "../use-streaming-parts-map";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,10 +14,11 @@ import type {
   FileNode,
   QueuedActionUI,
   ToolCallPart,
+  ReasoningPart,
+  RedactedReasoningPart,
 } from "@repo/types";
 import { TextPart, ToolResultPart } from "ai";
 import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
-import { TaskMessages } from "@/lib/db-operations/get-task-messages";
 import { CodebaseTreeResponse } from "../use-codebase-tree";
 import { Task, TodoStatus } from "@repo/db";
 import { TaskStatusData } from "@/lib/db-operations/get-task-status";
@@ -255,6 +256,11 @@ export function useTaskSocket(taskId: string | undefined) {
   const [streamingPartsOrder, setStreamingPartsOrder] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
 
+  // Ref counters for ID generation (no re-renders needed)
+  const textCounterRef = useRef(0);
+  const redactedReasoningCounterRef = useRef(0);
+  const reasoningCounterRef = useRef(0);
+
   const addStreamingPart = useCallback(
     (part: AssistantMessagePart, id: string) => {
       streamingParts.update((prev) => {
@@ -273,6 +279,11 @@ export function useTaskSocket(taskId: string | undefined) {
     streamingParts.clear();
     setStreamingPartsOrder([]);
     setIsStreaming(false);
+
+    // Reset all ref counters
+    textCounterRef.current = 0;
+    redactedReasoningCounterRef.current = 0;
+    reasoningCounterRef.current = 0;
   }, [streamingParts]);
 
   // Join/leave task room
@@ -303,14 +314,13 @@ export function useTaskSocket(taskId: string | undefined) {
     function onChatHistory(data: {
       taskId: string;
       messages: Message[];
-      mostRecentMessageModel: ModelType | null;
       queuedAction: QueuedActionUI | null;
     }) {
       if (data.taskId === taskId) {
-        queryClient.setQueryData<TaskMessages>(["task-messages", taskId], {
-          messages: data.messages,
-          mostRecentMessageModel: data.mostRecentMessageModel,
-        });
+        queryClient.setQueryData<Message[]>(
+          ["task-messages", taskId],
+          data.messages
+        );
         queryClient.setQueryData(["queued-action", taskId], data.queuedAction);
 
         clearStreamingState();
@@ -325,11 +335,15 @@ export function useTaskSocket(taskId: string | undefined) {
       console.log("Received stream state:", state);
       setIsStreaming(state.isStreaming);
 
-      // Replay chunks to reconstruct streamingAssistantParts with O(1) operations
+      // Replay chunks to reconstruct streaming parts
       if (state.chunks && state.chunks.length > 0) {
         const newPartsMap = new Map<string, AssistantMessagePart>();
         const newPartsOrder: string[] = [];
         let textCounter = 0;
+
+        // Track counters during replay
+        let replayReasoningCounter = 0;
+        let replayRedactedReasoningCounter = 0;
 
         state.chunks.forEach((chunk) => {
           if (chunk.type === "content" && chunk.content) {
@@ -382,7 +396,6 @@ export function useTaskSocket(taskId: string | undefined) {
             }
           } else if (chunk.type === "tool-result" && chunk.toolResult) {
             const partId = `${chunk.toolResult.id}-result`;
-            // Find corresponding tool call to get tool name
             const correspondingCall = newPartsMap.get(chunk.toolResult.id);
             const toolName =
               correspondingCall?.type === "tool-call"
@@ -397,8 +410,58 @@ export function useTaskSocket(taskId: string | undefined) {
             };
             newPartsMap.set(partId, toolResultPart);
             newPartsOrder.push(partId);
+          } else if (chunk.type === "reasoning" && chunk.reasoning) {
+            // Add reasoning immediately to parts map for live streaming
+            const partId = `reasoning-${replayReasoningCounter}`;
+            const existingPart = newPartsMap.get(partId);
+
+            const updatedReasoning: ReasoningPart = {
+              type: "reasoning" as const,
+              text:
+                (existingPart?.type === "reasoning" ? existingPart.text : "") +
+                chunk.reasoning,
+            };
+
+            newPartsMap.set(partId, updatedReasoning);
+            if (!newPartsOrder.includes(partId)) {
+              newPartsOrder.push(partId);
+            }
+          } else if (
+            chunk.type === "reasoning-signature" &&
+            chunk.reasoningSignature
+          ) {
+            // Update existing reasoning part with signature
+            const partId = `reasoning-${replayReasoningCounter}`;
+            const existingReasoning = newPartsMap.get(partId);
+
+            if (existingReasoning?.type === "reasoning") {
+              const finalizedReasoning: ReasoningPart = {
+                ...existingReasoning,
+                signature: chunk.reasoningSignature,
+              };
+
+              newPartsMap.set(partId, finalizedReasoning);
+              replayReasoningCounter++;
+            }
+          } else if (
+            chunk.type === "redacted-reasoning" &&
+            chunk.redactedReasoningData
+          ) {
+            const redactedReasoningPart: RedactedReasoningPart = {
+              type: "redacted-reasoning",
+              data: chunk.redactedReasoningData,
+            };
+
+            const partId = `redacted-reasoning-${replayRedactedReasoningCounter++}`;
+            newPartsMap.set(partId, redactedReasoningPart);
+            newPartsOrder.push(partId);
           }
         });
+
+        // Sync all ref counters to match replayed state
+        textCounterRef.current = textCounter;
+        redactedReasoningCounterRef.current = replayRedactedReasoningCounter;
+        reasoningCounterRef.current = replayReasoningCounter;
 
         streamingParts.update(() => newPartsMap);
         setStreamingPartsOrder(newPartsOrder);
@@ -411,7 +474,7 @@ export function useTaskSocket(taskId: string | undefined) {
     function onStreamChunk(chunk: StreamChunk) {
       setIsStreaming(true);
 
-      // Handle different types of stream chunks with O(1) operations
+      // Handle different types of stream chunks
       switch (chunk.type) {
         case "content":
           if (chunk.content) {
@@ -419,14 +482,12 @@ export function useTaskSocket(taskId: string | undefined) {
               type: "text",
               text: chunk.content,
             };
-            addStreamingPart(textPart, `text-${Date.now()}-${Math.random()}`);
+            addStreamingPart(textPart, `text-${textCounterRef.current++}`);
           }
           break;
 
         case "tool-call":
           if (chunk.toolCall) {
-            // console.log("Tool call:", chunk.toolCall);
-
             const toolCallPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
@@ -435,7 +496,6 @@ export function useTaskSocket(taskId: string | undefined) {
               streamingState: "complete",
               argsComplete: true,
             };
-            // replace existing part with complete version
             addStreamingPart(toolCallPart, chunk.toolCall.id);
           }
           break;
@@ -446,12 +506,11 @@ export function useTaskSocket(taskId: string | undefined) {
               type: "tool-call",
               toolCallId: chunk.toolCallStart.id,
               toolName: chunk.toolCallStart.name,
-              args: {}, // Empty initially
+              args: {},
               streamingState: "starting",
               argsComplete: false,
             };
 
-            // use same id as final tool call
             addStreamingPart(toolCallStartPart, chunk.toolCallStart.id);
           }
           break;
@@ -462,12 +521,10 @@ export function useTaskSocket(taskId: string | undefined) {
               chunk.toolCallDelta.id
             );
             if (existingPart?.type === "tool-call") {
-              // Accumulate the args text
               const newAccumulatedText =
                 (existingPart.accumulatedArgsText || "") +
                 chunk.toolCallDelta.argsTextDelta;
 
-              // Extract partial arguments using regex patterns
               const partialArgs = extractStreamingArgs(
                 newAccumulatedText,
                 chunk.toolCallDelta.name
@@ -543,15 +600,13 @@ export function useTaskSocket(taskId: string | undefined) {
                 };
               }
             );
-
-            // Note: Diff stats aren't invalidated here to avoid recomputation on every change
-            // They will refresh on: 1) stream completion, 2) 30s stale time, 3) manual refresh
           }
           break;
 
         case "complete":
           setIsStreaming(false);
           console.log("Stream completed");
+
           if (taskId) {
             socket.emit("get-chat-history", { taskId, complete: true });
           }
@@ -567,15 +622,59 @@ export function useTaskSocket(taskId: string | undefined) {
           console.log("Usage:", chunk.usage);
           break;
 
-        case "thinking":
-          console.log("Thinking:", chunk.thinking);
+        case "reasoning":
+          if (chunk.reasoning) {
+            // Add reasoning immediately to streaming parts for live streaming
+            const partId = `reasoning-${reasoningCounterRef.current}`;
+            const existingPart = streamingParts.current.get(partId);
+
+            const updatedReasoning: ReasoningPart = {
+              type: "reasoning",
+              text:
+                (existingPart?.type === "reasoning" ? existingPart.text : "") +
+                chunk.reasoning,
+            };
+
+            addStreamingPart(updatedReasoning, partId);
+          }
+          break;
+
+        case "reasoning-signature":
+          if (chunk.reasoningSignature) {
+            // Update existing reasoning part in streaming parts with signature
+            const partId = `reasoning-${reasoningCounterRef.current}`;
+            const existingPart = streamingParts.current.get(partId);
+
+            if (existingPart?.type === "reasoning") {
+              const finalizedReasoning: ReasoningPart = {
+                ...existingPart,
+                signature: chunk.reasoningSignature,
+              };
+
+              addStreamingPart(finalizedReasoning, partId);
+              reasoningCounterRef.current++;
+            }
+          }
+          break;
+
+        case "redacted-reasoning":
+          if (chunk.redactedReasoningData) {
+            const redactedReasoningPart: RedactedReasoningPart = {
+              type: "redacted-reasoning",
+              data: chunk.redactedReasoningData,
+            };
+
+            addStreamingPart(
+              redactedReasoningPart,
+              `redacted-reasoning-${redactedReasoningCounterRef.current++}`
+            );
+          }
           break;
 
         case "init-progress":
           if (chunk.initProgress) {
             console.log("Initialization progress:", chunk.initProgress);
 
-            // Optimistically update task initialization state
             queryClient.setQueryData(
               ["task", taskId],
               (oldData: TaskWithDetails) => {
@@ -638,7 +737,6 @@ export function useTaskSocket(taskId: string | undefined) {
               (oldData: TaskWithDetails) => {
                 if (!oldData) return oldData;
 
-                // Create a map of existing todos by ID for efficient lookup
                 const existingTodosMap = new Map(
                   (oldData.todos || []).map((todo) => [todo.id, todo])
                 );
@@ -690,15 +788,12 @@ export function useTaskSocket(taskId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task-messages", taskId] });
       queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
-      // Invalidate codebases query to ensure sidebar updates when new codebase understanding is created
       queryClient.invalidateQueries({ queryKey: ["codebases"] });
     }
 
     function onStreamError(error: unknown) {
       clearStreamingState();
       console.error("Stream error:", error);
-      // Legacy stream errors are for unexpected system failures only
-      // Don't add error text parts - these errors won't have permanent message parts
     }
 
     function onMessageError(data: { error: string }) {
@@ -717,7 +812,6 @@ export function useTaskSocket(taskId: string | undefined) {
       if (data.taskId === taskId) {
         console.log(`[TASK_SOCKET] Processing queued ${data.type}:`, data);
 
-        // Add optimistic user message to chat
         const optimisticMessage: Message = {
           id: `temp-queued-${Date.now()}`,
           role: "user",
@@ -726,7 +820,6 @@ export function useTaskSocket(taskId: string | undefined) {
           createdAt: new Date().toISOString(),
           metadata: { isStreaming: false },
           pullRequestSnapshot: undefined,
-          // For stacked PRs, we have additional context from the generated task
           ...(data.type === "stacked-pr" &&
             data.shadowBranch && {
               stackedTask: {
@@ -737,12 +830,11 @@ export function useTaskSocket(taskId: string | undefined) {
             }),
         };
 
-        queryClient.setQueryData<TaskMessages>(
+        queryClient.setQueryData<Message[]>(
           ["task-messages", taskId],
           (old) => {
-            const currentMessages = old?.messages || [];
+            const currentMessages = old || [];
 
-            // Check if we already have a temp message for this queued action
             const hasTempMessage = currentMessages.some(
               (msg) =>
                 msg.id.startsWith("temp-queued-") &&
@@ -751,24 +843,15 @@ export function useTaskSocket(taskId: string | undefined) {
             );
 
             if (hasTempMessage) {
-              return (
-                old || {
-                  messages: currentMessages,
-                  mostRecentMessageModel: data.model,
-                }
-              );
+              return old || currentMessages;
             }
 
             const updatedMessages = [...currentMessages, optimisticMessage];
 
-            return {
-              messages: updatedMessages,
-              mostRecentMessageModel: data.model,
-            };
+            return updatedMessages;
           }
         );
 
-        // Clear the queued action display since it's now processing
         queryClient.setQueryData(["queued-action", taskId], null);
       }
     }
@@ -808,8 +891,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
 
-        // Invalidate codebases query when task status changes to RUNNING
-        // This ensures the sidebar updates when a new codebase understanding is created
         if (data.status === "RUNNING") {
           queryClient.invalidateQueries({ queryKey: ["codebases"] });
         }
@@ -862,8 +943,6 @@ export function useTaskSocket(taskId: string | undefined) {
     (message: string, model: string, queue: boolean = false) => {
       if (!socket || !taskId || !message.trim()) return;
 
-      clearStreamingState();
-
       console.log("Sending message:", { taskId, message, model, queue });
       socket.emit("user-message", {
         taskId,
@@ -872,7 +951,7 @@ export function useTaskSocket(taskId: string | undefined) {
         queue,
       });
     },
-    [socket, taskId, clearStreamingState]
+    [socket, taskId]
   );
 
   const stopStream = useCallback(() => {
