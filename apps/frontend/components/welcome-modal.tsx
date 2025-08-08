@@ -6,9 +6,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { LogoHover } from "@/components/graphics/logo/logo-hover";
 import { Button } from "@/components/ui/button";
 import { useModal } from "@/components/layout/modal-context";
+import { LogoBurst } from "./graphics/logo/logo-burst";
 
 interface WelcomeModalProps {
   open: boolean;
@@ -19,89 +19,67 @@ export function WelcomeModal({ open, onOpenChange }: WelcomeModalProps) {
   const { openSettingsModal } = useModal();
 
   const handleConnectGitHub = () => {
-    onOpenChange(false);
+    // onOpenChange(false);
     openSettingsModal("github");
   };
 
   const handleSetupAPIKeys = () => {
-    onOpenChange(false);
+    // onOpenChange(false);
     openSettingsModal("models");
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-[calc(100%-2rem)] sm:max-w-md">
-        <DialogHeader className="pb-4">
-          <DialogTitle className="font-departureMono flex items-center gap-4 text-2xl font-medium tracking-tighter">
-            <LogoHover size="md" forceAnimate />
-            Welcome to{" "}
-            <span className="text-muted-foreground inline-flex items-center gap-2">
-              Shadow
-            </span>
-          </DialogTitle>
+      <DialogContent>
+        <DialogHeader className="items-center py-4">
+          <LogoBurst size="lg" forceAnimate />
+          <DialogTitle className="sr-only">Welcome to Shadow</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              To get started with Shadow, you'll need to:
-            </p>
-            
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
-                  1
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Connect the Shadow GitHub App</p>
-                  <p className="text-xs text-muted-foreground">
-                    This allows Shadow to access your repositories and make code changes.
-                  </p>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={handleConnectGitHub}
-                  >
-                    Connect GitHub
-                  </Button>
-                </div>
-              </div>
+        <div className="flex flex-col gap-4">
+          <p className="text-muted-foreground text-sm">
+            Welcome to Shadow! Complete the following steps to get started
+            (accessible outside this modal):
+          </p>
 
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
-                  2
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Add your model API keys</p>
-                  <p className="text-xs text-muted-foreground">
-                    Configure your OpenAI or Anthropic API keys for full access.
-                  </p>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={handleSetupAPIKeys}
-                  >
-                    Setup API Keys
-                  </Button>
-                </div>
-              </div>
+          <div className="mt-4 flex items-start gap-3">
+            <div className="bg-primary text-primary-foreground mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+              1
+            </div>
+            <div className="flex flex-col items-start gap-0.5">
+              <p className="font-medium">Connect the Shadow GitHub App</p>
+              <p className="text-muted-foreground pb-2 text-sm">
+                Gives Shadow access to work on your existing repositories.
+              </p>
+              <Button variant="secondary" onClick={handleConnectGitHub}>
+                Connect GitHub
+              </Button>
             </div>
           </div>
 
-          <div className="border-t pt-4">
-            <div className="bg-muted/50 rounded-lg p-3">
-              <p className="text-xs text-muted-foreground">
-                <strong>Security Notice:</strong> While your data is stored securely, 
-                we recommend avoiding work on super high-confidentiality code in Shadow. 
-                Your API keys and repository data are encrypted and handled with care.
+          <div className="flex items-start gap-3">
+            <div className="bg-primary text-primary-foreground mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+              2
+            </div>
+            <div className="flex flex-col items-start gap-0.5">
+              <p className="text-sm font-medium">Add your model API keys</p>
+              <p className="text-muted-foreground pb-2 text-sm">
+                Shadow is BYOK; enter your own API keys to use the models.
+              </p>
+              <Button variant="secondary" onClick={handleSetupAPIKeys}>
+                Setup API Keys
+              </Button>
+            </div>
+          </div>
+
+          <div className="pt-4">
+            <div className="bg-card rounded-lg border p-3">
+              <p className="text-muted-foreground text-[13px] leading-tight">
+                <strong>Note:</strong> While your data is stored securely, we
+                recommend avoiding work on super high-confidentiality codebases
+                in Shadow. Your API keys are never permanently stored remotely.
               </p>
             </div>
-          </div>
-
-          <div className="flex justify-end">
-            <Button onClick={() => onOpenChange(false)}>
-              Get Started
-            </Button>
           </div>
         </div>
       </DialogContent>
