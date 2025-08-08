@@ -68,14 +68,33 @@ type QueuedStackedPRAction = {
 
 type QueuedAction = QueuedMessageAction | QueuedStackedPRAction;
 
+// Type for batched assistant message updates
+type AssistantUpdateData = {
+  messageId: string;
+  assistantParts: AssistantMessagePart[];
+  context: TaskModelContext;
+  usageMetadata?: MessageMetadata["usage"];
+  finishReason?: MessageMetadata["finishReason"];
+  lastUpdateTime: number;
+};
+
 export class ChatService {
   private llmService: LLMService;
   private activeStreams: Map<string, AbortController> = new Map();
   private stopRequested: Set<string> = new Set();
   private queuedActions: Map<string, QueuedAction> = new Map();
+  
+  // Batched DB update system
+  private pendingDbUpdates: Map<string, NodeJS.Timeout> = new Map();
+  private dbUpdateBuffer: Map<string, AssistantUpdateData> = new Map();
+  private static readonly DB_UPDATE_INTERVAL_MS = 1000;
 
   constructor() {
     this.llmService = new LLMService();
+    
+    // Cleanup interval for pending updates on service shutdown
+    process.on('SIGTERM', () => this.flushAllPendingUpdates());
+    process.on('SIGINT', () => this.flushAllPendingUpdates());
   }
 
   private async getNextSequence(taskId: string): Promise<number> {
@@ -535,6 +554,113 @@ export class ChatService {
   }
 
   /**
+   * Schedule a database update for a task with 1-second batching
+   */
+  private scheduleDbUpdate(taskId: string, updateData: AssistantUpdateData): void {
+    // Update the buffer with latest data
+    this.dbUpdateBuffer.set(taskId, {
+      ...updateData,
+      lastUpdateTime: Date.now(),
+    });
+
+    // If there's already a timer running, don't create another one
+    if (this.pendingDbUpdates.has(taskId)) {
+      return;
+    }
+
+    console.log(`[CHAT] Scheduling batched DB update for task ${taskId}`);
+    
+    // Set up timer to flush this task's updates
+    const timer = setTimeout(async () => {
+      await this.flushDbUpdate(taskId);
+    }, ChatService.DB_UPDATE_INTERVAL_MS);
+
+    this.pendingDbUpdates.set(taskId, timer);
+  }
+
+  /**
+   * Immediately flush database updates for a specific task
+   */
+  private async flushDbUpdate(taskId: string): Promise<void> {
+    const updateData = this.dbUpdateBuffer.get(taskId);
+    if (!updateData) {
+      return;
+    }
+
+    console.log(`[CHAT] Flushing batched DB update for task ${taskId} (${updateData.assistantParts.length} parts)`);
+
+    try {
+      // Build full content from text parts
+      const fullContent = updateData.assistantParts
+        .filter((part) => part.type === "text")
+        .map((part) => (part as TextPart).text)
+        .join("");
+
+      // Build metadata
+      const metadata: MessageMetadata = {
+        usage: updateData.usageMetadata,
+        finishReason: updateData.finishReason,
+        isStreaming: !updateData.finishReason, // If we have finishReason, streaming is done
+        parts: updateData.assistantParts,
+      };
+
+      // Update the assistant message
+      await prisma.chatMessage.update({
+        where: { id: updateData.messageId },
+        data: {
+          content: fullContent,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          metadata: metadata as any,
+          // Include denormalized usage fields if available
+          ...(updateData.usageMetadata && {
+            promptTokens: updateData.usageMetadata.promptTokens,
+            completionTokens: updateData.usageMetadata.completionTokens,
+            totalTokens: updateData.usageMetadata.totalTokens,
+          }),
+          ...(updateData.finishReason && {
+            finishReason: updateData.finishReason,
+          }),
+        },
+      });
+      
+      console.log(`[CHAT] Successfully flushed DB update for task ${taskId}`);
+    } catch (error) {
+      console.error(
+        `[CHAT] Failed to flush DB update for task ${taskId}:`,
+        error
+      );
+    } finally {
+      // Clean up
+      this.clearDbUpdateTimer(taskId);
+    }
+  }
+
+  /**
+   * Clear the database update timer and buffer for a task
+   */
+  private clearDbUpdateTimer(taskId: string): void {
+    const timer = this.pendingDbUpdates.get(taskId);
+    if (timer) {
+      clearTimeout(timer);
+      this.pendingDbUpdates.delete(taskId);
+    }
+    this.dbUpdateBuffer.delete(taskId);
+  }
+
+  /**
+   * Force flush all pending database updates (used on shutdown)
+   */
+  private async flushAllPendingUpdates(): Promise<void> {
+    const flushPromises: Promise<void>[] = [];
+    
+    for (const taskId of this.dbUpdateBuffer.keys()) {
+      flushPromises.push(this.flushDbUpdate(taskId));
+    }
+    
+    await Promise.all(flushPromises);
+  }
+
+  /**
    * Handle follow-up logic for tasks
    */
   private async handleFollowUpLogic(taskId: string): Promise<void> {
@@ -830,23 +956,15 @@ export class ChatService {
             );
             assistantMessageId = assistantMsg.id;
           } else {
-            // Update existing assistant message with current parts
+            // Schedule batched database update instead of immediate update
             if (assistantMessageId) {
-              const fullContent = assistantParts
-                .filter((part) => part.type === "text")
-                .map((part) => (part as TextPart).text)
-                .join("");
-
-              await prisma.chatMessage.update({
-                where: { id: assistantMessageId },
-                data: {
-                  content: fullContent,
-                  metadata: {
-                    isStreaming: true,
-                    parts: assistantParts,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  } as any,
-                },
+              this.scheduleDbUpdate(taskId, {
+                messageId: assistantMessageId,
+                assistantParts: [...assistantParts], // Copy array
+                context,
+                usageMetadata,
+                finishReason,
+                lastUpdateTime: Date.now(),
               });
             }
           }
@@ -897,23 +1015,15 @@ export class ChatService {
             activeReasoningParts.delete(reasoningCounter);
             reasoningCounter++;
 
-            // Update assistant message with finalized reasoning part
+            // Schedule batched update with finalized reasoning part
             if (assistantMessageId) {
-              const fullContent = assistantParts
-                .filter((part) => part.type === "text")
-                .map((part) => (part as TextPart).text)
-                .join("");
-
-              await prisma.chatMessage.update({
-                where: { id: assistantMessageId },
-                data: {
-                  content: fullContent,
-                  metadata: {
-                    isStreaming: true,
-                    parts: assistantParts,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  } as any,
-                },
+              this.scheduleDbUpdate(taskId, {
+                messageId: assistantMessageId,
+                assistantParts: [...assistantParts], // Copy array
+                context,
+                usageMetadata,
+                finishReason,
+                lastUpdateTime: Date.now(),
               });
             }
           }
@@ -944,22 +1054,14 @@ export class ChatService {
             );
             assistantMessageId = assistantMsg.id;
           } else if (assistantMessageId) {
-            // Update existing assistant message with redacted reasoning part
-            const fullContent = assistantParts
-              .filter((part) => part.type === "text")
-              .map((part) => (part as TextPart).text)
-              .join("");
-
-            await prisma.chatMessage.update({
-              where: { id: assistantMessageId },
-              data: {
-                content: fullContent,
-                metadata: {
-                  isStreaming: true,
-                  parts: assistantParts,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } as any,
-              },
+            // Schedule batched update with redacted reasoning part
+            this.scheduleDbUpdate(taskId, {
+              messageId: assistantMessageId,
+              assistantParts: [...assistantParts], // Copy array
+              context,
+              usageMetadata,
+              finishReason,
+              lastUpdateTime: Date.now(),
             });
           }
         }
@@ -975,23 +1077,15 @@ export class ChatService {
           };
           assistantParts.push(toolCallPart);
 
-          // Update assistant message with tool call part
+          // Schedule batched update with tool call part
           if (assistantMessageId) {
-            const fullContent = assistantParts
-              .filter((part) => part.type === "text")
-              .map((part) => (part as TextPart).text)
-              .join("");
-
-            await prisma.chatMessage.update({
-              where: { id: assistantMessageId },
-              data: {
-                content: fullContent,
-                metadata: {
-                  isStreaming: true,
-                  parts: assistantParts,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } as any,
-              },
+            this.scheduleDbUpdate(taskId, {
+              messageId: assistantMessageId,
+              assistantParts: [...assistantParts], // Copy array
+              context,
+              usageMetadata,
+              finishReason,
+              lastUpdateTime: Date.now(),
             });
           }
 
@@ -1040,23 +1134,15 @@ export class ChatService {
 
           assistantParts.push(toolResultPart);
 
-          // Update assistant message with tool result part
+          // Schedule batched update with tool result part
           if (assistantMessageId) {
-            const fullContent = assistantParts
-              .filter((part) => part.type === "text")
-              .map((part) => (part as TextPart).text)
-              .join("");
-
-            await prisma.chatMessage.update({
-              where: { id: assistantMessageId },
-              data: {
-                content: fullContent,
-                metadata: {
-                  isStreaming: true,
-                  parts: assistantParts,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } as any,
-              },
+            this.scheduleDbUpdate(taskId, {
+              messageId: assistantMessageId,
+              assistantParts: [...assistantParts], // Copy array
+              context,
+              usageMetadata,
+              finishReason,
+              lastUpdateTime: Date.now(),
             });
           }
 
@@ -1129,8 +1215,12 @@ export class ChatService {
           };
           assistantParts.push(errorPart);
 
-          // Update assistant message with error part if we have one
+          // Flush any pending updates and immediately update with error
           if (assistantMessageId) {
+            // Clear pending timer and flush immediately on error
+            console.log(`[CHAT] Error occurred, immediately flushing DB update for task ${taskId}`);
+            this.clearDbUpdateTimer(taskId);
+            
             const fullContent = assistantParts
               .filter((part) => part.type === "text")
               .map((part) => (part as TextPart).text)
@@ -1184,32 +1274,41 @@ export class ChatService {
       }
       activeReasoningParts.clear();
 
-      // Update final assistant message with complete metadata
-      if (assistantMessageId && usageMetadata) {
-        const fullContent = assistantParts
-          .filter((part) => part.type === "text")
-          .map((part) => (part as TextPart).text)
-          .join("");
+      // Flush any pending updates and perform final update with complete metadata
+      if (assistantMessageId) {
+        // Clear any pending timer and flush immediately for final update
+        console.log(`[CHAT] Stream completed, performing final DB update for task ${taskId}`);
+        this.clearDbUpdateTimer(taskId);
+        
+        if (usageMetadata) {
+          const fullContent = assistantParts
+            .filter((part) => part.type === "text")
+            .map((part) => (part as TextPart).text)
+            .join("");
 
-        const finalMetadata: MessageMetadata = {
-          usage: usageMetadata,
-          finishReason,
-          isStreaming: false,
-          parts: assistantParts,
-        };
+          const finalMetadata: MessageMetadata = {
+            usage: usageMetadata,
+            finishReason,
+            isStreaming: false,
+            parts: assistantParts,
+          };
 
-        await prisma.chatMessage.update({
-          where: { id: assistantMessageId },
-          data: {
-            content: fullContent,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            metadata: finalMetadata as any,
-            promptTokens: usageMetadata.promptTokens,
-            completionTokens: usageMetadata.completionTokens,
-            totalTokens: usageMetadata.totalTokens,
-            finishReason: finishReason,
-          },
-        });
+          await prisma.chatMessage.update({
+            where: { id: assistantMessageId },
+            data: {
+              content: fullContent,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              metadata: finalMetadata as any,
+              promptTokens: usageMetadata.promptTokens,
+              completionTokens: usageMetadata.completionTokens,
+              totalTokens: usageMetadata.totalTokens,
+              finishReason: finishReason,
+            },
+          });
+        } else {
+          // If no usage metadata, just flush any pending updates
+          await this.flushDbUpdate(taskId);
+        }
       }
 
       // Update task status and schedule cleanup based on how stream ended
@@ -1395,6 +1494,9 @@ export class ChatService {
       abortController.abort();
       this.activeStreams.delete(taskId);
     }
+
+    // Flush any pending database updates before stopping
+    await this.flushDbUpdate(taskId);
 
     // Update task status to stopped when manually stopped by user
     await updateTaskStatus(taskId, "STOPPED", "CHAT");
@@ -1738,6 +1840,9 @@ export class ChatService {
 
       // Clean up queued actions
       this.queuedActions.delete(taskId);
+      
+      // Clean up batched database updates
+      this.clearDbUpdateTimer(taskId);
     } catch (error) {
       console.error(
         `[CHAT] Error cleaning up ChatService memory for task ${taskId}:`,
