@@ -75,17 +75,34 @@ export class StreamProcessor {
         finalMessages = coreMessages;
       }
 
-      const reasoningProviderOptions = {
-        anthropic: {
-          thinking: {
-            type: "enabled",
-            budgetTokens: 12000,
+      // Build providerOptions only with parameters supported by the chosen provider/model
+      // - Anthropic: enable thinking with a reasonable budget
+      // - OpenAI: only send reasoning for supported reasoning models (o4/o3 families) using the
+      //           correct JSON shape: { reasoning: { effort: "high" } }
+      const isOpenAIModel = modelProvider === "openai";
+      const modelId = String(model);
+      const supportsOpenAIReasoning =
+        isOpenAIModel && /\b(o4|o3)\b/i.test(modelId);
+
+      let providerOptions: Record<string, unknown> | undefined;
+      if (isAnthropicModel) {
+        providerOptions = {
+          anthropic: {
+            thinking: {
+              type: "enabled",
+              budgetTokens: 12000,
+            },
           },
-        },
-        openai: {
-          reasoningEffort: "high",
-        },
-      };
+        } as const;
+      } else if (supportsOpenAIReasoning) {
+        providerOptions = {
+          openai: {
+            reasoning: {
+              effort: "high",
+            },
+          },
+        } as const;
+      }
 
       const streamConfig = {
         model: modelInstance,
@@ -94,7 +111,7 @@ export class StreamProcessor {
         maxTokens: 4096,
         temperature: 0.7,
         maxSteps: MAX_STEPS,
-        providerOptions: reasoningProviderOptions,
+        ...(providerOptions && { providerOptions }),
         ...(enableTools && tools && { tools, toolCallStreaming: true }),
         ...(abortSignal && { abortSignal }),
         ...(enableTools &&

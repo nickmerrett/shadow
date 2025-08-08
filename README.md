@@ -203,7 +203,6 @@ GITHUB_CLIENT_SECRET= # TODO: Set this to your GitHub client secret (same as ser
 
 DATABASE_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
 ```
-
 ## Development Commands
 
 ### Linting and Formatting
@@ -350,3 +349,17 @@ Shadow provides a comprehensive set of tools for AI agents:
 5. Submit a pull request
    
 We're excited to see what you've built with Shadow!
+
+### Troubleshooting
+
+If you encounter the following issues here are some solutions:
+
+#### Error:
+```bash
+error TS2307: Cannot find module '@repo/db' or its corresponding type declarations.
+```
+
+Solution: Ensure you build the project before running it:
+```bash
+npm run build
+```
