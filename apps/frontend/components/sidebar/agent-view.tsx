@@ -31,6 +31,12 @@ import { Badge } from "../ui/badge";
 import { GithubLogo } from "../graphics/github/github-logo";
 import { useCreatePR } from "@/hooks/use-create-pr";
 import { useTaskSocket } from "@/hooks/socket";
+
+const StreamingStatus = {
+  IDLE: "idle" as const,
+  PENDING: "pending" as const,
+  STREAMING: "streaming" as const,
+};
 import { Loader2 } from "lucide-react";
 import { useIndexingStatus } from "@/hooks/use-indexing-status";
 import { useQueryClient } from "@tanstack/react-query";
@@ -107,7 +113,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
-  const { isStreaming } = useTaskSocket(taskId);
+  const { streamingStatus } = useTaskSocket(taskId);
   const createPRMutation = useCreatePR();
   const queryClient = useQueryClient();
 
@@ -182,7 +188,8 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   // Determine if we should show create PR button
   const showCreatePR = !task?.pullRequestNumber && fileChanges.length > 0;
-  const isCreatePRDisabled = isStreaming || createPRMutation.isPending;
+  const isCreatePRDisabled =
+    streamingStatus !== StreamingStatus.IDLE || createPRMutation.isPending;
 
   // Indexing button state logic
   const isIndexing = indexingStatus?.status === "indexing";

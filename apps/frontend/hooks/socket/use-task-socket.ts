@@ -1,6 +1,12 @@
 "use client";
 
 import { useSocket } from "./use-socket";
+
+enum StreamingStatus {
+  IDLE = "idle",
+  PENDING = "pending",
+  STREAMING = "streaming"
+}
 import { useEffect, useState, useCallback, useRef } from "react";
 import { extractStreamingArgs } from "@/lib/streaming-args";
 import { useStreamingPartsMap } from "../use-streaming-parts-map";
@@ -254,7 +260,7 @@ export function useTaskSocket(taskId: string | undefined) {
 
   const streamingParts = useStreamingPartsMap();
   const [streamingPartsOrder, setStreamingPartsOrder] = useState<string[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingStatus, setStreamingStatus] = useState(StreamingStatus.IDLE);
 
   // Ref counters for ID generation (no re-renders needed)
   const textCounterRef = useRef(0);
@@ -278,7 +284,7 @@ export function useTaskSocket(taskId: string | undefined) {
   const clearStreamingState = useCallback(() => {
     streamingParts.clear();
     setStreamingPartsOrder([]);
-    setIsStreaming(false);
+    setStreamingStatus(StreamingStatus.IDLE);
 
     // Reset all ref counters
     textCounterRef.current = 0;
@@ -333,7 +339,7 @@ export function useTaskSocket(taskId: string | undefined) {
       totalChunks: number;
     }) {
       console.log("Received stream state:", state);
-      setIsStreaming(state.isStreaming);
+      setStreamingStatus(state.isStreaming ? StreamingStatus.STREAMING : StreamingStatus.IDLE);
 
       // Replay chunks to reconstruct streaming parts
       if (state.chunks && state.chunks.length > 0) {
@@ -472,7 +478,7 @@ export function useTaskSocket(taskId: string | undefined) {
     }
 
     function onStreamChunk(chunk: StreamChunk) {
-      setIsStreaming(true);
+      setStreamingStatus(StreamingStatus.STREAMING);
 
       // Handle different types of stream chunks
       switch (chunk.type) {
@@ -638,7 +644,7 @@ export function useTaskSocket(taskId: string | undefined) {
           break;
 
         case "complete":
-          setIsStreaming(false);
+          setStreamingStatus(StreamingStatus.IDLE);
           console.log("Stream completed");
 
           if (taskId) {
@@ -647,7 +653,7 @@ export function useTaskSocket(taskId: string | undefined) {
           break;
 
         case "error": {
-          setIsStreaming(false);
+          setStreamingStatus(StreamingStatus.IDLE);
           console.error("Stream error:", chunk.error);
           break;
         }
@@ -997,6 +1003,7 @@ export function useTaskSocket(taskId: string | undefined) {
       if (!socket || !taskId || !message.trim()) return;
 
       console.log("Sending message:", { taskId, message, model, queue });
+      setStreamingStatus(StreamingStatus.PENDING);
       socket.emit("user-message", {
         taskId,
         message: message.trim(),
@@ -1008,12 +1015,12 @@ export function useTaskSocket(taskId: string | undefined) {
   );
 
   const stopStream = useCallback(() => {
-    if (!socket || !taskId || !isStreaming) return;
+    if (!socket || !taskId || streamingStatus === StreamingStatus.IDLE) return;
 
     console.log("Stopping stream for task:", taskId);
     socket.emit("stop-stream", { taskId });
     clearStreamingState();
-  }, [socket, taskId, isStreaming, clearStreamingState]);
+  }, [socket, taskId, streamingStatus, clearStreamingState]);
 
   const clearQueuedAction = useCallback(() => {
     if (!socket || !taskId) return;
@@ -1038,7 +1045,7 @@ export function useTaskSocket(taskId: string | undefined) {
     isConnected,
     streamingPartsMap: streamingParts.map,
     streamingPartsOrder,
-    isStreaming,
+    streamingStatus,
     sendMessage,
     stopStream,
     clearQueuedAction,

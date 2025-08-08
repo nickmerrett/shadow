@@ -5,6 +5,12 @@ import { PromptForm } from "@/components/chat/prompt-form";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
 import { useTaskSocket } from "@/hooks/socket";
+
+const StreamingStatus = {
+  IDLE: "idle" as const,
+  PENDING: "pending" as const,
+  STREAMING: "streaming" as const,
+};
 import { useParams } from "next/navigation";
 import { ScrollToBottom } from "./scroll-to-bottom";
 import { useCallback, useMemo, memo } from "react";
@@ -31,7 +37,7 @@ function TaskPageContent() {
   const {
     streamingPartsMap,
     streamingPartsOrder,
-    isStreaming,
+    streamingStatus,
     sendMessage,
     stopStream,
     createStackedPR,
@@ -80,7 +86,10 @@ function TaskPageContent() {
     const msgs = [...messages];
 
     // Only proceed if we have streaming parts or are actively streaming
-    if (streamingPartsMap.size === 0 && !isStreaming) {
+    if (
+      streamingPartsMap.size === 0 &&
+      streamingStatus === StreamingStatus.IDLE
+    ) {
       return msgs;
     }
 
@@ -143,7 +152,7 @@ function TaskPageContent() {
     messages,
     streamingPartsMap,
     streamingPartsOrder,
-    isStreaming,
+    streamingStatus,
     task?.mainModel,
   ]);
 
@@ -155,6 +164,7 @@ function TaskPageContent() {
         disableEditing={
           task?.status === "ARCHIVED" || task?.status === "INITIALIZING"
         }
+        streamingStatus={streamingStatus}
       />
 
       {task?.status !== "ARCHIVED" && (
@@ -165,7 +175,10 @@ function TaskPageContent() {
             onSubmit={handleSendMessage}
             onCreateStackedPR={handleCreateStackedPR}
             onStopStream={handleStopStream}
-            isStreaming={isStreaming || sendMessageMutation.isPending}
+            isStreaming={
+              streamingStatus !== StreamingStatus.IDLE ||
+              sendMessageMutation.isPending
+            }
             initialSelectedModel={task?.mainModel as ModelType | null}
             onFocus={() => {
               queryClient.setQueryData(["edit-message-id", taskId], null);

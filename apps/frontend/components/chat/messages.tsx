@@ -3,8 +3,34 @@ import { isAssistantMessage, isUserMessage } from "@repo/types";
 import { AssistantMessage } from "./assistant-message";
 import { UserMessage } from "./user-message";
 import InitializingAnimation from "../task/initializing-animation";
-import { useMemo, memo, useRef } from "react";
+import { useMemo, memo, useRef, useEffect, useState } from "react";
 import { StackedPRCard } from "./stacked-pr-card";
+
+const StreamingStatus = {
+  IDLE: "idle" as const,
+  PENDING: "pending" as const,
+  STREAMING: "streaming" as const,
+};
+
+function GeneratingMessage() {
+  const [dots, setDots] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots((dots) => (dots % 3) + 1);
+    }, 300);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="text-muted-foreground flex h-7 items-center px-3 text-[13px]">
+      Generating
+      {Array.from({ length: dots }).map((_, i) => (
+        <span key={i}>.</span>
+      ))}
+    </div>
+  );
+}
 
 function groupMessages(messages: Message[]) {
   const messageGroups: Message[][] = [];
@@ -50,20 +76,19 @@ function MessagesComponent({
   taskId,
   messages,
   disableEditing,
+  streamingStatus,
 }: {
   taskId: string;
   messages: Message[];
   disableEditing: boolean;
+  streamingStatus?: string;
 }) {
   // Used to properly space the initializing animation
   const userMessageWrapperRef = useRef<HTMLButtonElement>(null);
 
   // Group messages into pairs of [user, assistant] or single messages
   // This is for sticky user message grouping, so that there's a bottom boundary
-  const messageGroups = useMemo(
-    () => groupMessages(messages),
-    [messages]
-  );
+  const messageGroups = useMemo(() => groupMessages(messages), [messages]);
 
   return (
     <div className="relative z-0 mb-24 flex w-full grow flex-col gap-6">
@@ -107,6 +132,10 @@ function MessagesComponent({
             }
             return null;
           })}
+
+          {/* Show 'Generating...' when waiting for first token */}
+          {streamingStatus === StreamingStatus.PENDING &&
+            groupIndex === messageGroups.length - 1 && <GeneratingMessage />}
         </div>
       ))}
     </div>
