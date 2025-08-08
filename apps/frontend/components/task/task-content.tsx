@@ -152,10 +152,12 @@ function TaskPageContent() {
       <Messages
         taskId={taskId}
         messages={displayMessages}
-        disableEditing={status === "ARCHIVED" || status === "INITIALIZING"}
+        disableEditing={
+          task?.status === "ARCHIVED" || task?.status === "INITIALIZING"
+        }
       />
 
-      {status !== "ARCHIVED" && (
+      {task?.status !== "ARCHIVED" && (
         <>
           <ScrollToBottom />
 
@@ -168,7 +170,7 @@ function TaskPageContent() {
             onFocus={() => {
               queryClient.setQueryData(["edit-message-id", taskId], null);
             }}
-            isInitializing={status === "INITIALIZING"}
+            isInitializing={task?.status === "INITIALIZING"}
           />
         </>
       )}

@@ -48,8 +48,6 @@ export default function InitializingAnimation({
     [mode, userSettings]
   );
 
-  console.log("steps", steps);
-
   let currentStepIndex = 0;
 
   if (initStatus === "ACTIVE") {

@@ -944,6 +944,8 @@ export class ChatService {
             currentReasoning.signature = chunk.reasoningSignature;
             // Finalize this reasoning part
             assistantParts.push(currentReasoning);
+            // Remove from active parts to prevent duplication at stream end
+            activeReasoningParts.delete(reasoningCounter);
             reasoningCounter++;
 
             // Update assistant message with finalized reasoning part

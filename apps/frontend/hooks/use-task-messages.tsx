@@ -1,8 +1,9 @@
 import { Message } from "@repo/types";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 export function useTaskMessages(taskId: string) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ["task-messages", taskId],
     queryFn: async (): Promise<Message[]> => {
       const res = await fetch(`/api/tasks/${taskId}/messages`);
@@ -14,4 +15,6 @@ export function useTaskMessages(taskId: string) {
     throwOnError: true,
     enabled: !!taskId,
   });
+
+  return query;
 }

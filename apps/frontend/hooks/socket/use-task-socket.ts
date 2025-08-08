@@ -943,8 +943,6 @@ export function useTaskSocket(taskId: string | undefined) {
     (message: string, model: string, queue: boolean = false) => {
       if (!socket || !taskId || !message.trim()) return;
 
-      clearStreamingState();
-
       console.log("Sending message:", { taskId, message, model, queue });
       socket.emit("user-message", {
         taskId,
@@ -953,7 +951,7 @@ export function useTaskSocket(taskId: string | undefined) {
         queue,
       });
     },
-    [socket, taskId, clearStreamingState]
+    [socket, taskId]
   );
 
   const stopStream = useCallback(() => {

@@ -56,13 +56,5 @@ export function useSendMessage() {
         );
       }
     },
-    onSettled: (data) => {
-      // Always refetch after error or success to ensure we have the latest data
-      if (data?.taskId) {
-        queryClient.invalidateQueries({
-          queryKey: ["task-messages", data.taskId],
-        });
-      }
-    },
   });
 }

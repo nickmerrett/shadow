@@ -95,6 +95,9 @@ export class StreamProcessor {
         temperature: 0.7,
         maxSteps: MAX_STEPS,
         providerOptions: reasoningProviderOptions,
+        headers: {
+          "anthropic-beta": "interleaved-thinking-2025-05-14",
+        },
         ...(enableTools && tools && { tools, toolCallStreaming: true }),
         ...(abortSignal && { abortSignal }),
         ...(enableTools &&
@@ -288,11 +291,7 @@ export class StreamProcessor {
         return;
       }
 
-      // Use fullStream to get real-time tool calls and results
-      let chunkCount = 0;
       for await (const chunk of result.fullStream as AsyncIterable<AIStreamChunk>) {
-        chunkCount++;
-
         switch (chunk.type) {
           case "text-delta": {
             const streamChunk = this.chunkHandlers.handleTextDelta(chunk);
