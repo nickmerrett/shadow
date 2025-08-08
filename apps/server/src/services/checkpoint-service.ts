@@ -552,7 +552,7 @@ export class CheckpointService {
           });
           
           if (response.ok) {
-            const result = await response.json() as { message: string };
+            await response.json() as { message: string };
             // Remote watcher paused successfully
           } else {
             const error = await response.text();
@@ -597,7 +597,7 @@ export class CheckpointService {
           });
           
           if (response.ok) {
-            const result = await response.json() as { message: string };
+            await response.json() as { message: string };
             // Remote watcher resumed successfully
           } else {
             const error = await response.text();

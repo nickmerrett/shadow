@@ -14,7 +14,7 @@ export function createFileSystemWatcherRouter(
    */
   router.post(
     "/watcher/pause",
-    asyncHandler(async (req, res) => {
+    asyncHandler(async (_req, res) => {
       if (!fileSystemWatcher) {
         return res.status(404).json({
           success: false,
@@ -26,7 +26,7 @@ export function createFileSystemWatcherRouter(
         fileSystemWatcher.pause();
         logger.info("[FS_WATCHER_API] Filesystem watcher paused");
 
-        res.json({
+        return res.json({
           success: true,
           message: "Filesystem watcher paused successfully",
         });
@@ -34,7 +34,7 @@ export function createFileSystemWatcherRouter(
         logger.error("[FS_WATCHER_API] Failed to pause filesystem watcher", {
           error,
         });
-        res.status(500).json({
+        return res.status(500).json({
           success: false,
           message: "Failed to pause filesystem watcher",
           error: error instanceof Error ? error.message : String(error),
@@ -49,7 +49,7 @@ export function createFileSystemWatcherRouter(
    */
   router.post(
     "/watcher/resume",
-    asyncHandler(async (req, res) => {
+    asyncHandler(async (_req, res) => {
       if (!fileSystemWatcher) {
         return res.status(404).json({
           success: false,
@@ -61,7 +61,7 @@ export function createFileSystemWatcherRouter(
         fileSystemWatcher.resume();
         logger.info("[FS_WATCHER_API] Filesystem watcher resumed");
 
-        res.json({
+        return res.json({
           success: true,
           message: "Filesystem watcher resumed successfully",
         });
@@ -69,7 +69,7 @@ export function createFileSystemWatcherRouter(
         logger.error("[FS_WATCHER_API] Failed to resume filesystem watcher", {
           error,
         });
-        res.status(500).json({
+        return res.status(500).json({
           success: false,
           message: "Failed to resume filesystem watcher",
           error: error instanceof Error ? error.message : String(error),
@@ -84,7 +84,7 @@ export function createFileSystemWatcherRouter(
    */
   router.get(
     "/watcher/status",
-    asyncHandler(async (req, res) => {
+    asyncHandler(async (_req, res) => {
       if (!fileSystemWatcher) {
         return res.json({
           success: true,
@@ -98,7 +98,7 @@ export function createFileSystemWatcherRouter(
       try {
         const isPaused = fileSystemWatcher.isPausedState();
 
-        res.json({
+        return res.json({
           success: true,
           data: {
             initialized: true,
@@ -110,7 +110,7 @@ export function createFileSystemWatcherRouter(
           "[FS_WATCHER_API] Failed to get filesystem watcher status",
           { error }
         );
-        res.status(500).json({
+        return res.status(500).json({
           success: false,
           message: "Failed to get filesystem watcher status",
           error: error instanceof Error ? error.message : String(error),
