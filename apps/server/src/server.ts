@@ -1,3 +1,7 @@
+// Initialize telemetry BEFORE any other imports
+import { initializeTelemetry, shutdownTelemetry } from "./instrumentation";
+initializeTelemetry();
+
 import { socketIOServer } from "./app";
 import config from "./config";
 import { stopAllFileSystemWatchers } from "./agent/tools";
@@ -22,7 +26,15 @@ const shutdown = (signal: string) => {
   stopAllFileSystemWatchers();
 
   // Close server (handles both HTTP and WebSocket)
-  server.close(() => {
+  server.close(async () => {
+    // Shutdown telemetry
+    try {
+      await shutdownTelemetry();
+      console.log("[SERVER] Telemetry shutdown complete");
+    } catch (error) {
+      console.error("[SERVER] Error shutting down telemetry:", error);
+    }
+    
     console.log("[SERVER] Server closed (HTTP + WebSocket)");
     process.exit(0);
   });

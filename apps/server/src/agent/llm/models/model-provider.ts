@@ -5,7 +5,6 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 // import { createOllama } from "ollama-ai-provider";
 import { ModelType, getModelProvider, ApiKeys } from "@repo/types";
 import { LanguageModel } from "ai";
-import { braintrustService } from "../observability/braintrust-service";
 
 export class ModelProvider {
   /**
@@ -29,11 +28,9 @@ export class ModelProvider {
         });
         const model = anthropicClient(modelId);
         
-        // Wrap with Braintrust observability
-        return braintrustService.wrapModel(model, {
-          provider: "anthropic",
-          modelId,
-        });
+        // Model is automatically traced via OpenTelemetry integration
+        console.log(`[MODEL_PROVIDER] Created Anthropic model: ${modelId}`);
+        return model;
       }
 
       case "openai": {
@@ -48,11 +45,9 @@ export class ModelProvider {
         const openaiClient = createOpenAI({ apiKey: userApiKeys.openai });
         const model = openaiClient(modelId);
         
-        // Wrap with Braintrust observability
-        return braintrustService.wrapModel(model, {
-          provider: "openai",
-          modelId,
-        });
+        // Model is automatically traced via OpenTelemetry integration
+        console.log(`[MODEL_PROVIDER] Created OpenAI model: ${modelId}`);
+        return model;
       }
 
       case "openrouter": {
@@ -75,11 +70,9 @@ export class ModelProvider {
           });
           const model = openrouterClient.chat(modelId);
           
-          // Wrap with Braintrust observability
-          return braintrustService.wrapModel(model, {
-            provider: "openrouter",
-            modelId,
-          });
+          // Model is automatically traced via OpenTelemetry integration
+          console.log(`[MODEL_PROVIDER] Created OpenRouter model: ${modelId}`);
+          return model;
         } catch (error) {
           console.error("OpenRouter client creation failed:", error);
           throw error;

@@ -1157,7 +1157,12 @@ export class ChatService {
 
           console.log(
             `[TOOL_RESULT] ${chunk.toolResult.id}:`,
-            chunk.toolResult.result
+            "content" in chunk.toolResult.result
+              ? {
+                  ...chunk.toolResult.result,
+                  content: chunk.toolResult.result.content?.slice(0, 50),
+                }
+              : chunk.toolResult.result
           );
         }
 
@@ -1315,12 +1320,16 @@ export class ChatService {
 
           // Create checkpoint after successful completion and commit
           if (changesCommitted && assistantMessageId) {
-            console.log(`[CHAT] 📸 Creating checkpoint after successful response: task=${taskId}, message=${assistantMessageId}`);
+            console.log(
+              `[CHAT] 📸 Creating checkpoint after successful response: task=${taskId}, message=${assistantMessageId}`
+            );
             await checkpointService.createCheckpoint(
               taskId,
               assistantMessageId
             );
-            console.log(`[CHAT] ✅ Checkpoint creation completed after successful response`);
+            console.log(
+              `[CHAT] ✅ Checkpoint creation completed after successful response`
+            );
           }
         } catch (error) {
           console.error(
@@ -1525,9 +1534,13 @@ export class ChatService {
     }
 
     // Restore checkpoint state before deleting subsequent messages
-    console.log(`[CHAT] 🔄 About to restore checkpoint for message editing: task=${taskId}, message=${messageId}`);
+    console.log(
+      `[CHAT] 🔄 About to restore checkpoint for message editing: task=${taskId}, message=${messageId}`
+    );
     await checkpointService.restoreCheckpoint(taskId, messageId);
-    console.log(`[CHAT] ✅ Checkpoint restoration completed for message editing`);
+    console.log(
+      `[CHAT] ✅ Checkpoint restoration completed for message editing`
+    );
 
     // Delete all messages that come after the edited message
     await prisma.chatMessage.deleteMany({

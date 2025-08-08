@@ -49,7 +49,7 @@ export const sharedConfigSchema = z.object({
     .union([z.boolean(), z.string().transform((val) => val === "true")])
     .default(false),
 
-  // Braintrust observability (optional for all environments)
+  // Braintrust observability (optional in dev)
   BRAINTRUST_API_KEY: z.string().optional(),
   BRAINTRUST_PROJECT_ID: z.string().optional(),
   ENABLE_BRAINTRUST: z

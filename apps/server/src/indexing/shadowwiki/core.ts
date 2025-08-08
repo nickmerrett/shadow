@@ -721,9 +721,18 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
         temperature: 0.6,
         messages,
         maxTokens: isCritical ? 3000 : 2048,
-        experimental_telemetry: braintrustService.getTelemetryConfig({
-          operation: "shadowwiki-file-summary",
-        }),
+        experimental_telemetry: braintrustService.getOperationTelemetry(
+          "shadowwiki-file-summary",
+          {
+            filePath: rel,
+            fileExtension: path.extname(rel),
+            isCritical,
+            fileSize: truncatedSrc.length,
+            wasTruncated,
+            hasSymbols: symbols.defs.size + symbols.calls.size + symbols.imports.size > 0,
+            analysisType: "llm-deep-analysis",
+          }
+        ),
       }),
       60000,
       `LLM analysis of ${rel}`

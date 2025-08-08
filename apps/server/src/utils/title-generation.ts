@@ -64,12 +64,16 @@ export async function generateTaskTitleAndBranch(
 "${userPrompt}"
 
 Return ONLY the title.`,
-      experimental_telemetry: braintrustService.getTelemetryConfig({
-        taskId,
-        operation: "title-generation",
-        provider: modelConfig.provider,
-        model: modelConfig.modelChoice,
-      }),
+      experimental_telemetry: braintrustService.getOperationTelemetry(
+        "title-generation",
+        {
+          taskId,
+          provider: modelConfig.provider,
+          model: modelConfig.modelChoice,
+          promptLength: userPrompt.length,
+          temperature: 0.3,
+        }
+      ),
     });
 
     const title = cleanTitle(generatedText);

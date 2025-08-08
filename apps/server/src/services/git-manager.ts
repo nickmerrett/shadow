@@ -170,11 +170,16 @@ Git diff:
 ${diff}
 
 Commit message:`,
-        experimental_telemetry: braintrustService.getTelemetryConfig({
-          operation: "commit-message-generation",
-          model,
-          diffLength: diff.length,
-        }),
+        experimental_telemetry: braintrustService.getOperationTelemetry(
+          "commit-message-generation",
+          {
+            model,
+            diffLength: diff.length,
+            maxTokens: 100,
+            temperature: 0.3,
+            workspacePath: this.workspacePath,
+          }
+        ),
       });
 
       const commitMessage = text.trim().replace(/^["']|["']$/g, ""); // Remove quotes if present
