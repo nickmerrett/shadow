@@ -34,7 +34,7 @@ const shutdown = (signal: string) => {
     } catch (error) {
       console.error("[SERVER] Error shutting down telemetry:", error);
     }
-    
+
     console.log("[SERVER] Server closed (HTTP + WebSocket)");
     process.exit(0);
   });

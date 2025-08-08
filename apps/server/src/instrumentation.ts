@@ -10,7 +10,11 @@ export function initializeTelemetry() {
     return;
   }
 
-  if (!config.enableBraintrust || !config.braintrustApiKey || !config.braintrustProjectId) {
+  if (
+    !config.enableBraintrust ||
+    !config.braintrustApiKey ||
+    !config.braintrustProjectId
+  ) {
     console.log("[TELEMETRY] Braintrust disabled - missing configuration");
     return;
   }
@@ -26,7 +30,9 @@ export function initializeTelemetry() {
     });
 
     sdk.start();
-    console.log("[TELEMETRY] Braintrust observability initialized successfully");
+    console.log(
+      "[TELEMETRY] Braintrust observability initialized successfully"
+    );
   } catch (error) {
     console.error("[TELEMETRY] Failed to initialize Braintrust:", error);
   }

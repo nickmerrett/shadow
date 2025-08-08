@@ -729,7 +729,8 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
             isCritical,
             fileSize: truncatedSrc.length,
             wasTruncated,
-            hasSymbols: symbols.defs.size + symbols.calls.size + symbols.imports.size > 0,
+            hasSymbols:
+              symbols.defs.size + symbols.calls.size + symbols.imports.size > 0,
             analysisType: "llm-deep-analysis",
           }
         ),
