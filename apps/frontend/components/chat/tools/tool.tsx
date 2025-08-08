@@ -1,14 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ToolTypes, TOOL_PREFIXES } from "@repo/types";
-import {
-  AlertCircle,
-  ChevronRight,
-  CornerDownRight,
-  Expand,
-  Loader2,
-} from "lucide-react";
-import { useState } from "react";
+import { AlertCircle, ChevronRight, Expand, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { FileIcon } from "@/components/ui/file-icon";
 
 export function ToolComponent({
@@ -21,6 +15,7 @@ export function ToolComponent({
   suffix,
   showFileIcon,
   collapsible = false,
+  forceOpen = false,
   onClick,
   children,
   isLoading = false,
@@ -38,11 +33,17 @@ export function ToolComponent({
   hasStdErr?: boolean;
   className?: string;
   collapsible?: boolean;
+  forceOpen?: boolean;
   onClick?: () => void;
   children?: React.ReactNode;
   isLoading?: boolean;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(forceOpen || false);
+
+  // useEffect for if it changes
+  useEffect(() => {
+    setIsExpanded(forceOpen);
+  }, [forceOpen]);
 
   const displayPrefix =
     prefix || (type in TOOL_PREFIXES ? TOOL_PREFIXES[type as ToolTypes] : "");
@@ -94,16 +95,8 @@ export function ToolComponent({
         </div>
       </ToolWrapper>
       {isExpanded && (
-        <div className="flex w-full items-start overflow-hidden">
-          <div className="h-4.5 flex w-6 shrink-0 items-center justify-end">
-            <CornerDownRight
-              className={cn(
-                "size-3",
-                type === "error" ? "text-destructive" : "text-muted-foreground"
-              )}
-            />
-          </div>
-          <div className="flex grow flex-col gap-2 overflow-hidden pl-2 text-[13px]">
+        <div className="animate-in fade-in-0 slide-in-from-top-2 ease-out-quad flex w-full items-start overflow-hidden duration-200">
+          <div className="text-muted-foreground pl-8.5 flex grow flex-col gap-2 overflow-hidden text-[13px]">
             {children}
           </div>
         </div>

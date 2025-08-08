@@ -2,11 +2,21 @@ import { ToolTypes, type ReasoningPart } from "@repo/types";
 import { ChevronDown } from "lucide-react";
 import { ToolComponent } from "./tools/tool";
 
-export function ReasoningComponent({ part }: { part: ReasoningPart }) {
+export function ReasoningComponent({
+  part,
+  isLoading = false,
+  forceOpen = false,
+}: {
+  part: ReasoningPart;
+  isLoading?: boolean;
+  forceOpen?: boolean;
+}) {
   return (
     <ToolComponent
       icon={<ChevronDown />}
       collapsible
+      forceOpen={forceOpen}
+      isLoading={isLoading}
       type={ToolTypes.REASONING}
     >
       <div className="text-muted-foreground whitespace-pre-wrap text-sm">
@@ -19,7 +29,7 @@ export function ReasoningComponent({ part }: { part: ReasoningPart }) {
 export function RedactedReasoningComponent() {
   return (
     <ToolComponent collapsible type={ToolTypes.REDACTED_REASONING}>
-      <div className="text-muted-foreground text-sm italic">
+      <div className="text-muted-foreground whitespace-pre-wrap text-sm">
         Reasoning content has been redacted by Anthropic.
       </div>
     </ToolComponent>

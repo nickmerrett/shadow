@@ -290,10 +290,17 @@ export function AssistantMessage({
 
         // Render reasoning parts
         if (group.type === "reasoning") {
+          // Detect if this is a streaming message and if reasoning is the latest part
+          const isStreamingMessage = message.metadata?.isStreaming === true;
+          const isLatestPart = groupIndex === groupedParts.length - 1;
+          const isLoading = isStreamingMessage && isLatestPart;
+
           return (
             <ReasoningComponent
               key={`reasoning-${groupIndex}`}
               part={group.part}
+              isLoading={isLoading}
+              forceOpen={isLoading}
             />
           );
         }

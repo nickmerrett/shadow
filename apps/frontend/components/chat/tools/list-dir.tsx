@@ -39,7 +39,7 @@ export function ListDirTool({ message }: { message: Message }) {
                 </div>
               ))}
               {parsedResult.contents.length > 10 && (
-                <div className="text-muted-foreground flex items-center gap-2 py-px">
+                <div className="flex items-center gap-2 py-px opacity-70">
                   <Plus className="size-4" />
                   <span>{parsedResult.contents.length - 10} more...</span>
                 </div>
