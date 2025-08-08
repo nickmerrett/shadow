@@ -269,10 +269,22 @@ export function PromptForm({
         try {
           taskId = await createTask(formData);
         } catch (error) {
-          toast.error("Failed to create task", {
-            description:
-              error instanceof Error ? error.message : "Unknown error",
-          });
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+
+          // Show specific toast for task limit errors
+          if (
+            errorMessage.includes("maximum of") &&
+            errorMessage.includes("active tasks")
+          ) {
+            toast.error("Task limit reached", {
+              description: errorMessage,
+            });
+          } else {
+            toast.error("Failed to create task", {
+              description: errorMessage,
+            });
+          }
         }
         if (taskId) {
           queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -404,9 +416,22 @@ export function PromptForm({
       try {
         taskId = await createTask(formData);
       } catch (error) {
-        toast.error("Failed to create task", {
-          description: error instanceof Error ? error.message : "Unknown error",
-        });
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+
+        // Show specific toast for task limit errors
+        if (
+          errorMessage.includes("maximum of") &&
+          errorMessage.includes("active tasks")
+        ) {
+          toast.error("Task limit reached", {
+            description: errorMessage,
+          });
+        } else {
+          toast.error("Failed to create task", {
+            description: errorMessage,
+          });
+        }
       }
       if (taskId) {
         queryClient.invalidateQueries({ queryKey: ["tasks"] });

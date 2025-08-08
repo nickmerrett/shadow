@@ -7,7 +7,7 @@ import { after } from "next/server";
 import { z, ZodIssue } from "zod";
 import { generateTaskTitleAndBranch } from "./generate-title-branch";
 import { saveResizableTaskLayoutCookie } from "./resizable-task-cookie";
-import { generateTaskId } from "@repo/types";
+import { generateTaskId, MAX_TASKS_PER_USER_PRODUCTION } from "@repo/types";
 import { makeBackendRequest } from "../make-backend-request";
 
 const createTaskSchema = z.object({
@@ -54,6 +54,22 @@ export async function createTask(formData: FormData) {
   }
 
   const { message, model, repoUrl, baseBranch, repoFullName } = validation.data;
+
+  // Check task limit in production only
+  if (process.env.NODE_ENV === "production") {
+    const activeTaskCount = await prisma.task.count({
+      where: {
+        userId: session.user.id,
+        status: {
+          notIn: ["COMPLETED", "FAILED", "ARCHIVED"]
+        }
+      }
+    });
+
+    if (activeTaskCount >= MAX_TASKS_PER_USER_PRODUCTION) {
+      throw new Error(`You have reached the maximum of ${MAX_TASKS_PER_USER_PRODUCTION} active tasks. Please complete or archive existing tasks to create new ones.`);
+    }
+  }
 
   const taskId = generateTaskId();
   let task: Task;

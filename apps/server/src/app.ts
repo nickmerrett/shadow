@@ -14,6 +14,7 @@ import { apiKeyAuth } from "./middleware/api-key-auth";
 import { createSocketServer } from "./socket";
 import { getGitHubAccessToken } from "./github/auth/account-service";
 import { updateTaskStatus } from "./utils/task-status";
+import { hasReachedTaskLimit } from "./services/task-limit";
 import { createWorkspaceManager } from "./execution";
 import { filesRouter } from "./files/router";
 import { handleGitHubWebhook } from "./webhooks/github-webhook";
@@ -137,6 +138,16 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
     }
 
     const { message, model, userId } = validation.data;
+
+    // Check task limit before processing (production only)
+    const isAtLimit = await hasReachedTaskLimit(userId);
+    if (isAtLimit) {
+      return res.status(429).json({
+        error: "Task limit reached",
+        message:
+          "You have reached the maximum number of active tasks. Please complete or archive existing tasks to create new ones.",
+      });
+    }
 
     // Verify task exists
     const task = await prisma.task.findUnique({
