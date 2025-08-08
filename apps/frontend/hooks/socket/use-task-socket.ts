@@ -257,10 +257,6 @@ export function useTaskSocket(taskId: string | undefined) {
   const [streamingPartsOrder, setStreamingPartsOrder] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
 
-  const [activeReasoningParts, setActiveReasoningParts] = useState<
-    Map<number, ReasoningPart>
-  >(new Map());
-
   // Ref counters for ID generation (no re-renders needed)
   const textCounterRef = useRef(0);
   const redactedReasoningCounterRef = useRef(0);
@@ -284,7 +280,6 @@ export function useTaskSocket(taskId: string | undefined) {
     streamingParts.clear();
     setStreamingPartsOrder([]);
     setIsStreaming(false);
-    setActiveReasoningParts(new Map());
     
     // Reset all ref counters
     textCounterRef.current = 0;
@@ -342,14 +337,13 @@ export function useTaskSocket(taskId: string | undefined) {
       console.log("Received stream state:", state);
       setIsStreaming(state.isStreaming);
 
-      // Replay chunks to reconstruct streamingAssistantParts with O(1) operations
+      // Replay chunks to reconstruct streaming parts
       if (state.chunks && state.chunks.length > 0) {
         const newPartsMap = new Map<string, AssistantMessagePart>();
         const newPartsOrder: string[] = [];
         let textCounter = 0;
 
-        // Track reasoning state during replay
-        const replayActiveReasoningParts = new Map<number, ReasoningPart>();
+        // Track counters during replay
         let replayReasoningCounter = 0;
         let replayRedactedReasoningCounter = 0;
 
@@ -404,7 +398,6 @@ export function useTaskSocket(taskId: string | undefined) {
             }
           } else if (chunk.type === "tool-result" && chunk.toolResult) {
             const partId = `${chunk.toolResult.id}-result`;
-            // Find corresponding tool call to get tool name
             const correspondingCall = newPartsMap.get(chunk.toolResult.id);
             const toolName =
               correspondingCall?.type === "tool-call"
@@ -420,77 +413,51 @@ export function useTaskSocket(taskId: string | undefined) {
             newPartsMap.set(partId, toolResultPart);
             newPartsOrder.push(partId);
           } else if (chunk.type === "reasoning" && chunk.reasoning) {
-            // Accumulate reasoning text for current block
-            const currentReasoning = replayActiveReasoningParts.get(
-              replayReasoningCounter
-            ) || {
-              type: "reasoning" as const,
-              text: "",
-            };
-
+            // Add reasoning immediately to parts map for live streaming
+            const partId = `reasoning-${replayReasoningCounter}`;
+            const existingPart = newPartsMap.get(partId);
+            
             const updatedReasoning: ReasoningPart = {
-              ...currentReasoning,
-              text: currentReasoning.text + chunk.reasoning,
+              type: "reasoning" as const,
+              text: (existingPart?.type === "reasoning" ? existingPart.text : "") + chunk.reasoning,
             };
-            replayActiveReasoningParts.set(
-              replayReasoningCounter,
-              updatedReasoning
-            );
+            
+            newPartsMap.set(partId, updatedReasoning);
+            if (!newPartsOrder.includes(partId)) {
+              newPartsOrder.push(partId);
+            }
           } else if (
             chunk.type === "reasoning-signature" &&
             chunk.reasoningSignature
           ) {
-            const currentReasoning = replayActiveReasoningParts.get(
-              replayReasoningCounter
-            );
-            if (currentReasoning) {
+            // Update existing reasoning part with signature
+            const partId = `reasoning-${replayReasoningCounter}`;
+            const existingReasoning = newPartsMap.get(partId);
+            
+            if (existingReasoning?.type === "reasoning") {
               const finalizedReasoning: ReasoningPart = {
-                ...currentReasoning,
+                ...existingReasoning,
                 signature: chunk.reasoningSignature,
               };
 
-              // Add to parts map with stable ID
-              const partId = `reasoning-${replayReasoningCounter}`;
               newPartsMap.set(partId, finalizedReasoning);
-              newPartsOrder.push(partId);
-
-              // Clean up and increment
-              replayActiveReasoningParts.delete(replayReasoningCounter);
               replayReasoningCounter++;
             }
           } else if (
             chunk.type === "redacted-reasoning" &&
             chunk.redactedReasoningData
           ) {
-            // Add complete redacted reasoning part
             const redactedReasoningPart: RedactedReasoningPart = {
               type: "redacted-reasoning",
               data: chunk.redactedReasoningData,
             };
 
-            // Use sequential counter for stable ID
             const partId = `redacted-reasoning-${replayRedactedReasoningCounter++}`;
             newPartsMap.set(partId, redactedReasoningPart);
             newPartsOrder.push(partId);
           }
         });
 
-        // Handle any remaining incomplete reasoning parts from replay
-        for (const [
-          index,
-          reasoningPart,
-        ] of replayActiveReasoningParts.entries()) {
-          console.log(
-            `[STREAM_STATE] Adding incomplete reasoning part ${index} from replay`
-          );
-          const partId = `reasoning-${index}`;
-          newPartsMap.set(partId, reasoningPart);
-          newPartsOrder.push(partId);
-        }
-
-        // Update frontend reasoning state to match the replayed state
-        setActiveReasoningParts(replayActiveReasoningParts);
-        
         // Sync all ref counters to match replayed state
         textCounterRef.current = textCounter;
         redactedReasoningCounterRef.current = replayRedactedReasoningCounter;
@@ -507,7 +474,7 @@ export function useTaskSocket(taskId: string | undefined) {
     function onStreamChunk(chunk: StreamChunk) {
       setIsStreaming(true);
 
-      // Handle different types of stream chunks with O(1) operations
+      // Handle different types of stream chunks
       switch (chunk.type) {
         case "content":
           if (chunk.content) {
@@ -521,8 +488,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "tool-call":
           if (chunk.toolCall) {
-            // console.log("Tool call:", chunk.toolCall);
-
             const toolCallPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
@@ -531,7 +496,6 @@ export function useTaskSocket(taskId: string | undefined) {
               streamingState: "complete",
               argsComplete: true,
             };
-            // replace existing part with complete version
             addStreamingPart(toolCallPart, chunk.toolCall.id);
           }
           break;
@@ -542,12 +506,11 @@ export function useTaskSocket(taskId: string | undefined) {
               type: "tool-call",
               toolCallId: chunk.toolCallStart.id,
               toolName: chunk.toolCallStart.name,
-              args: {}, // Empty initially
+              args: {},
               streamingState: "starting",
               argsComplete: false,
             };
 
-            // use same id as final tool call
             addStreamingPart(toolCallStartPart, chunk.toolCallStart.id);
           }
           break;
@@ -558,12 +521,10 @@ export function useTaskSocket(taskId: string | undefined) {
               chunk.toolCallDelta.id
             );
             if (existingPart?.type === "tool-call") {
-              // Accumulate the args text
               const newAccumulatedText =
                 (existingPart.accumulatedArgsText || "") +
                 chunk.toolCallDelta.argsTextDelta;
 
-              // Extract partial arguments using regex patterns
               const partialArgs = extractStreamingArgs(
                 newAccumulatedText,
                 chunk.toolCallDelta.name
@@ -639,23 +600,12 @@ export function useTaskSocket(taskId: string | undefined) {
                 };
               }
             );
-
-            // Note: Diff stats aren't invalidated here to avoid recomputation on every change
-            // They will refresh on: 1) stream completion, 2) 30s stale time, 3) manual refresh
           }
           break;
 
         case "complete":
           setIsStreaming(false);
           console.log("Stream completed");
-
-          // Finalize any remaining reasoning parts that didn't receive signatures
-          for (const [index, reasoningPart] of activeReasoningParts.entries()) {
-            console.log(
-              `[STREAM_COMPLETE] Finalizing remaining reasoning part ${index} without signature`
-            );
-            addStreamingPart(reasoningPart, `reasoning-${index}`);
-          }
 
           if (taskId) {
             socket.emit("get-chat-history", { taskId, complete: true });
@@ -674,49 +624,32 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "reasoning":
           if (chunk.reasoning) {
-            // Create new reasoning part or continue existing one
-            const currentReasoning = activeReasoningParts.get(
-              reasoningCounterRef.current
-            ) || {
-              type: "reasoning" as const,
-              text: "",
-            };
-
+            // Add reasoning immediately to streaming parts for live streaming
+            const partId = `reasoning-${reasoningCounterRef.current}`;
+            const existingPart = streamingParts.current.get(partId);
+            
             const updatedReasoning: ReasoningPart = {
-              ...currentReasoning,
-              text: currentReasoning.text + chunk.reasoning,
+              type: "reasoning",
+              text: (existingPart?.type === "reasoning" ? existingPart.text : "") + chunk.reasoning,
             };
-
-            setActiveReasoningParts((prev) => {
-              const newMap = new Map(prev);
-              newMap.set(reasoningCounterRef.current, updatedReasoning);
-              return newMap;
-            });
+            
+            addStreamingPart(updatedReasoning, partId);
           }
           break;
 
         case "reasoning-signature":
           if (chunk.reasoningSignature) {
-            // Finalize current reasoning part with signature
-            const currentReasoning = activeReasoningParts.get(reasoningCounterRef.current);
-            if (currentReasoning) {
+            // Update existing reasoning part in streaming parts with signature
+            const partId = `reasoning-${reasoningCounterRef.current}`;
+            const existingPart = streamingParts.current.get(partId);
+            
+            if (existingPart?.type === "reasoning") {
               const finalizedReasoning: ReasoningPart = {
-                ...currentReasoning,
+                ...existingPart,
                 signature: chunk.reasoningSignature,
               };
-
-              // Add completed reasoning part to streaming parts map
-              addStreamingPart(
-                finalizedReasoning,
-                `reasoning-${reasoningCounterRef.current}`
-              );
-
-              // Remove from active parts and increment counter
-              setActiveReasoningParts((prev) => {
-                const newMap = new Map(prev);
-                newMap.delete(reasoningCounterRef.current);
-                return newMap;
-              });
+              
+              addStreamingPart(finalizedReasoning, partId);
               reasoningCounterRef.current++;
             }
           }
@@ -729,7 +662,6 @@ export function useTaskSocket(taskId: string | undefined) {
               data: chunk.redactedReasoningData,
             };
 
-            // Add immediately to streaming parts map with sequential ID
             addStreamingPart(
               redactedReasoningPart,
               `redacted-reasoning-${redactedReasoningCounterRef.current++}`
@@ -741,7 +673,6 @@ export function useTaskSocket(taskId: string | undefined) {
           if (chunk.initProgress) {
             console.log("Initialization progress:", chunk.initProgress);
 
-            // Optimistically update task initialization state
             queryClient.setQueryData(
               ["task", taskId],
               (oldData: TaskWithDetails) => {
@@ -804,7 +735,6 @@ export function useTaskSocket(taskId: string | undefined) {
               (oldData: TaskWithDetails) => {
                 if (!oldData) return oldData;
 
-                // Create a map of existing todos by ID for efficient lookup
                 const existingTodosMap = new Map(
                   (oldData.todos || []).map((todo) => [todo.id, todo])
                 );
@@ -856,15 +786,12 @@ export function useTaskSocket(taskId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task-messages", taskId] });
       queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
-      // Invalidate codebases query to ensure sidebar updates when new codebase understanding is created
       queryClient.invalidateQueries({ queryKey: ["codebases"] });
     }
 
     function onStreamError(error: unknown) {
       clearStreamingState();
       console.error("Stream error:", error);
-      // Legacy stream errors are for unexpected system failures only
-      // Don't add error text parts - these errors won't have permanent message parts
     }
 
     function onMessageError(data: { error: string }) {
@@ -883,7 +810,6 @@ export function useTaskSocket(taskId: string | undefined) {
       if (data.taskId === taskId) {
         console.log(`[TASK_SOCKET] Processing queued ${data.type}:`, data);
 
-        // Add optimistic user message to chat
         const optimisticMessage: Message = {
           id: `temp-queued-${Date.now()}`,
           role: "user",
@@ -892,7 +818,6 @@ export function useTaskSocket(taskId: string | undefined) {
           createdAt: new Date().toISOString(),
           metadata: { isStreaming: false },
           pullRequestSnapshot: undefined,
-          // For stacked PRs, we have additional context from the generated task
           ...(data.type === "stacked-pr" &&
             data.shadowBranch && {
               stackedTask: {
@@ -908,7 +833,6 @@ export function useTaskSocket(taskId: string | undefined) {
           (old) => {
             const currentMessages = old?.messages || [];
 
-            // Check if we already have a temp message for this queued action
             const hasTempMessage = currentMessages.some(
               (msg) =>
                 msg.id.startsWith("temp-queued-") &&
@@ -934,7 +858,6 @@ export function useTaskSocket(taskId: string | undefined) {
           }
         );
 
-        // Clear the queued action display since it's now processing
         queryClient.setQueryData(["queued-action", taskId], null);
       }
     }
@@ -974,8 +897,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
 
-        // Invalidate codebases query when task status changes to RUNNING
-        // This ensures the sidebar updates when a new codebase understanding is created
         if (data.status === "RUNNING") {
           queryClient.invalidateQueries({ queryKey: ["codebases"] });
         }
