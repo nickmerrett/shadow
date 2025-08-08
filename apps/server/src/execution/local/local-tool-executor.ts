@@ -84,7 +84,7 @@ export class LocalToolExecutor implements ToolExecutor {
         Math.min(requestedStart, Math.max(1, lines.length))
       );
 
-      // Default to a single "page" of up to 100 lines when end not provided
+      // Default to a single "page" of up to 150 lines when end not provided
       const requestedEnd =
         options?.endLineOneIndexedInclusive ??
         safeStart + MAX_LINES_PER_READ - 1;

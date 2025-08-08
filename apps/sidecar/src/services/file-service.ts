@@ -54,8 +54,8 @@ export class FileService {
         };
       }
 
-      // Handle line range reading with clamping and pagination (max 100 lines)
-      const MAX_LINES_PER_READ = 100;
+      // Handle line range reading with clamping and pagination (max 150 lines)
+      const MAX_LINES_PER_READ = 150;
       const requestedStart = startLine ?? 1;
       const safeStart = Math.max(
         1,
