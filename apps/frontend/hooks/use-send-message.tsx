@@ -1,5 +1,9 @@
 import type { Message, ModelType } from "@repo/types";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  isCancelledError,
+} from "@tanstack/react-query";
 
 export function useSendMessage() {
   const queryClient = useQueryClient();
@@ -19,8 +23,17 @@ export function useSendMessage() {
       return { taskId, message, model };
     },
     onMutate: async ({ taskId, message, model }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["task-messages", taskId] });
+      // Cancel any outgoing refetches; ignore cancellation errors surfacing from in-flight queries
+      try {
+        await queryClient.cancelQueries({
+          queryKey: ["task-messages", taskId],
+        });
+      } catch (error) {
+        if (!isCancelledError(error)) {
+          // Log unexpected errors but don't block optimistic update
+          console.error("Failed to cancel queries for task-messages", error);
+        }
+      }
 
       // Snapshot the previous value
       const previousMessages = queryClient.getQueryData<Message[]>([
