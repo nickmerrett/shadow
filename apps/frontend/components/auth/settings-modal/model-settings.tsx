@@ -22,6 +22,8 @@ import {
   CheckCircle,
   X,
   Settings,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -55,6 +57,20 @@ export function ModelSettings() {
   const [savingAnthropic, setSavingAnthropic] = useState(false);
   const [savingOpenrouter, setSavingOpenrouter] = useState(false);
 
+  const [apiKeyVisibility, setApiKeyVisibility] = useState<
+    Record<ApiKeyProvider, boolean>
+  >({
+    openai: false,
+    anthropic: false,
+    openrouter: false,
+  });
+
+  const handleToggleShowApiKey = (provider: ApiKeyProvider) => {
+    setApiKeyVisibility((prev) => ({
+      ...prev,
+      [provider]: !prev[provider],
+    }));
+  };
 
   const renderValidationIcon = (provider: string) => {
     const result = validationState?.[provider as keyof typeof validationState];
@@ -73,7 +89,7 @@ export function ModelSettings() {
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <X className="size-3.5 text-destructive" />
+            <X className="text-destructive size-3.5" />
           </TooltipTrigger>
           <TooltipContent>{result.error || "Invalid API key"}</TooltipContent>
         </Tooltip>
@@ -87,10 +103,7 @@ export function ModelSettings() {
     setOpenrouterInput(apiKeys?.openrouter ?? "");
   }, [apiKeys]);
 
-  const saveApiKey = async (
-    provider: ApiKeyProvider,
-    key: string
-  ) => {
+  const saveApiKey = async (provider: ApiKeyProvider, key: string) => {
     // Only save if key is different from current saved value
     const currentKey =
       provider === "openai"
@@ -210,9 +223,7 @@ export function ModelSettings() {
     debouncedSaveOpenrouter(value);
   };
 
-  const handleClearApiKey = async (
-    provider: ApiKeyProvider
-  ) => {
+  const handleClearApiKey = async (provider: ApiKeyProvider) => {
     try {
       await clearApiKeyMutation.mutateAsync(provider);
       if (provider === "openai") {
@@ -305,10 +316,40 @@ export function ModelSettings() {
             <div className="flex gap-2">
               <Input
                 id={`${provider.key}-key`}
+                type={
+                  apiKeyVisibility[provider.key as ApiKeyProvider]
+                    ? "text"
+                    : "password"
+                }
+                autoComplete="off"
                 placeholder={`sk-${provider.key === "openai" ? "" : provider.key === "anthropic" ? "ant-" : "or-"}placeholder...`}
                 value={provider.input}
                 onChange={(e) => provider.handleChange(e.target.value)}
               />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    className="text-muted-foreground hover:text-foreground"
+                    size="icon"
+                    onClick={() =>
+                      handleToggleShowApiKey(provider.key as ApiKeyProvider)
+                    }
+                    disabled={!provider.input.trim().length}
+                  >
+                    {apiKeyVisibility[provider.key as ApiKeyProvider] ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {apiKeyVisibility[provider.key as ApiKeyProvider]
+                    ? "Hide API Key"
+                    : "Show API Key"}
+                </TooltipContent>
+              </Tooltip>
               {hasValidKey && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -316,13 +357,15 @@ export function ModelSettings() {
                       variant="secondary"
                       className="text-muted-foreground hover:text-foreground"
                       size="icon"
-                      onClick={() => openProviderConfig(provider.key as ApiKeyProvider)}
+                      onClick={() =>
+                        openProviderConfig(provider.key as ApiKeyProvider)
+                      }
                     >
                       <Settings className="size-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="top" align="end">
-                    Configure {provider.name} models
+                  <TooltipContent side="top">
+                    Configure {provider.name} Models
                   </TooltipContent>
                 </Tooltip>
               )}
@@ -333,14 +376,14 @@ export function ModelSettings() {
                       variant="secondary"
                       className="text-muted-foreground hover:text-foreground"
                       size="icon"
-                      onClick={() => handleClearApiKey(provider.key as ApiKeyProvider)}
+                      onClick={() =>
+                        handleClearApiKey(provider.key as ApiKeyProvider)
+                      }
                     >
                       <Trash className="size-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="top" align="end">
-                    Clear {provider.name} API key
-                  </TooltipContent>
+                  <TooltipContent side="top">Clear API Key</TooltipContent>
                 </Tooltip>
               )}
             </div>
@@ -351,10 +394,11 @@ export function ModelSettings() {
       <div className="text-muted-foreground flex w-full flex-col gap-1 border-t pt-4 text-xs">
         <span>Shadow is BYOK; you must provide an API key to use models.</span>
         <span>
-          Keys are stored securely in browser cookies and never stored remotely.
+          Keys are stored securely in cookies, never stored permanently on our
+          servers.
         </span>
         <span>
-          Please ensure your keys have high enough rate limits for the agent!
+          Ensure that your keys have high enough rate limits for the agent!
         </span>
       </div>
     </div>
