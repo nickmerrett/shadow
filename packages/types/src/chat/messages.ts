@@ -16,6 +16,17 @@ export interface ErrorPart {
   finishReason?: FinishReason;
 }
 
+export interface ReasoningPart {
+  type: "reasoning";
+  text: string;
+  signature?: string;
+}
+
+export interface RedactedReasoningPart {
+  type: "redacted-reasoning";
+  data: string;
+}
+
 // Extended ToolCallPart with streaming state tracking
 export interface ToolCallPart extends BaseToolCallPart {
   // Streaming state properties
@@ -33,6 +44,8 @@ export type AssistantMessagePart =
   | TextPart
   | ToolCallPart
   | ToolResultPart
+  | ReasoningPart
+  | RedactedReasoningPart
   | ErrorPart;
 
 export type CompletionTokenUsage = {
@@ -66,11 +79,6 @@ export type Message = {
 };
 
 export interface MessageMetadata {
-  thinking?: {
-    content: string;
-    duration: number; // seconds
-  };
-
   tool?: {
     name: string;
     args: Record<string, unknown>;

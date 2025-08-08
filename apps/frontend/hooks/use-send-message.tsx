@@ -1,6 +1,5 @@
 import type { Message, ModelType } from "@repo/types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { TaskMessages } from "@/lib/db-operations/get-task-messages";
 
 export function useSendMessage() {
   const queryClient = useQueryClient();
@@ -24,7 +23,7 @@ export function useSendMessage() {
       await queryClient.cancelQueries({ queryKey: ["task-messages", taskId] });
 
       // Snapshot the previous value
-      const previousMessages = queryClient.getQueryData<TaskMessages>([
+      const previousMessages = queryClient.getQueryData<Message[]>([
         "task-messages",
         taskId,
       ]);
@@ -40,18 +39,10 @@ export function useSendMessage() {
         pullRequestSnapshot: undefined,
       };
 
-      queryClient.setQueryData<TaskMessages>(
-        ["task-messages", taskId],
-        (old) => {
-          const currentMessages = old?.messages || [];
-          const updatedMessages = [...currentMessages, optimisticMessage];
-
-          return {
-            messages: updatedMessages,
-            mostRecentMessageModel: model,
-          };
-        }
-      );
+      queryClient.setQueryData<Message[]>(["task-messages", taskId], (old) => {
+        const currentMessages = old || [];
+        return [...currentMessages, optimisticMessage];
+      });
 
       // Return a context object with the snapshotted value
       return { previousMessages };
@@ -63,14 +54,6 @@ export function useSendMessage() {
           ["task-messages", variables.taskId],
           context.previousMessages
         );
-      }
-    },
-    onSettled: (data) => {
-      // Always refetch after error or success to ensure we have the latest data
-      if (data?.taskId) {
-        queryClient.invalidateQueries({
-          queryKey: ["task-messages", data.taskId],
-        });
       }
     },
   });

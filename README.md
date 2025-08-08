@@ -110,24 +110,6 @@ npm run dev --filter=server
 npm run dev --filter=sidecar
 ```
 
-### Environment Configuration
-
-Key environment variables for development:
-
-```bash
-# Database
-DATABASE_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
-
-# Authentication
-BETTER_AUTH_SECRET="your-secret"
-GITHUB_CLIENT_ID="your-github-client-id"
-GITHUB_CLIENT_SECRET="your-github-client-secret"
-
-# Execution Mode
-AGENT_MODE="local"  # or "remote" for production
-NODE_ENV="development"
-```
-
 ## Development Commands
 
 ### Linting and Formatting
@@ -274,3 +256,17 @@ Shadow provides a comprehensive set of tools for AI agents:
 5. Submit a pull request
    
 We're excited to see what you've built with Shadow!
+
+### Troubleshooting
+
+If you encounter the following issues here are some solutions:
+
+#### Error:
+```bash
+error TS2307: Cannot find module '@repo/db' or its corresponding type declarations.
+```
+
+Solution: Ensure you build the project before running it:
+```bash
+npm run build
+```

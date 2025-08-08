@@ -560,18 +560,10 @@ export function createSocketServer(
           return;
         }
 
-        const [history, task] = await Promise.all([
-          chatService.getChatHistory(data.taskId),
-          prisma.task.findUnique({
-            where: { id: data.taskId },
-            select: { mainModel: true },
-          }),
-        ]);
-
+        const history = await chatService.getChatHistory(data.taskId);
         socket.emit("chat-history", {
           taskId: data.taskId,
           messages: history,
-          mostRecentMessageModel: (task?.mainModel as ModelType) || null,
           // If complete is true, the queued action will automatically get sent, so set it to null so the frontend removes it from the queue UI
           queuedAction: data.complete
             ? null
