@@ -16,10 +16,7 @@ import {
   InvalidToolArgumentsError,
   ToolSet,
 } from "ai";
-import type {
-  LanguageModelV1FunctionToolCall,
-  LanguageModelV1ProviderMetadata,
-} from "@ai-sdk/provider";
+import type { LanguageModelV1FunctionToolCall } from "@ai-sdk/provider";
 import { createTools } from "../../tools";
 import { ModelProvider } from "../models/model-provider";
 import { ChunkHandlers } from "./chunk-handlers";
@@ -78,34 +75,17 @@ export class StreamProcessor {
         finalMessages = coreMessages;
       }
 
-      // Build providerOptions only with parameters supported by the chosen provider/model
-      // - Anthropic: enable thinking with a reasonable budget
-      // - OpenAI: only send reasoning for supported reasoning models (o4/o3 families) using the
-      //           correct JSON shape: { reasoning: { effort: "high" } }
-      const isOpenAIModel = modelProvider === "openai";
-      const modelId = String(model);
-      const supportsOpenAIReasoning =
-        isOpenAIModel && /\b(o4|o3)\b/i.test(modelId);
-
-      let providerOptions: LanguageModelV1ProviderMetadata | undefined;
-      if (isAnthropicModel) {
-        providerOptions = {
-          anthropic: {
-            thinking: {
-              type: "enabled",
-              budgetTokens: 12000,
-            },
+      const reasoningProviderOptions = {
+        anthropic: {
+          thinking: {
+            type: "enabled",
+            budgetTokens: 12000,
           },
-        } as const;
-      } else if (supportsOpenAIReasoning) {
-        providerOptions = {
-          openai: {
-            reasoning: {
-              effort: "high",
-            },
-          },
-        } as const;
-      }
+        },
+        openai: {
+          reasoningEffort: "high",
+        },
+      };
 
       const streamConfig = {
         model: modelInstance,
@@ -115,12 +95,6 @@ export class StreamProcessor {
         temperature: 0.7,
         maxSteps: MAX_STEPS,
         providerOptions: reasoningProviderOptions,
-        ...(isAnthropicModel && {
-          headers: {
-            "anthropic-beta": "interleaved-thinking-2025-05-14",
-          },
-        }),
-        ...(providerOptions && { providerOptions }),
         ...(isAnthropicModel && {
           headers: {
             "anthropic-beta": "interleaved-thinking-2025-05-14",
