@@ -1,19 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ToolTypes, TOOL_PREFIXES } from "@repo/types";
-import {
-  AlertCircle,
-  ChevronRight,
-  CornerDownRight,
-  Expand,
-  Loader2,
-} from "lucide-react";
-import { useState } from "react";
+import { AlertCircle, ChevronRight, Expand, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { FileIcon } from "@/components/ui/file-icon";
 
 export function ToolComponent({
-  icon,
   type,
+  icon,
   title,
   changes,
   hasStdErr,
@@ -21,13 +15,14 @@ export function ToolComponent({
   suffix,
   showFileIcon,
   collapsible = false,
+  forceOpen = false,
   onClick,
   children,
   isLoading = false,
 }: {
-  icon: React.ReactNode;
   type: ToolTypes | "error" | "warning";
-  title: string;
+  icon?: React.ReactNode;
+  title?: string;
   suffix?: string;
   prefix?: string;
   showFileIcon?: string;
@@ -38,11 +33,23 @@ export function ToolComponent({
   hasStdErr?: boolean;
   className?: string;
   collapsible?: boolean;
+  forceOpen?: boolean;
   onClick?: () => void;
   children?: React.ReactNode;
   isLoading?: boolean;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(forceOpen || false);
+
+  // useEffect for if it changes
+  useEffect(() => {
+    setIsExpanded(forceOpen);
+  }, [forceOpen]);
+
+  const displayPrefix =
+    prefix || (type in TOOL_PREFIXES ? TOOL_PREFIXES[type as ToolTypes] : "");
+
+  const isReasoning =
+    type === ToolTypes.REASONING || type === ToolTypes.REDACTED_REASONING;
 
   return (
     <div className="flex flex-col gap-1">
@@ -51,13 +58,23 @@ export function ToolComponent({
         onClick={onClick}
         isExpanded={isExpanded}
         toggleExpanded={() => setIsExpanded(!isExpanded)}
+        isReasoning={isReasoning}
       >
-        {isLoading ? <Loader2 className="animate-spin" /> : icon}
+        {isLoading ? (
+          <Loader2 className="animate-spin" />
+        ) : isReasoning ? (
+          <ChevronRight
+            className={cn(
+              "size-3.5 shrink-0 opacity-70 transition-transform",
+              isExpanded && "rotate-90"
+            )}
+          />
+        ) : icon ? (
+          icon
+        ) : null}
         <div className="flex w-[calc(100%-1.5rem)] items-center gap-1">
-          {type !== "error" && type !== "warning" && (
-            <div className="whitespace-nowrap opacity-70">
-              {prefix || TOOL_PREFIXES[type]}
-            </div>
+          {displayPrefix && (
+            <div className="whitespace-nowrap opacity-70">{displayPrefix}</div>
           )}
           {showFileIcon && (
             <FileIcon filename={showFileIcon} className="size-3.5 opacity-70" />
@@ -78,13 +95,8 @@ export function ToolComponent({
         </div>
       </ToolWrapper>
       {isExpanded && (
-        <div className="flex w-full items-start overflow-hidden">
-          <div className="h-4.5 flex w-6 shrink-0 items-center justify-end">
-            <CornerDownRight
-              className={cn("size-3", type === "error" && "text-destructive")}
-            />
-          </div>
-          <div className="flex grow flex-col gap-2 overflow-hidden pl-2 text-[13px]">
+        <div className="animate-in fade-in-0 slide-in-from-top-2 ease-out-quad flex w-full items-start overflow-hidden duration-200">
+          <div className="text-muted-foreground pl-8.5 flex grow flex-col gap-2 overflow-hidden text-[13px]">
             {children}
           </div>
         </div>
@@ -100,6 +112,7 @@ const ToolWrapper = ({
   onClick,
   toggleExpanded,
   isExpanded,
+  isReasoning,
 }: {
   children: React.ReactNode;
   collapsible: boolean;
@@ -107,6 +120,7 @@ const ToolWrapper = ({
   onClick?: () => void;
   isExpanded: boolean;
   toggleExpanded: () => void;
+  isReasoning: boolean;
 }) => {
   if (collapsible || onClick) {
     return (
@@ -123,16 +137,17 @@ const ToolWrapper = ({
         <div className="flex grow items-center gap-2 overflow-hidden">
           {children}
         </div>
-        {collapsible ? (
-          <ChevronRight
-            className={cn(
-              "opacity-0! group-hover/tool:opacity-100! text-muted-foreground size-3.5 shrink-0 rotate-0 transition-all",
-              isExpanded && "rotate-90"
-            )}
-          />
-        ) : (
-          <Expand className="opacity-0! group-hover/tool:opacity-100! text-muted-foreground size-3.5 shrink-0 transition-all" />
-        )}
+        {!isReasoning &&
+          (collapsible ? (
+            <ChevronRight
+              className={cn(
+                "opacity-0! group-hover/tool:opacity-100! text-muted-foreground size-3.5 shrink-0 rotate-0 transition-all",
+                isExpanded && "rotate-90"
+              )}
+            />
+          ) : (
+            <Expand className="opacity-0! group-hover/tool:opacity-100! text-muted-foreground size-3.5 shrink-0 transition-all" />
+          ))}
       </Button>
     );
   }

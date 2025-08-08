@@ -6,19 +6,26 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Task } from "@repo/db";
-import { ChevronDown, Folder, GitBranch, Search, X, List } from "lucide-react";
+import { ChevronDown, Folder, GitBranch, Search, X, List, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "../ui/collapsible";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "../ui/context-menu";
 import { statusColorsConfig, statusOrder, getDisplayStatus } from "./status";
 import { getStatusText } from "@repo/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRef, useState } from "react";
 import { useDebounceCallback } from "@/lib/debounce";
+import { useArchiveTask } from "@/hooks/use-archive-task";
 
 type GroupedTasks = {
   [repoUrl: string]: {
@@ -47,11 +54,17 @@ export function SidebarTasksView({
   const searchFormRef = useRef<HTMLFormElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [groupBy, setGroupBy] = useState<GroupBy>("repo");
+  const archiveTask = useArchiveTask();
 
   // Debounced search handler
   const debouncedSearch = useDebounceCallback((query: string) => {
     setSearchQuery(query);
   }, 300);
+
+  // Handler for archiving tasks
+  const handleArchiveTask = (taskId: string) => {
+    archiveTask.mutate(taskId);
+  };
 
   // Filter tasks based on search query
   const filteredTasks = tasks
@@ -126,46 +139,59 @@ export function SidebarTasksView({
     const StatusIcon = statusColorsConfig[displayStatus].icon;
     return (
       <SidebarMenuItem key={task.id}>
-        <SidebarMenuButton
-          className="flex h-auto flex-col items-start gap-0 overflow-hidden"
-          asChild
-        >
-          <a href={`/tasks/${task.id}`} className="w-full overflow-hidden">
-            <div className="flex w-full items-center gap-1.5">
-              <div className="line-clamp-1 flex-1">{task.title}</div>
-            </div>
-            <div className="text-muted-foreground flex max-w-full items-center gap-1 overflow-hidden text-xs">
-              {groupBy === "repo" ? (
-                <>
-                  <StatusIcon
-                    className={`!size-3 shrink-0 ${statusColorsConfig[displayStatus].className}`}
-                  />
-                  <span className="mr-0.5 whitespace-nowrap text-xs capitalize">
-                    {getStatusText(task).startsWith("Failed")
-                      ? "Failed"
-                      : getStatusText(task)}
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <SidebarMenuButton
+              className="flex h-auto flex-col items-start gap-0 overflow-hidden"
+              asChild
+            >
+              <a href={`/tasks/${task.id}`} className="w-full overflow-hidden">
+                <div className="flex w-full items-center gap-1.5">
+                  <div className="line-clamp-1 flex-1">{task.title}</div>
+                </div>
+                <div className="text-muted-foreground flex max-w-full items-center gap-1 overflow-hidden text-xs">
+                  {groupBy === "repo" ? (
+                    <>
+                      <StatusIcon
+                        className={`!size-3 shrink-0 ${statusColorsConfig[displayStatus].className}`}
+                      />
+                      <span className="mr-0.5 whitespace-nowrap text-xs capitalize">
+                        {getStatusText(task).startsWith("Failed")
+                          ? "Failed"
+                          : getStatusText(task)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Folder className="size-3 shrink-0" />
+                      <span
+                        className="mr-0.5 whitespace-nowrap"
+                        title={task.repoFullName}
+                      >
+                        {task.repoFullName && task.repoFullName.length > 20
+                          ? `${task.repoFullName.slice(0, 20)}...`
+                          : task.repoFullName}
+                      </span>
+                    </>
+                  )}
+                  <GitBranch className="size-3 shrink-0" />
+                  <span className="truncate" title={task.shadowBranch}>
+                    {task.shadowBranch}
                   </span>
-                </>
-              ) : (
-                <>
-                  <Folder className="size-3 shrink-0" />
-                  <span
-                    className="mr-0.5 whitespace-nowrap"
-                    title={task.repoFullName}
-                  >
-                    {task.repoFullName && task.repoFullName.length > 20
-                      ? `${task.repoFullName.slice(0, 20)}...`
-                      : task.repoFullName}
-                  </span>
-                </>
-              )}
-              <GitBranch className="size-3 shrink-0" />
-              <span className="truncate" title={task.shadowBranch}>
-                {task.shadowBranch}
-              </span>
-            </div>
-          </a>
-        </SidebarMenuButton>
+                </div>
+              </a>
+            </SidebarMenuButton>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem
+              onClick={() => handleArchiveTask(task.id)}
+              disabled={archiveTask.isPending}
+            >
+              <Archive className="mr-2 h-4 w-4" />
+              Archive
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
       </SidebarMenuItem>
     );
   };

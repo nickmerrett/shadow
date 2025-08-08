@@ -9,14 +9,13 @@ export function deduplicatePartsFromMap(
   streamingPartsMap: Map<string, AssistantMessagePart>,
   streamingPartsOrder: string[]
 ): AssistantMessagePart[] {
-  // Create set of existing tool call IDs for O(1) lookup
   const existingToolIds = new Set(
     existingParts
       .filter((p): p is ToolCallPart | ToolResultPart => "toolCallId" in p)
       .map((p) => p.toolCallId)
   );
 
-  // Iterate through streaming parts in order, filtering duplicates - O(n) where n = streaming parts
+  // Iterate through streaming parts in order, filtering duplicates
   const newParts: AssistantMessagePart[] = [];
   for (const id of streamingPartsOrder) {
     const part = streamingPartsMap.get(id);
@@ -26,7 +25,7 @@ export function deduplicatePartsFromMap(
           newParts.push(part);
         }
       } else {
-        newParts.push(part); // Always include text and error parts (they don't duplicate)
+        newParts.push(part);
       }
     }
   }

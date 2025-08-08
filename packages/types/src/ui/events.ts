@@ -4,7 +4,7 @@ import type { StreamChunk } from "../chat/streaming-client";
 import type { ModelType } from "../llm/models";
 
 export type QueuedActionUI = {
-  type: 'message' | 'stacked-pr';
+  type: "message" | "stacked-pr";
   message: string;
   model: ModelType;
 };
@@ -34,7 +34,6 @@ export interface ServerToClientEvents {
   "chat-history": (data: {
     taskId: string;
     messages: Message[];
-    mostRecentMessageModel: ModelType | null;
     queuedAction: QueuedActionUI | null;
   }) => void;
   "chat-history-error": (data: { error: string }) => void;

@@ -43,6 +43,21 @@ export interface ToolCallDeltaChunk {
   argsTextDelta: string;
 }
 
+export interface ReasoningChunk {
+  type: "reasoning";
+  textDelta: string;
+}
+
+export interface ReasoningSignatureChunk {
+  type: "reasoning-signature";
+  signature: string;
+}
+
+export interface RedactedReasoningChunk {
+  type: "redacted-reasoning";
+  data: string;
+}
+
 // Discriminated-union representing every chunk variant we care about.
 export type AIStreamChunk =
   | TextDeltaChunk
@@ -50,5 +65,8 @@ export type AIStreamChunk =
   | ToolCallStreamingStartChunk
   | ToolCallDeltaChunk
   | ToolResultChunk
+  | ReasoningChunk
+  | ReasoningSignatureChunk
+  | RedactedReasoningChunk
   | FinishChunk
   | ErrorChunk;

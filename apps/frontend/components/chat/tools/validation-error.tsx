@@ -1,6 +1,6 @@
 import type { ValidationErrorResult } from "@repo/types";
 import { AlertTriangle } from "lucide-react";
-import { ToolComponent } from "./collapsible-tool";
+import { ToolComponent } from "./tool";
 
 export function ValidationErrorTool({
   toolName,
