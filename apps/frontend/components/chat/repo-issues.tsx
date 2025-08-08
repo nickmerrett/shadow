@@ -10,6 +10,7 @@ import { GithubIssueIcon } from "../graphics/github/github-issue-icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { cn, formatTimeAgo } from "@/lib/utils";
 import "./repo-issues.css";
+import { GithubLogo } from "../graphics/github/github-logo";
 
 export function RepoIssues({
   repository,
@@ -40,6 +41,7 @@ export function RepoIssues({
       handleRefresh={refetchIssues}
       handleSubmit={handleSubmit}
       isPending={isPending}
+      issuesLink={`https://github.com/${repository.full_name}/issues`}
     />
   );
 }
@@ -51,6 +53,7 @@ function IssuesContent({
   handleRefresh,
   handleSubmit,
   isPending,
+  issuesLink,
 }: {
   issues: GitHubIssue[];
   isIssuesExpanded: boolean;
@@ -58,6 +61,7 @@ function IssuesContent({
   handleRefresh: () => void;
   handleSubmit: (issue: GitHubIssue) => void;
   isPending: boolean;
+  issuesLink: string;
 }) {
   const [hasMounted, setHasMounted] = useState(false);
 
@@ -82,23 +86,40 @@ function IssuesContent({
           <GithubIssueIcon className="size-3.5 flex-shrink-0 text-green-400" />
           GitHub Issues
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="iconXs"
-              onClick={handleRefresh}
-              className="text-muted-foreground hover:text-foreground group/refresh invisible opacity-0 transition-all group-hover/issues:visible group-hover/issues:opacity-100"
-            >
-              {
+        <div className="flex items-center gap-1.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="iconXs"
+                onClick={handleRefresh}
+                className="text-muted-foreground hover:text-foreground group/refresh invisible opacity-0 transition-all group-hover/issues:visible group-hover/issues:opacity-100"
+              >
                 <RotateCw className="size-3.5 transition-transform group-active/refresh:rotate-90" />
-              }
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            <p>Refresh Issues</p>
-          </TooltipContent>
-        </Tooltip>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="end">
+              <p>Refresh Issues</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="iconXs"
+                className="text-muted-foreground hover:text-foreground group/refresh invisible opacity-0 transition-all group-hover/issues:visible group-hover/issues:opacity-100"
+                asChild
+              >
+                <a href={issuesLink} target="_blank" rel="noopener noreferrer">
+                  <GithubLogo className="size-3.5" />
+                </a>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="end">
+              <p>Open in GitHub</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </div>
       <div className="relative z-0 flex flex-col gap-1 overflow-hidden">
         {isIssuesExpanded && (

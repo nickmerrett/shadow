@@ -48,8 +48,6 @@ async function getCommittedChanges(
   now: string,
   baseBranch: string
 ) {
-  const startTime = Date.now();
-
   const diffCommand = `git diff --name-status ${baseBranch}...HEAD`;
   const { stdout: committedStatusOutput } = await execAsync(diffCommand, {
     cwd: workspacePath,
@@ -104,9 +102,6 @@ async function getCommittedChanges(
       });
     }
   }
-
-  const endTime = Date.now();
-  console.log(`[GIT_OPS] Committed changes took ${endTime - startTime}ms`);
 }
 
 async function getUncommittedChanges(
@@ -134,7 +129,8 @@ async function getUncommittedChanges(
       // Git status --porcelain format: "XY filename"
       // X = index status, Y = working tree status
       const status = line.substring(0, 2);
-      const filePath = line.substring(3);
+      // More robust filename extraction - find first non-status, non-space character
+      const filePath = line.substring(2).replace(/^\s+/, '');
 
       // Skip if already captured from committed changes
       if (allFiles.has(filePath)) {

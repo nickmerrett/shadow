@@ -58,6 +58,19 @@ export async function GET(
 
     if (!response.ok) {
       const data = await response.json();
+      
+      // Handle file not found errors more gracefully
+      if (response.status === 404 && data.errorType === "FILE_NOT_FOUND") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: data.error,
+            errorType: "FILE_NOT_FOUND",
+          },
+          { status: 404 }
+        );
+      }
+      
       console.error(
         "[BACKEND_FILE_CONTENT_ERROR]",
         response.status,
