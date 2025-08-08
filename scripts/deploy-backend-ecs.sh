@@ -423,6 +423,8 @@ store_secrets() {
     GITHUB_APP_SLUG=$(grep "^GITHUB_APP_SLUG=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
     VM_IMAGE_REGISTRY=$(grep "^VM_IMAGE_REGISTRY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
     SHADOW_API_KEY=$(grep "^SHADOW_API_KEY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+    BRAINTRUST_API_KEY=$(grep "^BRAINTRUST_API_KEY=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
+    BRAINTRUST_PROJECT_ID=$(grep "^BRAINTRUST_PROJECT_ID=" "$PROJECT_ROOT/.env.production" | cut -d'=' -f2- | tr -d '"')
     set -e
     
     # Debug: Show extracted values (first 20 chars for sensitive data)
@@ -439,6 +441,8 @@ store_secrets() {
     log "  GITHUB_APP_SLUG: $GITHUB_APP_SLUG"
     log "  VM_IMAGE_REGISTRY: $VM_IMAGE_REGISTRY"
     log "  SHADOW_API_KEY: ${SHADOW_API_KEY:0:20}${SHADOW_API_KEY:+...}"
+    log "  BRAINTRUST_API_KEY: ${BRAINTRUST_API_KEY:0:20}${BRAINTRUST_API_KEY:+...}"
+    log "  BRAINTRUST_PROJECT_ID: $BRAINTRUST_PROJECT_ID"
     
     # Validate required secrets
     if [[ -z "$K8S_TOKEN" ]]; then
@@ -609,6 +613,34 @@ store_secrets() {
         --region "$AWS_REGION" \
         --profile "$AWS_PROFILE"; then
         error "Failed to store Shadow API key in Parameter Store. Check AWS permissions for ssm:PutParameter on /shadow/* path"
+    fi
+    
+    if [[ -n "$BRAINTRUST_API_KEY" ]]; then
+        log "Storing Braintrust API key..."
+        if ! aws ssm put-parameter \
+            --name "/shadow/braintrust-api-key" \
+            --value "$BRAINTRUST_API_KEY" \
+            --type "SecureString" \
+            --overwrite \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE"; then
+            error "Failed to store Braintrust API key in Parameter Store. Check AWS permissions for ssm:PutParameter on /shadow/* path"
+        fi
+    else
+        warn "BRAINTRUST_API_KEY not provided - Braintrust observability will be disabled"
+    fi
+    
+    if [[ -n "$BRAINTRUST_PROJECT_ID" ]]; then
+        log "Storing Braintrust project ID..."
+        aws ssm put-parameter \
+            --name "/shadow/braintrust-project-id" \
+            --value "$BRAINTRUST_PROJECT_ID" \
+            --type "String" \
+            --overwrite \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE"
+    else
+        warn "BRAINTRUST_PROJECT_ID not provided - Braintrust observability will be disabled"
     fi
     
     log "All secrets stored in Parameter Store successfully"
@@ -813,7 +845,8 @@ create_task_definition() {
         {"name": "EKS_CLUSTER_NAME", "value": "$CLUSTER_NAME"},
         {"name": "KUBERNETES_NAMESPACE", "value": "shadow-agents"},
         {"name": "KUBERNETES_SERVICE_HOST", "value": "$K8S_HOST"},
-        {"name": "KUBERNETES_SERVICE_PORT", "value": "443"}
+        {"name": "KUBERNETES_SERVICE_PORT", "value": "443"},
+        {"name": "ENABLE_BRAINTRUST", "value": "true"}
       ],
       "secrets": [
         {"name": "K8S_SERVICE_ACCOUNT_TOKEN", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/k8s-token"},
@@ -827,7 +860,9 @@ create_task_definition() {
         {"name": "GITHUB_APP_USER_ID", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-app-user-id"},
         {"name": "GITHUB_APP_SLUG", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/github-app-slug"},
         {"name": "VM_IMAGE_REGISTRY", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/vm-image-registry"},
-        {"name": "SHADOW_API_KEY", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/shadow-api-key"}
+        {"name": "SHADOW_API_KEY", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/shadow-api-key"},
+        {"name": "BRAINTRUST_API_KEY", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/braintrust-api-key"},
+        {"name": "BRAINTRUST_PROJECT_ID", "valueFrom": "arn:aws:ssm:$AWS_REGION:$ACCOUNT_ID:parameter/shadow/braintrust-project-id"}
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
