@@ -5,7 +5,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Task } from "@repo/db";
+import { Task, TaskStatus } from "@repo/db";
 import {
   ChevronDown,
   Folder,
@@ -14,6 +14,8 @@ import {
   X,
   List,
   Archive,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -35,11 +37,13 @@ import { useRef, useState } from "react";
 import { useDebounceCallback } from "@/lib/debounce";
 import { useArchiveTask } from "@/hooks/use-archive-task";
 
+type TaskGroup = {
+  repoName: string;
+  tasks: Task[];
+};
+
 type GroupedTasks = {
-  [repoUrl: string]: {
-    repoName: string;
-    tasks: Task[];
-  };
+  [repoUrl: string]: TaskGroup;
 };
 
 type GroupedByStatus = {
@@ -49,6 +53,8 @@ type GroupedByStatus = {
 };
 
 type GroupBy = "repo" | "status";
+
+const HIDDEN_STATUSES: TaskStatus[] = ["ARCHIVED", "FAILED"];
 
 export function SidebarTasksView({
   tasks,
@@ -299,26 +305,12 @@ export function SidebarTasksView({
           </SidebarGroup>
         ) : groupBy === "repo" ? (
           Object.entries(groupedTasks).map(([repoUrl, group]) => (
-            <Collapsible
+            <RepoGroup
               key={repoUrl}
-              defaultOpen={true}
-              className="group/collapsible"
-            >
-              <SidebarGroup>
-                <SidebarGroupLabel asChild>
-                  <CollapsibleTrigger>
-                    <Folder className="mr-1.5 !size-3.5" />
-                    {group.repoName}
-                    <ChevronDown className="ml-auto -rotate-90 transition-transform group-data-[state=open]/collapsible:rotate-0" />
-                  </CollapsibleTrigger>
-                </SidebarGroupLabel>
-                <CollapsibleContent>
-                  <SidebarGroupContent>
-                    {group.tasks.map(renderTaskItem)}
-                  </SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
+              repoUrl={repoUrl}
+              group={group}
+              renderTaskItem={renderTaskItem}
+            />
           ))
         ) : groupBy === "status" ? (
           Object.entries(groupedByStatus)
@@ -376,5 +368,61 @@ export function SidebarTasksView({
         )
       ) : null}
     </>
+  );
+}
+
+function RepoGroup({
+  repoUrl,
+  group,
+  renderTaskItem,
+}: {
+  repoUrl: string;
+  group: TaskGroup;
+  renderTaskItem: (task: Task) => React.ReactNode;
+}) {
+  const displayTasks = group.tasks.filter(
+    (task) => !HIDDEN_STATUSES.includes(task.status as TaskStatus)
+  );
+  const numHiddenTasks = group.tasks.length - displayTasks.length;
+
+  const [isArchivedTasksOpen, setIsArchivedTasksOpen] = useState(false);
+
+  return (
+    <Collapsible key={repoUrl} defaultOpen={true} className="group/collapsible">
+      <SidebarGroup>
+        <SidebarGroupLabel asChild>
+          <CollapsibleTrigger>
+            <Folder className="mr-1.5 !size-3.5" />
+            {group.repoName}
+            <ChevronDown className="ml-auto -rotate-90 transition-transform group-data-[state=open]/collapsible:rotate-0" />
+          </CollapsibleTrigger>
+        </SidebarGroupLabel>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            {isArchivedTasksOpen
+              ? group.tasks.map(renderTaskItem)
+              : displayTasks.map(renderTaskItem)}
+          </SidebarGroupContent>
+          {numHiddenTasks > 0 && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className="text-muted-foreground flex h-7 cursor-pointer items-center gap-1.5 py-0 text-[13px]"
+                onClick={() => setIsArchivedTasksOpen((prev) => !prev)}
+              >
+                {isArchivedTasksOpen ? (
+                  <Minus className="!size-3" />
+                ) : (
+                  <Plus className="!size-3" />
+                )}
+                <div className="line-clamp-1 flex-1">
+                  {numHiddenTasks} Hidden Task
+                  {numHiddenTasks > 1 ? "s" : ""}
+                </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
   );
 }

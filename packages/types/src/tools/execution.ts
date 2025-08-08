@@ -24,7 +24,7 @@ export interface CommandOptions {
   cwd?: string;
 }
 
-export const MAX_LINES_PER_READ = 150 as const;
+export const MAX_LINES_PER_READ = 1000 as const;
 
 // Tool Execution Status
 // This is specifically for tool execution status, separate from database TaskStatus
