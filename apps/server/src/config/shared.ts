@@ -4,6 +4,12 @@ import { z } from "zod";
  * Shared configuration schema used by both development and production environments
  * Contains common variables needed regardless of deployment target
  */
+// Support local development without GitHub App by allowing a personal token.
+// IMPORTANT: Do NOT relax requirements in production even if a PAT is set.
+const USING_PAT =
+  process.env.NODE_ENV !== "production" &&
+  !!(process.env.GITHUB_PERSONAL_ACCESS_TOKEN || process.env.GITHUB_TOKEN);
+
 export const sharedConfigSchema = z.object({
   // Server configuration
   API_PORT: z.coerce.number().default(4000),
@@ -18,12 +24,13 @@ export const sharedConfigSchema = z.object({
     .optional()
     .transform((val) => val === "true"),
 
-  // GitHub integration (required for all environments)
-  GITHUB_CLIENT_ID: z.string(),
-  GITHUB_CLIENT_SECRET: z.string(),
+  // GitHub integration
+  // In PAT mode (local), relax these requirements
+  GITHUB_CLIENT_ID: USING_PAT ? z.string().default("") : z.string(),
+  GITHUB_CLIENT_SECRET: USING_PAT ? z.string().default("") : z.string(),
   GITHUB_WEBHOOK_SECRET: z.string().optional(),
-  GITHUB_APP_USER_ID: z.string(),
-  GITHUB_APP_SLUG: z.string(),
+  GITHUB_APP_USER_ID: USING_PAT ? z.string().default("") : z.string(),
+  GITHUB_APP_SLUG: USING_PAT ? z.string().default("") : z.string(),
 
   // Repository limits
   MAX_REPO_SIZE_MB: z.coerce.number().default(500),
