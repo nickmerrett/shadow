@@ -81,9 +81,9 @@ npm install
 2. Set up environment variables:
 ```bash
 # Copy example environment files
-cp apps/server/.env.example apps/server/.env
-cp apps/frontend/.env.example apps/frontend/.env
-cp packages/db/.env.example packages/db/.env
+cp apps/server/.env.template apps/server/.env
+cp apps/frontend/.env.template apps/frontend/.env
+cp packages/db/.env.template packages/db/.env
 ```
 
 3. Configure the database:
