@@ -6,7 +6,6 @@ import {
   Play,
   Plus,
   Settings,
-  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { SidebarView } from ".";
@@ -18,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { statusColorsConfig } from "./status";
 import { useTask } from "@/hooks/use-task";
 import { useMemo, useState } from "react";
-import { LogoHover } from "../graphics/logo/logo-hover";
+import { LogoBurst } from "../graphics/logo/logo-burst";
 import { TaskStatus } from "@repo/db";
 import { AboutModal } from "../about-modal";
 
@@ -142,7 +141,7 @@ export function SidebarNavigation({
           className="flex size-7 items-center justify-center"
           aria-label="Home"
         >
-          <LogoHover
+          <LogoBurst
             className={cn(
               process.env.NEXT_PUBLIC_VERCEL_ENV === "preview"
                 ? "text-destructive"

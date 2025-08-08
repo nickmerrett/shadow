@@ -198,54 +198,55 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   return (
     <>
       {/* PR buttons - show create or view based on state */}
-      {(task.pullRequestNumber || showCreatePR) && (
-        <SidebarGroup>
-          <SidebarGroupContent className="flex flex-col gap-0.5">
-            <SidebarMenuItem>
-              {task.pullRequestNumber ? (
-                // View PR button when PR exists
-                <Button
-                  variant="secondary"
-                  className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full"
-                  asChild
-                >
-                  <Link
-                    href={`${task.repoUrl}/pull/${task.pullRequestNumber}`}
-                    target="_blank"
+      {(task.pullRequestNumber || showCreatePR) &&
+        task.status !== "ARCHIVED" && (
+          <SidebarGroup>
+            <SidebarGroupContent className="flex flex-col gap-0.5">
+              <SidebarMenuItem>
+                {task.pullRequestNumber ? (
+                  // View PR button when PR exists
+                  <Button
+                    variant="secondary"
+                    className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full"
+                    asChild
                   >
-                    <GithubLogo className="size-4 shrink-0" />
-                    <div className="flex gap-1 overflow-hidden">
-                      <span className="truncate">View Pull Request</span>
-                      <span className="text-muted-foreground">
-                        #{task.pullRequestNumber}
-                      </span>
-                    </div>
-                  </Link>
-                </Button>
-              ) : (
-                // Create PR button when file changes exist and no PR
-                <Button
-                  variant="secondary"
-                  className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full"
-                  onClick={handleCreatePR}
-                  disabled={isCreatePRDisabled}
-                >
-                  {createPRMutation.isPending ? (
-                    <Loader2 className="size-4 shrink-0 animate-spin" />
-                  ) : (
-                    <GithubLogo className="size-4 shrink-0" />
-                  )}
-                  <span className="truncate">
-                    {createPRMutation.isPending
-                      ? "Creating..."
-                      : "Create Pull Request"}
-                  </span>
-                </Button>
-              )}
-            </SidebarMenuItem>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      )}
+                    <Link
+                      href={`${task.repoUrl}/pull/${task.pullRequestNumber}`}
+                      target="_blank"
+                    >
+                      <GithubLogo className="size-4 shrink-0" />
+                      <div className="flex gap-1 overflow-hidden">
+                        <span className="truncate">View Pull Request</span>
+                        <span className="text-muted-foreground">
+                          #{task.pullRequestNumber}
+                        </span>
+                      </div>
+                    </Link>
+                  </Button>
+                ) : (
+                  // Create PR button when file changes exist and no PR
+                  <Button
+                    variant="secondary"
+                    className="bg-sidebar-accent hover:bg-sidebar-accent/80 border-sidebar-border px-2! w-full"
+                    onClick={handleCreatePR}
+                    disabled={isCreatePRDisabled}
+                  >
+                    {createPRMutation.isPending ? (
+                      <Loader2 className="size-4 shrink-0 animate-spin" />
+                    ) : (
+                      <GithubLogo className="size-4 shrink-0" />
+                    )}
+                    <span className="truncate">
+                      {createPRMutation.isPending
+                        ? "Creating..."
+                        : "Create Pull Request"}
+                    </span>
+                  </Button>
+                )}
+              </SidebarMenuItem>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
       <SidebarGroup>
         <SidebarGroupContent className="flex flex-col gap-0.5">
@@ -419,12 +420,14 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           <SidebarGroupLabel className="hover:text-muted-foreground select-none gap-1.5">
             <FolderGit2 className="!size-3.5" />
             Modified Files{" "}
-            <Badge
-              variant="secondary"
-              className="bg-sidebar-accent border-sidebar-border text-muted-foreground rounded-full border px-1.5 py-0 text-[11px]"
-            >
-              {diffStats.totalFiles}
-            </Badge>
+            {diffStats.totalFiles > 0 && (
+              <Badge
+                variant="secondary"
+                className="bg-sidebar-accent border-sidebar-border text-muted-foreground rounded-full border px-1.5 py-0 text-[11px]"
+              >
+                {diffStats.totalFiles}
+              </Badge>
+            )}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <FileExplorer
