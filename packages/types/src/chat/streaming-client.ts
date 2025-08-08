@@ -31,6 +31,7 @@ export interface StreamChunk {
     | "redacted-reasoning"
     | "init-progress"
     | "fs-change"
+    | "fs-override"
     | "todo-update";
 
   // For content chunks
@@ -93,6 +94,29 @@ export interface StreamChunk {
     timestamp: number;
     source: "local" | "remote";
     isDirectory: boolean;
+  };
+
+  // For complete filesystem state override (checkpoint restoration)
+  fsOverride?: {
+    fileChanges: Array<{
+      filePath: string;
+      operation: "CREATE" | "UPDATE" | "DELETE" | "RENAME";
+      additions: number;
+      deletions: number;
+      createdAt: string;
+    }>;
+    diffStats: {
+      additions: number;
+      deletions: number;
+      totalFiles: number;
+    };
+    codebaseTree: Array<{
+      name: string;
+      type: "file" | "folder";
+      path: string;
+      children?: any[]; // Recursive structure
+    }>;
+    message: string;
   };
 
   // For todo updates

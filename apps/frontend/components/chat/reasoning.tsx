@@ -19,7 +19,7 @@ export function ReasoningComponent({
       isLoading={isLoading}
       type={ToolTypes.REASONING}
     >
-      <div className="text-muted-foreground whitespace-pre-wrap text-sm">
+      <div className="text-muted-foreground whitespace-pre-wrap pb-1 text-sm">
         {part.text}
       </div>
     </ToolComponent>
@@ -29,7 +29,7 @@ export function ReasoningComponent({
 export function RedactedReasoningComponent() {
   return (
     <ToolComponent collapsible type={ToolTypes.REDACTED_REASONING}>
-      <div className="text-muted-foreground whitespace-pre-wrap text-sm">
+      <div className="text-muted-foreground whitespace-pre-wrap pb-1 text-sm">
         Reasoning content has been redacted by Anthropic.
       </div>
     </ToolComponent>

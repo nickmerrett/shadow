@@ -227,3 +227,58 @@ async safeCheckoutCommit(commitSha: string): Promise<boolean> {
 - **Logging** - comprehensive logging for debugging
 
 This implementation provides robust time-travel capabilities while maintaining system stability and user experience.
+
+## Implementation Status
+
+### ✅ Phase 1: Core Checkpointing Infrastructure - COMPLETED
+
+#### 1. Enhanced Message Metadata Types
+**File**: `packages/types/src/chat/messages.ts`
+- ✅ Added `CheckpointData` interface with `{commitSha, todoSnapshot, createdAt, workspaceState}`  
+- ✅ Extended existing `MessageMetadata` with optional `checkpoint` field
+- ✅ Added `Todo` import from `@repo/db`
+
+#### 2. Extended GitManager 
+**File**: `apps/server/src/services/git-manager.ts`
+- ✅ Added `stashChanges(message)` - safely preserve uncommitted work before time-travel
+- ✅ Added `safeCheckoutCommit(sha)` - jump to specific commit with graceful failure handling
+- ✅ Both methods use existing `execGit()` infrastructure with proper error handling
+
+#### 3. Created CheckpointService
+**File**: `apps/server/src/services/checkpoint-service.ts` (NEW)
+- ✅ `createCheckpoint(taskId, messageId)` - capture commit SHA + todo snapshot after successful responses
+- ✅ `restoreCheckpoint(taskId, messageId)` - restore git state + todos before message editing  
+- ✅ `getTodoSnapshot()` / `restoreTodoState()` - serialize/restore todo state from database
+- ✅ `findCheckpointMessage()` - locate most recent checkpoint at or before target message
+- ✅ Export singleton `checkpointService` instance
+
+### ✅ Phase 2: Integration Points - COMPLETED
+
+#### 1. Auto-Checkpoint Creation
+**File**: `apps/server/src/agent/chat.ts`
+- ✅ Added import for `checkpointService`
+- ✅ After successful response completion (line ~1191, after `createPRIfUserEnabled`)
+- ✅ Call `checkpointService.createCheckpoint(taskId, assistantMessageId)` when changes are committed
+- ✅ Store checkpoint data in message metadata
+
+#### 2. Restore Before Message Editing
+**File**: `apps/server/src/agent/chat.ts` 
+- ✅ In `editUserMessage()` before deleting subsequent messages (line ~1396)
+- ✅ Call `checkpointService.restoreCheckpoint(taskId, messageId)` 
+- ✅ Stash uncommitted work, checkout to target commit, restore todos
+
+### 🔄 Phase 3: Testing & Validation - IN PROGRESS
+
+#### Next Steps:
+1. **Test checkpoint creation** - Verify checkpoints are created after successful responses
+2. **Test checkpoint restoration** - Verify git state and todos are restored during message editing
+3. **Test error handling** - Verify graceful degradation when checkpoints fail
+4. **Validate git operations** - Ensure stash/checkout operations work correctly
+5. **Performance testing** - Monitor impact of checkpoint operations
+
+#### Expected Behavior:
+- **Normal Operation**: Each assistant response with file changes creates a checkpoint
+- **Edit Past Message**: User editing triggers automatic workspace restoration
+- **Clean Timeline**: New responses create clean git history (A→B' instead of A→B→C→D→E→B')
+
+The core checkpointing infrastructure is now complete and integrated into the chat flow!

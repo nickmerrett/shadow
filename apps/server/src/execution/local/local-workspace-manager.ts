@@ -33,10 +33,7 @@ export class LocalWorkspaceManager implements WorkspaceManager {
     // Currently taskId is the local workspace path / taskId so only get the last part
     if (taskId.includes("/")) {
       taskId = taskId.split("/").pop()!;
-    } else {
-      console.warn("Task ID does not contain a slash");
     }
-    console.log("GetTaskWorkspaceDir", taskId);
     return path.join(config.workspaceDir, "tasks", taskId);
   }
 

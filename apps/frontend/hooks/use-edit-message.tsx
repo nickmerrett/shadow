@@ -1,4 +1,8 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  isCancelledError,
+} from "@tanstack/react-query";
 import { useSocket } from "./socket/use-socket";
 import { Message, ModelType } from "@repo/types";
 
@@ -31,8 +35,16 @@ export function useEditMessage() {
       return { taskId, messageId, newContent, newModel };
     },
     onMutate: async ({ taskId, messageId, newContent, newModel }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["task-messages", taskId] });
+      // Cancel any outgoing refetches; ignore cancellation errors from in-flight queries
+      try {
+        await queryClient.cancelQueries({
+          queryKey: ["task-messages", taskId],
+        });
+      } catch (error) {
+        if (!isCancelledError(error)) {
+          console.error("Failed to cancel queries for task-messages", error);
+        }
+      }
 
       // Snapshot the previous value
       const previousMessages = queryClient.getQueryData<Message[]>([
@@ -78,14 +90,6 @@ export function useEditMessage() {
     onSuccess: (data) => {
       // Clear the edit message ID to exit edit mode
       queryClient.setQueryData(["edit-message-id", data.taskId], null);
-    },
-    onSettled: (data) => {
-      // Always refetch after error or success to ensure we have the latest data
-      if (data?.taskId) {
-        queryClient.invalidateQueries({
-          queryKey: ["task-messages", data.taskId],
-        });
-      }
     },
   });
 }
