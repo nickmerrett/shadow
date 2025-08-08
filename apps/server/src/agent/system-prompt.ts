@@ -134,6 +134,7 @@ TESTING STRATEGY:
 - Ensure full test suite passes before completion
 - Use both unit tests and integration tests where applicable
 - Verify changes work in development environment
+- If testing framework (ie pytest, jest, etc.) is not available, analyze existing tests and create test files that align/new ones manually. Run that instead.
 </code_quality>`;
 
 const SECURITY_AND_PRACTICES = `<security_practices>
