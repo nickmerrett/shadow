@@ -8,7 +8,11 @@ import Link from "next/link";
 import { Fragment } from "react";
 
 export function GitHubSettings() {
-  const { data: githubStatus, isLoading: isLoadingGithub } = useGitHubStatus();
+  const {
+    data: githubStatus,
+    isLoading: isLoadingGithub,
+    refetch: refetchGithubStatus,
+  } = useGitHubStatus();
   const { data: githubRepos, isLoading: isLoadingRepos } =
     useGitHubRepositories(!!githubStatus?.isAppInstalled);
 
@@ -85,15 +89,24 @@ export function GitHubSettings() {
         </div>
       </div>
       {githubStatus?.installationUrl && (
-        <Button className="w-auto" variant="secondary" asChild>
-          <Link
-            href={githubStatus?.installationUrl}
-            target="_blank"
-            className="font-normal"
+        <div className="flex gap-2">
+          <Button className="w-auto" variant="secondary" asChild>
+            <Link
+              href={githubStatus?.installationUrl}
+              target="_blank"
+              className="font-normal"
+            >
+              Install Github App <ArrowUpRight />
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            className="text-muted-foreground hover:text-foreground w-auto font-normal"
+            onClick={() => refetchGithubStatus()}
           >
-            Install Github App <ArrowUpRight />
-          </Link>
-        </Button>
+            Refresh Status
+          </Button>
+        </div>
       )}
     </>
   );
