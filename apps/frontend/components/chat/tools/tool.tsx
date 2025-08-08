@@ -12,8 +12,8 @@ import { useState } from "react";
 import { FileIcon } from "@/components/ui/file-icon";
 
 export function ToolComponent({
-  icon,
   type,
+  icon,
   title,
   changes,
   hasStdErr,
@@ -25,9 +25,9 @@ export function ToolComponent({
   children,
   isLoading = false,
 }: {
-  icon: React.ReactNode;
   type: ToolTypes | "error" | "warning";
-  title: string;
+  icon?: React.ReactNode;
+  title?: string;
   suffix?: string;
   prefix?: string;
   showFileIcon?: string;
@@ -47,6 +47,9 @@ export function ToolComponent({
   const displayPrefix =
     prefix || (type in TOOL_PREFIXES ? TOOL_PREFIXES[type as ToolTypes] : "");
 
+  const isReasoning =
+    type === ToolTypes.REASONING || type === ToolTypes.REDACTED_REASONING;
+
   return (
     <div className="flex flex-col gap-1">
       <ToolWrapper
@@ -54,8 +57,20 @@ export function ToolComponent({
         onClick={onClick}
         isExpanded={isExpanded}
         toggleExpanded={() => setIsExpanded(!isExpanded)}
+        isReasoning={isReasoning}
       >
-        {isLoading ? <Loader2 className="animate-spin" /> : icon}
+        {isLoading ? (
+          <Loader2 className="animate-spin" />
+        ) : isReasoning ? (
+          <ChevronRight
+            className={cn(
+              "size-3.5 shrink-0 opacity-70 transition-transform",
+              isExpanded && "rotate-90"
+            )}
+          />
+        ) : icon ? (
+          icon
+        ) : null}
         <div className="flex w-[calc(100%-1.5rem)] items-center gap-1">
           {displayPrefix && (
             <div className="whitespace-nowrap opacity-70">{displayPrefix}</div>
@@ -82,7 +97,10 @@ export function ToolComponent({
         <div className="flex w-full items-start overflow-hidden">
           <div className="h-4.5 flex w-6 shrink-0 items-center justify-end">
             <CornerDownRight
-              className={cn("size-3", type === "error" && "text-destructive")}
+              className={cn(
+                "size-3",
+                type === "error" ? "text-destructive" : "text-muted-foreground"
+              )}
             />
           </div>
           <div className="flex grow flex-col gap-2 overflow-hidden pl-2 text-[13px]">
@@ -101,6 +119,7 @@ const ToolWrapper = ({
   onClick,
   toggleExpanded,
   isExpanded,
+  isReasoning,
 }: {
   children: React.ReactNode;
   collapsible: boolean;
@@ -108,6 +127,7 @@ const ToolWrapper = ({
   onClick?: () => void;
   isExpanded: boolean;
   toggleExpanded: () => void;
+  isReasoning: boolean;
 }) => {
   if (collapsible || onClick) {
     return (
@@ -124,16 +144,17 @@ const ToolWrapper = ({
         <div className="flex grow items-center gap-2 overflow-hidden">
           {children}
         </div>
-        {collapsible ? (
-          <ChevronRight
-            className={cn(
-              "opacity-0! group-hover/tool:opacity-100! text-muted-foreground size-3.5 shrink-0 rotate-0 transition-all",
-              isExpanded && "rotate-90"
-            )}
-          />
-        ) : (
-          <Expand className="opacity-0! group-hover/tool:opacity-100! text-muted-foreground size-3.5 shrink-0 transition-all" />
-        )}
+        {!isReasoning &&
+          (collapsible ? (
+            <ChevronRight
+              className={cn(
+                "opacity-0! group-hover/tool:opacity-100! text-muted-foreground size-3.5 shrink-0 rotate-0 transition-all",
+                isExpanded && "rotate-90"
+              )}
+            />
+          ) : (
+            <Expand className="opacity-0! group-hover/tool:opacity-100! text-muted-foreground size-3.5 shrink-0 transition-all" />
+          ))}
       </Button>
     );
   }

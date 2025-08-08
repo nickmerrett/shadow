@@ -10,24 +10,21 @@ import { ScrollToBottom } from "./scroll-to-bottom";
 import { useCallback, useMemo, memo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ModelType } from "@repo/types";
-import { useTaskStatus } from "@/hooks/use-task-status";
 import {
   deduplicatePartsFromMap,
   convertMapToPartsArray,
 } from "@/lib/streaming";
+import { useTask } from "@/hooks/use-task";
 
 function TaskPageContent() {
   const { taskId } = useParams<{ taskId: string }>();
 
   const queryClient = useQueryClient();
 
-  const { data } = useTaskStatus(taskId);
-  const status = data?.status;
+  const { task } = useTask(taskId);
 
-  const {
-    data: { messages = [], mostRecentMessageModel = null } = {},
-    error: taskMessagesError,
-  } = useTaskMessages(taskId);
+  const { data: messages = [], error: taskMessagesError } =
+    useTaskMessages(taskId);
 
   const sendMessageMutation = useSendMessage();
 
@@ -133,7 +130,7 @@ function TaskPageContent() {
         role: "assistant",
         content: "", // Content will come from parts
         createdAt: new Date().toISOString(),
-        llmModel: mostRecentMessageModel || "",
+        llmModel: task?.mainModel || "",
         metadata: {
           isStreaming: true,
           parts: streamingParts,
@@ -147,7 +144,7 @@ function TaskPageContent() {
     streamingPartsMap,
     streamingPartsOrder,
     isStreaming,
-    mostRecentMessageModel,
+    task?.mainModel,
   ]);
 
   return (
@@ -167,7 +164,7 @@ function TaskPageContent() {
             onCreateStackedPR={handleCreateStackedPR}
             onStopStream={handleStopStream}
             isStreaming={isStreaming || sendMessageMutation.isPending}
-            initialSelectedModel={mostRecentMessageModel}
+            initialSelectedModel={task?.mainModel as ModelType | null}
             onFocus={() => {
               queryClient.setQueryData(["edit-message-id", taskId], null);
             }}

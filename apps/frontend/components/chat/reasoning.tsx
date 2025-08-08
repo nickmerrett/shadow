@@ -1,19 +1,13 @@
-import type { ReasoningPart } from "@repo/types";
-import { Brain } from "lucide-react";
+import { ToolTypes, type ReasoningPart } from "@repo/types";
+import { ChevronDown } from "lucide-react";
 import { ToolComponent } from "./tools/tool";
 
-export function ReasoningComponent({
-  part,
-}: {
-  part: ReasoningPart;
-}) {
+export function ReasoningComponent({ part }: { part: ReasoningPart }) {
   return (
     <ToolComponent
-      icon={<Brain />}
-      title="Thinking..."
-      type="warning"
+      icon={<ChevronDown />}
       collapsible
-      suffix={part.signature ? "✓" : undefined}
+      type={ToolTypes.REASONING}
     >
       <div className="text-muted-foreground whitespace-pre-wrap text-sm">
         {part.text}
@@ -24,14 +18,9 @@ export function ReasoningComponent({
 
 export function RedactedReasoningComponent() {
   return (
-    <ToolComponent
-      icon={<Brain className="opacity-50" />}
-      title="Thinking (redacted)"
-      type="warning"
-      collapsible
-    >
+    <ToolComponent collapsible type={ToolTypes.REDACTED_REASONING}>
       <div className="text-muted-foreground text-sm italic">
-        Reasoning content has been redacted for privacy.
+        Reasoning content has been redacted by Anthropic.
       </div>
     </ToolComponent>
   );

@@ -19,7 +19,6 @@ import type {
 } from "@repo/types";
 import { TextPart, ToolResultPart } from "ai";
 import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
-import { TaskMessages } from "@/lib/db-operations/get-task-messages";
 import { CodebaseTreeResponse } from "../use-codebase-tree";
 import { Task, TodoStatus } from "@repo/db";
 import { TaskStatusData } from "@/lib/db-operations/get-task-status";
@@ -280,7 +279,7 @@ export function useTaskSocket(taskId: string | undefined) {
     streamingParts.clear();
     setStreamingPartsOrder([]);
     setIsStreaming(false);
-    
+
     // Reset all ref counters
     textCounterRef.current = 0;
     redactedReasoningCounterRef.current = 0;
@@ -315,14 +314,13 @@ export function useTaskSocket(taskId: string | undefined) {
     function onChatHistory(data: {
       taskId: string;
       messages: Message[];
-      mostRecentMessageModel: ModelType | null;
       queuedAction: QueuedActionUI | null;
     }) {
       if (data.taskId === taskId) {
-        queryClient.setQueryData<TaskMessages>(["task-messages", taskId], {
-          messages: data.messages,
-          mostRecentMessageModel: data.mostRecentMessageModel,
-        });
+        queryClient.setQueryData<Message[]>(
+          ["task-messages", taskId],
+          data.messages
+        );
         queryClient.setQueryData(["queued-action", taskId], data.queuedAction);
 
         clearStreamingState();
@@ -416,12 +414,14 @@ export function useTaskSocket(taskId: string | undefined) {
             // Add reasoning immediately to parts map for live streaming
             const partId = `reasoning-${replayReasoningCounter}`;
             const existingPart = newPartsMap.get(partId);
-            
+
             const updatedReasoning: ReasoningPart = {
               type: "reasoning" as const,
-              text: (existingPart?.type === "reasoning" ? existingPart.text : "") + chunk.reasoning,
+              text:
+                (existingPart?.type === "reasoning" ? existingPart.text : "") +
+                chunk.reasoning,
             };
-            
+
             newPartsMap.set(partId, updatedReasoning);
             if (!newPartsOrder.includes(partId)) {
               newPartsOrder.push(partId);
@@ -433,7 +433,7 @@ export function useTaskSocket(taskId: string | undefined) {
             // Update existing reasoning part with signature
             const partId = `reasoning-${replayReasoningCounter}`;
             const existingReasoning = newPartsMap.get(partId);
-            
+
             if (existingReasoning?.type === "reasoning") {
               const finalizedReasoning: ReasoningPart = {
                 ...existingReasoning,
@@ -627,12 +627,14 @@ export function useTaskSocket(taskId: string | undefined) {
             // Add reasoning immediately to streaming parts for live streaming
             const partId = `reasoning-${reasoningCounterRef.current}`;
             const existingPart = streamingParts.current.get(partId);
-            
+
             const updatedReasoning: ReasoningPart = {
               type: "reasoning",
-              text: (existingPart?.type === "reasoning" ? existingPart.text : "") + chunk.reasoning,
+              text:
+                (existingPart?.type === "reasoning" ? existingPart.text : "") +
+                chunk.reasoning,
             };
-            
+
             addStreamingPart(updatedReasoning, partId);
           }
           break;
@@ -642,13 +644,13 @@ export function useTaskSocket(taskId: string | undefined) {
             // Update existing reasoning part in streaming parts with signature
             const partId = `reasoning-${reasoningCounterRef.current}`;
             const existingPart = streamingParts.current.get(partId);
-            
+
             if (existingPart?.type === "reasoning") {
               const finalizedReasoning: ReasoningPart = {
                 ...existingPart,
                 signature: chunk.reasoningSignature,
               };
-              
+
               addStreamingPart(finalizedReasoning, partId);
               reasoningCounterRef.current++;
             }
@@ -828,10 +830,10 @@ export function useTaskSocket(taskId: string | undefined) {
             }),
         };
 
-        queryClient.setQueryData<TaskMessages>(
+        queryClient.setQueryData<Message[]>(
           ["task-messages", taskId],
           (old) => {
-            const currentMessages = old?.messages || [];
+            const currentMessages = old || [];
 
             const hasTempMessage = currentMessages.some(
               (msg) =>
@@ -841,20 +843,12 @@ export function useTaskSocket(taskId: string | undefined) {
             );
 
             if (hasTempMessage) {
-              return (
-                old || {
-                  messages: currentMessages,
-                  mostRecentMessageModel: data.model,
-                }
-              );
+              return old || currentMessages;
             }
 
             const updatedMessages = [...currentMessages, optimisticMessage];
 
-            return {
-              messages: updatedMessages,
-              mostRecentMessageModel: data.model,
-            };
+            return updatedMessages;
           }
         );
 
