@@ -1,7 +1,8 @@
-import { watch, FSWatcher } from 'fs';
-import { logger } from '../utils/logger';
-import { SocketClient } from './socket-client';
-import type { FileSystemEvent } from '@repo/types';
+import { watch, FSWatcher } from "fs";
+import { logger } from "../utils/logger";
+import { SocketClient } from "./socket-client";
+import type { FileSystemEvent } from "@repo/types";
+import { GitignoreChecker } from "../utils/gitignore-parser";
 
 /**
  * FileSystemWatcher monitors filesystem changes and sends events to the server via Socket.IO
@@ -13,6 +14,8 @@ export class FileSystemWatcher {
   private changeBuffer = new Map<string, FileSystemEvent>();
   private flushTimer: NodeJS.Timeout | null = null;
   private readonly debounceMs = 100; // Debounce rapid changes
+  private gitignoreChecker: GitignoreChecker | null = null;
+  private isPaused = false;
 
   constructor(taskId: string, socketClient: SocketClient) {
     this.taskId = taskId;
@@ -24,24 +27,37 @@ export class FileSystemWatcher {
    */
   async startWatching(workspacePath: string): Promise<void> {
     try {
-      logger.info(`[FS_WATCHER] Starting filesystem watcher for task ${this.taskId}`, {
-        workspacePath,
-        debounceMs: this.debounceMs
-      });
+      this.gitignoreChecker = new GitignoreChecker(workspacePath);
 
-      this.watcher = watch(workspacePath, {
-        recursive: true,
-        // Ignore common directories that create noise
-        // Note: 'ignored' option is not available in Node.js fs.watch, so we'll filter in the handler
-      }, (eventType, filename) => {
-        if (filename) {
-          this.handleFileSystemEvent(eventType, filename);
+      logger.info(
+        `[FS_WATCHER] Starting filesystem watcher for task ${this.taskId}`,
+        {
+          workspacePath,
+          debounceMs: this.debounceMs,
         }
-      });
+      );
 
-      logger.info(`[FS_WATCHER] Successfully started watching ${workspacePath}`);
+      this.watcher = watch(
+        workspacePath,
+        {
+          recursive: true,
+          // Ignore common directories that create noise
+          // Note: 'ignored' option is not available in Node.js fs.watch, so we'll filter in the handler
+        },
+        (eventType, filename) => {
+          if (filename) {
+            this.handleFileSystemEvent(eventType, filename);
+          }
+        }
+      );
+
+      logger.info(
+        `[FS_WATCHER] Successfully started watching ${workspacePath}`
+      );
     } catch (error) {
-      logger.error(`[FS_WATCHER] Failed to start watching ${workspacePath}`, { error });
+      logger.error(`[FS_WATCHER] Failed to start watching ${workspacePath}`, {
+        error,
+      });
       throw error;
     }
   }
@@ -53,7 +69,9 @@ export class FileSystemWatcher {
     if (this.watcher) {
       this.watcher.close();
       this.watcher = null;
-      logger.info(`[FS_WATCHER] Stopped filesystem watcher for task ${this.taskId}`);
+      logger.info(
+        `[FS_WATCHER] Stopped filesystem watcher for task ${this.taskId}`
+      );
     }
 
     if (this.flushTimer) {
@@ -69,6 +87,12 @@ export class FileSystemWatcher {
    * Handle individual filesystem events
    */
   private handleFileSystemEvent(eventType: string, filename: string): void {
+    // Skip processing if watcher is paused
+    if (this.isPaused) {
+      // Skip - paused
+      return;
+    }
+
     // Filter out noise from common directories/files
     if (this.shouldIgnoreFile(filename)) {
       return;
@@ -80,8 +104,8 @@ export class FileSystemWatcher {
       type: this.mapEventType(eventType, filename),
       path: filename,
       timestamp: Date.now(),
-      source: 'remote',
-      isDirectory: this.isDirectoryPath(filename)
+      source: "remote",
+      isDirectory: this.isDirectoryPath(filename),
     };
 
     logger.debug(`[FS_WATCHER] Detected ${event.type}: ${filename}`);
@@ -112,7 +136,7 @@ export class FileSystemWatcher {
 
     logger.info(`[FS_WATCHER] Flushing ${changes.length} filesystem changes`, {
       taskId: this.taskId,
-      changes: changes.map(c => `${c.type}:${c.path}`)
+      changes: changes.map((c) => `${c.type}:${c.path}`),
     });
 
     // Send each change to the server
@@ -124,29 +148,39 @@ export class FileSystemWatcher {
   /**
    * Map Node.js fs.watch event types to our semantic types
    */
-  private mapEventType(eventType: string, filename: string): FileSystemEvent['type'] {
+  private mapEventType(
+    eventType: string,
+    filename: string
+  ): FileSystemEvent["type"] {
     const isDirectory = this.isDirectoryPath(filename);
 
     switch (eventType) {
-      case 'rename':
+      case "rename":
         // In Node.js fs.watch, 'rename' can mean create, delete, or actual rename
         // We'll treat it as creation for now - deletions are harder to detect
-        return isDirectory ? 'directory-created' : 'file-created';
+        return isDirectory ? "directory-created" : "file-created";
 
-      case 'change':
+      case "change":
         // File content changed
-        return isDirectory ? 'directory-created' : 'file-modified';
+        return isDirectory ? "directory-created" : "file-modified";
 
       default:
-        logger.warn(`[FS_WATCHER] Unknown event type: ${eventType} for ${filename}`);
-        return isDirectory ? 'directory-created' : 'file-modified';
+        logger.warn(
+          `[FS_WATCHER] Unknown event type: ${eventType} for ${filename}`
+        );
+        return isDirectory ? "directory-created" : "file-modified";
     }
   }
 
   /**
-   * Check if a file/directory should be ignored
+   * Check if a file/directory should be ignored based on gitignore rules and common patterns
    */
   private shouldIgnoreFile(filename: string): boolean {
+    if (this.gitignoreChecker) {
+      return this.gitignoreChecker.shouldIgnoreFile(filename);
+    }
+
+    // Fallback to legacy patterns if gitignore checker is not available
     const ignoredPatterns = [
       /node_modules/,
       /\.git/,
@@ -163,7 +197,7 @@ export class FileSystemWatcher {
       /\.swo$/,
     ];
 
-    return ignoredPatterns.some(pattern => pattern.test(filename));
+    return ignoredPatterns.some((pattern) => pattern.test(filename));
   }
 
   /**
@@ -175,10 +209,60 @@ export class FileSystemWatcher {
     // - No file extension
     // - Ends with common directory names
     const hasExtension = /\.[a-zA-Z0-9]+$/.test(filename);
-    const commonDirNames = ['src', 'lib', 'components', 'pages', 'public', 'assets', 'utils', 'hooks'];
-    const endsWithCommonDir = commonDirNames.some(dir => filename.endsWith(dir));
+    const commonDirNames = [
+      "src",
+      "lib",
+      "components",
+      "pages",
+      "public",
+      "assets",
+      "utils",
+      "hooks",
+    ];
+    const endsWithCommonDir = commonDirNames.some((dir) =>
+      filename.endsWith(dir)
+    );
 
     return !hasExtension || endsWithCommonDir;
+  }
+
+  /**
+   * Pause filesystem watching (stop processing events)
+   */
+  pause(): void {
+    if (!this.isPaused) {
+      logger.info(`[FS_WATCHER] Paused`);
+      this.isPaused = true;
+      
+      // Clear any pending flush timer
+      if (this.flushTimer) {
+        clearTimeout(this.flushTimer);
+        this.flushTimer = null;
+      }
+      
+      // Clear the change buffer to avoid processing stale events
+      this.changeBuffer.clear();
+    }
+  }
+
+  /**
+   * Resume filesystem watching (start processing events again)
+   */
+  resume(): void {
+    if (this.isPaused) {
+      logger.info(`[FS_WATCHER] Resumed`);
+      this.isPaused = false;
+      
+      // Clear buffer again to ensure no stale events from pause period
+      this.changeBuffer.clear();
+    }
+  }
+
+  /**
+   * Check if watcher is currently paused
+   */
+  isPausedState(): boolean {
+    return this.isPaused;
   }
 
   /**

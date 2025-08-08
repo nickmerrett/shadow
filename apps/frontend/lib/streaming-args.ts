@@ -1,5 +1,6 @@
 interface PartialArgs {
   target_file?: string;
+  file_path?: string;
   command?: string;
 }
 
@@ -22,7 +23,7 @@ export function extractStreamingArgs(
   const partialArgs: PartialArgs = {};
 
   // Extract target_file for file operations  
-  if (["edit_file", "read_file", "search_replace", "delete_file"].includes(toolName)) {
+  if (["edit_file", "read_file", "delete_file"].includes(toolName)) {
     /**
      * Regex: /"target_file"\s*:\s*"([^"]+)"/
      *
@@ -43,6 +44,31 @@ export function extractStreamingArgs(
     const fileMatch = accumulatedText.match(/"target_file"\s*:\s*"([^"]+)"/);
     if (fileMatch) {
       partialArgs.target_file = fileMatch[1];
+    }
+  }
+
+  // Extract file_path for search_replace operations
+  if (toolName === "search_replace") {
+    /**
+     * Regex: /"file_path"\s*:\s*"([^"]+)"/
+     *
+     * Example matches:
+     * ✅ `"file_path": "src/components/ui/button.tsx"`
+     * ✅ `"file_path":"template.tsx"` (no spaces)
+     * ✅ `"file_path" : "package.json"` (extra spaces)
+     *
+     * Pattern breakdown:
+     * - "file_path" = literal string "file_path"
+     * - \s* = zero or more whitespace characters
+     * - : = literal colon
+     * - \s* = zero or more whitespace characters
+     * - " = opening quote for value
+     * - ([^"]+) = capture group: one or more non-quote characters (the filename)
+     * - " = closing quote
+     */
+    const filePathMatch = accumulatedText.match(/"file_path"\s*:\s*"([^"]+)"/); 
+    if (filePathMatch) {
+      partialArgs.file_path = filePathMatch[1];
     }
   }
 
@@ -81,8 +107,12 @@ export function hasUsefulPartialArgs(
   partialArgs: PartialArgs,
   toolName: string
 ): boolean {
-  if (["edit_file", "read_file", "search_replace", "delete_file"].includes(toolName)) {
+  if (["edit_file", "read_file", "delete_file"].includes(toolName)) {
     return !!partialArgs.target_file;
+  }
+
+  if (toolName === "search_replace") {
+    return !!partialArgs.file_path;
   }
 
   if (toolName === "run_terminal_cmd") {

@@ -24,9 +24,9 @@ import {
   useEffect,
   useRef,
   useState,
-  useTransition,
   useMemo,
   useCallback,
+  TransitionStartFunction,
 } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
@@ -49,6 +49,7 @@ export function PromptForm({
   initialGitCookieState,
   initialSelectedModel,
   isInitializing = false,
+  transition,
 }: {
   onSubmit?: (message: string, model: ModelType, queue: boolean) => void;
   onCreateStackedPR?: (
@@ -67,8 +68,13 @@ export function PromptForm({
   } | null;
   initialSelectedModel?: ModelType | null;
   isInitializing?: boolean;
+  transition?: {
+    isPending: boolean;
+    startTransition: TransitionStartFunction;
+  };
 }) {
   const { taskId } = useParams<{ taskId: string }>();
+  const { isPending, startTransition } = transition || {};
 
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -83,8 +89,6 @@ export function PromptForm({
     name: string;
     commitSha: string;
   } | null>(initialGitCookieState?.branch || null);
-
-  const [isPending, startTransition] = useTransition();
 
   const handleSelectModel = useCallback(
     async (model: ModelType | null) => {
@@ -260,7 +264,7 @@ export function PromptForm({
       formData.append("baseBranch", branch.name);
       formData.append("baseCommitSha", branch.commitSha);
 
-      startTransition(async () => {
+      startTransition?.(async () => {
         let taskId: string | null = null;
         try {
           taskId = await createTask(formData);
@@ -395,7 +399,7 @@ export function PromptForm({
     formData.append("baseBranch", branch.name);
     formData.append("baseCommitSha", branch.commitSha);
 
-    startTransition(async () => {
+    startTransition?.(async () => {
       let taskId: string | null = null;
       try {
         taskId = await createTask(formData);
@@ -429,6 +433,7 @@ export function PromptForm({
       repo,
       branch,
       message.trim(),
+      isStreaming,
     ]
   );
 
@@ -437,7 +442,7 @@ export function PromptForm({
       <form
         onSubmit={handleSubmit}
         className={cn(
-          "relative z-0 flex w-full max-w-lg flex-col",
+          "relative z-0 flex w-full flex-col",
           !isHome && "bg-background sticky bottom-0 pb-6"
         )}
       >
@@ -601,7 +606,7 @@ export function PromptForm({
       {isHome && repo && branch && (
         <RepoIssues
           repository={repo}
-          isPending={isPending}
+          isPending={isPending ?? false}
           handleSubmit={handleCreateTaskForIssue}
         />
       )}

@@ -51,10 +51,6 @@ export function UserMessage({
 
   useEffect(() => {
     if (messageContentRef.current) {
-      console.log(
-        messageContentRef.current.scrollHeight,
-        messageContentRef.current.clientHeight
-      );
       setIsContentOverflowing(
         messageContentRef.current.scrollHeight > MAX_CONTENT_HEIGHT
       );

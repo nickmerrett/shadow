@@ -458,6 +458,8 @@ export enum ToolTypes {
   ADD_MEMORY = "add_memory",
   LIST_MEMORIES = "list_memories",
   REMOVE_MEMORY = "remove_memory",
+  REASONING = "reasoning",
+  REDACTED_REASONING = "redacted-reasoning",
 }
 
 // Tool prefixes for UI display
@@ -476,4 +478,6 @@ export const TOOL_PREFIXES: Record<ToolTypes, string> = {
   [ToolTypes.ADD_MEMORY]: "Add memory",
   [ToolTypes.LIST_MEMORIES]: "List memories",
   [ToolTypes.REMOVE_MEMORY]: "Remove memory",
+  [ToolTypes.REASONING]: "Reasoning",
+  [ToolTypes.REDACTED_REASONING]: "Reasoning",
 };

@@ -135,7 +135,9 @@ export class PRManager {
   ): Promise<PRMetadata> {
     try {
       const diff = await this.gitManager.getDiffAgainstBase(options.baseBranch);
-      const commitMessages = await this.getRecentCommitMessages();
+      const commitMessages = await this.getRecentCommitMessages(
+        options.baseBranch
+      );
 
       // Use mini model for PR generation (cost optimization)
       // TODO: Update LLMService to support model selection parameter
@@ -208,10 +210,12 @@ export class PRManager {
   /**
    * Get recent commit messages from the shadow branch
    */
-  private async getRecentCommitMessages(): Promise<string[]> {
+  private async getRecentCommitMessages(
+    baseBranch: string = "main"
+  ): Promise<string[]> {
     try {
       const { stdout } = await this.gitManager["execGit"](
-        'log --oneline -5 --pretty=format:"%s"'
+        `log ${baseBranch}..HEAD --oneline -5 --pretty=format:"%s"`
       );
       return stdout.trim().split("\n").filter(Boolean);
     } catch (error) {

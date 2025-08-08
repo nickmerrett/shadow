@@ -1,4 +1,5 @@
 import { getUser } from "@/lib/auth/get-user";
+import { makeBackendRequest } from "@/lib/make-backend-request";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -14,10 +15,8 @@ export async function GET(
     const { repoFullName } = await params;
     const decodedRepoFullName = decodeURIComponent(repoFullName);
 
-    const backendUrl =
-      process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000";
-    const response = await fetch(
-      `${backendUrl}/api/indexing-status/${encodeURIComponent(decodedRepoFullName)}`,
+    const response = await makeBackendRequest(
+      `/api/indexing-status/${encodeURIComponent(decodedRepoFullName)}`,
       {
         method: "GET",
         headers: {

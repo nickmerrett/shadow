@@ -9,6 +9,7 @@ import { z } from "zod";
 import { ChatService } from "./agent/chat";
 import { TaskInitializationEngine } from "./initialization";
 import { errorHandler } from "./middleware/error-handler";
+import { apiKeyAuth } from "./middleware/api-key-auth";
 import { createSocketServer } from "./socket";
 import { getGitHubAccessToken } from "./github/auth/account-service";
 import { updateTaskStatus } from "./utils/task-status";
@@ -54,6 +55,14 @@ app.use(
 app.use("/api/webhooks", express.raw({ type: "application/json" }));
 
 app.use(express.json());
+
+// API key authentication for protected routes
+app.use("/api", (req, res, next) => {
+  if (req.path.startsWith("/webhooks")) {
+    return next();
+  }
+  return apiKeyAuth(req, res, next);
+});
 
 /* ROUTES */
 app.get("/", (_req, res) => {

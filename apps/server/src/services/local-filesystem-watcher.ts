@@ -2,6 +2,7 @@ import { watch, FSWatcher } from 'fs';
 import { join, relative } from 'path';
 import { emitStreamChunk } from '../socket';
 import { stat } from 'fs/promises';
+import { GitignoreChecker } from '../utils/gitignore-parser';
 
 interface FileSystemChangeEvent {
   operation: 'file-created' | 'file-modified' | 'file-deleted' | 'directory-created' | 'directory-deleted';
@@ -22,6 +23,8 @@ export class LocalFileSystemWatcher {
   private changeBuffer = new Map<string, FileSystemChangeEvent>();
   private flushTimer: NodeJS.Timeout | null = null;
   private readonly debounceMs = 100;
+  private gitignoreChecker: GitignoreChecker | null = null;
+  private isPaused = false;
 
   constructor(taskId: string) {
     this.taskId = taskId;
@@ -38,6 +41,9 @@ export class LocalFileSystemWatcher {
     }
 
     this.watchedPath = workspacePath;
+    
+    // Initialize gitignore checker
+    this.gitignoreChecker = new GitignoreChecker(workspacePath);
 
     try {
       console.log(`[LOCAL_FS_WATCHER] Starting filesystem watch for task ${this.taskId} at ${workspacePath}`);
@@ -66,6 +72,11 @@ export class LocalFileSystemWatcher {
    * Handle individual file system change events
    */
   private async handleFileChange(eventType: string, filename: string): Promise<void> {
+    // Skip processing if watcher is paused
+    if (this.isPaused) {
+      return;
+    }
+
     const fullPath = join(this.watchedPath, filename);
     const relativePath = relative(this.watchedPath, fullPath);
 
@@ -116,9 +127,14 @@ export class LocalFileSystemWatcher {
   }
 
   /**
-   * Determine if a file should be ignored based on common patterns
+   * Determine if a file should be ignored based on gitignore rules and common patterns
    */
   private shouldIgnoreFile(filePath: string): boolean {
+    if (this.gitignoreChecker) {
+      return this.gitignoreChecker.shouldIgnoreFile(filePath);
+    }
+
+    // Fallback to legacy patterns if gitignore checker is not available
     const ignorePatterns = [
       /^\.git\//, // Git files
       /^node_modules\//, // Node.js dependencies
@@ -143,11 +159,18 @@ export class LocalFileSystemWatcher {
       return;
     }
 
+    // Check if paused - if so, clear buffer but don't emit
+    if (this.isPaused) {
+      this.changeBuffer.clear();
+      this.flushTimer = null;
+      return;
+    }
+
     const changes = Array.from(this.changeBuffer.values());
     this.changeBuffer.clear();
     this.flushTimer = null;
 
-    console.log(`[LOCAL_FS_WATCHER] Flushing ${changes.length} filesystem changes for task ${this.taskId}`);
+    console.log(`[LOCAL_FS_WATCHER] Flushing ${changes.length} changes`);
 
     // Emit each change as a stream chunk
     for (const change of changes) {
@@ -184,6 +207,45 @@ export class LocalFileSystemWatcher {
   }
 
   /**
+   * Pause filesystem watching (stop processing events)
+   */
+  pause(): void {
+    if (!this.isPaused) {
+      console.log(`[LOCAL_FS_WATCHER] Paused`);
+      this.isPaused = true;
+      
+      // Clear any pending flush timer
+      if (this.flushTimer) {
+        clearTimeout(this.flushTimer);
+        this.flushTimer = null;
+      }
+      
+      // Clear the change buffer to avoid processing stale events
+      this.changeBuffer.clear();
+    }
+  }
+
+  /**
+   * Resume filesystem watching (start processing events again)
+   */
+  resume(): void {
+    if (this.isPaused) {
+      console.log(`[LOCAL_FS_WATCHER] Resumed`);
+      this.isPaused = false;
+      
+      // Clear buffer again to ensure no stale events from pause period
+      this.changeBuffer.clear();
+    }
+  }
+
+  /**
+   * Check if watcher is currently paused
+   */
+  isPausedState(): boolean {
+    return this.isPaused;
+  }
+
+  /**
    * Get watcher statistics
    */
   getStats() {
@@ -191,6 +253,7 @@ export class LocalFileSystemWatcher {
       taskId: this.taskId,
       watchedPath: this.watchedPath,
       isWatching: this.isWatching(),
+      isPaused: this.isPaused,
       pendingChanges: this.changeBuffer.size
     };
   }

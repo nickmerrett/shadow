@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { LogoHover } from "../graphics/logo/logo-hover";
 import { PromptForm } from "./prompt-form";
 import { WelcomeModal } from "../welcome-modal";
@@ -18,16 +18,16 @@ export function HomePageContent({
   } | null;
   initialSelectedModel?: ModelType | null;
 }) {
-  const [isFocused, setIsFocused] = useState(true);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
-  const { session, isLoading } = useAuthSession();
+  const [isPending, startTransition] = useTransition();
 
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+
+  const { session, isLoading } = useAuthSession();
   useEffect(() => {
     // Only show welcome modal for authenticated users on first visit
     if (!isLoading && session) {
-      const hasSeenWelcome = localStorage.getItem('shadow-welcome-modal-shown');
+      const hasSeenWelcome = localStorage.getItem("shadow-welcome-modal-shown");
       if (!hasSeenWelcome) {
-        // Add a small delay for better UX
         setTimeout(() => {
           setShowWelcomeModal(true);
         }, 500);
@@ -38,33 +38,30 @@ export function HomePageContent({
   const handleWelcomeModalClose = (open: boolean) => {
     setShowWelcomeModal(open);
     if (!open) {
-      localStorage.setItem('shadow-welcome-modal-shown', 'true');
+      localStorage.setItem("shadow-welcome-modal-shown", "true");
     }
   };
 
   return (
-    <>
-      <div className="mx-auto mt-20 flex w-full max-w-xl flex-col items-center gap-10 overflow-hidden p-4">
-        <div className="font-departureMono flex items-center gap-4 text-3xl font-medium tracking-tighter">
-          <LogoHover size="lg" forceAnimate={isFocused} />
-          Code with{" "}
-          <span className="text-muted-foreground inline-flex items-center gap-2">
-            Shadow
-          </span>
-        </div>
-        <PromptForm
-          isHome
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          initialGitCookieState={initialGitCookieState}
-          initialSelectedModel={initialSelectedModel}
-        />
+    <div className="mx-auto mt-20 flex w-full max-w-xl flex-col items-center gap-10 overflow-hidden p-4">
+      <div className="font-departureMono flex select-none items-center gap-4 text-3xl font-medium tracking-tighter">
+        <LogoHover size="lg" forceAnimate={isPending} />
+        Code with{" "}
+        <span className="text-muted-foreground inline-flex items-center gap-2">
+          Shadow
+        </span>
       </div>
-      
-      <WelcomeModal 
-        open={showWelcomeModal} 
+      <PromptForm
+        isHome
+        initialGitCookieState={initialGitCookieState}
+        initialSelectedModel={initialSelectedModel}
+        transition={{ isPending, startTransition }}
+      />
+
+      <WelcomeModal
+        open={showWelcomeModal}
         onOpenChange={handleWelcomeModalClose}
       />
-    </>
+    </div>
   );
 }

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { getStepsForMode, STEP_DISPLAY_NAMES } from "@repo/types";
 import { Check } from "lucide-react";
 import { LogoHover } from "../graphics/logo/logo-hover";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTaskStatus } from "@/hooks/use-task-status";
 import { useUserSettings } from "@/hooks/use-user-settings";
 
@@ -39,9 +39,14 @@ export default function InitializingAnimation({
       : "local";
 
   // Use user settings to determine which steps to show
-  const steps = getStepsForMode(mode, {
-    enableShadowWiki: userSettings?.enableShadowWiki ?? true,
-  });
+  const steps = useMemo(
+    () =>
+      getStepsForMode(mode, {
+        enableShadowWiki: userSettings?.enableShadowWiki ?? true,
+        enableIndexing: userSettings?.enableIndexing ?? true,
+      }),
+    [mode, userSettings]
+  );
 
   let currentStepIndex = 0;
 

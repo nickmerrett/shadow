@@ -167,6 +167,9 @@ const prodConfigSchema = sharedConfigSchema.extend({
   // === FALLBACK CONFIGURATION ===
   // Local workspace directory (used if AGENT_MODE falls back to 'local')
   WORKSPACE_DIR: z.string().default("/var/lib/shadow/workspaces"),
+
+  // === API SECURITY ===
+  SHADOW_API_KEY: z.string().min(1, "SHADOW_API_KEY is required in production"),
 });
 
 /**
@@ -318,6 +321,9 @@ const prodConfig = {
   vmCpuLimit: parsed.data.VM_CPU_LIMIT,
   vmMemoryLimit: parsed.data.VM_MEMORY_LIMIT,
   vmStorageLimit: parsed.data.VM_STORAGE_LIMIT,
+
+  // API Security
+  shadowApiKey: parsed.data.SHADOW_API_KEY,
 };
 
 export default prodConfig;
