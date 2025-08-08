@@ -33,6 +33,7 @@ import {
   GitPushRequest,
   RecursiveDirectoryListing,
   RecursiveDirectoryEntry,
+  MAX_LINES_PER_READ,
 } from "@repo/types";
 import { CommandResult } from "../interfaces/types";
 import { performSemanticSearch } from "@/utils/semantic-search";
@@ -76,15 +77,25 @@ export class LocalToolExecutor implements ToolExecutor {
           message: `Read entire file: ${targetFile} (${lines.length} lines)`,
         };
       }
+      // Clamp and paginate line range
+      const requestedStart = options?.startLineOneIndexed ?? 1;
+      const safeStart = Math.max(
+        1,
+        Math.min(requestedStart, Math.max(1, lines.length))
+      );
 
-      const startLine = options?.startLineOneIndexed || 1;
-      const endLine = options?.endLineOneIndexedInclusive || lines.length;
+      // Default to a single "page" of up to 150 lines when end not provided
+      const requestedEnd =
+        options?.endLineOneIndexedInclusive ??
+        safeStart + MAX_LINES_PER_READ - 1;
+      const clampedEnd = Math.min(
+        requestedEnd,
+        safeStart + MAX_LINES_PER_READ - 1,
+        lines.length
+      );
 
-      if (startLine < 1 || endLine > lines.length || startLine > endLine) {
-        throw new Error(
-          `Invalid line range: ${startLine}-${endLine} for file with ${lines.length} lines`
-        );
-      }
+      const startLine = safeStart;
+      const endLine = clampedEnd;
 
       const selectedLines = lines.slice(startLine - 1, endLine);
       const selectedContent = selectedLines.join("\n");

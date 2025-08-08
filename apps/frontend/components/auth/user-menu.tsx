@@ -11,9 +11,15 @@ import { authClient } from "@/lib/auth/auth-client";
 import { LogOut, User } from "lucide-react";
 import { useAuthSession } from "./session-provider";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
 export function UserMenu() {
   const { session, isLoading } = useAuthSession();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -29,21 +35,13 @@ export function UserMenu() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="bg-sidebar-accent size-7 animate-pulse rounded-full" />
-    );
-  }
-
-  if (!session?.user) {
-    return <div className="size-7" />;
-  }
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="bg-sidebar-accent size-7 cursor-pointer rounded-full transition-opacity hover:opacity-80">
-          {session.user.image ? (
+          {!mounted || isLoading ? (
+            <div className="bg-sidebar-accent size-7 animate-pulse rounded-full" />
+          ) : session?.user?.image ? (
             <Image
               src={session.user.image}
               alt={session.user.name || "User"}
@@ -62,16 +60,18 @@ export function UserMenu() {
         sideOffset={8}
         className="bg-sidebar-accent border-sidebar-border rounded-lg p-1"
       >
-        <div className="flex items-center justify-start gap-2 p-1">
-          <div className="flex flex-col">
-            {session.user.name && (
-              <p className="text-sm font-medium">{session.user.name}</p>
-            )}
-            <p className="text-muted-foreground w-[200px] truncate pb-px text-[13px]">
-              {session.user.email}
-            </p>
+        {mounted && session?.user ? (
+          <div className="flex items-center justify-start gap-2 p-1">
+            <div className="flex flex-col">
+              {session.user.name && (
+                <p className="text-sm font-medium">{session.user.name}</p>
+              )}
+              <p className="text-muted-foreground w-[200px] truncate pb-px text-[13px]">
+                {session.user.email}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : null}
         <DropdownMenuSeparator className="bg-sidebar-border" />
         <DropdownMenuItem
           onClick={handleSignOut}

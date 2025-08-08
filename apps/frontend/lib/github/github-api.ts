@@ -5,7 +5,11 @@ import { clearGitHubInstallation } from "@/lib/db-operations/update-github-accou
 import {
   createInstallationOctokit,
   getGitHubAppInstallationUrl,
+  isPersonalTokenMode,
+  createPersonalOctokit,
 } from "@/lib/github/github-app";
+import { Octokit } from "@octokit/rest";
+import type { Endpoints } from "@octokit/types";
 import { GitHubIssue } from "@repo/types";
 import {
   Branch,
@@ -31,14 +35,17 @@ function filterRepositoryData(repo: UserRepository): FilteredRepository {
 
 function groupReposByOrg(
   repositories: FilteredRepository[],
-  accountId: string
+  accountId?: string
 ): GroupedRepos {
   const userGroups: { [name: string]: FilteredRepository[] } = {};
   const orgGroups: { [name: string]: FilteredRepository[] } = {};
 
   // Separate user repos from org repos
   repositories.forEach((repo) => {
-    if (repo.owner.id === parseInt(accountId)) {
+    const isUserOwned = accountId
+      ? repo.owner.id === parseInt(accountId)
+      : repo.owner.type === "User";
+    if (isUserOwned) {
       const userName = repo.owner.login;
       if (!userGroups[userName]) {
         userGroups[userName] = [];
@@ -136,6 +143,19 @@ export async function getGitHubStatus(
       };
     }
 
+    // Local development convenience: in non-production, hide the connect variant
+    // unless explicitly forcing GitHub App usage
+    const isProduction = process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
+    const forceGitHubApp = process.env.NEXT_PUBLIC_FORCE_GITHUB_APP === "true";
+    if (!isProduction && !forceGitHubApp) {
+      return {
+        isConnected: true,
+        isAppInstalled: true, // treat as installed so UI works seamlessly
+        installationUrl: undefined,
+        message: "Local mode: GitHub treated as connected",
+      };
+    }
+
     // Check if GitHub App is configured
     if (!process.env.GITHUB_APP_ID || !process.env.GITHUB_APP_SLUG) {
       return {
@@ -217,6 +237,57 @@ export async function getGitHubRepositories(
   }
 
   try {
+    // Personal token flow in non-production: fetch repos for authenticated user
+    if (isPersonalTokenMode()) {
+      const octokit = createPersonalOctokit();
+
+      type ListRepos = Endpoints["GET /user/repos"]["response"]["data"];
+      const allRepositories: UserRepository[] = [];
+      let page = 1;
+      const perPage = 100;
+
+      // Paginate through repos, sorted by update
+      while (true) {
+        const { data } = await octokit.rest.repos.listForAuthenticatedUser({
+          per_page: perPage,
+          page,
+          sort: "updated",
+          direction: "desc",
+        });
+
+        // Push preserving element type
+        (data as ListRepos).forEach((r) =>
+          allRepositories.push(r as unknown as UserRepository)
+        );
+
+        if (data.length < perPage) break;
+        page++;
+      }
+
+      const filteredRepos = allRepositories.map((repo) =>
+        filterRepositoryData(repo)
+      );
+      const groupedRepos = groupReposByOrg(filteredRepos);
+
+      // Ensure the current user's group appears first among groups using login
+      try {
+        const me = await octokit.rest.users.getAuthenticated();
+        const myLogin = me.data.login;
+        const idx = groupedRepos.groups.findIndex(
+          (g) => g.type === "user" && g.name === myLogin
+        );
+        if (idx > 0) {
+          const mine = groupedRepos.groups[idx]!;
+          return {
+            groups: [mine, ...groupedRepos.groups.filter((_, i) => i !== idx)],
+          };
+        }
+      } catch {
+        // ignore and fall through
+      }
+      return groupedRepos;
+    }
+
     const account = await getGitHubAccount(userId);
 
     if (!account) {
@@ -261,8 +332,8 @@ export async function getGitHubRepositories(
     const filteredRepos = sortedRepositories.map((repo) =>
       filterRepositoryData(repo)
     );
+    // In App mode, groupReposByOrg(accountId) already places the user's group first
     const groupedRepos = groupReposByOrg(filteredRepos, account.accountId);
-
     return groupedRepos;
   } catch (error) {
     console.error("Error getting GitHub repositories:", error);
@@ -283,19 +354,21 @@ export async function getGitHubBranches(
       throw new Error("Invalid repository format. Expected 'owner/repo'");
     }
 
-    const account = await getGitHubAccount(userId);
-
-    if (
-      !account ||
-      !account.githubAppConnected ||
-      !account.githubInstallationId
-    ) {
-      return [];
+    // Choose auth mode
+    let octokit: Octokit | null = null;
+    if (isPersonalTokenMode()) {
+      octokit = createPersonalOctokit();
+    } else {
+      const account = await getGitHubAccount(userId);
+      if (
+        !account ||
+        !account.githubAppConnected ||
+        !account.githubInstallationId
+      ) {
+        return [];
+      }
+      octokit = await createInstallationOctokit(account.githubInstallationId);
     }
-
-    const octokit = await createInstallationOctokit(
-      account.githubInstallationId
-    );
 
     // Fetch branches from GitHub API
     const { data: branches } = await octokit.rest.repos.listBranches({
@@ -345,19 +418,21 @@ export async function getGitHubIssues(
       throw new Error("Invalid repository format. Expected 'owner/repo'");
     }
 
-    const account = await getGitHubAccount(userId);
-
-    if (
-      !account ||
-      !account.githubAppConnected ||
-      !account.githubInstallationId
-    ) {
-      return [];
+    // Choose auth mode
+    let octokit: Octokit | null = null;
+    if (isPersonalTokenMode()) {
+      octokit = createPersonalOctokit();
+    } else {
+      const account = await getGitHubAccount(userId);
+      if (
+        !account ||
+        !account.githubAppConnected ||
+        !account.githubInstallationId
+      ) {
+        return [];
+      }
+      octokit = await createInstallationOctokit(account.githubInstallationId);
     }
-
-    const octokit = await createInstallationOctokit(
-      account.githubInstallationId
-    );
 
     const { data: issues } = await octokit.rest.issues.listForRepo({
       owner,

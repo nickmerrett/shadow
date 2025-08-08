@@ -10,10 +10,25 @@ if (!GITHUB_APP_ID || !GITHUB_PRIVATE_KEY) {
   );
 }
 
-export interface GitHubAppConfig {
-  appId: string;
-  privateKey: string;
-  installationId?: string;
+// Personal token mode helpers (used in local development)
+const IS_PRODUCTION = process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
+const PERSONAL_GITHUB_TOKEN =
+  process.env.GITHUB_PERSONAL_ACCESS_TOKEN || process.env.GITHUB_TOKEN;
+const FORCE_GITHUB_APP = process.env.NEXT_PUBLIC_FORCE_GITHUB_APP === "true";
+
+export function isPersonalTokenMode(): boolean {
+  // If forcing GitHub App usage, always use GitHub App mode
+  if (FORCE_GITHUB_APP) {
+    return false;
+  }
+  return !IS_PRODUCTION && !!PERSONAL_GITHUB_TOKEN;
+}
+
+export function createPersonalOctokit(): Octokit {
+  if (!PERSONAL_GITHUB_TOKEN) {
+    throw new Error("Personal GitHub token not configured");
+  }
+  return new Octokit({ auth: PERSONAL_GITHUB_TOKEN });
 }
 
 /**
@@ -36,28 +51,6 @@ export async function createInstallationOctokit(
 
   return new Octokit({
     auth: token,
-  });
-}
-
-/**
- * Create an Octokit instance authenticated as the GitHub App (not installation)
- */
-export function createAppOctokit(): Octokit {
-  if (!GITHUB_APP_ID || !GITHUB_PRIVATE_KEY) {
-    throw new Error("GitHub App not configured");
-  }
-
-  createAppAuth({
-    appId: GITHUB_APP_ID,
-    privateKey: GITHUB_PRIVATE_KEY.replace(/\\n/g, "\n"),
-  });
-
-  return new Octokit({
-    authStrategy: createAppAuth,
-    auth: {
-      appId: GITHUB_APP_ID,
-      privateKey: GITHUB_PRIVATE_KEY.replace(/\\n/g, "\n"),
-    },
   });
 }
 
