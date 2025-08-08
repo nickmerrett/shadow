@@ -1,4 +1,8 @@
 import { z } from "zod";
+import dotenv from "dotenv";
+
+// Load environment variables first
+dotenv.config();
 
 /**
  * Shared configuration schema used by both development and production environments
