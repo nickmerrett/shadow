@@ -5,6 +5,8 @@ import type {
   ToolResultTypes,
   ValidationErrorResult,
   ToolCallPart,
+  ReasoningPart,
+  RedactedReasoningPart,
 } from "@repo/types";
 import { AlertCircle, Copy, Check, MoreHorizontal } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
@@ -12,6 +14,7 @@ import { MemoizedMarkdown } from "./memoized-markdown";
 import { ToolMessage } from "./tools";
 import { ToolComponent } from "./tools/tool";
 import { ValidationErrorTool } from "./tools/validation-error";
+import { ReasoningComponent, RedactedReasoningComponent } from "./reasoning";
 import {
   hasUsefulPartialArgs,
   STREAMING_ENABLED_TOOLS,
@@ -33,6 +36,8 @@ function getMessageCopyContent(
     | { type: "tool-call"; part: unknown; index: number }
     | { type: "tool-result"; part: unknown; index: number }
     | { type: "error"; part: ErrorPart; index: number }
+    | { type: "reasoning"; part: ReasoningPart; index: number }
+    | { type: "redacted-reasoning"; part: RedactedReasoningPart; index: number }
   >
 ): string {
   return groupedParts
@@ -46,6 +51,10 @@ function getMessageCopyContent(
         "toolName" in part.part
       ) {
         return `Tool Call: ${part.part.toolName}`;
+      } else if (part.type === "reasoning") {
+        return `Thinking: ${part.part.text}`;
+      } else if (part.type === "redacted-reasoning") {
+        return `Thinking: [redacted]`;
       }
       return "";
     })
@@ -92,6 +101,12 @@ export function AssistantMessage({
       | { type: "tool-call"; part: unknown; index: number }
       | { type: "tool-result"; part: unknown; index: number }
       | { type: "error"; part: ErrorPart; index: number }
+      | { type: "reasoning"; part: ReasoningPart; index: number }
+      | {
+          type: "redacted-reasoning";
+          part: RedactedReasoningPart;
+          index: number;
+        }
     > = [];
     let currentTextGroup = "";
 
@@ -111,6 +126,14 @@ export function AssistantMessage({
           parts.push({ type: "tool-result", part, index });
         } else if (part.type === "error") {
           parts.push({ type: "error", part: part as ErrorPart, index });
+        } else if (part.type === "reasoning") {
+          parts.push({ type: "reasoning", part: part as ReasoningPart, index });
+        } else if (part.type === "redacted-reasoning") {
+          parts.push({
+            type: "redacted-reasoning",
+            part: part as RedactedReasoningPart,
+            index,
+          });
         }
       }
     });
@@ -262,6 +285,25 @@ export function AssistantMessage({
             >
               {group.part.error}
             </ToolComponent>
+          );
+        }
+
+        // Render reasoning parts
+        if (group.type === "reasoning") {
+          return (
+            <ReasoningComponent
+              key={`reasoning-${groupIndex}`}
+              part={group.part}
+            />
+          );
+        }
+
+        // Render redacted reasoning parts
+        if (group.type === "redacted-reasoning") {
+          return (
+            <RedactedReasoningComponent
+              key={`redacted-reasoning-${groupIndex}`}
+            />
           );
         }
 

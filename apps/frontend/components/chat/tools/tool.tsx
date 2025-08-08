@@ -44,6 +44,9 @@ export function ToolComponent({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  const displayPrefix =
+    prefix || (type in TOOL_PREFIXES ? TOOL_PREFIXES[type as ToolTypes] : "");
+
   return (
     <div className="flex flex-col gap-1">
       <ToolWrapper
@@ -54,10 +57,8 @@ export function ToolComponent({
       >
         {isLoading ? <Loader2 className="animate-spin" /> : icon}
         <div className="flex w-[calc(100%-1.5rem)] items-center gap-1">
-          {type !== "error" && type !== "warning" && (
-            <div className="whitespace-nowrap opacity-70">
-              {prefix || TOOL_PREFIXES[type]}
-            </div>
+          {displayPrefix && (
+            <div className="whitespace-nowrap opacity-70">{displayPrefix}</div>
           )}
           {showFileIcon && (
             <FileIcon filename={showFileIcon} className="size-3.5 opacity-70" />
