@@ -80,12 +80,58 @@ export class ChatService {
   }
 
   private async getNextSequence(taskId: string): Promise<number> {
-    const lastMessage = await prisma.chatMessage.findFirst({
-      where: { taskId },
-      orderBy: { sequence: "desc" },
-      select: { sequence: true },
+    // Use a short transaction to atomically get the next sequence
+    // This prevents race conditions when multiple operations need sequences
+    return await prisma.$transaction(async (tx) => {
+      const lastMessage = await tx.chatMessage.findFirst({
+        where: { taskId },
+        orderBy: { sequence: "desc" },
+        select: { sequence: true },
+      });
+      return (lastMessage?.sequence || 0) + 1;
     });
-    return (lastMessage?.sequence || 0) + 1;
+  }
+
+  // Helper method to atomically create any message with sequence generation
+  private async createMessageWithAtomicSequence(
+    taskId: string,
+    messageData: {
+      content: string;
+      role: "USER" | "ASSISTANT" | "TOOL" | "SYSTEM";
+      llmModel: string;
+      metadata?: MessageMetadata;
+      finishReason?: string;
+      promptTokens?: number;
+      completionTokens?: number;
+      totalTokens?: number;
+    }
+  ): Promise<ChatMessage> {
+    return await prisma.$transaction(async (tx) => {
+      // Atomically get next sequence within transaction
+      const lastMessage = await tx.chatMessage.findFirst({
+        where: { taskId },
+        orderBy: { sequence: "desc" },
+        select: { sequence: true },
+      });
+      const sequence = (lastMessage?.sequence || 0) + 1;
+
+      // Create message with the atomic sequence
+      return await tx.chatMessage.create({
+        data: {
+          taskId,
+          content: messageData.content,
+          role: messageData.role,
+          sequence,
+          llmModel: messageData.llmModel,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          metadata: (messageData.metadata as any) || undefined,
+          promptTokens: messageData.promptTokens,
+          completionTokens: messageData.completionTokens,
+          totalTokens: messageData.totalTokens,
+          finishReason: messageData.finishReason,
+        },
+      });
+    });
   }
 
   async saveUserMessage(
@@ -94,17 +140,12 @@ export class ChatService {
     llmModel: string,
     metadata?: MessageMetadata
   ): Promise<ChatMessage> {
-    const sequence = await this.getNextSequence(taskId);
-    const message = await prisma.chatMessage.create({
-      data: {
-        taskId,
-        content,
-        role: "USER",
-        sequence,
-        llmModel,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        metadata: (metadata as any) || undefined,
-      },
+    // Use atomic sequence generation to prevent race conditions
+    const message = await this.createMessageWithAtomicSequence(taskId, {
+      content,
+      role: "USER",
+      llmModel,
+      metadata,
     });
 
     // Update task activity timestamp when user sends a message
@@ -117,9 +158,24 @@ export class ChatService {
     taskId: string,
     content: string,
     llmModel: string,
-    sequence: number,
+    sequence?: number,
     metadata?: MessageMetadata
   ): Promise<ChatMessage> {
+    // If no sequence provided, generate atomically
+    if (sequence === undefined) {
+      const usage = metadata?.usage;
+      return await this.createMessageWithAtomicSequence(taskId, {
+        content,
+        role: "ASSISTANT",
+        llmModel,
+        metadata,
+        promptTokens: usage?.promptTokens,
+        completionTokens: usage?.completionTokens,
+        totalTokens: usage?.totalTokens,
+        finishReason: metadata?.finishReason,
+      });
+    }
+
     // Extract usage info for denormalized storage
     const usage = metadata?.usage;
 
@@ -145,9 +201,19 @@ export class ChatService {
     taskId: string,
     content: string,
     llmModel: string,
-    sequence: number,
+    sequence?: number,
     metadata?: MessageMetadata
   ): Promise<ChatMessage> {
+    // If no sequence provided, generate atomically
+    if (sequence === undefined) {
+      return await this.createMessageWithAtomicSequence(taskId, {
+        content,
+        role: "SYSTEM",
+        llmModel,
+        metadata,
+      });
+    }
+
     return await prisma.chatMessage.create({
       data: {
         taskId,
@@ -166,10 +232,30 @@ export class ChatService {
     toolName: string,
     toolArgs: Record<string, unknown>,
     toolResult: string,
-    sequence: number,
+    sequence: number | undefined,
     llmModel: string,
     metadata?: MessageMetadata
   ): Promise<ChatMessage> {
+    // If no sequence provided, generate atomically
+    if (sequence === undefined) {
+      return await this.createMessageWithAtomicSequence(taskId, {
+        content: toolResult,
+        role: "TOOL",
+        llmModel,
+        metadata: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(metadata as any),
+          tool: {
+            name: toolName,
+            args: toolArgs,
+            status: "COMPLETED",
+            result: toolResult,
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+      });
+    }
+
     return await prisma.chatMessage.create({
       data: {
         taskId,
