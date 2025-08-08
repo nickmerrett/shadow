@@ -1,12 +1,7 @@
 "use client";
 
 import { useSocket } from "./use-socket";
-
-enum StreamingStatus {
-  IDLE = "idle",
-  PENDING = "pending",
-  STREAMING = "streaming"
-}
+import { StreamingStatus } from "@/lib/constants";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { extractStreamingArgs } from "@/lib/streaming-args";
 import { useStreamingPartsMap } from "../use-streaming-parts-map";
@@ -1046,6 +1041,7 @@ export function useTaskSocket(taskId: string | undefined) {
     streamingPartsMap: streamingParts.map,
     streamingPartsOrder,
     streamingStatus,
+    setStreamingStatus,
     sendMessage,
     stopStream,
     clearQueuedAction,
