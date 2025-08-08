@@ -1,5 +1,6 @@
 import type { Message } from "@repo/types";
 import {
+  Check,
   CheckSquare2,
   CircleDashed,
   ListTodo,
@@ -81,6 +82,15 @@ export function TodoWriteTool({ message }: { message: Message }) {
 
   const lastTodo = todos[todos.length - 1];
 
+  const icon =
+    lastTodo?.status === "in_progress" ? (
+      <CircleDashed />
+    ) : lastTodo?.status === "completed" ? (
+      <Check />
+    ) : (
+      <ListTodo />
+    );
+
   const prefix = merge
     ? lastTodo?.status === "in_progress"
       ? "In progress:"
@@ -102,7 +112,7 @@ export function TodoWriteTool({ message }: { message: Message }) {
 
   return (
     <ToolComponent
-      icon={<ListTodo />}
+      icon={icon}
       type={ToolTypes.TODO_WRITE}
       title={title}
       prefix={prefix}
