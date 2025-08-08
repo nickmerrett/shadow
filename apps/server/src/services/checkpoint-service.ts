@@ -545,25 +545,33 @@ export class CheckpointService {
           // Access the sidecar URL through the private property (casting to any for access)
           const sidecarUrl = (toolExecutor as any).sidecarUrl;
           const response = await fetch(`${sidecarUrl}/api/watcher/pause`, {
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
           });
-          
+
           if (response.ok) {
-            await response.json() as { message: string };
+            (await response.json()) as { message: string };
             // Remote watcher paused successfully
           } else {
             const error = await response.text();
-            console.warn(`[CHECKPOINT] Failed to pause remote watcher: ${error}`);
+            console.warn(
+              `[CHECKPOINT] Failed to pause remote watcher: ${error}`
+            );
           }
         } catch (error) {
-          console.warn(`[CHECKPOINT] Failed to pause remote watcher for task ${taskId}:`, error);
+          console.warn(
+            `[CHECKPOINT] Failed to pause remote watcher for task ${taskId}:`,
+            error
+          );
         }
       }
     } catch (error) {
-      console.warn(`[CHECKPOINT] Error pausing filesystem watcher for task ${taskId}:`, error);
+      console.warn(
+        `[CHECKPOINT] Error pausing filesystem watcher for task ${taskId}:`,
+        error
+      );
       // Non-blocking - continue even if watcher pause fails
     }
   }
@@ -590,25 +598,33 @@ export class CheckpointService {
           // Access the sidecar URL through the private property (casting to any for access)
           const sidecarUrl = (toolExecutor as any).sidecarUrl;
           const response = await fetch(`${sidecarUrl}/api/watcher/resume`, {
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
           });
-          
+
           if (response.ok) {
-            await response.json() as { message: string };
+            (await response.json()) as { message: string };
             // Remote watcher resumed successfully
           } else {
             const error = await response.text();
-            console.warn(`[CHECKPOINT] Failed to resume remote watcher: ${error}`);
+            console.warn(
+              `[CHECKPOINT] Failed to resume remote watcher: ${error}`
+            );
           }
         } catch (error) {
-          console.warn(`[CHECKPOINT] Failed to resume remote watcher for task ${taskId}:`, error);
+          console.warn(
+            `[CHECKPOINT] Failed to resume remote watcher for task ${taskId}:`,
+            error
+          );
         }
       }
     } catch (error) {
-      console.warn(`[CHECKPOINT] Error resuming filesystem watcher for task ${taskId}:`, error);
+      console.warn(
+        `[CHECKPOINT] Error resuming filesystem watcher for task ${taskId}:`,
+        error
+      );
       // Non-blocking - continue even if watcher resume fails
     }
   }

@@ -1444,6 +1444,11 @@ export class ChatService {
       throw new Error("Edited message not found");
     }
 
+    await checkpointService.restoreCheckpoint(taskId, messageId);
+    console.log(
+      `[CHAT] ✅ Checkpoint restoration completed for message editing`
+    );
+
     // Delete all messages that come after the edited message
     await prisma.chatMessage.deleteMany({
       where: {

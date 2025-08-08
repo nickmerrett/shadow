@@ -600,10 +600,6 @@ export function createSocketServer(
 
     socket.on("get-terminal-history", async (data) => {
       try {
-        console.log(
-          `[SOCKET] Getting terminal history for task: ${data.taskId}`
-        );
-
         const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
         if (!hasAccess) {
           socket.emit("terminal-history-error", {
@@ -612,9 +608,7 @@ export function createSocketServer(
           return;
         }
 
-        // Get terminal history from sidecar or local executor
         const history = await getTerminalHistory(data.taskId);
-
         socket.emit("terminal-history", {
           taskId: data.taskId,
           entries: history,
@@ -629,18 +623,13 @@ export function createSocketServer(
 
     socket.on("clear-terminal", async (data) => {
       try {
-        console.log(`[SOCKET] Clearing terminal for task: ${data.taskId}`);
-
         const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
         if (!hasAccess) {
           socket.emit("terminal-error", { error: "Access denied to task" });
           return;
         }
 
-        // Clear terminal via sidecar or local executor
         await clearTerminal(data.taskId);
-
-        // Notify all clients in the task room that terminal was cleared
         emitToTask(data.taskId, "terminal-cleared", { taskId: data.taskId });
       } catch (error) {
         console.error("Error clearing terminal:", error);
@@ -650,7 +639,6 @@ export function createSocketServer(
       }
     });
 
-    // Handle heartbeat/keepalive
     socket.on("heartbeat", () => {
       const state = connectionStates.get(connectionId);
       if (state) {

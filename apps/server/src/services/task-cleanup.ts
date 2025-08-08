@@ -15,11 +15,8 @@ export class TaskCleanupService {
 
     // Only run cleanup in remote mode
     if (agentMode !== "remote") {
-      console.log("[TASK_CLEANUP] Cleanup service disabled in local mode");
       return;
     }
-
-    console.log("[TASK_CLEANUP] Starting background cleanup service");
 
     this.processStartupCleanup();
 
@@ -101,7 +98,7 @@ export class TaskCleanupService {
 
       // Clean up server memory structures first
       MemoryCleanupService.cleanupTaskMemory(taskId);
-      
+
       // Cleanup workspace/VM resources
       await workspaceManager.cleanupWorkspace(taskId);
 
