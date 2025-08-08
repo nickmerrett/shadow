@@ -130,6 +130,8 @@ GITHUB_WEBHOOK_SECRET= # TODO: Set this to your GitHub webhook secret
 WORKSPACE_DIR= # TODO: Set this to your local workspace directory
 
 ```
+
+Frontend .env:
 ```bash
 NEXT_PUBLIC_SERVER_URL="http://localhost:4000"
 
