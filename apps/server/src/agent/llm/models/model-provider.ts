@@ -27,8 +27,6 @@ export class ModelProvider {
           apiKey: userApiKeys.anthropic,
         });
         const model = anthropicClient(modelId);
-        
-        // Model is automatically traced via OpenTelemetry integration
         console.log(`[MODEL_PROVIDER] Created Anthropic model: ${modelId}`);
         return model;
       }
@@ -44,8 +42,6 @@ export class ModelProvider {
 
         const openaiClient = createOpenAI({ apiKey: userApiKeys.openai });
         const model = openaiClient(modelId);
-        
-        // Model is automatically traced via OpenTelemetry integration
         console.log(`[MODEL_PROVIDER] Created OpenAI model: ${modelId}`);
         return model;
       }
@@ -69,8 +65,6 @@ export class ModelProvider {
             },
           });
           const model = openrouterClient.chat(modelId);
-          
-          // Model is automatically traced via OpenTelemetry integration
           console.log(`[MODEL_PROVIDER] Created OpenRouter model: ${modelId}`);
           return model;
         } catch (error) {
