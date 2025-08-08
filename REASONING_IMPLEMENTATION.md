@@ -10,6 +10,16 @@ This document describes the Phase 1 implementation of AI SDK ReasoningPart and R
 
 Complete backend support for reasoning chunks flowing from AI SDK through the server pipeline to WebSocket emission. Frontend consumption is Phase 2.
 
+### Legacy "Thinking" Removal (COMPLETED ✅)
+
+Removed legacy unused "thinking" functionality in favor of the new reasoning implementation:
+- Removed `"thinking"` from StreamChunk type union
+- Removed `thinking?: string` field from StreamChunk interface
+- Removed `thinking?: { content: string; duration: number }` from MessageMetadata
+- Removed frontend thinking case handler (was just console logging)
+- All TypeScript compilation passes
+- No remaining "thinking" references found in codebase
+
 ### Key Findings from Research
 
 - **Multiple Reasoning Blocks**: Messages CAN have multiple reasoning blocks, often interleaved with text and tool calls

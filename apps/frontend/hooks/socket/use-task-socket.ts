@@ -567,9 +567,6 @@ export function useTaskSocket(taskId: string | undefined) {
           console.log("Usage:", chunk.usage);
           break;
 
-        case "thinking":
-          console.log("Thinking:", chunk.thinking);
-          break;
 
         case "init-progress":
           if (chunk.initProgress) {

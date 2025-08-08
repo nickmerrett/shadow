@@ -19,7 +19,6 @@ export interface ValidationErrorResult {
 export interface StreamChunk {
   type:
     | "content"
-    | "thinking"
     | "usage"
     | "complete"
     | "error"
@@ -36,9 +35,6 @@ export interface StreamChunk {
 
   // For content chunks
   content?: string;
-
-  // For thinking/reasoning chunks
-  thinking?: string;
 
   // For reasoning chunks
   reasoning?: string;              // Incremental reasoning text delta

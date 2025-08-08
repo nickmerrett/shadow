@@ -72,11 +72,6 @@ export type Message = {
 };
 
 export interface MessageMetadata {
-  thinking?: {
-    content: string;
-    duration: number; // seconds
-  };
-
   tool?: {
     name: string;
     args: Record<string, unknown>;
