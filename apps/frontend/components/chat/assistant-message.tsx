@@ -10,7 +10,7 @@ import { AlertCircle, Copy, Check, MoreHorizontal } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import { MemoizedMarkdown } from "./memoized-markdown";
 import { ToolMessage } from "./tools";
-import { ToolComponent } from "./tools/collapsible-tool";
+import { ToolComponent } from "./tools/tool";
 import { ValidationErrorTool } from "./tools/validation-error";
 import {
   hasUsefulPartialArgs,
