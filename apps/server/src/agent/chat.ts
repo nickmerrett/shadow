@@ -20,6 +20,7 @@ import { GitManager } from "../services/git-manager";
 import { PRManager } from "../services/pr-manager";
 import { modelContextService } from "../services/model-context-service";
 import { TaskModelContext } from "../services/task-model-context";
+import { checkpointService } from "../services/checkpoint-service";
 import { generateTaskTitleAndBranch } from "../utils/title-generation";
 import { MessageRole } from "@repo/db";
 import {
@@ -1184,6 +1185,14 @@ export class ChatService {
               context
             );
           }
+
+          // Create checkpoint after successful completion and commit
+          if (changesCommitted && assistantMessageId) {
+            await checkpointService.createCheckpoint(
+              taskId,
+              assistantMessageId
+            );
+          }
         } catch (error) {
           console.error(
             `[CHAT] Failed to commit changes for task ${taskId}:`,
@@ -1385,6 +1394,9 @@ export class ChatService {
     if (!editedMessage) {
       throw new Error("Edited message not found");
     }
+
+    // Restore checkpoint state before deleting subsequent messages
+    await checkpointService.restoreCheckpoint(taskId, messageId);
 
     // Delete all messages that come after the edited message
     await prisma.chatMessage.deleteMany({
