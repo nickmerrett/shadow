@@ -7,6 +7,8 @@ import {
   getGitHubAppInstallationUrl,
   isPersonalTokenMode,
   createPersonalOctokit,
+  IS_PRODUCTION,
+  FORCE_GITHUB_APP,
 } from "@/lib/github/github-app";
 import { Octokit } from "@octokit/rest";
 import type { Endpoints } from "@octokit/types";
@@ -145,9 +147,7 @@ export async function getGitHubStatus(
 
     // Local development convenience: in non-production, hide the connect variant
     // unless explicitly forcing GitHub App usage
-    const isProduction = process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
-    const forceGitHubApp = process.env.NEXT_PUBLIC_FORCE_GITHUB_APP === "true";
-    if (!isProduction && !forceGitHubApp) {
+    if (!IS_PRODUCTION && !FORCE_GITHUB_APP) {
       return {
         isConnected: true,
         isAppInstalled: true, // treat as installed so UI works seamlessly

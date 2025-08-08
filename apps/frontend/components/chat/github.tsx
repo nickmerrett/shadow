@@ -216,7 +216,7 @@ export function GithubConnection({
   };
 
   const renderConnectGitHub = (
-    <div className="flex flex-col gap-2 p-4">
+    <div className="flex h-full flex-col gap-2 p-4">
       <div className="flex items-center gap-2">
         <Image
           src="/github.svg"
@@ -244,7 +244,7 @@ export function GithubConnection({
             window.open(githubStatus.installationUrl, "_blank");
             setIsOpen(false);
           }}
-          className="w-full"
+          className="mt-auto w-full"
         >
           Install GitHub App
         </Button>
@@ -253,8 +253,8 @@ export function GithubConnection({
   );
 
   const renderRepos = (
-    <div>
-      <div className="relative border-b">
+    <div className="flex h-full flex-col">
+      <div className="relative shrink-0 border-b">
         <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 transform" />
         <input
           placeholder="Search repositories..."
@@ -265,7 +265,7 @@ export function GithubConnection({
         />
       </div>
 
-      <div className="flex h-64 flex-col gap-2 overflow-y-auto py-2 pb-6">
+      <div className="flex grow flex-col gap-2 overflow-y-auto py-2 pb-6">
         {isLoadingRepos ? (
           <div className="text-muted-foreground mt-1 flex h-7 items-center justify-center gap-1.5">
             <Loader2 className="size-3.5 animate-spin" />
@@ -341,16 +341,16 @@ export function GithubConnection({
   );
 
   const renderBranches = (
-    <div>
+    <div className="flex h-full flex-col">
       <button
-        className="hover:bg-sidebar-accent flex h-9 w-full cursor-pointer items-center gap-2 border-b px-2.5 text-sm transition-colors"
+        className="hover:bg-sidebar-accent flex h-9 w-full shrink-0 cursor-pointer items-center gap-2 border-b px-2.5 text-sm transition-colors"
         onClick={handleBackToRepos}
       >
         <ArrowLeft className="size-3.5" />
         <span className="truncate">{selectedRepo?.full_name}</span>
       </button>
 
-      <div className="relative border-b">
+      <div className="relative shrink-0 border-b">
         <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 transform" />
         <input
           placeholder="Search branches..."
@@ -361,7 +361,7 @@ export function GithubConnection({
         />
       </div>
 
-      <div className="flex h-64 flex-col gap-1 overflow-y-auto p-2 pb-6">
+      <div className="flex grow flex-col gap-1 overflow-y-auto p-2 pb-6">
         {isLoadingBranches ? (
           <div className="text-muted-foreground mt-1 flex h-7 items-center justify-center gap-1.5">
             <Loader2 className="size-3.5 animate-spin" />
@@ -412,7 +412,15 @@ export function GithubConnection({
       </Tooltip>
 
       <PopoverContent
-        className="w-80 overflow-hidden p-0"
+        className={cn(
+          "w-80 overflow-hidden p-0",
+          statusError ||
+            !githubStatus ||
+            !githubStatus.isAppInstalled ||
+            isLoadingStatus
+            ? "h-48"
+            : "h-96"
+        )}
         align="end"
         onClick={(e) => {
           e.preventDefault();
@@ -420,7 +428,7 @@ export function GithubConnection({
         }}
       >
         {isLoadingStatus ? (
-          <div className="text-muted-foreground flex h-20 items-center justify-center gap-2">
+          <div className="text-muted-foreground flex h-full items-center justify-center gap-2">
             <Loader2 className="size-4 animate-spin" />
             <span className="text-sm">Checking GitHub status...</span>
           </div>
@@ -438,7 +446,7 @@ export function GithubConnection({
 
 function ManageGithubButton({ link }: { link: string }) {
   return (
-    <div className="relative h-9 w-full">
+    <div className="relative h-9 w-full shrink-0">
       <div className="from-card via-card/70 pointer-events-none absolute -top-6 h-6 w-full bg-gradient-to-t to-transparent" />
       <Link
         href={link}

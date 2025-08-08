@@ -11,10 +11,12 @@ if (!GITHUB_APP_ID || !GITHUB_PRIVATE_KEY) {
 }
 
 // Personal token mode helpers (used in local development)
-const IS_PRODUCTION = process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
-const PERSONAL_GITHUB_TOKEN =
+export const IS_PRODUCTION =
+  process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
+export const PERSONAL_GITHUB_TOKEN =
   process.env.GITHUB_PERSONAL_ACCESS_TOKEN || process.env.GITHUB_TOKEN;
-const FORCE_GITHUB_APP = process.env.NEXT_PUBLIC_FORCE_GITHUB_APP === "true";
+export const FORCE_GITHUB_APP =
+  process.env.NEXT_PUBLIC_FORCE_GITHUB_APP?.toLowerCase() === "true";
 
 export function isPersonalTokenMode(): boolean {
   // If forcing GitHub App usage, always use GitHub App mode
