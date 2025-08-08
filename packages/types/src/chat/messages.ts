@@ -36,7 +36,9 @@ export interface ToolCallPart extends BaseToolCallPart {
   accumulatedArgsText?: string;
   partialArgs?: {
     target_file?: string;
+    file_path?: string;
     command?: string;
+    is_new_file?: boolean;
   };
 }
 
@@ -92,7 +94,9 @@ export interface MessageMetadata {
   streamingState?: "starting" | "streaming" | "complete";
   partialArgs?: {
     target_file?: string;
+    file_path?: string;
     command?: string;
+    is_new_file?: boolean;
   };
 
   // LLM usage metadata

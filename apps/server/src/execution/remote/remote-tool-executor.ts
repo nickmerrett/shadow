@@ -153,7 +153,8 @@ export class RemoteToolExecutor implements ToolExecutor {
   async writeFile(
     targetFile: string,
     content: string,
-    instructions: string
+    instructions: string,
+    isNewFile?: boolean
   ): Promise<WriteResult> {
     try {
       const response = await this.makeSidecarRequest<WriteResult>(
@@ -164,6 +165,7 @@ export class RemoteToolExecutor implements ToolExecutor {
             path: targetFile,
             content,
             instructions,
+            isNewFile,
           }),
         }
       );
@@ -209,7 +211,8 @@ export class RemoteToolExecutor implements ToolExecutor {
   async searchReplace(
     filePath: string,
     oldString: string,
-    newString: string
+    newString: string,
+    isNewFile?: boolean
   ): Promise<SearchReplaceResult> {
     try {
       const response = await this.makeSidecarRequest<SearchReplaceResult>(
@@ -220,6 +223,7 @@ export class RemoteToolExecutor implements ToolExecutor {
             path: filePath,
             oldString,
             newString,
+            isNewFile,
           }),
         }
       );

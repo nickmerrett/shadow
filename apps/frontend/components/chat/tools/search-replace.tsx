@@ -13,6 +13,7 @@ export function SearchReplaceTool({ message }: { message: Message }) {
 
   const { args, status } = toolMeta;
   const filePath = args.file_path as string;
+  const isNewFile = args.is_new_file as boolean;
 
   const result = getToolResult(toolMeta, "search_replace");
   const linesAdded = result?.linesAdded || 0;
@@ -33,6 +34,7 @@ export function SearchReplaceTool({ message }: { message: Message }) {
       changes={changes}
       showFileIcon={filePath}
       isLoading={isLoading}
+      prefix={isNewFile ? "Create" : undefined}
       onClick={() => {
         updateSelectedFilePath(filePath);
         expandRightPanel();

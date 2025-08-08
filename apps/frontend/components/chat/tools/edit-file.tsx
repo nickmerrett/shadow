@@ -8,11 +8,14 @@ import { ToolComponent } from "./tool";
 export function EditFileTool({ message }: { message: Message }) {
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
 
+  console.log("EditFileTool", message);
+
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
   const { args, status } = toolMeta;
   const filePath = args.target_file as string;
+  const isNewFile = args.is_new_file as boolean;
   const result = getToolResult(toolMeta, "edit_file");
   const linesAdded = result?.linesAdded || 0;
   const linesRemoved = result?.linesRemoved || 0;
@@ -36,6 +39,7 @@ export function EditFileTool({ message }: { message: Message }) {
       changes={changes}
       showFileIcon={filePath}
       isLoading={isLoading}
+      prefix={isNewFile ? "Create" : undefined}
       onClick={() => {
         updateSelectedFilePath(filePath);
         expandRightPanel();

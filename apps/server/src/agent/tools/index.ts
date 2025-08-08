@@ -335,12 +335,13 @@ export async function createTools(taskId: string, workspacePath?: string) {
     edit_file: tool({
       description: readDescription("edit_file"),
       parameters: EditFileParamsSchema,
-      execute: async ({ target_file, instructions, code_edit }) => {
+      execute: async ({ target_file, instructions, code_edit, is_new_file }) => {
         console.log(`[EDIT_FILE] ${instructions}`);
         const result = await executor.writeFile(
           target_file,
           code_edit,
-          instructions
+          instructions,
+          is_new_file
         );
         return result;
       },
@@ -349,12 +350,13 @@ export async function createTools(taskId: string, workspacePath?: string) {
     search_replace: tool({
       description: readDescription("search_replace"),
       parameters: SearchReplaceParamsSchema,
-      execute: async ({ file_path, old_string, new_string }) => {
+      execute: async ({ file_path, old_string, new_string, is_new_file }) => {
         console.log(`[SEARCH_REPLACE] Replacing text in ${file_path}`);
         const result = await executor.searchReplace(
           file_path,
           old_string,
-          new_string
+          new_string,
+          is_new_file
         );
         return result;
       },

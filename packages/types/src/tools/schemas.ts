@@ -61,6 +61,10 @@ export const EditFileParamsSchema = z.object({
       "A single sentence instruction describing what you are going to do"
     ),
   code_edit: z.string().describe("The precise lines of code to edit or create"),
+  is_new_file: z
+    .boolean()
+    .optional()
+    .describe("Whether this is creating a new file (true) or editing an existing file (false)"),
 });
 
 export const SearchReplaceParamsSchema = z.object({
@@ -71,6 +75,10 @@ export const SearchReplaceParamsSchema = z.object({
     .string()
     .describe("The text to replace (must be unique within the file)"),
   new_string: z.string().describe("The edited text to replace the old_string"),
+  is_new_file: z
+    .boolean()
+    .optional()
+    .describe("Whether this is creating a new file (true) or editing an existing file (false)"),
 });
 
 export const RunTerminalCmdParamsSchema = z

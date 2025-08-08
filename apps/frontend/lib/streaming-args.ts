@@ -2,15 +2,16 @@ interface PartialArgs {
   target_file?: string;
   file_path?: string;
   command?: string;
+  is_new_file?: boolean;
 }
 
 /**
- * Tools that support streaming argument extraction and should only be shown 
+ * Tools that support streaming argument extraction and should only be shown
  * when useful arguments are extracted during streaming
  */
 export const STREAMING_ENABLED_TOOLS = [
   "edit_file",
-  "read_file", 
+  "read_file",
   "search_replace",
   "delete_file",
   "run_terminal_cmd",
@@ -22,7 +23,7 @@ export function extractStreamingArgs(
 ): PartialArgs {
   const partialArgs: PartialArgs = {};
 
-  // Extract target_file for file operations  
+  // Extract target_file for file operations
   if (["edit_file", "read_file", "delete_file"].includes(toolName)) {
     /**
      * Regex: /"target_file"\s*:\s*"([^"]+)"/
@@ -47,6 +48,31 @@ export function extractStreamingArgs(
     }
   }
 
+  // Extract is_new_file for edit_file and search_replace operations
+  if (["edit_file", "search_replace"].includes(toolName)) {
+    /**
+     * Regex: /"is_new_file"\s*:\s*(true|false)/
+     *
+     * Example matches:
+     * ✅ `"is_new_file": true`
+     * ✅ `"is_new_file":false` (no spaces)
+     * ✅ `"is_new_file" : true` (extra spaces)
+     *
+     * Pattern breakdown:
+     * - "is_new_file" = literal string "is_new_file"
+     * - \s* = zero or more whitespace characters
+     * - : = literal colon
+     * - \s* = zero or more whitespace characters
+     * - (true|false) = capture group: literal true or false
+     */
+    const isNewFileMatch = accumulatedText.match(
+      /"is_new_file"\s*:\s*(true|false)/
+    );
+    if (isNewFileMatch) {
+      partialArgs.is_new_file = isNewFileMatch[1] === "true";
+    }
+  }
+
   // Extract file_path for search_replace operations
   if (toolName === "search_replace") {
     /**
@@ -66,7 +92,7 @@ export function extractStreamingArgs(
      * - ([^"]+) = capture group: one or more non-quote characters (the filename)
      * - " = closing quote
      */
-    const filePathMatch = accumulatedText.match(/"file_path"\s*:\s*"([^"]+)"/); 
+    const filePathMatch = accumulatedText.match(/"file_path"\s*:\s*"([^"]+)"/);
     if (filePathMatch) {
       partialArgs.file_path = filePathMatch[1];
     }

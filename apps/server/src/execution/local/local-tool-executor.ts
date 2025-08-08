@@ -144,7 +144,8 @@ export class LocalToolExecutor implements ToolExecutor {
   async writeFile(
     targetFile: string,
     content: string,
-    _instructions: string
+    _instructions: string,
+    providedIsNewFile?: boolean
   ): Promise<WriteResult> {
     try {
       const filePath = path.resolve(this.workspacePath, targetFile);
@@ -153,14 +154,26 @@ export class LocalToolExecutor implements ToolExecutor {
       // Ensure directory exists
       await fs.mkdir(dirPath, { recursive: true });
 
-      // Check if this is a new file or editing existing
-      let isNewFile = false;
+      // Use provided isNewFile parameter if available, otherwise detect
+      let isNewFile = providedIsNewFile;
       let existingContent = "";
 
-      try {
-        existingContent = await fs.readFile(filePath, "utf-8");
-      } catch {
-        isNewFile = true;
+      if (isNewFile === undefined) {
+        // Auto-detect if not provided
+        try {
+          existingContent = await fs.readFile(filePath, "utf-8");
+          isNewFile = false;
+        } catch {
+          isNewFile = true;
+        }
+      } else if (!isNewFile) {
+        // If explicitly marked as not new, try to read existing content
+        try {
+          existingContent = await fs.readFile(filePath, "utf-8");
+        } catch {
+          // File doesn't exist but marked as not new - treat as new anyway
+          isNewFile = true;
+        }
       }
 
       // Write the new content
@@ -224,9 +237,13 @@ export class LocalToolExecutor implements ToolExecutor {
   async searchReplace(
     filePath: string,
     oldString: string,
-    newString: string
+    newString: string,
+    providedIsNewFile?: boolean
   ): Promise<SearchReplaceResult> {
     try {
+      // Note: providedIsNewFile parameter is ignored for search/replace operations
+      // since they can only be performed on existing files (isNewFile is always false)
+      
       // Input validation
       if (!oldString) {
         return {

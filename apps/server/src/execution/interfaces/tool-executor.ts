@@ -34,7 +34,8 @@ export interface ToolExecutor {
   writeFile(
     targetFile: string,
     content: string,
-    instructions: string
+    instructions: string,
+    isNewFile?: boolean
   ): Promise<WriteResult>;
 
   deleteFile(targetFile: string): Promise<DeleteResult>;
@@ -42,7 +43,8 @@ export interface ToolExecutor {
   searchReplace(
     filePath: string,
     oldString: string,
-    newString: string
+    newString: string,
+    isNewFile?: boolean
   ): Promise<SearchReplaceResult>;
 
   // Directory operations
