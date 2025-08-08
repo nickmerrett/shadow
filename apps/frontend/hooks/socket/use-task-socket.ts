@@ -603,6 +603,40 @@ export function useTaskSocket(taskId: string | undefined) {
           }
           break;
 
+        case "fs-override":
+          if (chunk.fsOverride) {
+            console.log("File state override:", chunk.fsOverride.message);
+
+            // Replace entire file state (not optimistic merge)
+            queryClient.setQueryData(
+              ["task", taskId],
+              (oldData: TaskWithDetails) => {
+                if (!oldData) return oldData;
+                return {
+                  ...oldData,
+                  fileChanges: chunk.fsOverride!.fileChanges,
+                  diffStats: chunk.fsOverride!.diffStats,
+                };
+              }
+            );
+
+            queryClient.setQueryData(
+              ["codebase-tree", taskId],
+              (oldData: CodebaseTreeResponse) => {
+                if (!oldData) return oldData;
+                return {
+                  success: true,
+                  tree: chunk.fsOverride!.codebaseTree,
+                };
+              }
+            );
+
+            console.log(
+              `[FS_OVERRIDE] Updated file state: ${chunk.fsOverride.fileChanges.length} changes, ${chunk.fsOverride.codebaseTree.length} tree entries, diff stats: +${chunk.fsOverride.diffStats.additions} -${chunk.fsOverride.diffStats.deletions} (${chunk.fsOverride.diffStats.totalFiles} files)`
+            );
+          }
+          break;
+
         case "complete":
           setIsStreaming(false);
           console.log("Stream completed");
@@ -731,45 +765,64 @@ export function useTaskSocket(taskId: string | undefined) {
           if (chunk.todoUpdate) {
             console.log("Todo update:", chunk.todoUpdate);
             const todos = chunk.todoUpdate.todos;
+            const action = chunk.todoUpdate.action;
 
             queryClient.setQueryData(
               ["task", taskId],
               (oldData: TaskWithDetails) => {
                 if (!oldData) return oldData;
 
-                const existingTodosMap = new Map(
-                  (oldData.todos || []).map((todo) => [todo.id, todo])
-                );
+                if (action === "replaced") {
+                  // Replace entire todo list with incoming todos
+                  const newTodos = todos.map((incomingTodo) => ({
+                    ...incomingTodo,
+                    status: incomingTodo.status.toUpperCase() as TodoStatus,
+                    taskId: taskId!,
+                    sequence: incomingTodo.sequence,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                  }));
 
-                todos.forEach((incomingTodo) => {
-                  const existingTodo = existingTodosMap.get(incomingTodo.id);
+                  return {
+                    ...oldData,
+                    todos: newTodos.sort((a, b) => a.sequence - b.sequence),
+                  };
+                } else {
+                  // Merge/update existing todos (default behavior)
+                  const existingTodosMap = new Map(
+                    (oldData.todos || []).map((todo) => [todo.id, todo])
+                  );
 
-                  if (existingTodo) {
-                    existingTodosMap.set(incomingTodo.id, {
-                      ...existingTodo,
-                      ...incomingTodo,
-                      status: incomingTodo.status.toUpperCase() as TodoStatus,
-                      sequence: incomingTodo.sequence,
-                      updatedAt: new Date(),
-                    });
-                  } else {
-                    existingTodosMap.set(incomingTodo.id, {
-                      ...incomingTodo,
-                      status: incomingTodo.status.toUpperCase() as TodoStatus,
-                      taskId: taskId!,
-                      sequence: incomingTodo.sequence,
-                      createdAt: new Date(),
-                      updatedAt: new Date(),
-                    });
-                  }
-                });
+                  todos.forEach((incomingTodo) => {
+                    const existingTodo = existingTodosMap.get(incomingTodo.id);
 
-                return {
-                  ...oldData,
-                  todos: Array.from(existingTodosMap.values()).sort(
-                    (a, b) => a.sequence - b.sequence
-                  ),
-                };
+                    if (existingTodo) {
+                      existingTodosMap.set(incomingTodo.id, {
+                        ...existingTodo,
+                        ...incomingTodo,
+                        status: incomingTodo.status.toUpperCase() as TodoStatus,
+                        sequence: incomingTodo.sequence,
+                        updatedAt: new Date(),
+                      });
+                    } else {
+                      existingTodosMap.set(incomingTodo.id, {
+                        ...incomingTodo,
+                        status: incomingTodo.status.toUpperCase() as TodoStatus,
+                        taskId: taskId!,
+                        sequence: incomingTodo.sequence,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                      });
+                    }
+                  });
+
+                  return {
+                    ...oldData,
+                    todos: Array.from(existingTodosMap.values()).sort(
+                      (a, b) => a.sequence - b.sequence
+                    ),
+                  };
+                }
               }
             );
           }

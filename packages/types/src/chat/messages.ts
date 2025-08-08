@@ -7,7 +7,7 @@ import type {
 } from "ai";
 import { ToolExecutionStatusType } from "../tools/execution";
 import { ToolResultTypes } from "../tools/schemas";
-import type { PullRequestSnapshot, TaskStatus } from "@repo/db";
+import type { PullRequestSnapshot, TaskStatus, Todo } from "@repo/db";
 
 // Error part type for AI SDK error chunks
 export interface ErrorPart {
@@ -54,6 +54,13 @@ export type CompletionTokenUsage = {
   totalTokens: number;
 };
 
+export interface CheckpointData {
+  commitSha: string;
+  todoSnapshot: Todo[];
+  createdAt: string;
+  workspaceState: "clean" | "dirty";
+}
+
 export type Message = {
   id: string;
   role: "user" | "assistant" | "tool" | "system";
@@ -97,6 +104,9 @@ export interface MessageMetadata {
 
   // Finish reason
   finishReason?: FinishReason;
+
+  // Checkpointing data for time-travel editing
+  checkpoint?: CheckpointData;
 }
 
 // Type guards for runtime type checking

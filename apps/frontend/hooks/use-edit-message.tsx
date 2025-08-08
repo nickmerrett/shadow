@@ -91,13 +91,5 @@ export function useEditMessage() {
       // Clear the edit message ID to exit edit mode
       queryClient.setQueryData(["edit-message-id", data.taskId], null);
     },
-    onSettled: (data) => {
-      // Always refetch after error or success to ensure we have the latest data
-      if (data?.taskId) {
-        queryClient.invalidateQueries({
-          queryKey: ["task-messages", data.taskId],
-        });
-      }
-    },
   });
 }

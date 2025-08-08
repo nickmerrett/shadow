@@ -82,16 +82,19 @@ export class StreamProcessor {
             budgetTokens: 12000,
           },
         },
-        openai: {
-          reasoningEffort: "high",
-        },
+        ...(model === "gpt-5-2025-08-07"
+          ? {
+              openai: {
+                reasoningEffort: "high",
+              },
+            }
+          : {}),
       };
 
       const streamConfig = {
         model: modelInstance,
         ...(isAnthropicModel ? {} : { system: systemPrompt }),
         messages: finalMessages,
-        maxTokens: 4096,
         temperature: 0.7,
         maxSteps: MAX_STEPS,
         providerOptions: reasoningProviderOptions,
