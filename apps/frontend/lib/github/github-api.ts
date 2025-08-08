@@ -268,6 +268,23 @@ export async function getGitHubRepositories(
         filterRepositoryData(repo)
       );
       const groupedRepos = groupReposByOrg(filteredRepos);
+
+      // Ensure the current user's group appears first among groups using login
+      try {
+        const me = await octokit.rest.users.getAuthenticated();
+        const myLogin = me.data.login;
+        const idx = groupedRepos.groups.findIndex(
+          (g) => g.type === "user" && g.name === myLogin
+        );
+        if (idx > 0) {
+          const mine = groupedRepos.groups[idx]!;
+          return {
+            groups: [mine, ...groupedRepos.groups.filter((_, i) => i !== idx)],
+          };
+        }
+      } catch {
+        // ignore and fall through
+      }
       return groupedRepos;
     }
 
@@ -315,8 +332,8 @@ export async function getGitHubRepositories(
     const filteredRepos = sortedRepositories.map((repo) =>
       filterRepositoryData(repo)
     );
+    // In App mode, groupReposByOrg(accountId) already places the user's group first
     const groupedRepos = groupReposByOrg(filteredRepos, account.accountId);
-
     return groupedRepos;
   } catch (error) {
     console.error("Error getting GitHub repositories:", error);
