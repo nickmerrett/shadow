@@ -9,7 +9,8 @@ import type { FilteredRepository } from "@/lib/github/types";
 import type { ModelType } from "@repo/types";
 
 const WELCOME_MODAL_SHOWN_KEY = "shadow-welcome-modal-shown";
-const WELCOME_MODAL_DELAY = 500;
+const WELCOME_MODAL_COMPLETED_KEY = "shadow-welcome-modal-completed";
+const WELCOME_MODAL_DELAY = 300;
 
 export function HomePageContent({
   initialGitCookieState,
@@ -26,12 +27,15 @@ export function HomePageContent({
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   const { session, isLoading } = useAuthSession();
-  useEffect(() => {
-    // Only show welcome modal for authenticated users on first visit
-    if (!isLoading && session) {
-      const hasSeenWelcome = localStorage.getItem(WELCOME_MODAL_SHOWN_KEY);
 
-      if (!hasSeenWelcome) {
+  useEffect(() => {
+    // Show welcome modal for authenticated users who haven't completed the welcome flow
+    if (!isLoading && session) {
+      const hasCompletedWelcome = localStorage.getItem(
+        WELCOME_MODAL_COMPLETED_KEY
+      );
+
+      if (!hasCompletedWelcome) {
         setTimeout(() => {
           setShowWelcomeModal(true);
         }, WELCOME_MODAL_DELAY);
@@ -42,7 +46,9 @@ export function HomePageContent({
   const handleWelcomeModalClose = (open: boolean) => {
     setShowWelcomeModal(open);
     if (!open) {
+      // Mark both the old and new keys for backward compatibility
       localStorage.setItem(WELCOME_MODAL_SHOWN_KEY, "true");
+      localStorage.setItem(WELCOME_MODAL_COMPLETED_KEY, "true");
     }
   };
 
