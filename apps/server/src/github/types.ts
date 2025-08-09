@@ -48,7 +48,6 @@ export interface CreatePROptions {
   taskTitle: string;
   wasTaskCompleted: boolean;
   messageId: string;
-  shadowUrl?: string;
 }
 
 export interface PROperationResult {

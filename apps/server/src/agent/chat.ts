@@ -393,7 +393,6 @@ export class ChatService {
           taskTitle: task.title,
           wasTaskCompleted: task.status === "COMPLETED",
           messageId,
-          shadowUrl: `https://shadowrealm.ai/tasks/${taskId}`,
         },
         context
       );

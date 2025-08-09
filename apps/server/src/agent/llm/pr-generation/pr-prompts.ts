@@ -7,7 +7,6 @@ export class PRPrompts {
     gitDiff: string;
     commitMessages: string[];
     wasTaskCompleted: boolean;
-    shadowUrl?: string;
   }): string {
     const sections = [
       "Generate a pull request title and description based on the following information:",
@@ -42,11 +41,6 @@ export class PRPrompts {
       "- Be as detailed as the code changes are. If many changes were made, be detailed in the description.",
       "- Write in markdown format and include headers or bolded text to make it more readable.",
       "- Write about any tests that were run or need to be run. Ensure that you explain how a reviewer should test these changes",
-      ...(options.shadowUrl
-        ? [
-            `- If a shadow URL is provided, include it in the description as a link for reviewing the changes. Add a horizontal line and then on a new line at the bottom write the following: '[Shadow URL](${options.shadowUrl})'`,
-          ]
-        : []),
       "- Organize in the following sections: Changes, Tests, Documentation, and Follow-up Recommendations",
       "- Focus on what was implemented, not implementation details"
     );
