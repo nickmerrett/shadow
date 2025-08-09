@@ -38,6 +38,10 @@ export class PRPrompts {
       "Guidelines:",
       "- Title should be concise and action-oriented (max 50 chars) (e.g., 'Add user authentication', 'Fix API error handling')",
       "- Description should use bullet points and be informative but concise",
+      "- Be as detailed as the code changes are. If many changes were made, be detailed in the description.",
+      "- Write in markdown format and include headers or bolded text to make it more readable.",
+      "- Write about any tests that were run or need to be run. Ensure that you explain how a reviewer should test these changes",
+      "- Organize in the following sections: Changes, Tests, Documentation, and Follow-up Recommendations",
       "- Focus on what was implemented, not implementation details"
     );
 
