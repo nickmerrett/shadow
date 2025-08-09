@@ -194,7 +194,7 @@ export function UserSettings() {
                 </label>
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground text-[10px]">
-                    {rulesValue.trim().split(/\s+/).filter(word => word.length > 0).length}/50 words
+                    {rulesValue.trim().split(/\s+/).filter(word => word.length > 0).length}/100 words
                   </span>
                   {isRulesUpdating && (
                     <Loader2 className="size-3 animate-spin text-muted-foreground" />
