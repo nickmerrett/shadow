@@ -5,7 +5,6 @@ import { LogoHover } from "../graphics/logo/logo-hover";
 import { PromptForm } from "./prompt-form";
 import { WelcomeModal } from "../welcome-modal";
 import { useAuthSession } from "../auth/session-provider";
-import { useUserSettings } from "@/hooks/use-user-settings";
 import type { FilteredRepository } from "@/lib/github/types";
 import type { ModelType } from "@repo/types";
 
@@ -28,27 +27,21 @@ export function HomePageContent({
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   const { session, isLoading } = useAuthSession();
-  const { data: userSettings, isLoading: isLoadingSettings } =
-    useUserSettings();
 
   useEffect(() => {
     // Show welcome modal for authenticated users who haven't completed the welcome flow
-    if (!isLoading && !isLoadingSettings && session) {
+    if (!isLoading && session) {
       const hasCompletedWelcome = localStorage.getItem(
         WELCOME_MODAL_COMPLETED_KEY
       );
 
-      // For new users (no user settings yet) or users who haven't completed welcome,
-      // always show the modal regardless of the old "shown" key
-      const isNewUser = !userSettings;
-
-      if (isNewUser || !hasCompletedWelcome) {
+      if (!hasCompletedWelcome) {
         setTimeout(() => {
           setShowWelcomeModal(true);
         }, WELCOME_MODAL_DELAY);
       }
     }
-  }, [session, isLoading, userSettings, isLoadingSettings]);
+  }, [session, isLoading]);
 
   const handleWelcomeModalClose = (open: boolean) => {
     setShowWelcomeModal(open);
