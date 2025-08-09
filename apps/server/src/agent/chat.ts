@@ -435,6 +435,18 @@ export class ChatService {
         return;
       }
 
+      if (!messageId) {
+        console.warn(`[CHAT] No messageId provided for auto-PR creation for task ${taskId}`);
+        return;
+      }
+
+      // Emit in-progress event before starting PR creation
+      emitToTask(taskId, "auto-pr-status", {
+        taskId,
+        messageId,
+        status: "in-progress" as const,
+      });
+
       // Use the existing createPRIfNeeded method
       await this.createPRIfNeeded(taskId, workspacePath, messageId, context);
     } catch (error) {
@@ -442,6 +454,17 @@ export class ChatService {
         `[CHAT] Failed to check user auto-PR setting for task ${taskId}:`,
         error
       );
+      
+      // Emit failure event if messageId is available
+      if (messageId) {
+        emitToTask(taskId, "auto-pr-status", {
+          taskId,
+          messageId,
+          status: "failed" as const,
+          error: error instanceof Error ? error.message : "Failed to create pull request",
+        });
+      }
+      
       // Non-blocking - don't throw
     }
   }

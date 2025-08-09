@@ -6,6 +6,15 @@ import { useTask } from "@/hooks/use-task";
 import Image from "next/image";
 import { MarkdownRenderer } from "../agent-environment/markdown-renderer";
 
+// Remove the last --- and everything after it (because we manually add a link to the shadow at the end of descriptions)
+const processDescription = (description: string) => {
+  const lastDashIndex = description.lastIndexOf("---");
+  if (lastDashIndex === -1) {
+    return description;
+  }
+  return description.substring(0, lastDashIndex).trim();
+};
+
 export function PRCard({
   taskId,
   snapshot,
@@ -55,7 +64,7 @@ export function PRCard({
 
       <div className="mt-3 p-3">
         <MarkdownRenderer
-          content={`# Summary\n\n${snapshot.description}`}
+          content={`# Summary\n\n${processDescription(snapshot.description)}`}
           componentProps={{
             p: "m-0 whitespace-pre-wrap",
           }}

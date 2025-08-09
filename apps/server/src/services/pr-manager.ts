@@ -3,6 +3,7 @@ import { LLMService } from "../agent/llm";
 import { PRService } from "../github/pull-requests";
 import type { PRMetadata, CreatePROptions } from "../github/types";
 import { TaskModelContext } from "./task-model-context";
+import { emitToTask } from "../socket";
 
 export class PRManager {
   private prService: PRService;
@@ -57,11 +58,26 @@ export class PRManager {
       console.log(
         `[PR_MANAGER] Successfully ${existingPRNumber ? "updated" : "created"} PR for task ${options.taskId}`
       );
+
+      // Emit success event with PR data
+      await this.emitCompletionEvent(options, existingPRNumber ?? undefined);
     } catch (error) {
       console.error(
         `[PR_MANAGER] Failed to create/update PR for task ${options.taskId}:`,
         error
       );
+
+      // Emit failure event
+      emitToTask(options.taskId, "auto-pr-status", {
+        taskId: options.taskId,
+        messageId: options.messageId,
+        status: "failed" as const,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to create pull request",
+      });
+
       // Don't throw - PR creation is non-blocking
     }
   }
@@ -153,7 +169,7 @@ export class PRManager {
 
       // Append shadow URL to the description
       const shadowUrl = `https://shadowrealm.ai/tasks/${options.taskId}`;
-      metadata.description = `${metadata.description}\n\n---\n\n[Shadow URL](${shadowUrl})`;
+      metadata.description = `${metadata.description}\n\n---\n\n[Open in Shadow](${shadowUrl})`;
 
       return metadata;
     } catch (error) {
@@ -225,6 +241,71 @@ export class PRManager {
     } catch (error) {
       console.warn(`[PR_MANAGER] Failed to get recent commit messages:`, error);
       return [];
+    }
+  }
+
+  /**
+   * Emit completion event with PR snapshot data
+   */
+  private async emitCompletionEvent(
+    options: CreatePROptions,
+    prNumber?: number
+  ): Promise<void> {
+    try {
+      // Get the latest snapshot to send to frontend
+      const latestSnapshot = await this.prService.getLatestSnapshot(
+        options.taskId
+      );
+
+      if (!latestSnapshot) {
+        console.warn(
+          `[PR_MANAGER] No snapshot found for completed PR on task ${options.taskId}`
+        );
+        return;
+      }
+
+      // Get the PR number from task in database (updated during PR creation)
+      const task = await import("@repo/db").then((db) =>
+        db.prisma.task.findUnique({
+          where: { id: options.taskId },
+          select: { pullRequestNumber: true, repoUrl: true },
+        })
+      );
+
+      const finalPRNumber = prNumber || task?.pullRequestNumber;
+      if (!finalPRNumber) {
+        console.warn(
+          `[PR_MANAGER] No PR number available for task ${options.taskId}`
+        );
+        return;
+      }
+
+      // Construct PR URL
+      const repoUrl =
+        task?.repoUrl || `https://github.com/${options.repoFullName}`;
+      const prUrl = `${repoUrl}/pull/${finalPRNumber}`;
+
+      emitToTask(options.taskId, "auto-pr-status", {
+        taskId: options.taskId,
+        messageId: options.messageId,
+        status: "completed" as const,
+        snapshot: {
+          title: latestSnapshot.title,
+          description: latestSnapshot.description,
+          filesChanged: latestSnapshot.filesChanged,
+          linesAdded: latestSnapshot.linesAdded,
+          linesRemoved: latestSnapshot.linesRemoved,
+          commitSha: latestSnapshot.commitSha,
+          status: latestSnapshot.status,
+        },
+        prNumber: finalPRNumber,
+        prUrl,
+      });
+    } catch (error) {
+      console.error(
+        `[PR_MANAGER] Failed to emit completion event for task ${options.taskId}:`,
+        error
+      );
     }
   }
 }
