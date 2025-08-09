@@ -334,7 +334,9 @@ export function useTaskSocket(taskId: string | undefined) {
       totalChunks: number;
     }) {
       console.log("Received stream state:", state);
-      setStreamingStatus(state.isStreaming ? StreamingStatus.STREAMING : StreamingStatus.IDLE);
+      setStreamingStatus(
+        state.isStreaming ? StreamingStatus.STREAMING : StreamingStatus.IDLE
+      );
 
       // Replay chunks to reconstruct streaming parts
       if (state.chunks && state.chunks.length > 0) {
@@ -631,20 +633,11 @@ export function useTaskSocket(taskId: string | undefined) {
                 };
               }
             );
-
-            console.log(
-              `[FS_OVERRIDE] Updated file state: ${chunk.fsOverride.fileChanges.length} changes, ${chunk.fsOverride.codebaseTree.length} tree entries, diff stats: +${chunk.fsOverride.diffStats.additions} -${chunk.fsOverride.diffStats.deletions} (${chunk.fsOverride.diffStats.totalFiles} files)`
-            );
           }
           break;
 
         case "complete":
           setStreamingStatus(StreamingStatus.IDLE);
-          console.log("Stream completed");
-
-          if (taskId) {
-            socket.emit("get-chat-history", { taskId, complete: true });
-          }
           break;
 
         case "error": {
