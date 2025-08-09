@@ -41,6 +41,10 @@ const STEP_DEFINITIONS: Record<
     name: "Verifying Workspace",
     description: "Verify workspace is ready and contains repository",
   },
+  INSTALL_DEPENDENCIES: {
+    name: "Installing Dependencies",
+    description: "Install project dependencies (npm, pip, etc.)",
+  },
   INDEX_REPOSITORY: {
     name: "Indexing Repository",
     description: "Index repository files for semantic search",
@@ -198,6 +202,11 @@ export class TaskInitializationEngine {
 
       case "VERIFY_VM_WORKSPACE":
         await this.executeVerifyVMWorkspace(taskId, userId);
+        break;
+
+      // Dependency installation step (both modes)
+      case "INSTALL_DEPENDENCIES":
+        await this.executeInstallDependencies(taskId);
         break;
 
       // Repository indexing step (both modes)
@@ -466,6 +475,85 @@ export class TaskInitializationEngine {
         error,
       );
       throw error;
+    }
+  }
+
+  /**
+   * Install dependencies step - Install project dependencies (npm, pip, etc.)
+   */
+  private async executeInstallDependencies(taskId: string): Promise<void> {
+    console.log(`[TASK_INIT] ${taskId}: Installing project dependencies`);
+
+    try {
+      // Get the executor for this task
+      const executor = await this.abstractWorkspaceManager.getExecutor(taskId);
+
+      // Check for package.json and install Node.js dependencies
+      const packageJsonExists = await this.checkFileExists(executor, "package.json");
+      if (packageJsonExists) {
+        console.log(`[TASK_INIT] ${taskId}: Found package.json, installing npm dependencies`);
+        await this.runInstallCommand(executor, taskId, "npm install");
+      }
+
+      // Check for requirements.txt and install Python dependencies
+      const requirementsExists = await this.checkFileExists(executor, "requirements.txt");
+      if (requirementsExists) {
+        console.log(`[TASK_INIT] ${taskId}: Found requirements.txt, installing Python dependencies`);
+        await this.runInstallCommand(executor, taskId, "pip install -r requirements.txt");
+      }
+
+      // Check for pyproject.toml and install Python project
+      const pyprojectExists = await this.checkFileExists(executor, "pyproject.toml");
+      if (pyprojectExists) {
+        console.log(`[TASK_INIT] ${taskId}: Found pyproject.toml, installing Python project`);
+        await this.runInstallCommand(executor, taskId, "pip install -e .");
+      }
+
+      console.log(`[TASK_INIT] ${taskId}: Dependency installation completed`);
+    } catch (error) {
+      console.error(`[TASK_INIT] ${taskId}: Dependency installation failed:`, error);
+      // Don't throw error - we want to continue initialization even if deps fail
+      console.log(`[TASK_INIT] ${taskId}: Continuing initialization despite dependency installation failure`);
+    }
+  }
+
+  /**
+   * Helper method to check if a file exists in the workspace
+   */
+  private async checkFileExists(executor: any, filename: string): Promise<boolean> {
+    try {
+      const result = await executor.listDirectory(".");
+      return result.success && result.contents?.some((item: any) => 
+        item.name === filename && item.type === "file"
+      );
+    } catch (error) {
+      console.warn(`Failed to check for ${filename}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Helper method to run installation commands with proper error handling
+   */
+  private async runInstallCommand(executor: any, taskId: string, command: string): Promise<void> {
+    try {
+      console.log(`[TASK_INIT] ${taskId}: Running: ${command}`);
+      const result = await executor.executeCommand(command, {
+        timeout: 300000, // 5 minutes timeout
+        allowNetworkAccess: true,
+      });
+
+      if (result.success) {
+        console.log(`[TASK_INIT] ${taskId}: Successfully executed: ${command}`);
+        if (result.stdout) {
+          console.log(`[TASK_INIT] ${taskId}: Command output: ${result.stdout.slice(0, 500)}...`);
+        }
+      } else {
+        console.warn(`[TASK_INIT] ${taskId}: Command failed: ${command}`);
+        console.warn(`[TASK_INIT] ${taskId}: Error: ${result.error || result.stderr}`);
+      }
+    } catch (error) {
+      console.warn(`[TASK_INIT] ${taskId}: Exception running command "${command}":`, error);
     }
   }
 

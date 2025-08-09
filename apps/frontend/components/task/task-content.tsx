@@ -4,7 +4,7 @@ import { Messages } from "@/components/chat/messages";
 import { PromptForm } from "@/components/chat/prompt-form";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
-import { useTaskSocket } from "@/hooks/socket";
+import { useTaskSocketContext } from "@/contexts/task-socket-context";
 import { StreamingStatus } from "@/lib/constants";
 import { useParams } from "next/navigation";
 import { ScrollToBottom } from "./scroll-to-bottom";
@@ -37,7 +37,7 @@ function TaskPageContent() {
     sendMessage,
     stopStream,
     createStackedPR,
-  } = useTaskSocket(taskId);
+  } = useTaskSocketContext();
 
   const handleSendMessage = useCallback(
     (message: string, model: ModelType, queue: boolean) => {

@@ -11,6 +11,7 @@ import type {
   Message,
   StreamChunk,
   TaskStatusUpdateEvent,
+  AutoPRStatusEvent,
   ModelType,
   FileNode,
   QueuedActionUI,
@@ -245,6 +246,11 @@ export function useTaskSocket(taskId: string | undefined) {
   const [streamingPartsOrder, setStreamingPartsOrder] = useState<string[]>([]);
   const [streamingStatus, setStreamingStatus] = useState(StreamingStatus.IDLE);
 
+  // Auto-PR state management
+  const [autoPRStatus, setAutoPRStatus] = useState<AutoPRStatusEvent | null>(
+    null
+  );
+
   // Ref counters for ID generation (no re-renders needed)
   const textCounterRef = useRef(0);
   const redactedReasoningCounterRef = useRef(0);
@@ -463,6 +469,7 @@ export function useTaskSocket(taskId: string | undefined) {
     }
 
     function onStreamChunk(chunk: StreamChunk) {
+      console.log("onStreamChunk", chunk);
       setStreamingStatus(StreamingStatus.STREAMING);
 
       // Handle different types of stream chunks
@@ -960,6 +967,49 @@ export function useTaskSocket(taskId: string | undefined) {
       }
     }
 
+    function onAutoPRStatus(data: AutoPRStatusEvent) {
+      if (data.taskId === taskId) {
+        console.log(`[TASK_SOCKET] Received auto-PR status update:`, data);
+        setAutoPRStatus(data);
+
+        // Handle different auto-PR statuses
+        switch (data.status) {
+          case "completed":
+            // Optimistically update task with PR number if provided
+            if (data.prNumber) {
+              queryClient.setQueryData(
+                ["task", taskId],
+                (oldData: TaskWithDetails) => {
+                  if (oldData && oldData.task) {
+                    return {
+                      ...oldData,
+                      task: {
+                        ...oldData.task,
+                        pullRequestNumber: data.prNumber,
+                      },
+                    };
+                  }
+                  return oldData;
+                }
+              );
+            }
+            // Clear the auto-PR status after a short delay to allow UI transition
+            setTimeout(() => setAutoPRStatus(null), 2000);
+            break;
+
+          case "failed":
+            // Show error toast and clear status
+            if (typeof window !== "undefined") {
+              import("sonner").then(({ toast }) => {
+                toast.error(data.error || "Failed to create pull request");
+              });
+            }
+            setTimeout(() => setAutoPRStatus(null), 1000);
+            break;
+        }
+      }
+    }
+
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("chat-history", onChatHistory);
@@ -970,6 +1020,7 @@ export function useTaskSocket(taskId: string | undefined) {
     socket.on("message-error", onMessageError);
     socket.on("queued-action-processing", onQueuedActionProcessing);
     socket.on("task-status-updated", onTaskStatusUpdate);
+    socket.on("auto-pr-status", onAutoPRStatus);
 
     return () => {
       socket.off("connect", onConnect);
@@ -982,6 +1033,7 @@ export function useTaskSocket(taskId: string | undefined) {
       socket.off("message-error", onMessageError);
       socket.off("queued-action-processing", onQueuedActionProcessing);
       socket.off("task-status-updated", onTaskStatusUpdate);
+      socket.off("auto-pr-status", onAutoPRStatus);
     };
   }, [socket, taskId, queryClient]);
 
@@ -1035,6 +1087,7 @@ export function useTaskSocket(taskId: string | undefined) {
     streamingPartsOrder,
     streamingStatus,
     setStreamingStatus,
+    autoPRStatus,
     sendMessage,
     stopStream,
     clearQueuedAction,

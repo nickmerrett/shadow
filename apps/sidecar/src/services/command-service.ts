@@ -4,9 +4,7 @@ import { config } from "../config";
 import { logger } from "../utils/logger";
 import { WorkspaceService } from "./workspace-service";
 import { CommandResponse } from "@repo/types";
-import {
-  parseCommand,
-} from "@repo/command-security";
+import { parseCommand } from "@repo/command-security";
 
 export interface CommandStreamEvent {
   type: "stdout" | "stderr" | "exit" | "error";
@@ -42,7 +40,7 @@ export class CommandService extends EventEmitter {
     // Trust server-side validation - no double validation needed
     // Parse command for execution (no security validation here)
     const { command: baseCommand, args } = parseCommand(command);
-    
+
     logger.info("Executing command in VM", {
       command: baseCommand,
       args: args.length > 0 ? args : undefined,
@@ -50,12 +48,12 @@ export class CommandService extends EventEmitter {
 
     try {
       if (isBackground) {
-        // For background commands, spawn without shell
-        const child = spawn(baseCommand, args, {
+        // For background commands, use spawn with shell enabled
+        const child = spawn(command, {
           cwd: workspaceDir,
           detached: true,
           stdio: "ignore",
-          shell: false,
+          shell: true,
         });
 
         // Store process reference
@@ -65,16 +63,20 @@ export class CommandService extends EventEmitter {
         // Unref to allow parent to exit
         child.unref();
 
-        logger.info("Background command started", { command: baseCommand, args, processId });
+        logger.info("Background command started", { command, processId });
 
         return {
           success: true,
-          message: `Background command started: ${baseCommand}`,
+          message: `Background command started: ${command}`,
           isBackground: true,
         };
       } else {
-        // For foreground commands, use secure spawn with timeout
-        const result = await this.executeSecureCommand(baseCommand, args, workspaceDir, commandTimeout);
+        // For foreground commands, use secure spawn with timeout and shell
+        const result = await this.executeSecureCommand(
+          command,
+          workspaceDir,
+          commandTimeout
+        );
 
         const success = result.exitCode === 0;
         return {
@@ -82,21 +84,25 @@ export class CommandService extends EventEmitter {
           stdout: result.stdout.trim(),
           stderr: result.stderr.trim(),
           exitCode: result.exitCode,
-          message: success 
-            ? `Command executed successfully: ${baseCommand}`
-            : `Command failed with exit code ${result.exitCode}: ${baseCommand}`,
+          message: success
+            ? `Command executed successfully: ${command}`
+            : `Command failed with exit code ${result.exitCode}: ${command}`,
         };
       }
     } catch (error) {
-      logger.error("Command execution failed", { command: baseCommand, args, error });
+      logger.error("Command execution failed", { command, error });
 
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
 
       // Check for timeout
-      if (errorMessage.includes("TIMEOUT") || errorMessage.includes("ETIMEDOUT")) {
+      if (
+        errorMessage.includes("TIMEOUT") ||
+        errorMessage.includes("ETIMEDOUT")
+      ) {
         return {
           success: false,
-          message: `Command timed out after ${commandTimeout}ms: ${baseCommand}`,
+          message: `Command timed out after ${commandTimeout}ms: ${command}`,
           error: "TIMEOUT",
         };
       }
@@ -108,7 +114,7 @@ export class CommandService extends EventEmitter {
         success: false,
         stdout: execError.stdout?.trim(),
         stderr: execError.stderr?.trim(),
-        message: `Failed to execute command: ${baseCommand}`,
+        message: `Failed to execute command: ${command}`,
         error: errorMessage,
       };
     }
@@ -123,19 +129,17 @@ export class CommandService extends EventEmitter {
   ): void {
     const workspaceDir = this.workspaceService.getWorkspaceDir();
 
-    logger.info("Starting streaming command", { command: command.substring(0, 100) });
-
-    // Trust server-side validation - no double validation needed
-    const { command: baseCommand, args } = parseCommand(command);
-    
-    logger.info("Streaming command in VM", {
-      command: baseCommand,
-      args: args.length > 0 ? args : undefined,
+    logger.info("Starting streaming command", {
+      command: command.substring(0, 100),
     });
 
-    const child = spawn(baseCommand, args, {
+    logger.info("Streaming command in VM", {
+      command: command,
+    });
+
+    const child = spawn(command, {
       cwd: workspaceDir,
-      shell: false, // IMPORTANT: No shell to prevent injection
+      shell: true, // Shell enabled for full shell features
     });
 
     // Store process reference
@@ -169,7 +173,7 @@ export class CommandService extends EventEmitter {
 
     // Handle errors
     child.on("error", (error) => {
-      logger.error("Streaming command error", { command: baseCommand, args, error });
+      logger.error("Streaming command error", { command, error });
       onData({
         type: "error",
         message: error.message,
@@ -179,19 +183,18 @@ export class CommandService extends EventEmitter {
   }
 
   /**
-   * Execute command securely using spawn with timeout
+   * Execute command securely using spawn with timeout and shell enabled
    */
   private async executeSecureCommand(
     command: string,
-    args: string[],
     cwd: string,
     timeout: number
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     return new Promise((resolve, reject) => {
-      const child = spawn(command, args, {
+      const child = spawn(command, {
         cwd,
         stdio: ["pipe", "pipe", "pipe"],
-        shell: false,
+        shell: true,
       });
 
       let stdout = "";
@@ -238,7 +241,7 @@ export class CommandService extends EventEmitter {
    */
   killAllProcesses(): void {
     logger.info("Killing all running processes", {
-      count: this.runningProcesses.size
+      count: this.runningProcesses.size,
     });
 
     for (const [id, process] of this.runningProcesses) {

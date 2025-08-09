@@ -47,12 +47,10 @@ export function ToolMessage({ message }: { message: Message }) {
     return <span className="text-muted-foreground">{message.content}</span>;
   }
 
-  // Check if this is an MCP tool using shared utility
   if (checkIfMCPTool(toolMeta.name)) {
     return <MCPTool message={message} />;
   }
 
-  // Handle native tools with hardcoded mapping
   const ToolComponent = TOOL_COMPONENTS[toolMeta.name as ToolName];
 
   if (!ToolComponent) {

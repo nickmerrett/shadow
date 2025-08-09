@@ -30,7 +30,7 @@ import Link from "next/link";
 import { Badge } from "../ui/badge";
 import { GithubLogo } from "../graphics/github/github-logo";
 import { useCreatePR } from "@/hooks/use-create-pr";
-import { useTaskSocket } from "@/hooks/socket";
+import { useTaskSocketContext } from "@/contexts/task-socket-context";
 import { StreamingStatus } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
 import { useIndexingStatus } from "@/hooks/use-indexing-status";
@@ -108,7 +108,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
-  const { streamingStatus } = useTaskSocket(taskId);
+  const { streamingStatus, autoPRStatus } = useTaskSocketContext();
   const createPRMutation = useCreatePR();
   const queryClient = useQueryClient();
 
@@ -183,8 +183,11 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   // Determine if we should show create PR button
   const showCreatePR = !task?.pullRequestNumber && fileChanges.length > 0;
+  const isAutoPRInProgress = autoPRStatus?.status === "in-progress";
   const isCreatePRDisabled =
-    streamingStatus !== StreamingStatus.IDLE || createPRMutation.isPending;
+    streamingStatus !== StreamingStatus.IDLE ||
+    createPRMutation.isPending ||
+    isAutoPRInProgress;
 
   // Indexing button state logic
   const isIndexing = indexingStatus?.status === "indexing";
@@ -233,7 +236,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                     onClick={handleCreatePR}
                     disabled={isCreatePRDisabled}
                   >
-                    {createPRMutation.isPending ? (
+                    {createPRMutation.isPending || isAutoPRInProgress ? (
                       <Loader2 className="size-4 shrink-0 animate-spin" />
                     ) : (
                       <GithubLogo className="size-4 shrink-0" />
@@ -241,7 +244,9 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                     <span className="truncate">
                       {createPRMutation.isPending
                         ? "Creating..."
-                        : "Create Pull Request"}
+                        : isAutoPRInProgress
+                          ? "Auto-Creating..."
+                          : "Create Pull Request"}
                     </span>
                   </Button>
                 )}

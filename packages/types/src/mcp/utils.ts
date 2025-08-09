@@ -5,7 +5,16 @@ export interface ParsedMCPToolName {
   displayToolName: string;
 }
 
-const mcpToolNameMappings = new Map<string, string>();
+// Hardcoded mapping for the 2 MCP tools we support
+const KNOWN_MCP_TOOLS = new Set([
+  "context7_resolve_library_id",
+  "context7_get_library_docs",
+]);
+
+const MCP_TOOL_MAPPINGS: Record<string, string> = {
+  context7_resolve_library_id: "context7:resolve-library-id",
+  context7_get_library_docs: "context7:get-library-docs",
+};
 
 /**
  * Transform MCP tool name from server:tool-name to server_tool_name for LLM compatibility
@@ -14,9 +23,7 @@ const mcpToolNameMappings = new Map<string, string>();
 export function transformMCPToolName(originalName: string): string {
   const transformed = originalName.replace(/[:-]/g, "_");
 
-  // Store the mapping for reverse lookup
-  mcpToolNameMappings.set(transformed, originalName);
-
+  // Note: Mapping is now handled via hardcoded MCP_TOOL_MAPPINGS constant
   return transformed;
 }
 
@@ -25,12 +32,8 @@ export function isOriginalMCPTool(toolName: string): boolean {
 }
 
 export function isTransformedMCPTool(toolName: string): boolean {
-  if (mcpToolNameMappings.has(toolName)) {
-    return true;
-  }
-
-  // Fallback: check if it matches the pattern for transformed MCP tools
-  return /^[a-zA-Z0-9]+_[a-zA-Z0-9_-]+$/.test(toolName);
+  // Use hardcoded set of known MCP tools
+  return KNOWN_MCP_TOOLS.has(toolName);
 }
 
 export function isMCPTool(toolName: string): boolean {
@@ -40,8 +43,14 @@ export function isMCPTool(toolName: string): boolean {
 /**
  * Parse MCP tool name into server and tool components with display formatting
  * Handles both original (server:tool-name) and transformed (server_tool_name) formats
+ * Only parses tools that are confirmed to be MCP tools
  */
 export function parseMCPToolName(toolName: string): ParsedMCPToolName | null {
+  // Only parse if this is actually an MCP tool to avoid incorrect parsing of native tools
+  if (!isMCPTool(toolName)) {
+    return null;
+  }
+
   let serverName: string;
   let toolNamePart: string;
 
@@ -86,34 +95,11 @@ export function parseMCPToolName(toolName: string): ParsedMCPToolName | null {
 export function getOriginalMCPToolName(
   transformedName: string
 ): string | undefined {
-  return mcpToolNameMappings.get(transformedName);
+  return MCP_TOOL_MAPPINGS[transformedName];
 }
 
-/**
- * Register a mapping between transformed and original MCP tool names
- * This is useful when the transformation happens in one place but needs to be
- * referenced elsewhere
- */
-export function registerMCPToolMapping(
-  transformedName: string,
-  originalName: string
-): void {
-  mcpToolNameMappings.set(transformedName, originalName);
-}
-
-/**
- * Clear all MCP tool name mappings (useful for testing or cleanup)
- */
-export function clearMCPToolMappings(): void {
-  mcpToolNameMappings.clear();
-}
-
-/**
- * Get all registered MCP tool mappings (useful for debugging)
- */
-export function getMCPToolMappings(): Map<string, string> {
-  return new Map(mcpToolNameMappings);
-}
+// Removed: registerMCPToolMapping, clearMCPToolMappings, getMCPToolMappings
+// These functions are no longer needed with hardcoded mappings
 
 /**
  * Get custom MCP tool title based on tool name and arguments
@@ -126,15 +112,15 @@ export function getMCPToolTitle(
   // Get original name if this is a transformed tool, otherwise use as-is
   const originalName = getOriginalMCPToolName(toolName) || toolName;
 
-  // Handle context7_resolve_library_id (with underscores!)
-  if (originalName === "context7_resolve_library_id") {
+  // Handle context7:resolve-library-id (original format with colons)
+  if (originalName === "context7:resolve-library-id") {
     const libraryName =
       args?.libraryName || args?.library || args?.name || "Unknown";
     return `Find Library "${libraryName}"`;
   }
 
-  // Handle context7_get_library_docs (with underscores!)
-  if (originalName === "context7_get_library_docs") {
+  // Handle context7:get-library-docs (original format with colons)
+  if (originalName === "context7:get-library-docs") {
     const libraryID =
       args?.context7CompatibleLibraryID ||
       args?.library ||

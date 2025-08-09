@@ -2,3 +2,4 @@
 export { useSocket } from "./use-socket";
 export { useTaskSocket } from "./use-task-socket";
 export { useTerminalSocket } from "./use-terminal-socket";
+export { useTaskSocketContext } from "../../contexts/task-socket-context";

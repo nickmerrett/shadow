@@ -9,6 +9,7 @@ export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
   CREATE_VM: "Creating VM",
   WAIT_VM_READY: "Starting VM",
   VERIFY_VM_WORKSPACE: "Verifying Workspace",
+  INSTALL_DEPENDENCIES: "Installing Dependencies",
   INDEX_REPOSITORY: "Indexing Repository",
   ACTIVE: "Active",
   GENERATE_SHADOW_WIKI: "Understanding Your Codebase",
@@ -26,7 +27,7 @@ export function getStepsForMode(
   const enableIndexing = options?.enableIndexing ?? true; // Default to true
 
   if (mode === "remote") {
-    steps.push("CREATE_VM", "WAIT_VM_READY", "VERIFY_VM_WORKSPACE");
+    steps.push("CREATE_VM", "WAIT_VM_READY", "VERIFY_VM_WORKSPACE", "INSTALL_DEPENDENCIES");
 
     if (enableShadowWiki) {
       steps.push("GENERATE_SHADOW_WIKI");
@@ -36,7 +37,7 @@ export function getStepsForMode(
       steps.push("INDEX_REPOSITORY");
     }
   } else {
-    steps.push("PREPARE_WORKSPACE");
+    steps.push("PREPARE_WORKSPACE", "INSTALL_DEPENDENCIES");
 
     if (enableShadowWiki) {
       steps.push("GENERATE_SHADOW_WIKI");

@@ -24,7 +24,6 @@ import { MCPManager } from "../mcp/mcp-manager";
 import { MCP_ENABLED } from "../../config/mcp";
 import {
   transformMCPToolName,
-  registerMCPToolMapping,
   type MCPToolMeta,
   type MCPToolWrapper,
 } from "@repo/types";
@@ -737,8 +736,6 @@ export async function createTools(taskId: string, workspacePath?: string) {
 
       for (const [originalName, mcpTool] of Object.entries(rawMCPTools)) {
         const transformedName = transformMCPToolName(originalName);
-
-        registerMCPToolMapping(transformedName, originalName);
 
         console.log(`[MCP_TRANSFORM] ${originalName} → ${transformedName}`);
 
