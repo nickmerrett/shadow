@@ -356,7 +356,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           </SidebarMenuItem>
 
           {/* Task total diff */}
-          {diffStats.totalFiles > 0 && (
+          {(diffStats.additions > 0 || diffStats.deletions > 0) && (
             <SidebarMenuItem>
               <div className="flex h-8 items-center gap-2 px-2 text-sm">
                 <FileDiff className="size-4" />

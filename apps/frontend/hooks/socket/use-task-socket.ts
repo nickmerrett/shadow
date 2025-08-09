@@ -184,67 +184,55 @@ function updateFileChangesOptimistically(
 ): FileChange[] {
   const { operation, filePath, isDirectory } = fsChange;
 
-  console.log(
-    `[OPTIMISTIC_UPDATE] ${operation} ${filePath} (isDirectory: ${isDirectory})`
-  );
-
   // Skip directory changes for now (we focus on files)
   if (isDirectory) {
-    console.log(`[OPTIMISTIC_UPDATE] Skipping directory change: ${filePath}`);
     return existingChanges;
   }
 
-  // Remove existing entry for this file (if any)
+  // Find existing entry for this file to preserve additions/deletions
+  const existingFile = existingChanges.find(
+    (change) => change.filePath === filePath
+  );
   const filtered = existingChanges.filter(
     (change) => change.filePath !== filePath
   );
-  const wasExisting = filtered.length !== existingChanges.length;
+  const wasExisting = existingFile !== undefined;
 
   // Handle each operation type
   switch (operation) {
     case "file-created":
-      console.log(`[OPTIMISTIC_UPDATE] Adding new file: ${filePath}`);
       return [
         ...filtered,
         {
           filePath,
           operation: "CREATE",
-          additions: 0, // Will be updated by background git refresh
+          additions: 0, // New files start with 0 until git computes actual stats
           deletions: 0,
           createdAt: new Date().toISOString(),
         },
       ];
 
     case "file-modified":
-      console.log(
-        `[OPTIMISTIC_UPDATE] Updating existing file: ${filePath} (was existing: ${wasExisting})`
-      );
       return [
         ...filtered,
         {
           filePath,
           operation: wasExisting ? "UPDATE" : "CREATE",
-          additions: 0, // Will be updated by background git refresh
-          deletions: 0,
-          createdAt: new Date().toISOString(),
+          // Preserve existing additions/deletions if file was already tracked
+          additions: existingFile?.additions ?? 0,
+          deletions: existingFile?.deletions ?? 0,
+          createdAt: existingFile?.createdAt ?? new Date().toISOString(),
         },
       ];
 
     case "file-deleted":
-      console.log(`[OPTIMISTIC_UPDATE] Removing deleted file: ${filePath}`);
       return filtered;
 
     case "directory-created":
     case "directory-deleted":
-      console.log(
-        `[OPTIMISTIC_UPDATE] Ignoring directory operation: ${operation} ${filePath}`
-      );
       return existingChanges;
 
     default:
-      console.warn(
-        `[OPTIMISTIC_UPDATE] Unknown operation: ${operation} ${filePath}`
-      );
       return existingChanges;
   }
 }
@@ -579,9 +567,21 @@ export function useTaskSocket(taskId: string | undefined) {
                   chunk.fsChange!
                 );
 
+                // Calculate diffStats from the updated fileChanges array
+                // Same logic as backend: git-operations.ts:390-397
+                const updatedDiffStats = updatedFileChanges.reduce(
+                  (acc, file) => ({
+                    additions: acc.additions + file.additions,
+                    deletions: acc.deletions + file.deletions,
+                    totalFiles: acc.totalFiles + 1,
+                  }),
+                  { additions: 0, deletions: 0, totalFiles: 0 }
+                );
+
                 return {
                   ...oldData,
                   fileChanges: updatedFileChanges,
+                  diffStats: updatedDiffStats,
                 };
               }
             );
