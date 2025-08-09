@@ -1,36 +1,19 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  FileText,
-  FolderOpen,
-  Code,
-  FolderGit2,
-  Loader2,
-  Sparkles,
-  Folder,
-} from "lucide-react";
+import { FileText, Loader2, Sparkles, Folder, Circle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { MarkdownRenderer } from "@/components/agent-environment/markdown-renderer";
 import { FileIcon } from "@/components/ui/file-icon";
 import { useParams } from "next/navigation";
 import { useCodebase } from "@/hooks/use-codebase";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { Separator } from "../ui/separator";
+import { GithubLogo } from "../graphics/github/github-logo";
 
 export function CodebasePageContent() {
   const { codebaseId } = useParams<{ codebaseId: string }>();
   const [isGenerating, setIsGenerating] = useState(false);
-
-  const { open } = useSidebar();
 
   const { data: codebase, isLoading, error, refetch } = useCodebase(codebaseId);
   const queryClient = useQueryClient();
@@ -80,28 +63,6 @@ export function CodebasePageContent() {
         (s.filePath?.toLowerCase().includes("root") &&
           s.filePath?.toLowerCase().includes("overview"))
     ) || repoSummaries[0];
-
-  const getLanguageBadge = (language?: string) => {
-    if (!language) return null;
-    return (
-      <Badge variant="secondary" className="text-xs">
-        <Code className="mr-1 h-3 w-3" />
-        {language}
-      </Badge>
-    );
-  };
-
-  const getFileName = (filePath: string) => {
-    return filePath.split("/").pop() || filePath;
-  };
-
-  const removeFileExtension = (fileName: string) => {
-    const lastDotIndex = fileName.lastIndexOf(".");
-    if (lastDotIndex > 0 && lastDotIndex < fileName.length - 1) {
-      return fileName.substring(0, lastDotIndex);
-    }
-    return fileName;
-  };
 
   if (isLoading) {
     return (
@@ -162,21 +123,38 @@ export function CodebasePageContent() {
   }
 
   return (
-    <div className="relative z-0 mx-auto flex w-full max-w-2xl flex-col items-center px-4 py-12 sm:px-6">
+    <div className="relative z-0 mx-auto flex w-full max-w-2xl flex-col items-center px-4 pb-16 pt-8 sm:px-6">
       {/* Overview */}
-      {overview && (
-        <div id={overview.id} className="flex w-full flex-col gap-0">
-          <MarkdownRenderer content={overview.content} />
+      <div className="flex w-full flex-col items-start gap-3">
+        <div className="text-muted-foreground flex items-center gap-2 overflow-hidden text-sm">
+          <a
+            href={codebase?.repoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground flex items-center gap-1.5 overflow-hidden transition-colors"
+          >
+            <GithubLogo className="size-3.5 shrink-0" />
+            <span className="truncate">{codebase?.repoFullName}</span>
+          </a>
+          <Circle className="fill-muted-foreground size-1 opacity-50" />
+          <div>
+            {codebase?.tasks?.length} Task
+            {codebase?.tasks?.length === 1 ? "" : "s"}
+          </div>
         </div>
-      )}
-
-      <Separator className="my-8" />
+        {overview && (
+          <div id={overview.id} className="flex w-full flex-col gap-0">
+            <MarkdownRenderer content={overview.content} />
+          </div>
+        )}
+      </div>
 
       {/* Files */}
       {fileSummaries.length > 0 && (
-        <div id="files">
-          <div className="mb-6 text-xl font-medium">Files</div>
-          <div className="flex flex-col gap-8">
+        <>
+          <Separator className="my-8" />
+          <div id="files" className="flex flex-col gap-8">
+            <div className="text-xl font-medium">Files</div>
             {fileSummaries.map((file) => (
               <div key={file.id} id={file.id} className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
@@ -193,13 +171,15 @@ export function CodebasePageContent() {
               </div>
             ))}
           </div>
-        </div>
+        </>
       )}
+
       {/* Directories */}
       {directorySummaries.length > 0 && (
-        <div id="directories">
-          <div className="mb-6 text-xl font-medium">Directories</div>
-          <div className="flex flex-col gap-8">
+        <>
+          <Separator className="my-8" />
+          <div id="directories" className="flex flex-col gap-8">
+            <div className="text-xl font-medium">Directories</div>
             {directorySummaries.map((directory) => (
               <div
                 key={directory.id}
@@ -216,7 +196,7 @@ export function CodebasePageContent() {
               </div>
             ))}
           </div>
-        </div>
+        </>
       )}
     </div>
   );
