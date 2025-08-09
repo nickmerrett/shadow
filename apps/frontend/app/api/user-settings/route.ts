@@ -92,9 +92,9 @@ export async function POST(request: NextRequest) {
     // Validate rules word count if provided
     if (rules && typeof rules === "string") {
       const wordCount = rules.trim().split(/\s+/).filter(word => word.length > 0).length;
-      if (wordCount > 50) {
+      if (wordCount > 100) {
         return NextResponse.json(
-          { error: "rules cannot exceed 50 words" },
+          { error: "rules cannot exceed 100 words" },
           { status: 400 }
         );
       }
