@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { MarkdownRenderer } from "@/components/agent-environment/markdown-renderer";
+import { FileIcon } from "@/components/ui/file-icon";
 import { useParams } from "next/navigation";
 import { useCodebase } from "@/hooks/use-codebase";
 import {
@@ -23,6 +24,7 @@ import {
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
+import { Separator } from "../ui/separator";
 
 export function CodebasePageContent() {
   const { codebaseId } = useParams<{ codebaseId: string }>();
@@ -114,10 +116,10 @@ export function CodebasePageContent() {
 
   if (error) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
+      <div className="mt-12 flex h-full w-full items-center justify-center p-4">
         <div className="text-muted-foreground text-center">
-          <FileText className="mx-auto mb-4 h-8 w-8" />
-          <h3 className="mb-2 text-lg font-medium">Error loading codebase</h3>
+          <FileText className="mx-auto mb-4 size-6" />
+          <h3 className="font-medium">Error loading codebase</h3>
           <p className="text-sm">
             {error instanceof Error ? error.message : "Failed to load codebase"}
           </p>
@@ -186,36 +188,32 @@ export function CodebasePageContent() {
         </Button>
       </div>
 
-      <div className="relative z-0 mx-auto flex w-full max-w-2xl flex-col items-center px-4 sm:px-6">
+      <div className="relative z-0 mx-auto flex w-full max-w-2xl flex-col items-center px-4 py-12 sm:px-6">
         {/* Overview */}
         {overview && (
-          <div id={overview.id} className="mb-12">
-            <div className="mb-4 flex items-center gap-3">
-              <FolderGit2 className="h-5 w-5" />
-              <h2 className="text-xl font-semibold">Project Overview</h2>
-            </div>
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              <MarkdownRenderer content={overview.content} />
-            </div>
+          <div id={overview.id} className="flex w-full flex-col gap-0">
+            <MarkdownRenderer content={overview.content} />
           </div>
         )}
+
+        <Separator className="my-8" />
+
         {/* Files */}
         {fileSummaries.length > 0 && (
-          <div id="files" className="mb-12">
-            <div className="mb-6 flex items-center gap-3">
-              <FileText className="h-5 w-5 text-slate-500" />
-              <h2 className="text-xl font-semibold">Files</h2>
-            </div>
-            <div className="space-y-10">
+          <div id="files">
+            <div className="mb-6 text-xl font-medium">Files</div>
+            <div className="flex flex-col gap-8">
               {fileSummaries.map((file) => (
-                <div key={file.id} id={file.id} className="rounded-md">
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-medium">
-                      {removeFileExtension(getFileName(file.filePath || ""))}
-                    </h3>
-                    {file.language && getLanguageBadge(file.language)}
+                <div key={file.id} id={file.id} className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <FileIcon
+                      filename={file.filePath || ""}
+                      className="size-4 shrink-0"
+                      useFallback
+                    />
+                    <div className="font-medium">{file.filePath}</div>
                   </div>
-                  <div className="prose prose-sm dark:prose-invert bg-muted/30 max-w-none rounded-md p-4">
+                  <div className="bg-card rounded-lg border p-3 pb-0">
                     <MarkdownRenderer content={file.content} />
                   </div>
                 </div>
@@ -226,23 +224,19 @@ export function CodebasePageContent() {
         {/* Directories */}
         {directorySummaries.length > 0 && (
           <div id="directories">
-            <div className="mb-6 flex items-center gap-3">
-              <FolderOpen className="h-5 w-5 text-amber-500" />
-              <h2 className="text-xl font-semibold">Directories</h2>
-            </div>
-            <div className="space-y-10">
+            <div className="mb-6 text-xl font-medium">Directories</div>
+            <div className="flex flex-col gap-8">
               {directorySummaries.map((directory) => (
                 <div
                   key={directory.id}
                   id={directory.id}
-                  className="rounded-md"
+                  className="flex flex-col gap-2"
                 >
-                  <div className="mb-3">
-                    <h3 className="text-lg font-medium">
-                      {directory.filePath}/
-                    </h3>
+                  <div className="flex items-center gap-2">
+                    <Folder className="size-4 shrink-0" />
+                    <div className="font-medium">{directory.filePath}</div>
                   </div>
-                  <div className="prose prose-sm dark:prose-invert bg-muted/30 max-w-none rounded-md p-4">
+                  <div className="bg-card rounded-lg border p-3 pb-0">
                     <MarkdownRenderer content={directory.content} />
                   </div>
                 </div>

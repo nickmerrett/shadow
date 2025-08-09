@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import {
   BookOpenText,
-  FileCode,
+  Files,
   LayoutGrid,
   Play,
   Plus,
@@ -115,7 +115,7 @@ export function SidebarNavigation({
             }
           }}
         >
-          <FileCode />
+          <Files />
         </Button>
       </TooltipTrigger>
       <TooltipContent lighter side="right">

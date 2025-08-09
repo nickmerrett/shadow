@@ -8,9 +8,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { FileText, FolderOpen, FolderGit2 } from "lucide-react";
+import { File, Folder, Brain } from "lucide-react";
 import { useMemo } from "react";
 import { useCodebase } from "@/hooks/use-codebase";
+import { FileIcon } from "../ui/file-icon";
 
 export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
   const { data: codebase } = useCodebase(codebaseId);
@@ -22,7 +23,7 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
     const repoSummaries = summaries.filter((s) => s.type === "repo_summary");
     const fileSummaries = summaries.filter((s) => s.type === "file_summary");
     const directorySummaries = summaries.filter(
-      (s) => s.type === "directory_summary",
+      (s) => s.type === "directory_summary"
     );
     return { repoSummaries, fileSummaries, directorySummaries };
   }, [summaries]);
@@ -50,14 +51,13 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
     return (
       <SidebarContent className="h-full">
         <SidebarGroup>
-          <SidebarGroupLabel>Table of Contents</SidebarGroupLabel>
+          <SidebarGroupLabel>Overview</SidebarGroupLabel>
           <SidebarGroupContent>
-            <div className="flex flex-1 items-center justify-center py-8">
-              <div className="text-muted-foreground text-center text-sm">
-                <FolderGit2 className="mx-auto mb-2 size-8 opacity-50" />
-                <p>No documentation available</p>
-              </div>
-            </div>
+            <SidebarMenuItem>
+              <SidebarMenuButton disabled>
+                <span className="truncate">No documentation available</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
@@ -74,7 +74,7 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
             {repoSummaries.map((summary) => (
               <SidebarMenuItem key={summary.id}>
                 <SidebarMenuButton onClick={() => scrollToSection(summary.id)}>
-                  <FolderGit2 className="size-4 shrink-0" />
+                  <Brain className="size-4 shrink-0" />
                   <span className="truncate">Project Overview</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -91,10 +91,12 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
             {fileSummaries.map((file) => (
               <SidebarMenuItem key={file.id}>
                 <SidebarMenuButton onClick={() => scrollToSection(file.id)}>
-                  <FileText className="size-4 shrink-0" />
-                  <span className="truncate">
-                    {removeFileExtension(getFileName(file.filePath || ""))}
-                  </span>
+                  <FileIcon
+                    filename={file.filePath || ""}
+                    useFallback
+                    className="size-4 shrink-0"
+                  />
+                  <span className="truncate">{file.filePath}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
@@ -112,7 +114,7 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
                 <SidebarMenuButton
                   onClick={() => scrollToSection(directory.id)}
                 >
-                  <FolderOpen className="size-4 shrink-0" />
+                  <Folder className="size-4 shrink-0" />
                   <span className="truncate">{directory.filePath}/</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
