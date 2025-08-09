@@ -25,9 +25,7 @@ export function UserSettings() {
   const [isRulesUpdating, setIsRulesUpdating] = useState(false);
 
   useEffect(() => {
-    if (userSettings?.rules) {
-      setRulesValue(userSettings.rules);
-    }
+    setRulesValue(userSettings?.rules || "");
   }, [userSettings]);
 
   // Debounced rules update using the project's hook
