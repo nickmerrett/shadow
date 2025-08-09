@@ -268,23 +268,23 @@ enum InitStatus {
   CREATE_VM
   WAIT_VM_READY
   VERIFY_VM_WORKSPACE
+  START_BACKGROUND_SERVICES
   INSTALL_DEPENDENCIES
-  INDEX_REPOSITORY
-  GENERATE_SHADOW_WIKI
+  FINALIZE_SETUP
   ACTIVE
 }
 
 model UserSettings {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  memoriesEnabled   Boolean  @default(true)
-  autoPullRequest   Boolean  @default(false)
-  enableShadowWiki  Boolean  @default(true)
-  enableIndexing    Boolean  @default(false)
-  selectedModels    String[] @default([])
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  memoriesEnabled  Boolean  @default(true)
+  autoPullRequest  Boolean  @default(false)
+  enableShadowWiki Boolean  @default(true)
+  enableIndexing   Boolean  @default(false)
+  selectedModels   String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
 }
