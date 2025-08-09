@@ -6,7 +6,6 @@ import { headers } from "next/headers";
 import { after } from "next/server";
 import { z, ZodIssue } from "zod";
 import { generateTaskTitleAndBranch } from "./generate-title-branch";
-import { saveResizableTaskLayoutCookie } from "./resizable-task-cookie";
 import { generateTaskId, MAX_TASKS_PER_USER_PRODUCTION } from "@repo/types";
 import { makeBackendRequest } from "../make-backend-request";
 
@@ -34,9 +33,6 @@ export async function createTask(formData: FormData) {
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
-
-  // Reset the agent environment layout cookie on task creation. This can happen asynchronously so no need to await.
-  saveResizableTaskLayoutCookie("taskLayout", [100, 0]);
 
   const rawData = {
     message: formData.get("message") as string,
