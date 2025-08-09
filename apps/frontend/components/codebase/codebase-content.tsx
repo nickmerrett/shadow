@@ -162,89 +162,62 @@ export function CodebasePageContent() {
   }
 
   return (
-    <div className="relative flex size-full max-h-svh flex-col overflow-y-auto">
-      <div className="bg-background sticky top-0 z-10 flex w-full shrink-0 items-center justify-start overflow-hidden p-3">
-        {!open && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <SidebarTrigger />
-            </TooltipTrigger>
-            <TooltipContent side="right" shortcut="⌘B">
-              {open ? "Close Sidebar" : "Open Sidebar"}
-            </TooltipContent>
-          </Tooltip>
-        )}
-        <Button
-          variant="ghost"
-          className="hover:bg-sidebar-accent px-2! justify-start font-normal"
-          asChild
-        >
-          <Link href={codebase?.repoUrl || "#"} target="_blank">
-            <Folder className="size-4 shrink-0" />
-            <span className="truncate">
-              {codebase?.repoFullName || "Repository"}
-            </span>
-          </Link>
-        </Button>
-      </div>
+    <div className="relative z-0 mx-auto flex w-full max-w-2xl flex-col items-center px-4 py-12 sm:px-6">
+      {/* Overview */}
+      {overview && (
+        <div id={overview.id} className="flex w-full flex-col gap-0">
+          <MarkdownRenderer content={overview.content} />
+        </div>
+      )}
 
-      <div className="relative z-0 mx-auto flex w-full max-w-2xl flex-col items-center px-4 py-12 sm:px-6">
-        {/* Overview */}
-        {overview && (
-          <div id={overview.id} className="flex w-full flex-col gap-0">
-            <MarkdownRenderer content={overview.content} />
-          </div>
-        )}
+      <Separator className="my-8" />
 
-        <Separator className="my-8" />
-
-        {/* Files */}
-        {fileSummaries.length > 0 && (
-          <div id="files">
-            <div className="mb-6 text-xl font-medium">Files</div>
-            <div className="flex flex-col gap-8">
-              {fileSummaries.map((file) => (
-                <div key={file.id} id={file.id} className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <FileIcon
-                      filename={file.filePath || ""}
-                      className="size-4 shrink-0"
-                      useFallback
-                    />
-                    <div className="font-medium">{file.filePath}</div>
-                  </div>
-                  <div className="bg-card rounded-lg border p-3 pb-0">
-                    <MarkdownRenderer content={file.content} />
-                  </div>
+      {/* Files */}
+      {fileSummaries.length > 0 && (
+        <div id="files">
+          <div className="mb-6 text-xl font-medium">Files</div>
+          <div className="flex flex-col gap-8">
+            {fileSummaries.map((file) => (
+              <div key={file.id} id={file.id} className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <FileIcon
+                    filename={file.filePath || ""}
+                    className="size-4 shrink-0"
+                    useFallback
+                  />
+                  <div className="font-medium">{file.filePath}</div>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {/* Directories */}
-        {directorySummaries.length > 0 && (
-          <div id="directories">
-            <div className="mb-6 text-xl font-medium">Directories</div>
-            <div className="flex flex-col gap-8">
-              {directorySummaries.map((directory) => (
-                <div
-                  key={directory.id}
-                  id={directory.id}
-                  className="flex flex-col gap-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <Folder className="size-4 shrink-0" />
-                    <div className="font-medium">{directory.filePath}</div>
-                  </div>
-                  <div className="bg-card rounded-lg border p-3 pb-0">
-                    <MarkdownRenderer content={directory.content} />
-                  </div>
+                <div className="bg-card rounded-lg border p-3 pb-0">
+                  <MarkdownRenderer content={file.content} />
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+      {/* Directories */}
+      {directorySummaries.length > 0 && (
+        <div id="directories">
+          <div className="mb-6 text-xl font-medium">Directories</div>
+          <div className="flex flex-col gap-8">
+            {directorySummaries.map((directory) => (
+              <div
+                key={directory.id}
+                id={directory.id}
+                className="flex flex-col gap-2"
+              >
+                <div className="flex items-center gap-2">
+                  <Folder className="size-4 shrink-0" />
+                  <div className="font-medium">{directory.filePath}</div>
+                </div>
+                <div className="bg-card rounded-lg border p-3 pb-0">
+                  <MarkdownRenderer content={directory.content} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
