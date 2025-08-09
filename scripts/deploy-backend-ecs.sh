@@ -961,6 +961,73 @@ create_ecs_service() {
     log "ECS service created successfully"
 }
 
+# Update ECS service to use latest task definition revision
+update_service_to_latest() {
+    log "Updating ECS service to use latest task definition revision..."
+    
+    # Get the latest task definition revision
+    LATEST_REVISION=$(aws ecs describe-task-definition \
+        --task-definition "$TASK_FAMILY" \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" \
+        --query 'taskDefinition.revision' \
+        --output text)
+    
+    log "Latest task definition revision: $LATEST_REVISION"
+    
+    # Check if service exists before updating
+    if ! aws ecs describe-services --cluster "$ECS_CLUSTER_NAME" --services "$SERVICE_NAME" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'services[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
+        warn "Service '$SERVICE_NAME' does not exist, skipping update"
+        return 0
+    fi
+    
+    # Get current revision being used by the service
+    CURRENT_SERVICE_REVISION=$(aws ecs describe-services \
+        --cluster "$ECS_CLUSTER_NAME" \
+        --services "$SERVICE_NAME" \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" \
+        --query 'services[0].taskDefinition' \
+        --output text | sed 's/.*://')
+    
+    log "Current service revision: $CURRENT_SERVICE_REVISION"
+    
+    # Only update if there's a new revision
+    if [[ "$LATEST_REVISION" == "$CURRENT_SERVICE_REVISION" ]]; then
+        log "Service is already using the latest revision, skipping update"
+        return 0
+    fi
+    
+    log "Updating service to use revision $LATEST_REVISION and forcing new deployment..."
+    
+    # Update service with latest task definition and force new deployment
+    aws ecs update-service \
+        --cluster "$ECS_CLUSTER_NAME" \
+        --service "$SERVICE_NAME" \
+        --task-definition "$TASK_FAMILY:$LATEST_REVISION" \
+        --force-new-deployment \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" \
+        --query 'service.serviceName' \
+        --output text > /dev/null
+    
+    if [[ $? -eq 0 ]]; then
+        log "Service update initiated successfully"
+        log "Waiting for service to stabilize with new revision..."
+        
+        # Wait for the service to stabilize with new deployment
+        aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE"
+        
+        log "✅ Service updated to revision $LATEST_REVISION and deployment completed"
+    else
+        error "Failed to update service to latest revision"
+    fi
+}
+
 # Get service information
 get_service_info() {
     log "Getting service information..."
@@ -1074,6 +1141,7 @@ main() {
     create_load_balancer
     create_task_definition
     create_ecs_service
+    update_service_to_latest
     get_service_info
     verify_deployment
     

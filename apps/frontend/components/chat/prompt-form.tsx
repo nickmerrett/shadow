@@ -553,8 +553,8 @@ export function PromptForm({
             <>
               <div className="bg-background absolute inset-px -z-10 rounded-[calc(var(--radius)+1px)]" />
               <div className="absolute inset-0 -z-20 overflow-hidden rounded-[calc(var(--radius)+1px)]">
-                <div className="new-task-pulse rotate-left absolute top-1/2 aspect-square w-full -translate-y-1/2"></div>
-                <div className="new-task-pulse rotate-right absolute top-1/2 aspect-square w-full -translate-y-1/2"></div>
+                <div className="new-task-pulse rotate-right absolute left-1/2 top-1/2 aspect-square w-[110%] -translate-x-1/2 -translate-y-1/2"></div>
+                <div className="new-task-pulse rotate-left absolute left-1/2 top-1/2 aspect-square w-[110%] -translate-x-1/2 -translate-y-1/2"></div>
               </div>
             </>
           )}
