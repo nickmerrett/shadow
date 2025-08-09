@@ -16,7 +16,7 @@ import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import { getSystemPrompt, getShadowWikiMessage } from "./system-prompt";
-import { createTools } from "./tools";
+import { createTools, stopMCPManager } from "./tools";
 import type { ToolSet } from "ai";
 import { GitManager } from "../services/git-manager";
 import { PRManager } from "../services/pr-manager";
@@ -1101,6 +1101,13 @@ export class ChatService {
           this.stopRequested.delete(taskId);
           endStream(taskId);
 
+          // Clean up MCP manager for this task
+          try {
+            await stopMCPManager(taskId);
+          } catch (mcpError) {
+            console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, mcpError);
+          }
+
           // Clear any queued actions (don't process them after error)
           this.clearQueuedAction(taskId);
 
@@ -1217,6 +1224,13 @@ export class ChatService {
       this.stopRequested.delete(taskId);
       endStream(taskId);
 
+      // Clean up MCP manager for this task
+      try {
+        await stopMCPManager(taskId);
+      } catch (error) {
+        console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, error);
+      }
+
       // Process any queued actions
       await this.processQueuedActions(taskId);
     } catch (error) {
@@ -1240,6 +1254,13 @@ export class ChatService {
       this.activeStreams.delete(taskId);
       this.stopRequested.delete(taskId);
       handleStreamError(error, taskId);
+
+      // Clean up MCP manager for this task
+      try {
+        await stopMCPManager(taskId);
+      } catch (mcpError) {
+        console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, mcpError);
+      }
 
       // Clear any queued actions (don't process them after error)
       this.clearQueuedAction(taskId);
@@ -1350,6 +1371,13 @@ export class ChatService {
 
     // Flush any pending database updates before stopping
     await databaseBatchService.flushAssistantUpdate(taskId);
+
+    // Clean up MCP manager for this task
+    try {
+      await stopMCPManager(taskId);
+    } catch (error) {
+      console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, error);
+    }
 
     // Update task status to stopped when manually stopped by user
     await updateTaskStatus(taskId, "STOPPED", "CHAT");
@@ -1682,13 +1710,20 @@ export class ChatService {
   /**
    * Clean up task-related memory structures
    */
-  cleanupTask(taskId: string): void {
+  async cleanupTask(taskId: string): Promise<void> {
     try {
       // Clean up active streams
       const abortController = this.activeStreams.get(taskId);
       if (abortController) {
         abortController.abort();
         this.activeStreams.delete(taskId);
+      }
+
+      // Clean up MCP manager for this task
+      try {
+        await stopMCPManager(taskId);
+      } catch (mcpError) {
+        console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, mcpError);
       }
 
       // Clean up queued actions

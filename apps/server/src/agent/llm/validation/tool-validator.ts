@@ -14,7 +14,7 @@ export class ToolValidator {
    * Validates a tool result and creates a graceful error result if validation fails
    */
   validateToolResult(
-    toolName: ToolName,
+    toolName: ToolName | string, // Allow MCP tool names (e.g., "context7:get-library-docs")
     result: unknown
   ): {
     isValid: boolean;
@@ -39,8 +39,19 @@ export class ToolValidator {
     });
 
     try {
-      // toolName is guaranteed to be valid, validate the result directly
-      const schema = ToolResultSchemas[toolName];
+      // Check if this is an MCP tool (contains colon separator)
+      if (typeof toolName === 'string' && toolName.includes(':')) {
+        console.log(`[VALIDATION_DEBUG] Skipping validation for MCP tool: ${toolName}`);
+        // MCP tools are validated by the MCP client, so we trust their results
+        return {
+          isValid: true,
+          validatedResult: result as ToolResultTypes["result"],
+          shouldEmitError: false,
+        };
+      }
+
+      // toolName is guaranteed to be valid for native tools, validate the result directly
+      const schema = ToolResultSchemas[toolName as ToolName];
       console.log(`[VALIDATION_DEBUG] Using schema for ${toolName}:`, {
         schemaExists: !!schema,
         schemaType: schema?._def?.typeName,

@@ -20,15 +20,27 @@ import { LocalFileSystemWatcher } from "../../services/local-filesystem-watcher"
 import { emitTerminalOutput, emitStreamChunk } from "../../socket";
 import { isIndexingComplete } from "../../initialization/background-indexing";
 import type { TerminalEntry } from "@repo/types";
+import { MCPManager } from "../mcp/mcp-manager";
+import { MCP_ENABLED } from "../../config/mcp";
 
 // Map to track active filesystem watchers by task ID
 const activeFileSystemWatchers = new Map<string, LocalFileSystemWatcher>();
+
+// Map to track MCP managers by task ID
+const activeMCPManagers = new Map<string, MCPManager>();
 
 /**
  * Get the active filesystem watcher for a task (local mode only)
  */
 export function getFileSystemWatcher(taskId: string): LocalFileSystemWatcher | null {
   return activeFileSystemWatchers.get(taskId) || null;
+}
+
+/**
+ * Get the active MCP manager for a task
+ */
+export function getMCPManager(taskId: string): MCPManager | null {
+  return activeMCPManagers.get(taskId) || null;
 }
 
 // Terminal entry counters for unique IDs per task
@@ -86,6 +98,27 @@ export async function createTools(taskId: string, workspacePath?: string) {
   // - Local mode: uses workspacePath for filesystem operations  
   // - Remote mode: uses dynamic pod discovery to find actual running VMs
   const executor = await createToolExecutor(taskId, workspacePath);
+
+  // Initialize MCP manager if enabled
+  let mcpManager: MCPManager | undefined;
+  if (MCP_ENABLED) {
+    try {
+      // Check if we already have an MCP manager for this task
+      if (!activeMCPManagers.has(taskId)) {
+        console.log(`[TOOLS] Initializing MCP manager for task ${taskId}`);
+        mcpManager = new MCPManager();
+        await mcpManager.initializeConnections();
+        activeMCPManagers.set(taskId, mcpManager);
+        console.log(`[TOOLS] MCP manager initialized for task ${taskId}`);
+      } else {
+        mcpManager = activeMCPManagers.get(taskId);
+        console.log(`[TOOLS] Reusing existing MCP manager for task ${taskId}`);
+      }
+    } catch (error) {
+      console.error(`[TOOLS] Failed to initialize MCP manager for task ${taskId}:`, error);
+      // Continue without MCP tools - graceful degradation
+    }
+  }
 
   // Initialize filesystem watcher for local mode
   if (isLocalMode() && workspacePath) {
@@ -612,6 +645,17 @@ export async function createTools(taskId: string, workspacePath?: string) {
     }),
   };
 
+  // Get MCP tools if manager is available
+  let mcpTools = {};
+  if (mcpManager) {
+    try {
+      mcpTools = await mcpManager.getAvailableTools();
+      console.log(`[TOOLS] Retrieved ${Object.keys(mcpTools).length} MCP tools for task ${taskId}`);
+    } catch (error) {
+      console.error(`[TOOLS] Failed to get MCP tools for task ${taskId}:`, error);
+    }
+  }
+
   // Conditionally add semantic search tool if indexing is complete
   if (includeSemanticSearch) {
     return {
@@ -680,10 +724,14 @@ export async function createTools(taskId: string, workspacePath?: string) {
           }
         },
       }),
+      ...mcpTools, // Add MCP tools to the toolset
     };
   }
 
-  return baseTools;
+  return {
+    ...baseTools,
+    ...mcpTools, // Add MCP tools to the toolset
+  };
 }
 
 /**
@@ -695,6 +743,24 @@ export function stopFileSystemWatcher(taskId: string): void {
     watcher.stop();
     activeFileSystemWatchers.delete(taskId);
     console.log(`[TOOLS] Stopped filesystem watcher for task ${taskId}`);
+  }
+}
+
+/**
+ * Stop MCP manager for a specific task
+ */
+export async function stopMCPManager(taskId: string): Promise<void> {
+  const manager = activeMCPManagers.get(taskId);
+  if (manager) {
+    try {
+      await manager.closeAllConnections();
+      activeMCPManagers.delete(taskId);
+      console.log(`[TOOLS] Stopped MCP manager for task ${taskId}`);
+    } catch (error) {
+      console.error(`[TOOLS] Error stopping MCP manager for task ${taskId}:`, error);
+      // Still remove from map even if cleanup failed
+      activeMCPManagers.delete(taskId);
+    }
   }
 }
 
@@ -712,6 +778,27 @@ export function stopAllFileSystemWatchers(): void {
   }
 
   activeFileSystemWatchers.clear();
+}
+
+/**
+ * Stop all active MCP managers (for graceful shutdown)
+ */
+export async function stopAllMCPManagers(): Promise<void> {
+  console.log(
+    `[TOOLS] Stopping ${activeMCPManagers.size} active MCP managers`
+  );
+
+  const stopPromises = Array.from(activeMCPManagers.entries()).map(async ([taskId, manager]) => {
+    try {
+      await manager.closeAllConnections();
+      console.log(`[TOOLS] Stopped MCP manager for task ${taskId}`);
+    } catch (error) {
+      console.error(`[TOOLS] Error stopping MCP manager for task ${taskId}:`, error);
+    }
+  });
+
+  await Promise.allSettled(stopPromises);
+  activeMCPManagers.clear();
 }
 
 /**
