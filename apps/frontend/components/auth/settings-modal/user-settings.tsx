@@ -2,8 +2,10 @@
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { Loader2, X } from "lucide-react";
 import Image from "next/image";
+import { useState, useEffect } from "react";
 import { authClient } from "@/lib/auth/auth-client";
 import { useAuthSession } from "../session-provider";
 import { useModal } from "@/components/layout/modal-context";
@@ -11,6 +13,7 @@ import {
   useUserSettings,
   useUpdateUserSettings,
 } from "@/hooks/use-user-settings";
+import { useDebounceCallback } from "@/lib/debounce";
 
 export function UserSettings() {
   const { session, isLoading: isLoadingSession } = useAuthSession();
@@ -18,6 +21,26 @@ export function UserSettings() {
   const { data: userSettings, isLoading: isLoadingSettings } =
     useUserSettings();
   const updateUserSettings = useUpdateUserSettings();
+  const [rulesValue, setRulesValue] = useState("");
+  const [isRulesUpdating, setIsRulesUpdating] = useState(false);
+
+  // Initialize from server state
+  useEffect(() => {
+    setRulesValue(userSettings?.rules || "");
+  }, [userSettings?.rules]);
+
+  // Debounced save to server
+  const debouncedSave = useDebounceCallback((value: string) => {
+    setIsRulesUpdating(true);
+    updateUserSettings.mutate(
+      { rules: value || null },
+      {
+        onSettled: () => {
+          setIsRulesUpdating(false);
+        },
+      }
+    );
+  }, 1000);
 
   const handleSignOut = async () => {
     try {
@@ -47,6 +70,14 @@ export function UserSettings() {
 
   const handleIndexingToggle = (checked: boolean) => {
     updateUserSettings.mutate({ enableIndexing: checked });
+  };
+
+  const handleRulesChange = (value: string) => {
+    const words = value.trim().split(/\s+/).filter(word => word.length > 0);
+    if (words.length <= 100) {
+      setRulesValue(value);
+      debouncedSave(value);
+    }
   };
 
   return (
@@ -148,6 +179,34 @@ export function UserSettings() {
                 checked={userSettings?.enableIndexing ?? false}
                 onCheckedChange={handleIndexingToggle}
                 disabled={isLoadingSettings || updateUserSettings.isPending}
+              />
+            </div>
+            
+            {/* Rules Section */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="rules" className="flex flex-col gap-0">
+                  <div className="text-sm font-normal">Rules</div>
+                  <div className="text-muted-foreground text-[11px]">
+                    Custom instructions for Shadow's responses (up to 100 words)
+                  </div>
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground text-[10px]">
+                    {rulesValue.trim().split(/\s+/).filter(word => word.length > 0).length}/100 words
+                  </span>
+                  {isRulesUpdating && (
+                    <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+              </div>
+              <Textarea
+                id="rules"
+                placeholder="Enter specific instructions for Shadow..."
+                value={rulesValue}
+                onChange={(e) => handleRulesChange(e.target.value)}
+                disabled={isLoadingSettings}
+                className="min-h-[80px] resize-none"
               />
             </div>
           </div>
