@@ -75,7 +75,7 @@ export function UserSettings() {
 
   const handleRulesChange = (value: string) => {
     const words = value.trim().split(/\s+/).filter(word => word.length > 0);
-    if (words.length <= 50) {
+    if (words.length <= 100) {
       setRulesValue(value);
       debouncedRulesUpdate(value);
     }
@@ -189,7 +189,7 @@ export function UserSettings() {
                 <label htmlFor="rules" className="flex flex-col gap-0">
                   <div className="text-sm font-normal">Rules</div>
                   <div className="text-muted-foreground text-[11px]">
-                    Custom instructions for Shadow's responses (up to 50 words)
+                    Custom instructions for Shadow's responses (up to 100 words)
                   </div>
                 </label>
                 <div className="flex items-center gap-2">
