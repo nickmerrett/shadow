@@ -151,6 +151,10 @@ export class PRManager {
         context.getApiKeys() // Pass full API keys for compatibility
       );
 
+      // Append shadow URL to the description
+      const shadowUrl = `https://shadowrealm.ai/tasks/${options.taskId}`;
+      metadata.description = `${metadata.description}\n\n---\n\n[Shadow URL](${shadowUrl})`;
+
       return metadata;
     } catch (error) {
       console.warn(

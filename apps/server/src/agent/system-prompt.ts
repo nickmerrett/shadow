@@ -151,6 +151,7 @@ VERSION CONTROL:
 - Stage files carefully (avoid git add .)
 - Create feature branches for major changes
 - Keep commits atomic and logically grouped
+- Don't run any git commands as a tool
 </security_practices>`;
 
 const LONG_RUNNING_OPTIMIZATIONS = `<long_running_tasks>
@@ -187,6 +188,7 @@ ENHANCEMENT GUIDELINES:
 
 FINAL DELIVERABLES:
 - Summary of all changes made
+- Be concise in your final summary of changes. Don't be too verbose but summarize the most important changes in a well-structured format.
 - Test results and verification steps taken
 - Any follow-up recommendations
 - Documentation of design decisions
