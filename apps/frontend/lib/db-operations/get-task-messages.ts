@@ -3,31 +3,24 @@ import { type Message } from "@repo/types";
 
 export async function getTaskMessages(taskId: string): Promise<Message[]> {
   try {
-    // Fetch both messages and task's mainModel in parallel for efficiency
-    const [messages, task] = await Promise.all([
-      db.chatMessage.findMany({
-        where: { taskId },
-        include: {
-          pullRequestSnapshot: true,
-          stackedTask: {
-            select: {
-              id: true,
-              title: true,
-              shadowBranch: true,
-              status: true,
-            },
+    const messages = await db.chatMessage.findMany({
+      where: { taskId },
+      include: {
+        pullRequestSnapshot: true,
+        stackedTask: {
+          select: {
+            id: true,
+            title: true,
+            shadowBranch: true,
+            status: true,
           },
         },
-        orderBy: [
-          { sequence: "asc" }, // Primary ordering by sequence for correct conversation flow
-          { createdAt: "asc" }, // Fallback ordering by timestamp
-        ],
-      }),
-      db.task.findUnique({
-        where: { id: taskId },
-        select: { mainModel: true },
-      }),
-    ]);
+      },
+      orderBy: [
+        { sequence: "asc" }, // Primary ordering by sequence for correct conversation flow
+        { createdAt: "asc" }, // Fallback ordering by timestamp
+      ],
+    });
 
     const finalMessages: Message[] = messages.map((msg) => ({
       id: msg.id,
