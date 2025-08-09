@@ -8,6 +8,7 @@ export interface UserSettings {
   memoriesEnabled: boolean;
   selectedModels: string[];
   enableIndexing: boolean;
+  rules?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,6 +31,7 @@ export async function createUserSettings(
     memoriesEnabled?: boolean;
     selectedModels?: string[];
     enableIndexing?: boolean;
+    rules?: string;
   }
 ): Promise<UserSettings> {
   const result = await prisma.userSettings.create({
@@ -40,6 +42,7 @@ export async function createUserSettings(
       memoriesEnabled: settings.memoriesEnabled ?? true,
       selectedModels: settings.selectedModels ?? [],
       enableIndexing: settings.enableIndexing ?? false,
+      rules: settings.rules,
     },
   });
 
@@ -54,6 +57,7 @@ export async function updateUserSettings(
     memoriesEnabled?: boolean;
     selectedModels?: string[];
     enableIndexing?: boolean;
+    rules?: string;
   }
 ): Promise<UserSettings> {
   try {
@@ -63,6 +67,7 @@ export async function updateUserSettings(
       memoriesEnabled?: boolean;
       selectedModels?: string[];
       enableIndexing?: boolean;
+      rules?: string;
     } = {};
 
     if (settings.autoPullRequest !== undefined)
@@ -75,6 +80,8 @@ export async function updateUserSettings(
       updateData.selectedModels = settings.selectedModels;
     if (settings.enableIndexing !== undefined)
       updateData.enableIndexing = settings.enableIndexing;
+    if (settings.rules !== undefined)
+      updateData.rules = settings.rules;
 
     // Build create data object with only non-default values
     const createData: {
@@ -84,6 +91,7 @@ export async function updateUserSettings(
       memoriesEnabled?: boolean;
       selectedModels?: string[];
       enableIndexing?: boolean;
+      rules?: string;
     } = {
       userId,
     };
@@ -113,6 +121,8 @@ export async function updateUserSettings(
       settings.enableIndexing !== false
     )
       createData.enableIndexing = settings.enableIndexing;
+    if (settings.rules !== undefined)
+      createData.rules = settings.rules;
 
     const result = await prisma.userSettings.upsert({
       where: { userId },
