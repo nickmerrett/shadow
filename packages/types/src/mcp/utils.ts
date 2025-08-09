@@ -100,3 +100,74 @@ export function registerMCPToolMapping(
 ): void {
   mcpToolNameMappings.set(transformedName, originalName);
 }
+
+/**
+ * Clear all MCP tool name mappings (useful for testing or cleanup)
+ */
+export function clearMCPToolMappings(): void {
+  mcpToolNameMappings.clear();
+}
+
+/**
+ * Get all registered MCP tool mappings (useful for debugging)
+ */
+export function getMCPToolMappings(): Map<string, string> {
+  return new Map(mcpToolNameMappings);
+}
+
+/**
+ * Get custom MCP tool title based on tool name and arguments
+ * Maps specific tools to user-friendly titles with parameter substitution
+ */
+export function getMCPToolTitle(
+  toolName: string,
+  args: Record<string, any> = {}
+): string {
+  console.log("[MCP_TITLE_DEBUG] Tool name:", toolName, "Args:", args);
+
+  // Get original name if this is a transformed tool, otherwise use as-is
+  const originalName = getOriginalMCPToolName(toolName) || toolName;
+  console.log("[MCP_TITLE_DEBUG] Original name:", originalName);
+
+  // Handle context7_resolve_library_id (with underscores!)
+  if (originalName === "context7_resolve_library_id") {
+    const libraryName =
+      args?.libraryName || args?.library || args?.name || "Unknown";
+    console.log(
+      "[MCP_TITLE_DEBUG] Resolve library - libraryName:",
+      libraryName
+    );
+    return `Find Library "${libraryName}"`;
+  }
+
+  // Handle context7_get_library_docs (with underscores!)
+  if (originalName === "context7_get_library_docs") {
+    const libraryID =
+      args?.context7CompatibleLibraryID ||
+      args?.library ||
+      args?.libraryId ||
+      "Unknown";
+    const topic = args?.topic || args?.query || args?.search || "Documentation";
+    console.log(
+      "[MCP_TITLE_DEBUG] Get docs - libraryID:",
+      libraryID,
+      "topic:",
+      topic
+    );
+    return `${libraryID} "${topic}"`;
+  }
+
+  // Fallback to display name
+  const parsed = parseMCPToolName(toolName);
+  const fallback = parsed ? parsed.displayToolName : toolName;
+  console.log("[MCP_TITLE_DEBUG] Using fallback:", fallback);
+  return fallback;
+}
+
+/**
+ * Get MCP tool prefix (server name) for display
+ */
+export function getMCPToolPrefix(toolName: string): string {
+  const parsed = parseMCPToolName(toolName);
+  return parsed ? parsed.displayServerName : "MCP";
+}

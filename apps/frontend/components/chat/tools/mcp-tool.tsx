@@ -1,55 +1,45 @@
 import type { Message } from "@repo/types";
 import { ToolComponent } from "./tool";
 import { MemoizedMarkdown } from "../memoized-markdown";
-import { ToolTypes, parseMCPToolName } from "@repo/types";
+import { ToolTypes, getMCPToolTitle, getMCPToolPrefix } from "@repo/types";
 import { MCPLogo } from "@/components/graphics/icons/mcp-logo";
 
 export function MCPTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
-  // Parse MCP tool name using shared utility
-  const parsed = parseMCPToolName(toolMeta.name);
-  if (!parsed) {
-    // Fallback for invalid MCP tool names
-    return (
-      <ToolComponent
-        type={ToolTypes.FILE_SEARCH}
-        icon={<MCPLogo />}
-        title={`Invalid MCP Tool: ${toolMeta.name}`}
-        collapsible={true}
-      >
-        <div className="text-sm text-red-500">
-          Unable to parse MCP tool name: {toolMeta.name}
-        </div>
-      </ToolComponent>
-    );
-  }
+  // Get custom title and prefix using utility functions
+  console.log(
+    "[MCP_COMPONENT_DEBUG] Tool name:",
+    toolMeta.name,
+    "Args:",
+    toolMeta.args
+  );
+  const title = getMCPToolTitle(toolMeta.name, toolMeta.args || {});
+  const prefix = getMCPToolPrefix(toolMeta.name);
+  console.log(
+    "[MCP_COMPONENT_DEBUG] Generated title:",
+    title,
+    "prefix:",
+    prefix
+  );
 
-  const { displayServerName, displayToolName } = parsed;
-
-  const title = `${displayServerName}: ${displayToolName}`;
-
-  // Simplified result rendering - just show content[0].text or fallback
-  const renderResult = () => {
+  const renderMarkdownOnly = () => {
     if (!toolMeta.result) {
-      return (
-        <div className="text-muted-foreground text-xs italic">
-          No result yet...
-        </div>
-      );
+      return null;
     }
 
-    // Handle string results
     if (typeof toolMeta.result === "string") {
       return (
-        <MemoizedMarkdown content={toolMeta.result} id={`mcp-${message.id}`} />
+        <FadedMarkdown
+          content={(toolMeta.result as string).slice(0, 800)}
+          id={`mcp-${message.id}`}
+        />
       );
     }
 
-    // Handle object results
     if (typeof toolMeta.result === "object") {
-      const result = toolMeta.result as any;
+      const result = toolMeta.result;
 
       // Handle Context7 format with content array - show content[0].text
       if (
@@ -64,88 +54,47 @@ export function MCPTool({ message }: { message: Message }) {
           "text" in firstContent
         ) {
           return (
-            <MemoizedMarkdown
-              content={firstContent.text}
+            <FadedMarkdown
+              content={(firstContent.text as string).slice(0, 800)}
               id={`mcp-content-${message.id}`}
             />
           );
         }
       }
 
-      // Handle simple content string
       if ("content" in result && typeof result.content === "string") {
         return (
-          <MemoizedMarkdown
-            content={result.content}
+          <FadedMarkdown
+            content={(result.content as string).slice(0, 800)}
             id={`mcp-content-${message.id}`}
           />
         );
       }
-
-      // Fallback: pretty-print JSON
-      return (
-        <div className="space-y-1">
-          <div className="text-muted-foreground text-xs">Raw result:</div>
-          <pre className="bg-muted/30 overflow-x-auto rounded-md border p-3 text-xs">
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        </div>
-      );
     }
 
-    // Fallback for other types
-    return (
-      <div className="bg-muted/30 rounded border p-2 font-mono text-sm">
-        {String(toolMeta.result)}
-      </div>
-    );
+    return null;
   };
 
   return (
     <ToolComponent
-      type={ToolTypes.FILE_SEARCH} // Use existing type for consistent styling
+      type={ToolTypes.MCP}
       icon={<MCPLogo />}
       title={title}
+      prefix={prefix}
       collapsible={true}
     >
-      <div className="space-y-3">
-        {/* Show arguments if they exist */}
-        {toolMeta.args && Object.keys(toolMeta.args).length > 0 && (
-          <div className="space-y-2">
-            <div className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-              Arguments
-            </div>
-            <div className="bg-muted/20 space-y-1 rounded-md p-2">
-              {Object.entries(toolMeta.args).map(([key, value]) => (
-                <div key={key} className="flex items-start gap-3 text-xs">
-                  <span className="text-muted-foreground min-w-[80px] font-medium">
-                    {key}:
-                  </span>
-                  <span className="bg-muted/50 rounded px-2 py-0.5 font-mono text-xs">
-                    {typeof value === "string" ? value : JSON.stringify(value)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Show result */}
-        <div className="space-y-2">
-          <div className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-            Result
-          </div>
-          <div className="min-h-[20px]">{renderResult()}</div>
-        </div>
-
-        {/* Show status if still running */}
-        {toolMeta.status === "RUNNING" && (
-          <div className="text-muted-foreground flex items-center gap-2 border-t pt-2 text-xs italic">
-            <div className="size-2 animate-pulse rounded-full bg-blue-500" />
-            Fetching from {displayServerName}...
-          </div>
-        )}
-      </div>
+      {/* ONLY the markdown content - no headers, no arguments, no status */}
+      {renderMarkdownOnly()}
     </ToolComponent>
+  );
+}
+
+function FadedMarkdown({ content, id }: { content: string; id: string }) {
+  return (
+    <div className="relative z-0 max-h-96 overflow-hidden opacity-70">
+      <div className="to-background absolute -bottom-px left-0 z-10 h-24 w-full bg-gradient-to-b from-transparent" />
+      <div className="to-background absolute -top-px left-0 z-10 h-24 w-full bg-gradient-to-t from-transparent" />
+      <MemoizedMarkdown content={content} id={id} />
+    </div>
   );
 }
