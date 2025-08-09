@@ -1,4 +1,5 @@
 import type { Message } from "@repo/types";
+import { isMCPTool as checkIfMCPTool } from "@repo/types";
 
 // Tool-specific components
 import { SemanticSearchTool } from "./semantic-search";
@@ -46,10 +47,8 @@ export function ToolMessage({ message }: { message: Message }) {
     return <span className="text-muted-foreground">{message.content}</span>;
   }
 
-  // Check if this is an MCP tool (contains colon separator)
-  const isMCPTool = toolMeta.name.includes(':');
-  
-  if (isMCPTool) {
+  // Check if this is an MCP tool using shared utility
+  if (checkIfMCPTool(toolMeta.name)) {
     return <MCPTool message={message} />;
   }
 

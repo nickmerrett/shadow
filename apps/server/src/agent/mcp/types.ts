@@ -1,6 +1,6 @@
 export interface MCPServerConfig {
   name: string;
-  transport: 'stdio' | 'sse' | 'http';
+  transport: "stdio" | "sse" | "http";
   url?: string;
   command?: string;
   args?: string[];
@@ -23,7 +23,21 @@ export interface MCPToolInfo {
   description?: string;
 }
 
-export type MCPTransportType = 'stdio' | 'sse' | 'http';
+export interface MCPToolMeta {
+  originalName: string;
+  transformedName: string;
+  serverName: string;
+  toolName: string;
+}
+
+export interface MCPToolWrapper {
+  execute: (params: Record<string, unknown>) => Promise<unknown>;
+  description: string;
+  parameters: unknown; // JSON Schema object
+  meta: MCPToolMeta;
+}
+
+export type MCPTransportType = "stdio" | "sse" | "http";
 
 export interface MCPClientWrapper {
   serverName: string;

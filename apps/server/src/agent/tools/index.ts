@@ -22,6 +22,14 @@ import { isIndexingComplete } from "../../initialization/background-indexing";
 import type { TerminalEntry } from "@repo/types";
 import { MCPManager } from "../mcp/mcp-manager";
 import { MCP_ENABLED } from "../../config/mcp";
+import {
+  transformMCPToolName,
+  registerMCPToolMapping,
+  type MCPToolMeta,
+  type MCPToolWrapper,
+} from "@repo/types";
+
+const MAX_CONTEXT7_TOKENS = 4000;
 
 // Map to track active filesystem watchers by task ID
 const activeFileSystemWatchers = new Map<string, LocalFileSystemWatcher>();
@@ -29,10 +37,71 @@ const activeFileSystemWatchers = new Map<string, LocalFileSystemWatcher>();
 // Map to track MCP managers by task ID
 const activeMCPManagers = new Map<string, MCPManager>();
 
+// MCP tool name processing is now handled by shared utilities in @repo/types
+
+/**
+ * Create a type-safe MCP tool wrapper for AI SDK compatibility
+ */
+function createMCPToolWrapper(
+  originalName: string,
+  mcpTool: {
+    execute: (params: Record<string, unknown>) => Promise<unknown>;
+    description: string;
+    parameters: unknown;
+  }
+): MCPToolWrapper {
+  const transformedName = transformMCPToolName(originalName);
+  const [serverName, toolName] = originalName.includes(":")
+    ? originalName.split(":")
+    : [
+        originalName.split("_")[0] || "unknown",
+        originalName.split("_").slice(1).join("_") || "tool",
+      ];
+
+  const meta: MCPToolMeta = {
+    originalName,
+    transformedName,
+    serverName: serverName || "unknown",
+    toolName: toolName || "tool",
+  };
+
+  return {
+    ...mcpTool,
+    execute: async (params: Record<string, unknown>) => {
+      console.log(
+        `[MCP_TOOL] Executing ${originalName} (transformed from ${transformedName})`
+      );
+
+      const modifiedParams = { ...params };
+      if (originalName.startsWith("context7:") && "tokens" in params) {
+        const originalTokens = params.tokens;
+        const maxTokens = MAX_CONTEXT7_TOKENS;
+
+        if (typeof originalTokens === "number" && originalTokens > maxTokens) {
+          modifiedParams.tokens = maxTokens;
+          console.log(
+            `[MCP_TOOL] Limited Context7 tokens: ${originalTokens} → ${maxTokens}`
+          );
+        }
+      }
+
+      try {
+        return await mcpTool.execute(modifiedParams);
+      } catch (error) {
+        console.error(`[MCP_TOOL] Error executing ${originalName}:`, error);
+        throw error;
+      }
+    },
+    meta,
+  };
+}
+
 /**
  * Get the active filesystem watcher for a task (local mode only)
  */
-export function getFileSystemWatcher(taskId: string): LocalFileSystemWatcher | null {
+export function getFileSystemWatcher(
+  taskId: string
+): LocalFileSystemWatcher | null {
   return activeFileSystemWatchers.get(taskId) || null;
 }
 
@@ -95,7 +164,7 @@ export async function createTools(taskId: string, workspacePath?: string) {
 
   // Create tool executor through abstraction layer
   // The factory function is now smart enough to handle mode detection internally:
-  // - Local mode: uses workspacePath for filesystem operations  
+  // - Local mode: uses workspacePath for filesystem operations
   // - Remote mode: uses dynamic pod discovery to find actual running VMs
   const executor = await createToolExecutor(taskId, workspacePath);
 
@@ -115,7 +184,10 @@ export async function createTools(taskId: string, workspacePath?: string) {
         console.log(`[TOOLS] Reusing existing MCP manager for task ${taskId}`);
       }
     } catch (error) {
-      console.error(`[TOOLS] Failed to initialize MCP manager for task ${taskId}:`, error);
+      console.error(
+        `[TOOLS] Failed to initialize MCP manager for task ${taskId}:`,
+        error
+      );
       // Continue without MCP tools - graceful degradation
     }
   }
@@ -368,7 +440,12 @@ export async function createTools(taskId: string, workspacePath?: string) {
     edit_file: tool({
       description: readDescription("edit_file"),
       parameters: EditFileParamsSchema,
-      execute: async ({ target_file, instructions, code_edit, is_new_file }) => {
+      execute: async ({
+        target_file,
+        instructions,
+        code_edit,
+        is_new_file,
+      }) => {
         console.log(`[EDIT_FILE] ${instructions}`);
         const result = await executor.writeFile(
           target_file,
@@ -526,7 +603,11 @@ export async function createTools(taskId: string, workspacePath?: string) {
           }
 
           // Build filter conditions
-          const whereConditions: any = {
+          const whereConditions: {
+            userId: string;
+            repoFullName: string;
+            category?: MemoryCategory;
+          } = {
             userId: task.userId,
             repoFullName: task.repoFullName,
           };
@@ -646,13 +727,42 @@ export async function createTools(taskId: string, workspacePath?: string) {
   };
 
   // Get MCP tools if manager is available
-  let mcpTools = {};
+  const mcpTools: Record<string, MCPToolWrapper> = {};
   if (mcpManager) {
     try {
-      mcpTools = await mcpManager.getAvailableTools();
-      console.log(`[TOOLS] Retrieved ${Object.keys(mcpTools).length} MCP tools for task ${taskId}`);
+      const rawMCPTools = await mcpManager.getAvailableTools();
+      console.log(
+        `[TOOLS] Retrieved ${Object.keys(rawMCPTools).length} raw MCP tools for task ${taskId}`
+      );
+
+      for (const [originalName, mcpTool] of Object.entries(rawMCPTools)) {
+        const transformedName = transformMCPToolName(originalName);
+
+        registerMCPToolMapping(transformedName, originalName);
+
+        console.log(`[MCP_TRANSFORM] ${originalName} → ${transformedName}`);
+
+        const wrappedTool = createMCPToolWrapper(
+          originalName,
+          mcpTool as {
+            execute: (params: Record<string, unknown>) => Promise<unknown>;
+            description: string;
+            parameters: unknown;
+          }
+        );
+
+        mcpTools[transformedName] = wrappedTool;
+      }
+
+      console.log(
+        `✅ [MCP_SUCCESS] Registered ${Object.keys(mcpTools).length} MCP tools:`,
+        Object.keys(mcpTools)
+      );
     } catch (error) {
-      console.error(`[TOOLS] Failed to get MCP tools for task ${taskId}:`, error);
+      console.error(
+        `[TOOLS] Failed to get MCP tools for task ${taskId}:`,
+        error
+      );
     }
   }
 
@@ -757,7 +867,10 @@ export async function stopMCPManager(taskId: string): Promise<void> {
       activeMCPManagers.delete(taskId);
       console.log(`[TOOLS] Stopped MCP manager for task ${taskId}`);
     } catch (error) {
-      console.error(`[TOOLS] Error stopping MCP manager for task ${taskId}:`, error);
+      console.error(
+        `[TOOLS] Error stopping MCP manager for task ${taskId}:`,
+        error
+      );
       // Still remove from map even if cleanup failed
       activeMCPManagers.delete(taskId);
     }
@@ -772,7 +885,9 @@ export function stopAllFileSystemWatchers(): void {
     `[TOOLS] Stopping ${activeFileSystemWatchers.size} active filesystem watchers`
   );
 
-  for (const [taskId, watcher] of Array.from(activeFileSystemWatchers.entries())) {
+  for (const [taskId, watcher] of Array.from(
+    activeFileSystemWatchers.entries()
+  )) {
     watcher.stop();
     console.log(`[TOOLS] Stopped filesystem watcher for task ${taskId}`);
   }
@@ -784,18 +899,21 @@ export function stopAllFileSystemWatchers(): void {
  * Stop all active MCP managers (for graceful shutdown)
  */
 export async function stopAllMCPManagers(): Promise<void> {
-  console.log(
-    `[TOOLS] Stopping ${activeMCPManagers.size} active MCP managers`
-  );
+  console.log(`[TOOLS] Stopping ${activeMCPManagers.size} active MCP managers`);
 
-  const stopPromises = Array.from(activeMCPManagers.entries()).map(async ([taskId, manager]) => {
-    try {
-      await manager.closeAllConnections();
-      console.log(`[TOOLS] Stopped MCP manager for task ${taskId}`);
-    } catch (error) {
-      console.error(`[TOOLS] Error stopping MCP manager for task ${taskId}:`, error);
+  const stopPromises = Array.from(activeMCPManagers.entries()).map(
+    async ([taskId, manager]) => {
+      try {
+        await manager.closeAllConnections();
+        console.log(`[TOOLS] Stopped MCP manager for task ${taskId}`);
+      } catch (error) {
+        console.error(
+          `[TOOLS] Error stopping MCP manager for task ${taskId}:`,
+          error
+        );
+      }
     }
-  });
+  );
 
   await Promise.allSettled(stopPromises);
   activeMCPManagers.clear();
@@ -806,7 +924,9 @@ export async function stopAllMCPManagers(): Promise<void> {
  */
 export function getFileSystemWatcherStats() {
   const stats = [];
-  for (const [_taskId, watcher] of Array.from(activeFileSystemWatchers.entries())) {
+  for (const [_taskId, watcher] of Array.from(
+    activeFileSystemWatchers.entries()
+  )) {
     stats.push(watcher.getStats());
   }
   return {
@@ -823,7 +943,7 @@ export function cleanupTaskTerminalCounters(taskId: string): void {
   console.log(`[TOOLS] Cleaned up terminal counters for task ${taskId}`);
 }
 
-// Default tools export for backward compatibility (without todo_write)
+// Default tools export
 // Made lazy to avoid circular dependencies
 let _defaultTools: Awaited<ReturnType<typeof createTools>> | undefined;
 let _defaultToolsPromise:

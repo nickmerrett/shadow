@@ -1,39 +1,36 @@
 import type { Message } from "@repo/types";
 import { ToolComponent } from "./tool";
-import {
-  FileText,
-  ExternalLink,
-  AlertTriangle,
-  CheckCircle,
-} from "lucide-react";
 import { MemoizedMarkdown } from "../memoized-markdown";
-import { ToolTypes } from "@repo/types";
+import { ToolTypes, parseMCPToolName } from "@repo/types";
+import { MCPLogo } from "@/components/graphics/icons/mcp-logo";
 
 export function MCPTool({ message }: { message: Message }) {
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
-  // Parse MCP tool name (e.g., "context7:get-library-docs" -> "Context7" + "Get Library Docs")
-  const [serverName, toolName] = toolMeta.name.split(":");
-  const displayServerName = serverName
-    ? serverName.charAt(0).toUpperCase() + serverName.slice(1)
-    : "MCP";
-  const displayToolName = toolName
-    ? toolName
-        .split("-")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ")
-    : "Tool";
+  // Parse MCP tool name using shared utility
+  const parsed = parseMCPToolName(toolMeta.name);
+  if (!parsed) {
+    // Fallback for invalid MCP tool names
+    return (
+      <ToolComponent
+        type={ToolTypes.FILE_SEARCH}
+        icon={<MCPLogo />}
+        title={`Invalid MCP Tool: ${toolMeta.name}`}
+        collapsible={true}
+      >
+        <div className="text-sm text-red-500">
+          Unable to parse MCP tool name: {toolMeta.name}
+        </div>
+      </ToolComponent>
+    );
+  }
+
+  const { displayServerName, displayToolName } = parsed;
 
   const title = `${displayServerName}: ${displayToolName}`;
 
-  // Determine icon based on server name
-  let icon = <FileText className="text-blue-500" />;
-  if (serverName === "context7") {
-    icon = <FileText className="text-orange-500" />;
-  }
-
-  // Handle different result types
+  // Simplified result rendering - just show content[0].text or fallback
   const renderResult = () => {
     if (!toolMeta.result) {
       return (
@@ -43,15 +40,10 @@ export function MCPTool({ message }: { message: Message }) {
       );
     }
 
-    // Handle string results (common for documentation)
+    // Handle string results
     if (typeof toolMeta.result === "string") {
       return (
-        <div className="space-y-2">
-          <MemoizedMarkdown
-            content={toolMeta.result}
-            id={`mcp-${message.id}`}
-          />
-        </div>
+        <MemoizedMarkdown content={toolMeta.result} id={`mcp-${message.id}`} />
       );
     }
 
@@ -59,96 +51,34 @@ export function MCPTool({ message }: { message: Message }) {
     if (typeof toolMeta.result === "object") {
       const result = toolMeta.result as any;
 
-      // Handle common success/error pattern
-      if ("success" in result) {
-        if (!result.success && result.error) {
+      // Handle Context7 format with content array - show content[0].text
+      if (
+        "content" in result &&
+        Array.isArray(result.content) &&
+        result.content.length > 0
+      ) {
+        const firstContent = result.content[0];
+        if (
+          firstContent &&
+          typeof firstContent === "object" &&
+          "text" in firstContent
+        ) {
           return (
-            <div className="flex items-start gap-2 text-red-500">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-              <div className="space-y-1">
-                <div className="text-sm font-medium">Error</div>
-                <div className="text-sm">{result.error}</div>
-                {result.message && result.message !== result.error && (
-                  <div className="text-xs opacity-70">{result.message}</div>
-                )}
-              </div>
-            </div>
-          );
-        }
-
-        if (result.success && result.message) {
-          return (
-            <div className="flex items-start gap-2 text-green-600">
-              <CheckCircle className="mt-0.5 size-4 shrink-0" />
-              <div className="text-sm">{result.message}</div>
-            </div>
-          );
-        }
-      }
-
-      // Handle content field (common in documentation results)
-      if ("content" in result && typeof result.content === "string") {
-        return (
-          <div className="space-y-2">
             <MemoizedMarkdown
-              content={result.content}
+              content={firstContent.text}
               id={`mcp-content-${message.id}`}
             />
-          </div>
-        );
+          );
+        }
       }
 
-      // Handle documentation-specific result formats
-      if ("docs" in result || "documentation" in result) {
-        const docs = result.docs || result.documentation;
+      // Handle simple content string
+      if ("content" in result && typeof result.content === "string") {
         return (
-          <div className="space-y-2">
-            <MemoizedMarkdown
-              content={
-                typeof docs === "string" ? docs : JSON.stringify(docs, null, 2)
-              }
-              id={`mcp-docs-${message.id}`}
-            />
-          </div>
-        );
-      }
-
-      // Handle library resolution results (Context7 specific)
-      if ("library" in result || "libraryId" in result) {
-        return (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <ExternalLink className="size-4 text-blue-500" />
-              <span className="text-sm font-medium">
-                {result.library || result.libraryId}
-              </span>
-            </div>
-            {result.description && (
-              <div className="text-muted-foreground pl-6 text-sm">
-                {result.description}
-              </div>
-            )}
-            {result.version && (
-              <div className="text-muted-foreground pl-6 font-mono text-xs">
-                Version: {result.version}
-              </div>
-            )}
-          </div>
-        );
-      }
-
-      // Handle arrays of results
-      if (Array.isArray(result) && result.length > 0) {
-        return (
-          <div className="space-y-2">
-            {result.map((item, index) => (
-              <div key={index} className="border-muted border-l-2 pl-3 text-sm">
-                {typeof item === "string"
-                  ? item
-                  : JSON.stringify(item, null, 2)}
-              </div>
-            ))}
-          </div>
+          <MemoizedMarkdown
+            content={result.content}
+            id={`mcp-content-${message.id}`}
+          />
         );
       }
 
@@ -174,7 +104,7 @@ export function MCPTool({ message }: { message: Message }) {
   return (
     <ToolComponent
       type={ToolTypes.FILE_SEARCH} // Use existing type for consistent styling
-      icon={icon}
+      icon={<MCPLogo />}
       title={title}
       collapsible={true}
     >
