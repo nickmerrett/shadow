@@ -22,6 +22,7 @@ export class PRGenerator {
       gitDiff: string;
       commitMessages: string[];
       wasTaskCompleted: boolean;
+      shadowUrl?: string;
     },
     userApiKeys: ApiKeys
   ): Promise<{

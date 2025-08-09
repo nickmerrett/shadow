@@ -147,6 +147,7 @@ export class PRManager {
           gitDiff: diff,
           commitMessages,
           wasTaskCompleted: options.wasTaskCompleted,
+          shadowUrl: options.shadowUrl,
         },
         context.getApiKeys() // Pass full API keys for compatibility
       );
