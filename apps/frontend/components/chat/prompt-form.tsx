@@ -332,6 +332,13 @@ export function PromptForm({
   // Keyboard shortcuts, including submission handling for task page
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      // Handle Cmd+/ shortcut to toggle GitHub connection (only on home page)
+      if (event.key === "/" && event.metaKey && isHome) {
+        event.preventDefault();
+        setIsGithubConnectionOpen((prev) => !prev);
+        return;
+      }
+
       // For home page, enter handled by handleSubmit
       if (isHome) return;
 
@@ -386,6 +393,7 @@ export function PromptForm({
     messageOptions,
     isStreaming,
     handleOpenMessageOptions,
+    isGithubConnectionOpen,
   ]);
 
   const handleCreateTaskForIssue = (issue: GitHubIssue) => {
