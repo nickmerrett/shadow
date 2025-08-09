@@ -5,12 +5,7 @@ import { UserMessage } from "./user-message";
 import InitializingAnimation from "../task/initializing-animation";
 import { useMemo, memo, useRef, useEffect, useState } from "react";
 import { StackedPRCard } from "./stacked-pr-card";
-
-const StreamingStatus = {
-  IDLE: "idle" as const,
-  PENDING: "pending" as const,
-  STREAMING: "streaming" as const,
-};
+import { StreamingStatus } from "@/lib/constants";
 
 function GeneratingMessage() {
   const [dots, setDots] = useState(0);
@@ -77,11 +72,13 @@ function MessagesComponent({
   messages,
   disableEditing,
   streamingStatus,
+  setStreamingStatus,
 }: {
   taskId: string;
   messages: Message[];
   disableEditing: boolean;
   streamingStatus?: string;
+  setStreamingStatus?: (status: StreamingStatus) => void;
 }) {
   // Used to properly space the initializing animation
   const userMessageWrapperRef = useRef<HTMLButtonElement>(null);
@@ -118,6 +115,7 @@ function MessagesComponent({
                   isFirstMessage={groupIndex === 0}
                   disableEditing={disableEditing}
                   userMessageWrapperRef={userMessageWrapperRef}
+                  setStreamingStatus={setStreamingStatus}
                 />
               );
             }

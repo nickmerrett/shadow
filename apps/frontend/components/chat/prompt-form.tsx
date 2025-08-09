@@ -269,10 +269,22 @@ export function PromptForm({
         try {
           taskId = await createTask(formData);
         } catch (error) {
-          toast.error("Failed to create task", {
-            description:
-              error instanceof Error ? error.message : "Unknown error",
-          });
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+
+          // Show specific toast for task limit errors
+          if (
+            errorMessage.includes("maximum of") &&
+            errorMessage.includes("active tasks")
+          ) {
+            toast.error("Task limit reached", {
+              description: errorMessage,
+            });
+          } else {
+            toast.error("Failed to create task", {
+              description: errorMessage,
+            });
+          }
         }
         if (taskId) {
           queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -404,9 +416,22 @@ export function PromptForm({
       try {
         taskId = await createTask(formData);
       } catch (error) {
-        toast.error("Failed to create task", {
-          description: error instanceof Error ? error.message : "Unknown error",
-        });
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+
+        // Show specific toast for task limit errors
+        if (
+          errorMessage.includes("maximum of") &&
+          errorMessage.includes("active tasks")
+        ) {
+          toast.error("Task limit reached", {
+            description: errorMessage,
+          });
+        } else {
+          toast.error("Failed to create task", {
+            description: errorMessage,
+          });
+        }
       }
       if (taskId) {
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -528,8 +553,8 @@ export function PromptForm({
             <>
               <div className="bg-background absolute inset-px -z-10 rounded-[calc(var(--radius)+1px)]" />
               <div className="absolute inset-0 -z-20 overflow-hidden rounded-[calc(var(--radius)+1px)]">
-                <div className="new-task-pulse rotate-left absolute top-1/2 aspect-square w-full -translate-y-1/2"></div>
-                <div className="new-task-pulse rotate-right absolute top-1/2 aspect-square w-full -translate-y-1/2"></div>
+                <div className="new-task-pulse rotate-right absolute left-1/2 top-1/2 aspect-square w-[110%] -translate-x-1/2 -translate-y-1/2"></div>
+                <div className="new-task-pulse rotate-left absolute left-1/2 top-1/2 aspect-square w-[110%] -translate-x-1/2 -translate-y-1/2"></div>
               </div>
             </>
           )}

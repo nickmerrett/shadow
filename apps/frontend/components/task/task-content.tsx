@@ -5,12 +5,7 @@ import { PromptForm } from "@/components/chat/prompt-form";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useTaskMessages } from "@/hooks/use-task-messages";
 import { useTaskSocket } from "@/hooks/socket";
-
-const StreamingStatus = {
-  IDLE: "idle" as const,
-  PENDING: "pending" as const,
-  STREAMING: "streaming" as const,
-};
+import { StreamingStatus } from "@/lib/constants";
 import { useParams } from "next/navigation";
 import { ScrollToBottom } from "./scroll-to-bottom";
 import { useCallback, useMemo, memo } from "react";
@@ -38,6 +33,7 @@ function TaskPageContent() {
     streamingPartsMap,
     streamingPartsOrder,
     streamingStatus,
+    setStreamingStatus,
     sendMessage,
     stopStream,
     createStackedPR,
@@ -165,6 +161,7 @@ function TaskPageContent() {
           task?.status === "ARCHIVED" || task?.status === "INITIALIZING"
         }
         streamingStatus={streamingStatus}
+        setStreamingStatus={setStreamingStatus}
       />
 
       {task?.status !== "ARCHIVED" && (

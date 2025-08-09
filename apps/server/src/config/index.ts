@@ -13,7 +13,9 @@ if (nodeEnv === "production") {
   config = prodConfig;
 } else {
   // Development/test environment: Use local-focused configuration
-  console.log(`[CONFIG] Loading development configuration (Local mode) - NODE_ENV: ${nodeEnv}`);
+  console.log(
+    `[CONFIG] Loading development configuration (Local mode) - NODE_ENV: ${nodeEnv}`
+  );
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { default: devConfig } = require("./dev");
   config = devConfig;
@@ -26,3 +28,4 @@ export default config;
 export type { DevConfig } from "./dev";
 export type { ProdConfig } from "./prod";
 export type { SharedConfig } from "./shared";
+export { getCorsOrigins } from "./shared";

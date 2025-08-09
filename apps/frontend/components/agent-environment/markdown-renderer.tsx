@@ -114,7 +114,7 @@ export function MarkdownRenderer({
           p: ({ children }) => (
             <p
               className={cn(
-                "text-foreground mb-4 leading-relaxed",
+                "text-foreground mb-4 whitespace-pre-wrap leading-relaxed",
                 componentProps?.p
               )}
             >

@@ -1,6 +1,5 @@
 import { Message } from "@repo/types";
 import { useQuery, isCancelledError } from "@tanstack/react-query";
-import { useEffect } from "react";
 
 export function useTaskMessages(taskId: string) {
   const query = useQuery({

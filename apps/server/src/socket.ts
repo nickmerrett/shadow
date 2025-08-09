@@ -11,7 +11,7 @@ import {
 import http from "http";
 import { Server, Socket } from "socket.io";
 import { chatService } from "./app";
-import config from "./config";
+import config, { getCorsOrigins } from "./config";
 import { updateTaskStatus } from "./utils/task-status";
 import { createToolExecutor } from "./execution";
 import { setupSidecarNamespace } from "./services/sidecar-socket-handler";
@@ -251,15 +251,11 @@ export function emitToTask(
 export function createSocketServer(
   server: http.Server
 ): Server<ClientToServerEvents, ServerToClientEvents> {
-  // Determine Socket.IO CORS origins based on environment (same as main app)
-  const socketCorsOrigins =
-    process.env.NODE_ENV === "production"
-      ? ["https://shadow-agent-dev.vercel.app", "https://www.shadowrealm.ai"]
-      : ["http://localhost:3000"];
+  const socketCorsOrigins = getCorsOrigins(config);
 
   console.log(`[SOCKET] Allowing origins:`, socketCorsOrigins);
 
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction = config.nodeEnv === "production";
 
   io = new Server(server, {
     cors: {

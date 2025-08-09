@@ -9,6 +9,8 @@ dotenv.config();
  * Focused on local development with minimal complexity
  */
 const devConfigSchema = sharedConfigSchema.extend({
+  // CORS origins for development
+  CORS_ORIGINS: z.string().default("http://localhost:3000"),
   // Development execution mode (defaults to local)
   AGENT_MODE: z.enum(["local", "remote"]).default("local"),
 

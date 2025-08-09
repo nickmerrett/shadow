@@ -26,23 +26,25 @@
 .new-task-pulse {
   background: conic-gradient(
     from 0deg,
-    var(--background) 0%,
-    var(--background) 40%,
-    var(--foreground) 50%,
-    var(--background) 60%,
-    var(--background) 100%
+    #eeeeee00 0%,
+    #eeeeee00 40%,
+    #eeeeee 50%,
+    #eeeeee00 60%,
+    #eeeeee00 100%
   );
   opacity: 0;
+  animation-delay: 0.1s;
+  animation-duration: 1.2s;
+  animation-timing-function: var(--ease-out-quad);
+  animation-fill-mode: forwards;
 }
 
 .rotate-left {
-  animation: rotate-left 1s var(--ease-out-quad) forwards;
-  animation-delay: 0.2s;
+  animation-name: rotate-left;
 }
 
 .rotate-right {
-  animation: rotate-right 1s var(--ease-out-quad) forwards;
-  animation-delay: 0.2s;
+  animation-name: rotate-right;
 }
 
 @keyframes rotate-left {
@@ -51,7 +53,10 @@
     opacity: 0;
   }
   10% {
-    opacity: 0.5;
+    opacity: 0.1;
+  }
+  40% {
+    opacity: 0.3;
   }
   100% {
     transform: rotate(180deg);
@@ -65,7 +70,10 @@
     opacity: 0;
   }
   10% {
-    opacity: 0.5;
+    opacity: 0.1;
+  }
+  40% {
+    opacity: 0.3;
   }
   100% {
     transform: rotate(-180deg);

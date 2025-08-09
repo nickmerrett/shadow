@@ -6,6 +6,7 @@ import cors from "cors";
 import express from "express";
 import http from "http";
 import { z } from "zod";
+import config, { getCorsOrigins } from "./config";
 import { ChatService } from "./agent/chat";
 import { TaskInitializationEngine } from "./initialization";
 import { errorHandler } from "./middleware/error-handler";
@@ -13,6 +14,7 @@ import { apiKeyAuth } from "./middleware/api-key-auth";
 import { createSocketServer } from "./socket";
 import { getGitHubAccessToken } from "./github/auth/account-service";
 import { updateTaskStatus } from "./utils/task-status";
+import { hasReachedTaskLimit } from "./services/task-limit";
 import { createWorkspaceManager } from "./execution";
 import { filesRouter } from "./files/router";
 import { handleGitHubWebhook } from "./webhooks/github-webhook";
@@ -36,11 +38,7 @@ const initiateTaskSchema = z.object({
 const socketIOServer = http.createServer(app);
 createSocketServer(socketIOServer);
 
-// Determine CORS origins based on environment
-const corsOrigins =
-  process.env.NODE_ENV === "production"
-    ? ["https://shadow-agent-dev.vercel.app", "https://www.shadowrealm.ai"]
-    : ["http://localhost:3000"];
+const corsOrigins = getCorsOrigins(config);
 
 console.log(`[CORS] Allowing origins:`, corsOrigins);
 
@@ -140,6 +138,16 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
     }
 
     const { message, model, userId } = validation.data;
+
+    // Check task limit before processing (production only)
+    const isAtLimit = await hasReachedTaskLimit(userId);
+    if (isAtLimit) {
+      return res.status(429).json({
+        error: "Task limit reached",
+        message:
+          "You have reached the maximum number of active tasks. Please complete or archive existing tasks to create new ones.",
+      });
+    }
 
     // Verify task exists
     const task = await prisma.task.findUnique({

@@ -31,12 +31,7 @@ import { Badge } from "../ui/badge";
 import { GithubLogo } from "../graphics/github/github-logo";
 import { useCreatePR } from "@/hooks/use-create-pr";
 import { useTaskSocket } from "@/hooks/socket";
-
-const StreamingStatus = {
-  IDLE: "idle" as const,
-  PENDING: "pending" as const,
-  STREAMING: "streaming" as const,
-};
+import { StreamingStatus } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
 import { useIndexingStatus } from "@/hooks/use-indexing-status";
 import { useQueryClient } from "@tanstack/react-query";
@@ -361,7 +356,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           </SidebarMenuItem>
 
           {/* Task total diff */}
-          {diffStats.totalFiles > 0 && (
+          {(diffStats.additions > 0 || diffStats.deletions > 0) && (
             <SidebarMenuItem>
               <div className="flex h-8 items-center gap-2 px-2 text-sm">
                 <FileDiff className="size-4" />

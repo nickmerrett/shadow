@@ -8,8 +8,6 @@ import { ToolComponent } from "./tool";
 export function EditFileTool({ message }: { message: Message }) {
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
 
-  console.log("EditFileTool", message);
-
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 

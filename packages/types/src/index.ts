@@ -44,3 +44,6 @@ export * from "./github";
 export * from "./indexing/options";
 // === API Keys Types ===
 export * from "./api-keys";
+
+// === Task Limits ===
+export const MAX_TASKS_PER_USER_PRODUCTION = 5;

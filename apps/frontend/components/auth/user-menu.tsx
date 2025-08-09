@@ -51,7 +51,9 @@ export function UserMenu() {
               priority
             />
           ) : (
-            <User className="size-4" />
+            <div className="bg-sidebar-accent flex size-7 items-center justify-center rounded-full">
+              <User className="text-muted-foreground size-4" />
+            </div>
           )}
         </button>
       </DropdownMenuTrigger>

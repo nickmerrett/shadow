@@ -8,9 +8,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { FileText, FolderOpen, FolderGit2 } from "lucide-react";
+import { Folder, Brain } from "lucide-react";
 import { useMemo } from "react";
 import { useCodebase } from "@/hooks/use-codebase";
+import { FileIcon } from "../ui/file-icon";
+import { Button } from "../ui/button";
+import { GithubLogo } from "../graphics/github/github-logo";
 
 export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
   const { data: codebase } = useCodebase(codebaseId);
@@ -22,7 +25,7 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
     const repoSummaries = summaries.filter((s) => s.type === "repo_summary");
     const fileSummaries = summaries.filter((s) => s.type === "file_summary");
     const directorySummaries = summaries.filter(
-      (s) => s.type === "directory_summary",
+      (s) => s.type === "directory_summary"
     );
     return { repoSummaries, fileSummaries, directorySummaries };
   }, [summaries]);
@@ -34,30 +37,19 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
     }
   };
 
-  const getFileName = (filePath: string) => {
-    return filePath.split("/").pop() || filePath;
-  };
-
-  const removeFileExtension = (fileName: string) => {
-    const lastDotIndex = fileName.lastIndexOf(".");
-    if (lastDotIndex > 0 && lastDotIndex < fileName.length - 1) {
-      return fileName.substring(0, lastDotIndex);
-    }
-    return fileName;
-  };
-
   if (summaries.length === 0) {
     return (
       <SidebarContent className="h-full">
         <SidebarGroup>
-          <SidebarGroupLabel>Table of Contents</SidebarGroupLabel>
+          <SidebarGroupLabel className="hover:text-muted-foreground">
+            Overview
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <div className="flex flex-1 items-center justify-center py-8">
-              <div className="text-muted-foreground text-center text-sm">
-                <FolderGit2 className="mx-auto mb-2 size-8 opacity-50" />
-                <p>No documentation available</p>
-              </div>
-            </div>
+            <SidebarMenuItem>
+              <SidebarMenuButton disabled>
+                <span className="truncate">No documentation available</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
@@ -65,16 +57,37 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
   }
 
   return (
-    <SidebarContent className="h-full">
+    <>
+      {codebase?.repoUrl && (
+        <SidebarGroup>
+          <SidebarGroupContent className="flex flex-col gap-0.5">
+            <SidebarMenuItem>
+              <Button
+                variant="ghost"
+                className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+                asChild
+              >
+                <a href={codebase?.repoUrl} target="_blank" rel="noreferrer">
+                  <GithubLogo className="size-4 shrink-0" />
+                  <span className="truncate">{codebase?.repoFullName}</span>
+                </a>
+              </Button>
+            </SidebarMenuItem>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      )}
+
       {/* Project Overview */}
       {repoSummaries.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel>Overview</SidebarGroupLabel>
+          <SidebarGroupLabel className="hover:text-muted-foreground">
+            Overview
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             {repoSummaries.map((summary) => (
               <SidebarMenuItem key={summary.id}>
                 <SidebarMenuButton onClick={() => scrollToSection(summary.id)}>
-                  <FolderGit2 className="size-4 shrink-0" />
+                  <Brain className="size-4 shrink-0" />
                   <span className="truncate">Project Overview</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -86,15 +99,19 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
       {/* Files */}
       {fileSummaries.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel>Files</SidebarGroupLabel>
+          <SidebarGroupLabel className="hover:text-muted-foreground">
+            Files
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             {fileSummaries.map((file) => (
               <SidebarMenuItem key={file.id}>
                 <SidebarMenuButton onClick={() => scrollToSection(file.id)}>
-                  <FileText className="size-4 shrink-0" />
-                  <span className="truncate">
-                    {removeFileExtension(getFileName(file.filePath || ""))}
-                  </span>
+                  <FileIcon
+                    filename={file.filePath || ""}
+                    useFallback
+                    className="size-4 shrink-0"
+                  />
+                  <span className="truncate">{file.filePath}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
@@ -105,14 +122,16 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
       {/* Directories */}
       {directorySummaries.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel>Directories</SidebarGroupLabel>
+          <SidebarGroupLabel className="hover:text-muted-foreground">
+            Directories
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             {directorySummaries.map((directory) => (
               <SidebarMenuItem key={directory.id}>
                 <SidebarMenuButton
                   onClick={() => scrollToSection(directory.id)}
                 >
-                  <FolderOpen className="size-4 shrink-0" />
+                  <Folder className="size-4 shrink-0" />
                   <span className="truncate">{directory.filePath}/</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -120,6 +139,6 @@ export function SidebarCodebaseView({ codebaseId }: { codebaseId: string }) {
           </SidebarGroupContent>
         </SidebarGroup>
       )}
-    </SidebarContent>
+    </>
   );
 }
