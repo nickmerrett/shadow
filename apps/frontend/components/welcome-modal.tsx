@@ -56,7 +56,7 @@ export function WelcomeModal({
     <Dialog open={open} onOpenChange={canGetStarted ? onOpenChange : undefined}>
       <DialogContent showCloseButton={false}>
         <DialogHeader className="items-center py-4">
-          <LogoBurst size="lg" forceAnimate />
+          <LogoBurst size="lg" forceAnimate={canGetStarted} />
           <DialogTitle className="sr-only">Welcome to Shadow</DialogTitle>
         </DialogHeader>
 
@@ -113,13 +113,13 @@ export function WelcomeModal({
               <div className="flex flex-col gap-3">
                 <p className="text-muted-foreground text-[13px] leading-tight">
                   <strong>Important:</strong> While your data is stored
-                  securely, we recommend avoiding work on super
-                  high-confidentiality codebases in Shadow. Your API keys are
-                  never permanently stored remotely.{" "}
+                  securely, we recommend not working on codebases requiring
+                  enterprise-grade security with Shadow. Your API keys are never
+                  permanently stored remotely.{" "}
                   <Link
                     href="https://example.com"
                     target="_blank"
-                    className="underline"
+                    className="font-medium underline"
                   >
                     Privacy Policy
                   </Link>
@@ -128,16 +128,16 @@ export function WelcomeModal({
             </div>
           </div>
 
-          {/* Get Started button - only show when first two tasks are complete */}
-          {canGetStarted && (
-            <div className="border-t pt-4">
-              <div className="flex justify-center">
-                <Button onClick={() => onOpenChange(false)} className="px-8">
-                  Get Started
-                </Button>
-              </div>
-            </div>
-          )}
+          {/* Get Started button - always show, full width */}
+          <div className="">
+            <Button
+              onClick={() => onOpenChange(false)}
+              disabled={!canGetStarted}
+              className="w-full"
+            >
+              Start Building
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
