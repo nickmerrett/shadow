@@ -29,3 +29,7 @@ export type { DevConfig } from "./dev";
 export type { ProdConfig } from "./prod";
 export type { SharedConfig } from "./shared";
 export { getCorsOrigins } from "./shared";
+
+// MCP configuration exports
+export { MCP_SERVERS, getEnabledMCPServers, getMCPServerConfig, MCP_ENABLED } from "./mcp";
+export type { MCPServerConfig } from "../agent/mcp/types";
