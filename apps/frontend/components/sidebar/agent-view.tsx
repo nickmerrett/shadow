@@ -30,7 +30,7 @@ import Link from "next/link";
 import { Badge } from "../ui/badge";
 import { GithubLogo } from "../graphics/github/github-logo";
 import { useCreatePR } from "@/hooks/use-create-pr";
-import { useTaskSocket } from "@/hooks/socket";
+import { useTaskSocketContext } from "@/contexts/task-socket-context";
 import { StreamingStatus } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
 import { useIndexingStatus } from "@/hooks/use-indexing-status";
@@ -108,7 +108,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
-  const { streamingStatus, autoPRStatus } = useTaskSocket(taskId);
+  const { streamingStatus, autoPRStatus } = useTaskSocketContext();
   const createPRMutation = useCreatePR();
   const queryClient = useQueryClient();
 

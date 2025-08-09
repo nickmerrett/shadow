@@ -2,14 +2,14 @@ import { ListEnd, X, GitBranchPlus } from "lucide-react";
 import { Button } from "../ui/button";
 import { useParams } from "next/navigation";
 import { useQueuedAction } from "@/hooks/use-queued-action";
-import { useTaskSocket } from "@/hooks/socket";
+import { useTaskSocketContext } from "@/contexts/task-socket-context";
 import { useQueryClient } from "@tanstack/react-query";
 
 export function QueuedAction() {
   const { taskId } = useParams<{ taskId: string }>();
 
   const queryClient = useQueryClient();
-  const { clearQueuedAction } = useTaskSocket(taskId);
+  const { clearQueuedAction } = useTaskSocketContext();
   const { data: queuedAction } = useQueuedAction(taskId);
 
   if (!queuedAction) return null;

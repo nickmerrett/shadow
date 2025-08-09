@@ -1,5 +1,6 @@
 import { SidebarViews } from "@/components/sidebar";
 import { AgentEnvironmentProvider } from "@/components/agent-environment/agent-environment-context";
+import { TaskSocketProvider } from "@/contexts/task-socket-context";
 import { getApiKeys, getModels } from "@/lib/actions/api-keys";
 import { getUser } from "@/lib/auth/get-user";
 import { getTaskMessages } from "@/lib/db-operations/get-task-messages";
@@ -13,7 +14,6 @@ import {
 import { notFound } from "next/navigation";
 import { getCodebases } from "@/lib/db-operations/get-codebases";
 
-
 export default async function TaskLayout({
   children,
   params,
@@ -22,9 +22,9 @@ export default async function TaskLayout({
   params: Promise<{ taskId: string }>;
 }>) {
   const { taskId } = await params;
-  
+
   const user = await getUser();
-  
+
   const [
     initialTasks,
     initialCodebases,
@@ -87,14 +87,16 @@ export default async function TaskLayout({
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <AgentEnvironmentProvider taskId={taskId}>
-        <SidebarViews
-          initialTasks={initialTasks}
-          initialCodebases={initialCodebases}
-          currentTaskId={task.id}
-        />
-        {children}
-      </AgentEnvironmentProvider>
+      <TaskSocketProvider taskId={taskId}>
+        <AgentEnvironmentProvider taskId={taskId}>
+          <SidebarViews
+            initialTasks={initialTasks}
+            initialCodebases={initialCodebases}
+            currentTaskId={task.id}
+          />
+          {children}
+        </AgentEnvironmentProvider>
+      </TaskSocketProvider>
     </HydrationBoundary>
   );
 }

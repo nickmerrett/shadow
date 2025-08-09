@@ -24,7 +24,7 @@ import { LoadingPRCard } from "./loading-pr-card";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { useTaskSocket } from "@/hooks/socket";
+import { useTaskSocketContext } from "@/contexts/task-socket-context";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,7 +77,7 @@ export function AssistantMessage({
     isCopied: isMessageContentCopied,
   } = useCopyToClipboard();
   const { copyToClipboard: copyMessageId } = useCopyToClipboard();
-  const { autoPRStatus } = useTaskSocket(taskId);
+  const { autoPRStatus } = useTaskSocketContext();
 
   const toolResultsMap = useMemo(() => {
     const map = new Map<string, { result: unknown; toolName: string }>();
