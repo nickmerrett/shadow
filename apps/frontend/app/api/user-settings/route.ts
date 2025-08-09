@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { autoPullRequest, enableShadowWiki, memoriesEnabled, selectedModels, enableIndexing } =
+    const { autoPullRequest, enableShadowWiki, memoriesEnabled, selectedModels, enableIndexing, rules } =
       body;
 
     // Validate autoPullRequest if provided
@@ -81,6 +81,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate rules if provided
+    if (rules !== undefined && rules !== null && typeof rules !== "string") {
+      return NextResponse.json(
+        { error: "rules must be a string or null" },
+        { status: 400 }
+      );
+    }
+
+    // Validate rules word count if provided
+    if (rules && typeof rules === "string") {
+      const wordCount = rules.trim().split(/\s+/).filter(word => word.length > 0).length;
+      if (wordCount > 50) {
+        return NextResponse.json(
+          { error: "rules cannot exceed 50 words" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Build update object with only provided fields
     const updateData: {
       autoPullRequest?: boolean;
@@ -88,6 +107,7 @@ export async function POST(request: NextRequest) {
       memoriesEnabled?: boolean;
       selectedModels?: string[];
       enableIndexing?: boolean;
+      rules?: string;
     } = {};
     if (autoPullRequest !== undefined)
       updateData.autoPullRequest = autoPullRequest;
@@ -99,6 +119,8 @@ export async function POST(request: NextRequest) {
       updateData.selectedModels = selectedModels;
     if (enableIndexing !== undefined)
       updateData.enableIndexing = enableIndexing;
+    if (rules !== undefined)
+      updateData.rules = rules || null;
 
     const settings = await updateUserSettings(session.user.id, updateData);
 
