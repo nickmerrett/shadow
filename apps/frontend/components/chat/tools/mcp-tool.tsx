@@ -9,20 +9,8 @@ export function MCPTool({ message }: { message: Message }) {
   if (!toolMeta) return null;
 
   // Get custom title and prefix using utility functions
-  console.log(
-    "[MCP_COMPONENT_DEBUG] Tool name:",
-    toolMeta.name,
-    "Args:",
-    toolMeta.args
-  );
   const title = getMCPToolTitle(toolMeta.name, toolMeta.args || {});
   const prefix = getMCPToolPrefix(toolMeta.name);
-  console.log(
-    "[MCP_COMPONENT_DEBUG] Generated title:",
-    title,
-    "prefix:",
-    prefix
-  );
 
   const renderMarkdownOnly = () => {
     if (!toolMeta.result) {

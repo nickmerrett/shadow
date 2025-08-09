@@ -123,20 +123,13 @@ export function getMCPToolTitle(
   toolName: string,
   args: Record<string, any> = {}
 ): string {
-  console.log("[MCP_TITLE_DEBUG] Tool name:", toolName, "Args:", args);
-
   // Get original name if this is a transformed tool, otherwise use as-is
   const originalName = getOriginalMCPToolName(toolName) || toolName;
-  console.log("[MCP_TITLE_DEBUG] Original name:", originalName);
 
   // Handle context7_resolve_library_id (with underscores!)
   if (originalName === "context7_resolve_library_id") {
     const libraryName =
       args?.libraryName || args?.library || args?.name || "Unknown";
-    console.log(
-      "[MCP_TITLE_DEBUG] Resolve library - libraryName:",
-      libraryName
-    );
     return `Find Library "${libraryName}"`;
   }
 
@@ -148,20 +141,12 @@ export function getMCPToolTitle(
       args?.libraryId ||
       "Unknown";
     const topic = args?.topic || args?.query || args?.search || "Documentation";
-    console.log(
-      "[MCP_TITLE_DEBUG] Get docs - libraryID:",
-      libraryID,
-      "topic:",
-      topic
-    );
     return `${libraryID} "${topic}"`;
   }
 
   // Fallback to display name
   const parsed = parseMCPToolName(toolName);
-  const fallback = parsed ? parsed.displayToolName : toolName;
-  console.log("[MCP_TITLE_DEBUG] Using fallback:", fallback);
-  return fallback;
+  return parsed ? parsed.displayToolName : toolName;
 }
 
 /**
