@@ -475,7 +475,7 @@ export function PromptForm({
           <div className="from-background via-background/60 pointer-events-none absolute -left-px -top-[calc(4rem-1px)] -z-10 h-16 w-[calc(100%+2px)] -translate-y-px bg-gradient-to-t to-transparent" />
         )}
 
-        <QueuedAction />
+        {!isHome && <QueuedAction />}
 
         {/* Wrapper div with textarea styling */}
         {/* Outer div acts as a border, with a border-radius 1px larger than the inner div and 1px padding */}
