@@ -1,4 +1,5 @@
 import type { Message } from "@repo/types";
+import { isMCPTool as checkIfMCPTool } from "@repo/types";
 
 // Tool-specific components
 import { SemanticSearchTool } from "./semantic-search";
@@ -15,6 +16,7 @@ import { WebSearchTool } from "./web-search";
 import { AddMemoryTool } from "./add-memory";
 import { ListMemoriesTool } from "./list-memories";
 import { RemoveMemoryTool } from "./remove-memory";
+import { MCPTool } from "./mcp-tool";
 
 const TOOL_COMPONENTS = {
   todo_write: TodoWriteTool,
@@ -45,6 +47,12 @@ export function ToolMessage({ message }: { message: Message }) {
     return <span className="text-muted-foreground">{message.content}</span>;
   }
 
+  // Check if this is an MCP tool using shared utility
+  if (checkIfMCPTool(toolMeta.name)) {
+    return <MCPTool message={message} />;
+  }
+
+  // Handle native tools with hardcoded mapping
   const ToolComponent = TOOL_COMPONENTS[toolMeta.name as ToolName];
 
   if (!ToolComponent) {
@@ -73,4 +81,5 @@ export {
   AddMemoryTool,
   ListMemoriesTool,
   RemoveMemoryTool,
+  MCPTool,
 };

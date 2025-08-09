@@ -6,6 +6,7 @@ import {
   ValidationErrorResult,
   getModelProvider,
   ModelType,
+  isTransformedMCPTool,
 } from "@repo/types";
 import { ToolValidator } from "../validation/tool-validator";
 
@@ -40,9 +41,17 @@ export class ChunkHandlers {
       },
     });
 
-    if (chunk.toolName in ToolResultSchemas) {
-      // Valid tool - store in map for result processing
+    if (
+      chunk.toolName in ToolResultSchemas ||
+      isTransformedMCPTool(chunk.toolName)
+    ) {
+      // Valid tool (native or MCP) - store in map for result processing
       toolCallMap.set(chunk.toolCallId, chunk.toolName as ToolName);
+      if (isTransformedMCPTool(chunk.toolName)) {
+        console.log(
+          `✅ [MCP_STREAMING] Registered MCP tool call ID: ${chunk.toolCallId} for ${chunk.toolName}`
+        );
+      }
     } else {
       // Invalid tool - emit immediate error tool-result
       const availableTools = Object.keys(ToolResultSchemas).join(", ");
@@ -95,9 +104,16 @@ export class ChunkHandlers {
       },
     });
 
-    // Pre-register the tool in the map if it's valid (for later result processing)
-    if (chunk.toolName in ToolResultSchemas) {
+    if (
+      chunk.toolName in ToolResultSchemas ||
+      isTransformedMCPTool(chunk.toolName)
+    ) {
       toolCallMap.set(chunk.toolCallId, chunk.toolName as ToolName);
+      if (isTransformedMCPTool(chunk.toolName)) {
+        console.log(
+          `✅ [MCP_STREAMING_START] Registered MCP streaming tool ID: ${chunk.toolCallId} for ${chunk.toolName}`
+        );
+      }
     } else {
       console.warn(
         `[LLM] Invalid tool call streaming start: ${chunk.toolName}`
@@ -156,6 +172,10 @@ export class ChunkHandlers {
     console.log(
       `[CHUNK_DEBUG] Found tool name ${toolName} for call ID ${chunk.toolCallId}`
     );
+
+    if (isTransformedMCPTool(toolName)) {
+      console.log(`🎯 [MCP_RESULT] Processing MCP tool result for ${toolName}`);
+    }
 
     // Validate tool execution results (not parameters - those are handled by AI SDK repair)
     // This catches: malformed tool outputs, implementation bugs, external service failures

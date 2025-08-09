@@ -4,6 +4,8 @@ import {
   ToolResultSchemas,
   ValidationErrorResult,
   createValidator,
+  isTransformedMCPTool,
+  getOriginalMCPToolName,
 } from "@repo/types";
 import { ValidationHelpers } from "./validation-helpers";
 
@@ -14,7 +16,7 @@ export class ToolValidator {
    * Validates a tool result and creates a graceful error result if validation fails
    */
   validateToolResult(
-    toolName: ToolName,
+    toolName: ToolName | string, // Allow MCP tool names (e.g., "context7:get-library-docs")
     result: unknown
   ): {
     isValid: boolean;
@@ -36,11 +38,42 @@ export class ToolValidator {
           ? Object.keys(result)
           : "not-object",
       resultPreview: JSON.stringify(result).substring(0, 200),
+      toolNameFormat: toolName.includes(':') ? 'original_colon' : toolName.includes('_') ? 'transformed_underscore' : 'native'
     });
 
     try {
-      // toolName is guaranteed to be valid, validate the result directly
-      const schema = ToolResultSchemas[toolName];
+      // Check if this is an MCP tool (either original format with colon or transformed format)
+      if (typeof toolName === 'string') {
+        // Check original MCP format (server:tool)
+        if (toolName.includes(':')) {
+          console.log(`[VALIDATION_DEBUG] Skipping validation for original MCP tool: ${toolName}`);
+          return {
+            isValid: true,
+            validatedResult: result as ToolResultTypes["result"],
+            shouldEmitError: false,
+          };
+        }
+        
+        // Check transformed MCP format (server_tool)
+        if (isTransformedMCPTool(toolName)) {
+          const originalName = getOriginalMCPToolName(toolName);
+          console.log(`[VALIDATION_DEBUG] Skipping validation for transformed MCP tool: ${toolName} (original: ${originalName})`);
+          return {
+            isValid: true,
+            validatedResult: result as ToolResultTypes["result"],
+            shouldEmitError: false,
+          };
+        }
+      }
+
+      // Check if this looks like an MCP tool name but wasn't recognized
+      if (typeof toolName === 'string' && (toolName.includes('_') && /^[a-zA-Z0-9]+[_][a-zA-Z0-9_-]+$/.test(toolName))) {
+        console.log(`🚨 [MCP_VALIDATION_ERROR] Unknown MCP tool called: ${toolName}`);
+        console.log(`❌ [MCP_DEBUG] This looks like an MCP tool but wasn't found in our registry`);
+      }
+
+      // toolName is guaranteed to be valid for native tools, validate the result directly
+      const schema = ToolResultSchemas[toolName as ToolName];
       console.log(`[VALIDATION_DEBUG] Using schema for ${toolName}:`, {
         schemaExists: !!schema,
         schemaType: schema?._def?.typeName,
