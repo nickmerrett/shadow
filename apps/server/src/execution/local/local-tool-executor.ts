@@ -672,33 +672,32 @@ export class LocalToolExecutor implements ToolExecutor {
       );
     }
 
-    const sanitizedCommand = validation.sanitizedCommand!;
-    const sanitizedArgs = validation.sanitizedArgs!;
+    // Shell mode enabled - using original command for full shell features
 
     try {
       if (options?.isBackground) {
-        // For background commands, use spawn for better security
-        const child = spawn(sanitizedCommand, sanitizedArgs, {
+        // For background commands, use spawn with shell enabled
+        const child = spawn(command, {
           cwd: this.workspacePath,
           detached: true,
           stdio: "ignore",
+          shell: true,
         });
 
         child.unref(); // Allow parent to exit
 
-        console.log(`[LOCAL] Background command started: ${sanitizedCommand}`);
+        console.log(`[LOCAL] Background command started: ${command}`);
 
         return {
           success: true,
-          message: `Background command started: ${sanitizedCommand}`,
+          message: `Background command started: ${command}`,
           isBackground: true,
           securityLevel: validation.securityLevel,
         };
       } else {
-        // For foreground commands, use secure spawn with timeout
+        // For foreground commands, use secure spawn with timeout and shell
         const result = await this.executeSecureCommand(
-          sanitizedCommand,
-          sanitizedArgs,
+          command,
           30000 // 30 second timeout
         );
 
@@ -709,8 +708,8 @@ export class LocalToolExecutor implements ToolExecutor {
           stderr: result.stderr.trim(),
           exitCode: result.exitCode,
           message: success
-            ? `Command executed successfully: ${sanitizedCommand}`
-            : `Command failed with exit code ${result.exitCode}: ${sanitizedCommand}`,
+            ? `Command executed successfully: ${command}`
+            : `Command failed with exit code ${result.exitCode}: ${command}`,
           securityLevel: validation.securityLevel,
         };
       }
@@ -721,24 +720,24 @@ export class LocalToolExecutor implements ToolExecutor {
       return {
         success: false,
         error: errorMessage,
-        message: `Failed to execute command: ${sanitizedCommand}`,
+        message: `Failed to execute command: ${command}`,
         securityLevel: validation.securityLevel,
       };
     }
   }
 
   /**
-   * Execute command securely using spawn with timeout
+   * Execute command securely using spawn with timeout and shell enabled
    */
   private async executeSecureCommand(
     command: string,
-    args: string[],
     timeout: number
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     return new Promise((resolve, reject) => {
-      const child = spawn(command, args, {
+      const child = spawn(command, {
         cwd: this.workspacePath,
         stdio: ["pipe", "pipe", "pipe"],
+        shell: true,
       });
 
       let stdout = "";

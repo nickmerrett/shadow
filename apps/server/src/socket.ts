@@ -772,8 +772,6 @@ export async function emitTaskStatusUpdate(
 }
 
 export function emitStreamChunk(chunk: StreamChunk, taskId: string) {
-  console.log("emitStreamChunk", chunk);
-
   // Store the chunk for state recovery (exclude complete/error chunks from state)
   if (chunk.type !== "complete" && chunk.type !== "error") {
     const streamState = getOrCreateTaskStreamState(taskId);
