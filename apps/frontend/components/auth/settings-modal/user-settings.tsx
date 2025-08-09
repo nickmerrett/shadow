@@ -24,12 +24,13 @@ export function UserSettings() {
   const [rulesValue, setRulesValue] = useState("");
   const [isRulesUpdating, setIsRulesUpdating] = useState(false);
 
+  // Initialize from server state
   useEffect(() => {
     setRulesValue(userSettings?.rules || "");
-  }, [userSettings]);
+  }, [userSettings?.rules]);
 
-  // Debounced rules update using the project's hook
-  const debouncedRulesUpdate = useDebounceCallback((value: string) => {
+  // Debounced save to server
+  const debouncedSave = useDebounceCallback((value: string) => {
     setIsRulesUpdating(true);
     updateUserSettings.mutate(
       { rules: value || null },
@@ -75,7 +76,7 @@ export function UserSettings() {
     const words = value.trim().split(/\s+/).filter(word => word.length > 0);
     if (words.length <= 100) {
       setRulesValue(value);
-      debouncedRulesUpdate(value);
+      debouncedSave(value);
     }
   };
 
