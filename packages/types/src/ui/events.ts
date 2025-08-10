@@ -88,6 +88,7 @@ export interface ServerToClientEvents {
     model: ModelType;
     shadowBranch?: string;
     title?: string;
+    newTaskId?: string;
   }) => void;
 }
 
@@ -116,6 +117,7 @@ export interface ClientToServerEvents {
     message: string;
     llmModel: ModelType;
     queue?: boolean;
+    newTaskId?: string;
   }) => void;
 
   "get-terminal-history": (data: { taskId: string }) => void;
