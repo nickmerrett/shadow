@@ -1,6 +1,6 @@
 "use client";
 
-import "./messages.css";
+import "../messages/messages.css";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
