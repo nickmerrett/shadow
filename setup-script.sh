@@ -82,7 +82,7 @@ main() {
     GITHUB_CLIENT_ID=$(ask_required "GitHub Client ID")
     GITHUB_CLIENT_SECRET=$(ask_required "GitHub Client Secret")
     echo "See this guide for more information: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
-    echo "Ensure that your token has the ability to: read read contents of repositories (Select 'Contents' in the 'Select scopes' dropdown)"
+    echo "Ensure that your token has the ability to: read contents of repositories (Select 'Contents' in the 'Select scopes' dropdown)"
     GITHUB_PERSONAL_TOKEN=$(ask_required "GitHub Personal Access Token")
 
     # Authentication Configuration
