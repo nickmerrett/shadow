@@ -9,6 +9,10 @@ import {
   GitDiffResponse,
   GitCommitResponse,
   GitPushResponse,
+  GitBranchInfoResponse,
+  GitCommitInfoResponse,
+  GitCheckoutResponse,
+  GitCommitMessagesResponse,
 } from "@repo/types";
 import {
   validateGitOperation,
@@ -297,6 +301,162 @@ export class GitService {
   }
 
   /**
+   * Get git diff against a base branch (for PR generation)
+   */
+  async getDiffAgainstBase(baseBranch: string): Promise<GitDiffResponse> {
+    try {
+      logger.info("[GIT_SERVICE] Getting diff against base branch", {
+        baseBranch,
+      });
+
+      const result = await this.execGitSecure(["diff", `${baseBranch}...HEAD`]);
+      const diff = result.stdout;
+
+      logger.info("[GIT_SERVICE] Git diff against base completed", {
+        baseBranch,
+        diffLength: diff.length,
+      });
+
+      return {
+        success: true,
+        diff,
+        message: diff
+          ? `Retrieved diff against ${baseBranch} successfully`
+          : `No differences between ${baseBranch} and current branch`,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      logger.error("[GIT_SERVICE] Failed to get git diff against base", {
+        baseBranch,
+        error: errorMessage,
+      });
+
+      return {
+        success: false,
+        diff: "",
+        message: `Failed to get git diff against ${baseBranch}: ${errorMessage}`,
+        error: "DIFF_FAILED",
+      };
+    }
+  }
+
+  /**
+   * Safely checkout to a specific commit SHA
+   */
+  async safeCheckoutCommit(commitSha: string): Promise<GitCheckoutResponse> {
+    try {
+      logger.info("[GIT_SERVICE] Safely checking out commit", {
+        commitSha,
+      });
+
+      // First verify the commit exists
+      try {
+        await this.execGitSecure(["rev-parse", "--verify", `${commitSha}^{commit}`]);
+      } catch (_error) {
+        return {
+          success: false,
+          message: `Commit ${commitSha} does not exist`,
+          error: "COMMIT_NOT_FOUND",
+        };
+      }
+
+      // Check if there are uncommitted changes that could be lost
+      const statusResult = await this.hasChanges();
+      if (statusResult.hasChanges) {
+        logger.warn("[GIT_SERVICE] Uncommitted changes detected during checkout", {
+          commitSha,
+        });
+        // For safety, we could stash changes, but for now we'll proceed with a warning
+      }
+
+      // Perform the checkout
+      try {
+        await this.execGitSecure(["checkout", commitSha]);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return {
+          success: false,
+          message: `Failed to checkout ${commitSha}: ${errorMessage}`,
+          error: "CHECKOUT_FAILED",
+        };
+      }
+
+      logger.info("[GIT_SERVICE] Successfully checked out commit", {
+        commitSha,
+      });
+
+      return {
+        success: true,
+        message: `Successfully checked out ${commitSha}`,
+        commitSha,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      logger.error("[GIT_SERVICE] Failed to checkout commit", {
+        commitSha,
+        error: errorMessage,
+      });
+
+      return {
+        success: false,
+        message: `Failed to checkout ${commitSha}: ${errorMessage}`,
+        error: "CHECKOUT_FAILED",
+      };
+    }
+  }
+
+  /**
+   * Get recent commit messages from current branch compared to base branch
+   */
+  async getRecentCommitMessages(baseBranch: string, limit = 5): Promise<GitCommitMessagesResponse> {
+    try {
+      logger.info("[GIT_SERVICE] Getting recent commit messages", {
+        baseBranch,
+        limit,
+      });
+
+      const result = await this.execGitSecure([
+        "log", 
+        `${baseBranch}..HEAD`, 
+        "--oneline", 
+        `-${limit}`, 
+        "--pretty=format:%s"
+      ]);
+
+      const commitMessages = result.stdout.trim().split("\n").filter(Boolean);
+
+      logger.info("[GIT_SERVICE] Recent commit messages retrieved", {
+        baseBranch,
+        limit,
+        messageCount: commitMessages.length,
+      });
+
+      return {
+        success: true,
+        commitMessages,
+        message: `Retrieved ${commitMessages.length} recent commit messages`,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      logger.error("[GIT_SERVICE] Failed to get recent commit messages", {
+        baseBranch,
+        limit,
+        error: errorMessage,
+      });
+
+      return {
+        success: false,
+        commitMessages: [],
+        message: `Failed to get recent commit messages: ${errorMessage}`,
+        error: "COMMIT_MESSAGES_FAILED",
+      };
+    }
+  }
+
+  /**
    * Stage all changes and commit with the given options
    * Note: Commit message is required - AI generation should be done on server side
    */
@@ -445,13 +605,78 @@ export class GitService {
   /**
    * Get the current commit SHA
    */
-  private async getCurrentCommitSha(): Promise<string> {
+  async getCurrentCommitSha(): Promise<string> {
     try {
       const result = await this.execGitSecure(["rev-parse", "HEAD"]);
       return result.stdout.trim();
     } catch (error) {
       logger.error("[GIT_SERVICE] Failed to get current commit SHA", { error });
       return "unknown";
+    }
+  }
+
+  /**
+   * Get the current branch name
+   */
+  async getCurrentBranch(): Promise<GitBranchInfoResponse> {
+    try {
+      logger.info("[GIT_SERVICE] Getting current branch");
+
+      const result = await this.execGitSecure(["branch", "--show-current"]);
+      const currentBranch = result.stdout.trim();
+
+      logger.info("[GIT_SERVICE] Current branch retrieved", { currentBranch });
+
+      return {
+        success: true,
+        message: `Current branch: ${currentBranch}`,
+        currentBranch,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      logger.error("[GIT_SERVICE] Failed to get current branch", {
+        error: errorMessage,
+      });
+
+      return {
+        success: false,
+        message: `Failed to get current branch: ${errorMessage}`,
+        error: "BRANCH_INFO_FAILED",
+      };
+    }
+  }
+
+  /**
+   * Get the current commit SHA with API response wrapper
+   */
+  async getCurrentCommitShaPublic(): Promise<GitCommitInfoResponse> {
+    try {
+      logger.info("[GIT_SERVICE] Getting current commit SHA");
+
+      const commitSha = await this.getCurrentCommitSha();
+      
+      if (commitSha === "unknown") {
+        throw new Error("Failed to retrieve commit SHA");
+      }
+
+      logger.info("[GIT_SERVICE] Current commit SHA retrieved", { commitSha });
+
+      return {
+        success: true,
+        message: `Current commit: ${commitSha}`,
+        commitSha,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      logger.error("[GIT_SERVICE] Failed to get commit SHA", {
+        error: errorMessage,
+      });
+
+      return {
+        success: false,
+        message: `Failed to get commit SHA: ${errorMessage}`,
+        error: "COMMIT_INFO_FAILED",
+      };
     }
   }
 

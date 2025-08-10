@@ -8,7 +8,7 @@ import type { Todo } from "@repo/db";
 import { GitManager } from "./git-manager";
 import { emitStreamChunk } from "../socket";
 import { getFileChanges } from "../utils/git-operations";
-import { createToolExecutor } from "../execution";
+import { createToolExecutor, createGitService } from "../execution";
 import { getFileSystemWatcher } from "../agent/tools";
 import config from "../config";
 
@@ -26,27 +26,13 @@ export class CheckpointService {
     );
 
     try {
-      // Get workspace path from task
-      const task = await prisma.task.findUnique({
-        where: { id: taskId },
-        select: { workspacePath: true },
-      });
-
-      if (!task?.workspacePath) {
-        console.warn(
-          `[CHECKPOINT] ❌ No workspace path found for task ${taskId}`
-        );
-        return;
-      }
-
-      console.log(
-        `[CHECKPOINT] 📁 Using workspace path: ${task.workspacePath}`
-      );
-      const gitManager = new GitManager(task.workspacePath);
+      // Create git service for the task (handles both local and remote modes)
+      console.log(`[CHECKPOINT] 🔧 Creating git service for task ${taskId}...`);
+      const gitService = await createGitService(taskId);
 
       // 1. Ensure all changes are committed (reuse existing logic)
       console.log(`[CHECKPOINT] 🔍 Checking for uncommitted changes...`);
-      const hasChanges = await gitManager.hasChanges();
+      const hasChanges = await gitService.hasChanges();
       if (hasChanges) {
         console.warn(
           `[CHECKPOINT] ⚠️ Skipping checkpoint creation - workspace has uncommitted changes`
@@ -56,7 +42,7 @@ export class CheckpointService {
 
       // 2. Capture current state
       console.log(`[CHECKPOINT] 📸 Capturing current state...`);
-      const commitSha = await gitManager.getCurrentCommitSha();
+      const commitSha = await gitService.getCurrentCommitSha();
       const todoSnapshot = await this.getTodoSnapshot(taskId);
 
       console.log(`[CHECKPOINT] 🎯 Captured commit SHA: ${commitSha}`);
@@ -151,37 +137,23 @@ export class CheckpointService {
         `[CHECKPOINT] 📝 Checkpoint has ${checkpoint.todoSnapshot.length} todos`
       );
 
-      // Get workspace path from task
-      const task = await prisma.task.findUnique({
-        where: { id: taskId },
-        select: { workspacePath: true },
-      });
-
-      if (!task?.workspacePath) {
-        console.warn(
-          `[CHECKPOINT] ❌ No workspace path found for task ${taskId}`
-        );
-        return;
-      }
-
-      console.log(
-        `[CHECKPOINT] 📁 Using workspace path: ${task.workspacePath}`
-      );
-      const gitManager = new GitManager(task.workspacePath);
+      // Create git service for the task (handles both local and remote modes)
+      console.log(`[CHECKPOINT] 🔧 Creating git service for task ${taskId}...`);
+      const gitService = await createGitService(taskId);
 
       // 2. Pause filesystem watcher to prevent spurious events from git operations
       await this.pauseFilesystemWatcher(taskId);
 
       // 3. Handle uncommitted changes
       console.log(`[CHECKPOINT] 🔍 Checking for uncommitted changes...`);
-      const hasChanges = await gitManager.hasChanges();
+      const hasChanges = await gitService.hasChanges();
       if (hasChanges) {
         console.log(
           `[CHECKPOINT] 📦 Stashing uncommitted changes before restoration...`
         );
-        await gitManager.stashChanges(`Pre-revert-${Date.now()}`);
-        console.log(
-          `[CHECKPOINT] ✅ Stashed uncommitted changes before restore`
+        // Note: Stash functionality not yet implemented in git service abstraction
+        console.warn(
+          `[CHECKPOINT] ⚠️ Stash functionality not yet implemented for unified git service - skipping stash`
         );
       } else {
         console.log(`[CHECKPOINT] ✨ Workspace is clean, no need to stash`);
@@ -191,7 +163,7 @@ export class CheckpointService {
       console.log(
         `[CHECKPOINT] ⏪ Attempting git checkout to ${checkpoint.commitSha}...`
       );
-      const success = await gitManager.safeCheckoutCommit(checkpoint.commitSha);
+      const success = await gitService.safeCheckoutCommit(checkpoint.commitSha);
       if (!success) {
         console.warn(
           `[CHECKPOINT] ⚠️ Could not checkout to ${checkpoint.commitSha}, continuing with current state`

@@ -7,6 +7,7 @@ import {
   TaskConfig,
 } from "../interfaces/types";
 import config from "../../config";
+import { getGitHubAppEmail, getGitHubAppName } from "../../config/shared";
 import { sanitizeTaskIdForK8s } from "../../utils/kubernetes";
 import { getGitHubAccessToken } from "../../github/auth/account-service";
 import { RemoteToolExecutor } from "./remote-tool-executor";
@@ -67,12 +68,46 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       console.log(`[REMOTE_WM] Remote VM workspace ready at ${podIP}:8080`);
       console.log(`[REMOTE_WM] VM is running with true hardware isolation`);
 
+      // Configure git and create shadow branch in the VM
+      try {
+        console.log(`[REMOTE_WM] Setting up git configuration and shadow branch in VM...`);
+        const toolExecutor = new RemoteToolExecutor(taskConfig.id, `http://${podIP}:8080`);
+
+        // Configure git user for Shadow
+        await toolExecutor.configureGitUser({
+          name: getGitHubAppName(config),
+          email: getGitHubAppEmail(config),
+        });
+
+        // Create shadow branch
+        await toolExecutor.createShadowBranch(taskConfig.baseBranch, taskConfig.shadowBranch);
+
+        console.log(`[REMOTE_WM] Successfully created shadow branch: ${taskConfig.shadowBranch}`);
+      } catch (gitError) {
+        console.error(`[REMOTE_WM] Failed to setup git in VM:`, gitError);
+        
+        // Store git setup failure info for later retry/debugging
+        const gitErrorMessage = gitError instanceof Error ? gitError.message : "Unknown git setup error";
+        console.warn(`[REMOTE_WM] Git setup failed: ${gitErrorMessage}. Workspace created but git operations may fail.`);
+        
+        return {
+          success: true, // Don't fail workspace creation
+          workspacePath,
+          podName: createdPod.metadata?.name,
+          podNamespace: createdPod.metadata?.namespace,
+          serviceName: `http://${podIP}:8080`,
+          gitSetupFailed: true,
+          gitError: gitErrorMessage,
+        };
+      }
+
       return {
         success: true,
         workspacePath,
         podName: createdPod.metadata?.name,
         podNamespace: createdPod.metadata?.namespace,
         serviceName: `http://${podIP}:8080`,
+        gitSetupFailed: false,
       };
     } catch (error) {
       console.error(

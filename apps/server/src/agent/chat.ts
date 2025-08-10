@@ -41,7 +41,7 @@ import {
   scheduleTaskCleanup,
   cancelTaskCleanup,
 } from "../utils/task-status";
-import { createToolExecutor } from "../execution";
+import { createGitService } from "../execution";
 import { memoryService } from "../services/memory-service";
 import { TaskInitializationEngine } from "@/initialization";
 import { databaseBatchService } from "../services/database-batch-service";
@@ -235,7 +235,7 @@ export class ChatService {
   private async commitChangesIfAny(
     taskId: string,
     context: TaskModelContext,
-    workspacePath?: string
+    _workspacePath?: string
   ): Promise<boolean> {
     try {
       // Get task info including user and workspace details
@@ -256,47 +256,78 @@ export class ChatService {
         return false;
       }
 
-      // Determine workspace path - use provided path or fall back to task workspace path
-      const resolvedWorkspacePath = workspacePath || task.workspacePath;
-      if (!resolvedWorkspacePath) {
-        console.warn(
-          `[CHAT] No workspace path available for task ${taskId}, skipping git commit`
+      // Use unified git service for both local and remote modes
+      const gitService = await createGitService(taskId);
+
+      // Check if there are any uncommitted changes
+      const hasChanges = await gitService.hasChanges();
+      if (!hasChanges) {
+        console.log(`[CHAT] No changes to commit for task ${taskId}`);
+        return false;
+      }
+
+      // Get diff for commit message generation
+      const diff = await gitService.getDiff();
+      
+      // Generate commit message using existing logic
+      let commitMessage = "Update code via Shadow agent";
+      if (diff) {
+        // Generate commit message using server-side GitManager (which has AI integration)
+        const tempGitManager = new GitManager("");
+        commitMessage = await tempGitManager.generateCommitMessage(diff, context);
+      }
+
+      console.log(`[CHAT] Generated commit message for task ${taskId}: "${commitMessage}"`);
+
+      // Commit changes with Shadow as author and user as co-author
+      const commitResult = await gitService.commitChanges({
+        user: {
+          name: getGitHubAppName(config),
+          email: getGitHubAppEmail(config),
+        },
+        coAuthor: {
+          name: task.user.name,
+          email: task.user.email,
+        },
+        message: commitMessage,
+      });
+
+      if (!commitResult.success) {
+        console.error(
+          `[CHAT] Failed to commit changes for task ${taskId}: ${commitResult.message}`
         );
         return false;
       }
 
-      // For remote mode, we use the tool executor to make API calls to the sidecar
-      // For local mode, we use GitManager directly
-      if (config.agentMode === "local") {
-        const gitManager = new GitManager(resolvedWorkspacePath);
+      console.log(`[CHAT] Successfully committed changes for task ${taskId}`);
 
-        const hasChanges = await gitManager.hasChanges();
-        if (!hasChanges) {
-          return false;
+      // Push the commit to remote
+      try {
+        const pushResult = await gitService.pushBranch(task.shadowBranch, false);
+        if (!pushResult.success) {
+          console.warn(
+            `[CHAT] Failed to push changes for task ${taskId}: ${pushResult.message}`
+          );
+          // Don't fail the operation - commit succeeded even if push failed
+        } else {
+          console.log(`[CHAT] Successfully pushed changes for task ${taskId}`);
         }
-
-        // Commit changes with Shadow as author and user as co-author
-        const committed = await gitManager.commitChangesIfAny(
-          {
-            name: getGitHubAppName(config),
-            email: getGitHubAppEmail(config),
-          },
-          {
-            name: task.user.name,
-            email: task.user.email,
-          },
-          context
+      } catch (pushError) {
+        console.warn(
+          `[CHAT] Push failed for task ${taskId}:`,
+          pushError
         );
-        return committed;
-      } else {
-        return await this.commitChangesRemoteMode(taskId, task, context);
+        // Don't throw - commit succeeded even if push failed
       }
+
+      return true;
     } catch (error) {
       console.error(
         `[CHAT] Failed to commit changes for task ${taskId}:`,
         error
       );
-      throw error;
+      // Don't throw here - we don't want git failures to break the chat flow
+      return false;
     }
   }
 
@@ -367,8 +398,8 @@ export class ChatService {
         return;
       }
 
-      const gitManager = new GitManager(resolvedWorkspacePath);
-      const prManager = new PRManager(gitManager, this.llmService);
+      const gitService = await createGitService(taskId);
+      const prManager = new PRManager(gitService, this.llmService);
 
       if (!messageId) {
         console.warn(
@@ -470,97 +501,6 @@ export class ChatService {
     }
   }
 
-  /**
-   * Commit changes in remote mode using tool executor git APIs
-   */
-  private async commitChangesRemoteMode(
-    taskId: string,
-    task: {
-      user: { name: string; email: string };
-      shadowBranch: string | null;
-    },
-    context: TaskModelContext
-  ): Promise<boolean> {
-    try {
-      // Create tool executor for this task
-      const toolExecutor = await createToolExecutor(taskId);
-
-      // Check if there are any uncommitted changes
-      const statusResponse = await toolExecutor.getGitStatus();
-
-      if (!statusResponse.success) {
-        console.error(
-          `[CHAT] Failed to check git status for task ${taskId}: ${statusResponse.message}`
-        );
-        return false;
-      }
-
-      if (!statusResponse.hasChanges) {
-        return false;
-      }
-
-      // Get diff from tool executor to generate commit message on server side
-      const diffResponse = await toolExecutor.getGitDiff();
-
-      let commitMessage = "Update code via Shadow agent";
-      if (diffResponse.success && diffResponse.diff) {
-        // Generate commit message using server-side GitManager (which has AI integration)
-        const tempGitManager = new GitManager("");
-        commitMessage = await tempGitManager.generateCommitMessage(
-          diffResponse.diff,
-          context
-        );
-      }
-
-      // Commit changes with Shadow as author and user as co-author
-      const commitResponse = await toolExecutor.commitChanges({
-        user: {
-          name: getGitHubAppName(config),
-          email: getGitHubAppEmail(config),
-        },
-        coAuthor: {
-          name: task.user.name,
-          email: task.user.email,
-        },
-        message: commitMessage,
-      });
-
-      if (!commitResponse.success) {
-        console.error(
-          `[CHAT] Failed to commit changes for task ${taskId}: ${commitResponse.message}`
-        );
-        return false;
-      }
-
-      // Push the commit
-      if (!task.shadowBranch) {
-        console.warn(
-          `[CHAT] No shadow branch configured for task ${taskId}, skipping push`
-        );
-        return false;
-      }
-
-      const pushResponse = await toolExecutor.pushBranch({
-        branchName: task.shadowBranch,
-        setUpstream: false,
-      });
-
-      if (!pushResponse.success) {
-        console.warn(
-          `[CHAT] Failed to push changes for task ${taskId}: ${pushResponse.message}`
-        );
-        // Don't throw here - commit succeeded even if push failed
-      }
-      return true;
-    } catch (error) {
-      console.error(
-        `[CHAT] Error in remote mode git commit for task ${taskId}:`,
-        error
-      );
-      // Don't throw here - we don't want git failures to break the chat flow
-      return false;
-    }
-  }
 
   async getChatHistory(taskId: string): Promise<Message[]> {
     const dbMessages = await prisma.chatMessage.findMany({

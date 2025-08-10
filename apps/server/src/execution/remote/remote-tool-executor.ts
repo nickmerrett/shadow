@@ -19,10 +19,17 @@ import {
   GitPushResponse,
   GitCommitRequest,
   GitPushRequest,
+  GitConfigResponse,
+  GitBranchResponse,
+  GitBranchInfoResponse,
+  GitCommitInfoResponse,
+  GitCheckoutResponse,
+  GitCommitMessagesResponse,
   RecursiveDirectoryListing,
 } from "@repo/types";
 import { CommandResult } from "../interfaces/types";
 import { performSemanticSearch } from "@/utils/semantic-search";
+import { GitUser } from "../../services/git-manager";
 
 /**
  * RemoteToolExecutor executes tools in remote VMs via sidecar API
@@ -526,6 +533,170 @@ export class RemoteToolExecutor implements ToolExecutor {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
         message: "Failed to push branch",
+      };
+    }
+  }
+
+  /**
+   * Configure git user via sidecar API
+   */
+  async configureGitUser(user: GitUser): Promise<GitConfigResponse> {
+    try {
+      const response = await this.makeSidecarRequest<GitConfigResponse>(
+        `/api/git/config`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            name: user.name,
+            email: user.email,
+          }),
+        }
+      );
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        message: "Failed to configure git user",
+      };
+    }
+  }
+
+  /**
+   * Create shadow branch via sidecar API
+   */
+  async createShadowBranch(baseBranch: string, shadowBranch: string): Promise<GitBranchResponse> {
+    try {
+      const response = await this.makeSidecarRequest<GitBranchResponse>(
+        `/api/git/branch`,
+        {
+          method: "POST",
+          body: JSON.stringify({ baseBranch, shadowBranch }),
+        }
+      );
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        message: "Failed to create shadow branch",
+      };
+    }
+  }
+
+  /**
+   * Get current branch via sidecar API
+   */
+  async getCurrentBranch(): Promise<GitBranchInfoResponse> {
+    try {
+      const response = await this.makeSidecarRequest<GitBranchInfoResponse>(
+        `/api/git/current-branch`,
+        {
+          method: "GET",
+        }
+      );
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        message: "Failed to get current branch",
+      };
+    }
+  }
+
+  /**
+   * Get current commit SHA via sidecar API
+   */
+  async getCurrentCommitSha(): Promise<GitCommitInfoResponse> {
+    try {
+      const response = await this.makeSidecarRequest<GitCommitInfoResponse>(
+        `/api/git/current-commit`,
+        {
+          method: "GET",
+        }
+      );
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        message: "Failed to get current commit SHA",
+      };
+    }
+  }
+
+  /**
+   * Get git diff against a base branch via sidecar API
+   */
+  async getDiffAgainstBase(baseBranch: string): Promise<GitDiffResponse> {
+    try {
+      const response = await this.makeSidecarRequest<GitDiffResponse>(
+        `/api/git/diff-against-base`,
+        {
+          method: "POST",
+          body: JSON.stringify({ baseBranch }),
+        }
+      );
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        message: `Failed to get diff against ${baseBranch}`,
+        diff: "",
+      };
+    }
+  }
+
+  /**
+   * Safely checkout to a specific commit SHA via sidecar API
+   */
+  async safeCheckoutCommit(commitSha: string): Promise<GitCheckoutResponse> {
+    try {
+      const response = await this.makeSidecarRequest<GitCheckoutResponse>(
+        `/api/git/checkout`,
+        {
+          method: "POST",
+          body: JSON.stringify({ commitSha }),
+        }
+      );
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        message: `Failed to checkout ${commitSha}`,
+      };
+    }
+  }
+
+  /**
+   * Get recent commit messages from current branch compared to base branch via sidecar API
+   */
+  async getRecentCommitMessages(baseBranch: string, limit = 5): Promise<GitCommitMessagesResponse> {
+    try {
+      const response = await this.makeSidecarRequest<GitCommitMessagesResponse>(
+        `/api/git/commit-messages`,
+        {
+          method: "POST",
+          body: JSON.stringify({ baseBranch, limit }),
+        }
+      );
+
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        message: `Failed to get recent commit messages`,
+        commitMessages: [],
       };
     }
   }

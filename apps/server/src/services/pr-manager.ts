@@ -1,4 +1,4 @@
-import { GitManager } from "./git-manager";
+import { GitService } from "../execution/interfaces/git-service";
 import { LLMService } from "../agent/llm";
 import { PRService } from "../github/pull-requests";
 import type { PRMetadata, CreatePROptions } from "../github/types";
@@ -9,7 +9,7 @@ export class PRManager {
   private prService: PRService;
 
   constructor(
-    private gitManager: GitManager,
+    private gitService: GitService,
     private llmService: LLMService
   ) {
     this.prService = new PRService();
@@ -26,7 +26,7 @@ export class PRManager {
       console.log(`[PR_MANAGER] Processing PR for task ${options.taskId}`);
 
       // Check if there are any uncommitted changes
-      const hasChanges = await this.gitManager.hasChanges();
+      const hasChanges = await this.gitService.hasChanges();
       if (hasChanges) {
         console.log(
           `[PR_MANAGER] Uncommitted changes found, skipping PR creation`
@@ -35,7 +35,7 @@ export class PRManager {
       }
 
       // Get git metadata
-      const commitSha = await this.gitManager.getCurrentCommitSha();
+      const commitSha = await this.gitService.getCurrentCommitSha();
 
       // Check if PR already exists
       const existingPRNumber = await this.prService.getExistingPRNumber(
@@ -124,7 +124,7 @@ export class PRManager {
     // Generate updated description using AI with mini model
     const newDescription = await this.generateUpdatedDescription(
       latestSnapshot?.description || "",
-      await this.gitManager.getDiffAgainstBase(options.baseBranch),
+      await this.gitService.getDiffAgainstBase(options.baseBranch),
       options.taskTitle,
       context
     );
@@ -150,8 +150,8 @@ export class PRManager {
     context: TaskModelContext
   ): Promise<PRMetadata> {
     try {
-      const diff = await this.gitManager.getDiffAgainstBase(options.baseBranch);
-      const commitMessages = await this.getRecentCommitMessages(
+      const diff = await this.gitService.getDiffAgainstBase(options.baseBranch);
+      const commitMessages = await this.gitService.getRecentCommitMessages(
         options.baseBranch
       );
 
@@ -227,22 +227,6 @@ export class PRManager {
     }
   }
 
-  /**
-   * Get recent commit messages from the shadow branch
-   */
-  private async getRecentCommitMessages(
-    baseBranch: string = "main"
-  ): Promise<string[]> {
-    try {
-      const { stdout } = await this.gitManager["execGit"](
-        `log ${baseBranch}..HEAD --oneline -5 --pretty=format:"%s"`
-      );
-      return stdout.trim().split("\n").filter(Boolean);
-    } catch (error) {
-      console.warn(`[PR_MANAGER] Failed to get recent commit messages:`, error);
-      return [];
-    }
-  }
 
   /**
    * Emit completion event with PR snapshot data

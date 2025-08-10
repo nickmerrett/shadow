@@ -109,6 +109,134 @@ export function createGitRouter(gitService: GitService): Router {
   );
 
   /**
+   * POST /api/git/diff-against-base
+   * Get git diff against a base branch for PR generation
+   */
+  router.post(
+    "/api/git/diff-against-base",
+    asyncHandler(async (req, res) => {
+      const { baseBranch } = req.body;
+
+      if (!baseBranch || typeof baseBranch !== "string") {
+        res.status(400).json({
+          success: false,
+          message: "baseBranch is required and must be a string",
+          error: "INVALID_REQUEST",
+        });
+        return;
+      }
+
+      const result = await gitService.getDiffAgainstBase(baseBranch);
+
+      if (!result.success) {
+        const statusCode = result.error === "DIFF_FAILED" ? 500 : 400;
+        res.status(statusCode).json(result);
+      } else {
+        res.json(result);
+      }
+    })
+  );
+
+  /**
+   * POST /api/git/checkout
+   * Safely checkout to a specific commit SHA
+   */
+  router.post(
+    "/api/git/checkout",
+    asyncHandler(async (req, res) => {
+      const { commitSha } = req.body;
+
+      if (!commitSha || typeof commitSha !== "string") {
+        res.status(400).json({
+          success: false,
+          message: "commitSha is required and must be a string",
+          error: "INVALID_REQUEST",
+        });
+        return;
+      }
+
+      const result = await gitService.safeCheckoutCommit(commitSha);
+
+      if (!result.success) {
+        const statusCode = 
+          result.error === "COMMIT_NOT_FOUND" ? 404 :
+          result.error === "CHECKOUT_FAILED" ? 500 : 400;
+        res.status(statusCode).json(result);
+      } else {
+        res.json(result);
+      }
+    })
+  );
+
+  /**
+   * POST /api/git/commit-messages
+   * Get recent commit messages from current branch compared to base branch
+   */
+  router.post(
+    "/api/git/commit-messages",
+    asyncHandler(async (req, res) => {
+      const { baseBranch, limit } = req.body;
+
+      if (!baseBranch || typeof baseBranch !== "string") {
+        res.status(400).json({
+          success: false,
+          message: "baseBranch is required and must be a string",
+          error: "INVALID_REQUEST",
+        });
+        return;
+      }
+
+      const result = await gitService.getRecentCommitMessages(
+        baseBranch,
+        limit && typeof limit === "number" ? limit : 5
+      );
+
+      if (!result.success) {
+        const statusCode = result.error === "COMMIT_MESSAGES_FAILED" ? 500 : 400;
+        res.status(statusCode).json(result);
+      } else {
+        res.json(result);
+      }
+    })
+  );
+
+  /**
+   * GET /api/git/current-branch
+   * Get the current branch name
+   */
+  router.get(
+    "/api/git/current-branch",
+    asyncHandler(async (_req, res) => {
+      const result = await gitService.getCurrentBranch();
+
+      if (!result.success) {
+        const statusCode = result.error === "BRANCH_INFO_FAILED" ? 500 : 400;
+        res.status(statusCode).json(result);
+      } else {
+        res.json(result);
+      }
+    })
+  );
+
+  /**
+   * GET /api/git/current-commit
+   * Get the current commit SHA
+   */
+  router.get(
+    "/api/git/current-commit",
+    asyncHandler(async (_req, res) => {
+      const result = await gitService.getCurrentCommitShaPublic();
+
+      if (!result.success) {
+        const statusCode = result.error === "COMMIT_INFO_FAILED" ? 500 : 400;
+        res.status(statusCode).json(result);
+      } else {
+        res.json(result);
+      }
+    })
+  );
+
+  /**
    * POST /api/git/commit
    * Commit changes with AI-generated message and co-authoring
    */

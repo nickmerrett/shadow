@@ -30,6 +30,9 @@ export interface WorkspaceInfo {
   podName?: string;
   podNamespace?: string;
   serviceName?: string;
+  // Git setup status (remote mode)
+  gitSetupFailed?: boolean;
+  gitError?: string;
 }
 
 export interface WorkspaceStatus {

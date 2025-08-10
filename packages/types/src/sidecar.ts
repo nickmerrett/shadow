@@ -235,8 +235,24 @@ export interface GitCommitResponse extends SidecarResponse {
   commitSha?: string;
 }
 
+export interface GitCheckoutResponse extends SidecarResponse {
+  commitSha?: string;
+}
+
+export interface GitCommitMessagesResponse extends SidecarResponse {
+  commitMessages?: string[];
+}
+
 export interface GitPushResponse extends SidecarResponse {
   branchName?: string;
+}
+
+export interface GitBranchInfoResponse extends SidecarResponse {
+  currentBranch?: string;
+}
+
+export interface GitCommitInfoResponse extends SidecarResponse {
+  commitSha?: string;
 }
 
 // === Health & Status ===

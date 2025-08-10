@@ -12,6 +12,11 @@ import { LocalWorkspaceManager } from "./local/local-workspace-manager";
 import { RemoteToolExecutor } from "./remote/remote-tool-executor";
 import { RemoteWorkspaceManager } from "./remote/remote-workspace-manager";
 import { RemoteVMRunner } from "./remote/remote-vm-runner";
+import { LocalGitService } from "./local/local-git-service";
+import { RemoteGitService } from "./remote/remote-git-service";
+import { GitService } from "./interfaces/git-service";
+import { GitManager } from "../services/git-manager";
+import { prisma } from "@repo/db";
 
 /**
  * Create a tool executor based on the configured agent mode
@@ -74,6 +79,33 @@ export function getAgentMode(): AgentMode {
 }
 
 /**
+ * Create a git service based on the configured agent mode
+ * Provides unified git operations interface for both local and remote execution
+ */
+export async function createGitService(taskId: string): Promise<GitService> {
+  const agentMode = getAgentMode();
+  
+  if (agentMode === "remote") {
+    // For remote mode, use the tool executor to wrap git operations
+    const toolExecutor = await createToolExecutor(taskId);
+    return new RemoteGitService(toolExecutor as RemoteToolExecutor);
+  } else {
+    // For local mode, get workspace path and create GitManager
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { workspacePath: true },
+    });
+
+    if (!task?.workspacePath) {
+      throw new Error(`Task ${taskId} not found or has no workspace path`);
+    }
+
+    const gitManager = new GitManager(task.workspacePath);
+    return new LocalGitService(gitManager);
+  }
+}
+
+/**
  * Check if the current mode is remote
  */
 export function isRemoteMode(): boolean {
@@ -95,7 +127,7 @@ export function isVMMode(): boolean {
 }
 
 // Re-export types and interfaces for convenience
-export type { ToolExecutor, WorkspaceManager };
+export type { ToolExecutor, WorkspaceManager, GitService };
 export type {
   AgentMode,
   FileResult,
