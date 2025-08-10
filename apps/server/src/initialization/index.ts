@@ -33,9 +33,6 @@ export class TaskInitializationEngine {
     userId: string,
     context: TaskModelContext
   ): Promise<void> {
-    console.log(
-      `[TASK_INIT] Starting initialization for task ${taskId} with steps: ${steps.join(", ")}`
-    );
 
     try {
       // Clear any previous progress and start fresh
@@ -64,9 +61,6 @@ export class TaskInitializationEngine {
             currentStep: step,
           });
 
-          console.log(
-            `[TASK_INIT] ${taskId}: Starting step ${stepNumber}/${steps.length}: ${step}`
-          );
 
           // Execute the step
           await this.executeStep(taskId, step, userId, context);
@@ -74,9 +68,6 @@ export class TaskInitializationEngine {
           // Mark step as completed
           await setInitStatus(taskId, step);
 
-          console.log(
-            `[TASK_INIT] ${taskId}: Completed step ${stepNumber}/${steps.length}: ${step}`
-          );
         } catch (error) {
           console.error(
             `[TASK_INIT] ${taskId}: Failed at step ${stepNumber}/${steps.length}: ${step}:`,
@@ -105,12 +96,7 @@ export class TaskInitializationEngine {
       // All steps completed successfully - set to ACTIVE
       await setInitStatus(taskId, "ACTIVE");
 
-      console.log(
-        `[TASK_INIT] ${taskId}: Initialization completed successfully`
-      );
-      console.log(
-        `✅ [TASK_INIT] Task ${taskId} initialization finished - ready for RUNNING status`
-      );
+      console.log(`✅ [TASK_INIT] ${taskId}: Ready for RUNNING status`);
 
       // Emit completion
       this.emitProgress(taskId, {
@@ -191,7 +177,6 @@ export class TaskInitializationEngine {
       );
     }
 
-    console.log(`[TASK_INIT] ${taskId}: Preparing local workspace`);
 
     // Get task info
     const task = await prisma.task.findUnique({
@@ -244,7 +229,6 @@ export class TaskInitializationEngine {
       );
     }
 
-    console.log(`[TASK_INIT] ${taskId}: Creating remote VM for execution`);
 
     try {
       // Get task info
@@ -296,9 +280,6 @@ export class TaskInitializationEngine {
         },
       });
 
-      console.log(
-        `[TASK_INIT] ${taskId}: Successfully created VM ${workspaceInfo.podName}`
-      );
     } catch (error) {
       console.error(`[TASK_INIT] ${taskId}: Failed to create VM:`, error);
       throw error;
@@ -309,9 +290,6 @@ export class TaskInitializationEngine {
    * Wait for VM ready step - Wait for VM boot and sidecar API to become healthy
    */
   private async executeWaitVMReady(taskId: string): Promise<void> {
-    console.log(
-      `[TASK_INIT] ${taskId}: Waiting for sidecar service and repository clone to complete`
-    );
 
     try {
       // Use the workspace manager's getExecutor() method for consistent connectivity
@@ -328,10 +306,6 @@ export class TaskInitializationEngine {
           const listing = await executor.listDirectory(".");
 
           // Debug logging to understand the response
-          console.log(
-            `[TASK_INIT] ${taskId}: listDirectory response (attempt ${attempt}):`,
-            JSON.stringify(listing, null, 2)
-          );
 
           // Check that both sidecar is responding AND workspace has content
           if (
@@ -339,9 +313,6 @@ export class TaskInitializationEngine {
             listing.contents &&
             listing.contents.length > 0
           ) {
-            console.log(
-              `[TASK_INIT] ${taskId}: Sidecar ready and repository cloned (attempt ${attempt})`
-            );
             return;
           } else {
             throw new Error(
@@ -354,9 +325,6 @@ export class TaskInitializationEngine {
               `Sidecar/clone failed to become ready after ${maxRetries} attempts: ${error}`
             );
           }
-          console.log(
-            `[TASK_INIT] ${taskId}: Sidecar or clone not ready yet (attempt ${attempt}/${maxRetries}), retrying...`
-          );
           await delay(retryDelay);
         }
       }
@@ -376,9 +344,6 @@ export class TaskInitializationEngine {
     taskId: string,
     _userId: string
   ): Promise<void> {
-    console.log(
-      `[TASK_INIT] ${taskId}: Verifying workspace is ready and contains repository`
-    );
 
     try {
       // Get task info
@@ -396,9 +361,6 @@ export class TaskInitializationEngine {
       const executor = await this.abstractWorkspaceManager.getExecutor(taskId);
 
       // Final verification that workspace is fully ready with repository content
-      console.log(
-        `[TASK_INIT] ${taskId}: Performing final workspace verification`
-      );
 
       // Verify the workspace is ready by checking contents
       const listing = await executor.listDirectory(".");
@@ -412,9 +374,6 @@ export class TaskInitializationEngine {
         );
       }
 
-      console.log(
-        `[TASK_INIT] ${taskId}: Successfully verified workspace is ready with repository content`
-      );
     } catch (error) {
       console.error(
         `[TASK_INIT] ${taskId}: Failed to verify workspace:`,
@@ -428,7 +387,6 @@ export class TaskInitializationEngine {
    * Install dependencies step - Install project dependencies (npm, pip, etc.)
    */
   private async executeInstallDependencies(taskId: string): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Installing project dependencies`);
 
     try {
       // Get the executor for this task
@@ -440,9 +398,6 @@ export class TaskInitializationEngine {
         "package.json"
       );
       if (packageJsonExists) {
-        console.log(
-          `[TASK_INIT] ${taskId}: Found package.json, installing npm dependencies`
-        );
         await this.runInstallCommand(executor, taskId, "npm install");
       }
 
@@ -452,9 +407,6 @@ export class TaskInitializationEngine {
         "requirements.txt"
       );
       if (requirementsExists) {
-        console.log(
-          `[TASK_INIT] ${taskId}: Found requirements.txt, installing Python dependencies`
-        );
         await this.runInstallCommand(
           executor,
           taskId,
@@ -468,22 +420,15 @@ export class TaskInitializationEngine {
         "pyproject.toml"
       );
       if (pyprojectExists) {
-        console.log(
-          `[TASK_INIT] ${taskId}: Found pyproject.toml, installing Python project`
-        );
         await this.runInstallCommand(executor, taskId, "pip install -e .");
       }
 
-      console.log(`[TASK_INIT] ${taskId}: Dependency installation completed`);
     } catch (error) {
       console.error(
         `[TASK_INIT] ${taskId}: Dependency installation failed:`,
         error
       );
       // Don't throw error - we want to continue initialization even if deps fail
-      console.log(
-        `[TASK_INIT] ${taskId}: Continuing initialization despite dependency installation failure`
-      );
     }
   }
 
@@ -517,19 +462,12 @@ export class TaskInitializationEngine {
     command: string
   ): Promise<void> {
     try {
-      console.log(`[TASK_INIT] ${taskId}: Running: ${command}`);
       const result = await executor.executeCommand(command, {
         timeout: 300000, // 5 minutes timeout
         allowNetworkAccess: true,
       });
 
       if (result.success) {
-        console.log(`[TASK_INIT] ${taskId}: Successfully executed: ${command}`);
-        if (result.stdout) {
-          console.log(
-            `[TASK_INIT] ${taskId}: Command output: ${result.stdout.slice(0, 500)}...`
-          );
-        }
       } else {
         console.warn(`[TASK_INIT] ${taskId}: Command failed: ${command}`);
         console.warn(
@@ -552,7 +490,6 @@ export class TaskInitializationEngine {
     userId: string,
     context: TaskModelContext
   ): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Starting background services`);
 
     try {
       // Get user settings to determine which services to start
@@ -571,18 +508,12 @@ export class TaskInitializationEngine {
         context
       );
 
-      console.log(
-        `[TASK_INIT] ${taskId}: Background services started successfully`
-      );
     } catch (error) {
       console.error(
         `[TASK_INIT] ${taskId}: Failed to start background services:`,
         error
       );
       // Don't throw error - we want to continue initialization even if background services fail to start
-      console.log(
-        `[TASK_INIT] ${taskId}: Continuing initialization despite background services failure`
-      );
     }
   }
 
@@ -590,9 +521,6 @@ export class TaskInitializationEngine {
    * Finalize setup step - Wait for background services to complete
    */
   private async executeFinalizeSetup(taskId: string): Promise<void> {
-    console.log(
-      `[TASK_INIT] ${taskId}: Finalizing setup - waiting for background services`
-    );
 
     try {
       const maxWait = 10 * 60 * 1000; // 10 minutes max
@@ -604,27 +532,17 @@ export class TaskInitializationEngine {
         // Check if all services are done
         const allComplete =
           this.backgroundServiceManager.areAllServicesComplete(taskId);
-        console.log(
-          `🔄 [TASK_INIT] ${taskId}: Checking background services completion: ${allComplete}`
-        );
 
         if (allComplete) {
-          console.log(
-            `[TASK_INIT] ${taskId}: All background services completed`
-          );
           break;
         }
 
         await delay(checkInterval);
       }
 
-      console.log(`[TASK_INIT] ${taskId}: Setup finalization completed`);
     } catch (error) {
       console.error(`[TASK_INIT] ${taskId}: Failed to finalize setup:`, error);
       // Don't throw error - we want to continue to ACTIVE even if background services had issues
-      console.log(
-        `[TASK_INIT] ${taskId}: Continuing to ACTIVE despite finalization issues`
-      );
     }
   }
 

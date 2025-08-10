@@ -25,16 +25,10 @@ export class BackgroundServiceManager {
     userSettings: { enableShadowWiki?: boolean; enableIndexing?: boolean },
     context: TaskModelContext
   ): Promise<void> {
-    console.log(
-      `[BACKGROUND_SERVICES] Starting background services for task ${taskId}`
-    );
 
     const services: BackgroundService[] = [];
 
     if (userSettings.enableShadowWiki) {
-      console.log(
-        `[BACKGROUND_SERVICES] Starting Shadow Wiki generation for task ${taskId}`
-      );
       const shadowWikiPromise = this.startShadowWiki(taskId, context);
 
       const service = {
@@ -51,9 +45,6 @@ export class BackgroundServiceManager {
       service.promise = service.promise
         .then(() => {
           service.completed = true;
-          console.log(
-            `✅ [BACKGROUND_SERVICES] Service "shadowWiki" (blocking) marked as completed for task ${taskId}`
-          );
         })
         .catch((error) => {
           service.failed = true;
@@ -69,8 +60,7 @@ export class BackgroundServiceManager {
     }
 
     if (userSettings.enableIndexing) {
-      console.log(`[BACKGROUND_SERVICES] Starting indexing for task ${taskId}`);
-      const indexingPromise = this.startIndexing(taskId);
+        const indexingPromise = this.startIndexing(taskId);
 
       const service = {
         name: "indexing" as const,
@@ -86,9 +76,6 @@ export class BackgroundServiceManager {
       service.promise = service.promise
         .then(() => {
           service.completed = true;
-          console.log(
-            `✅ [BACKGROUND_SERVICES] Service "indexing" (non-blocking) marked as completed for task ${taskId}`
-          );
         })
         .catch((error) => {
           service.failed = true;
@@ -104,9 +91,6 @@ export class BackgroundServiceManager {
     }
 
     this.services.set(taskId, services);
-    console.log(
-      `[BACKGROUND_SERVICES] Started ${services.length} background services for task ${taskId}`
-    );
   }
 
   /**
@@ -138,11 +122,8 @@ export class BackgroundServiceManager {
 
       // Generate Shadow Wiki documentation
       // Note: runShadowWiki handles duplicate detection and task linking internally
-      console.log(
-        `[BACKGROUND_SERVICES] Starting Shadow Wiki generation for ${task.repoFullName}`
-      );
 
-      const result = await runShadowWiki(
+      await runShadowWiki(
         task.workspacePath,
         taskId,
         task.repoFullName,
@@ -155,9 +136,6 @@ export class BackgroundServiceManager {
         }
       );
 
-      console.log(
-        `[BACKGROUND_SERVICES] Successfully generated Shadow Wiki - ${result.stats.filesProcessed} files, ${result.stats.directoriesProcessed} directories processed`
-      );
     } catch (error) {
       console.error(
         `[BACKGROUND_SERVICES] Failed to generate Shadow Wiki:`,
@@ -186,9 +164,6 @@ export class BackgroundServiceManager {
         force: false,
       });
 
-      console.log(
-        `[BACKGROUND_SERVICES] Background indexing started for repository ${task.repoFullName}`
-      );
     } catch (error) {
       console.error(
         `[BACKGROUND_SERVICES] Failed to start background indexing:`,
@@ -203,48 +178,13 @@ export class BackgroundServiceManager {
     const services = this.services.get(taskId) || [];
     const blockingServices = services.filter((s) => s.blocking);
 
-    console.log(
-      `🔍 [BACKGROUND_SERVICES] Checking completion for task ${taskId}: ${services.length} total services, ${blockingServices.length} blocking services`
-    );
-
     if (blockingServices.length === 0) {
-      console.log(
-        `📭 [BACKGROUND_SERVICES] No blocking services for task ${taskId} - returning true`
-      );
       return true;
     }
 
-    const completedCount = services.filter((s) => s.completed).length;
-    const failedCount = services.filter((s) => s.failed).length;
-    const runningCount = services.filter(
-      (s) => !s.completed && !s.failed
-    ).length;
-
-    console.log(
-      `📊 [BACKGROUND_SERVICES] Task ${taskId} services: ${completedCount} completed, ${failedCount} failed, ${runningCount} running`
-    );
-
-    // Log each service status individually
-    services.forEach((service) => {
-      const status = service.completed
-        ? "completed"
-        : service.failed
-          ? "failed"
-          : "running";
-      const blockingText = service.blocking ? "(BLOCKING)" : "(non-blocking)";
-      console.log(
-        `🔧 [BACKGROUND_SERVICES] Service "${service.name}" ${blockingText}: ${status}`
-      );
-    });
-
     // Only check blocking services for completion
-    const allBlockingComplete = blockingServices.every(
+    return blockingServices.every(
       (service) => service.completed || service.failed
     );
-    console.log(
-      `✅ [BACKGROUND_SERVICES] All blocking services complete for task ${taskId}: ${allBlockingComplete}`
-    );
-
-    return allBlockingComplete;
   }
 }
