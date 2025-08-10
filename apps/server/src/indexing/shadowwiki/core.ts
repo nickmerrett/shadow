@@ -116,7 +116,6 @@ const LANGUAGES = {
 
 const sha1 = (data: string) => createHash("sha1").update(data).digest("hex");
 
-
 // Check if a file is critical and should always be analyzed
 function isCriticalFile(filePath: string): boolean {
   const fileName = path.basename(filePath).toLowerCase();
@@ -385,7 +384,7 @@ function shouldSkipFile(
 function shouldIncludeFileForShadowWiki(filePath: string): boolean {
   const fileName = path.basename(filePath).toLowerCase();
   const ext = path.extname(filePath).toLowerCase();
-  
+
   // Skip directories we never want to analyze
   const skipDirectories = [
     "node_modules/",
@@ -401,8 +400,8 @@ function shouldIncludeFileForShadowWiki(filePath: string): boolean {
     "bin/",
     "obj/", // C#/.NET
   ];
-  
-  if (skipDirectories.some(dir => filePath.includes(dir))) {
+
+  if (skipDirectories.some((dir) => filePath.includes(dir))) {
     return false;
   }
 
@@ -420,7 +419,7 @@ function shouldIncludeFileForShadowWiki(filePath: string): boolean {
     "makefile",
     ".env.example",
   ];
-  
+
   if (criticalFiles.includes(fileName)) {
     return true;
   }
@@ -428,27 +427,73 @@ function shouldIncludeFileForShadowWiki(filePath: string): boolean {
   // Allowlist of file extensions we want to analyze
   const allowedExtensions = [
     // Code files
-    ".js", ".jsx", ".mjs", ".cjs",
-    ".ts", ".tsx", ".mts", ".cts", ".d.ts",
-    ".py", ".pyx", ".pyi",
-    ".cpp", ".cc", ".cxx", ".c++", ".c", ".h", ".hpp", ".hxx",
-    ".java", ".kt", ".scala",
-    ".go", ".rs",
-    ".php", ".rb", ".swift",
-    ".cs", ".fs", ".vb",
-    ".sh", ".bash", ".zsh", ".fish",
-    ".ps1", ".bat", ".cmd",
-    
-    // Config/data files  
-    ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg",
-    ".xml", ".html", ".css", ".scss", ".sass", ".less",
-    ".md", ".mdx", ".txt", ".rst",
-    ".sql", ".prisma", ".graphql", ".gql",
-    
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".cjs",
+    ".ts",
+    ".tsx",
+    ".mts",
+    ".cts",
+    ".d.ts",
+    ".py",
+    ".pyx",
+    ".pyi",
+    ".cpp",
+    ".cc",
+    ".cxx",
+    ".c++",
+    ".c",
+    ".h",
+    ".hpp",
+    ".hxx",
+    ".java",
+    ".kt",
+    ".scala",
+    ".go",
+    ".rs",
+    ".php",
+    ".rb",
+    ".swift",
+    ".cs",
+    ".fs",
+    ".vb",
+    ".sh",
+    ".bash",
+    ".zsh",
+    ".fish",
+    ".ps1",
+    ".bat",
+    ".cmd",
+
+    // Config/data files
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".ini",
+    ".cfg",
+    ".xml",
+    ".html",
+    ".css",
+    ".scss",
+    ".sass",
+    ".less",
+    ".md",
+    ".mdx",
+    ".txt",
+    ".rst",
+    ".sql",
+    ".prisma",
+    ".graphql",
+    ".gql",
+
     // Build/project files
-    ".dockerfile", ".containerfile",
-    ".gitignore", ".gitattributes",
-    ".eslintrc", ".prettierrc",
+    ".dockerfile",
+    ".containerfile",
+    ".gitignore",
+    ".gitattributes",
+    ".eslintrc",
+    ".prettierrc",
     ".editorconfig",
   ];
 
@@ -948,9 +993,7 @@ async function summarizeDir(
   }
 
   const meaningfulSummaries = childSummaries.filter(
-    (summary) =>
-      summary &&
-      summary.trim().length > 20
+    (summary) => summary && summary.trim().length > 20
   );
 
   if (meaningfulSummaries.length < childSummaries.length * 0.3 && rootPath) {
@@ -1164,7 +1207,7 @@ export async function runShadowWiki(
           miniModelInstance,
           skipLLM
         );
-        
+
         // Only store and count files that have meaningful content
         if (summary !== null) {
           fileCache[rel] = summary;
