@@ -107,6 +107,7 @@ main() {
     NEXT_PUBLIC_SERVER_URL=$(ask "Frontend Server URL" "http://localhost:4000")
 
     # Optional: Force GitHub App for frontend
+    echo "Select false if you are running this locally and don't want to set up a GitHub App."
     NEXT_PUBLIC_FORCE_GITHUB_APP=$(ask "Force GitHub App for frontend? (true/false)" "false")
 
     # Create server .env.test file
