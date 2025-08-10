@@ -1,3 +1,4 @@
+import { SHADOW_WIKI_PATH } from "@/lib/constants";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -15,6 +16,13 @@ export function useFileContent(taskId: string, filePath?: string) {
   return useQuery({
     queryKey: ["file-content", taskId, filePath],
     queryFn: async (): Promise<FileContentResponse> => {
+      if (filePath === SHADOW_WIKI_PATH) {
+        return {
+          success: true,
+          content: "",
+        };
+      }
+
       if (!filePath) {
         throw new Error("File path is required");
       }
@@ -24,14 +32,14 @@ export function useFileContent(taskId: string, filePath?: string) {
 
       if (!res.ok) {
         const data = await res.json();
-        
+
         // Show toast for file not found errors
         if (data.errorType === "FILE_NOT_FOUND") {
           toast.error(`File not found: ${filePath}`, {
             description: "The file you're trying to view does not exist.",
           });
         }
-        
+
         throw new Error(data.error || "Failed to fetch file content");
       }
 

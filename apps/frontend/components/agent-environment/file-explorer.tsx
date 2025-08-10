@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { FileNode } from "@repo/types";
 import { FileIcon } from "@/components/ui/file-icon";
+import { SHADOW_WIKI_PATH } from "@/lib/constants";
 
 interface FileChangeOperation {
   filePath: string;
@@ -27,7 +28,6 @@ type AgentEnvironmentProps = BaseProps & {
   selectedFilePath: string | null;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
-  shadowWiki: React.ReactNode | null;
 };
 
 type OtherViewProps = BaseProps & {
@@ -219,16 +219,14 @@ export function FileExplorer(props: AgentEnvironmentProps | OtherViewProps) {
               <button
                 className={cn(
                   "group/item text-foreground/80 hover:text-foreground flex w-full cursor-pointer items-center gap-1.5 overflow-hidden rounded-md px-2 py-1 hover:bg-white/10",
-                  selectedFilePath === "[SHADOW_WIKI]" ? "bg-white/5" : ""
+                  selectedFilePath === SHADOW_WIKI_PATH ? "bg-white/5" : ""
                 )}
                 onClick={() => {
-                  if (props.shadowWiki) {
-                    props.onFileSelect({
-                      path: "[SHADOW_WIKI]",
-                      type: "file",
-                      name: "Shadow Wiki",
-                    });
-                  }
+                  props.onFileSelect({
+                    path: SHADOW_WIKI_PATH,
+                    type: "file",
+                    name: "Shadow Wiki",
+                  });
                 }}
               >
                 <BookOpen className="size-4" />

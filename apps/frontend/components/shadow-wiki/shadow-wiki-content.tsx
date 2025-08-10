@@ -9,13 +9,15 @@ import { useCodebase } from "@/hooks/use-codebase";
 import { useQueryClient } from "@tanstack/react-query";
 import { Separator } from "../ui/separator";
 import { GithubLogo } from "../graphics/github/github-logo";
+import { useParams } from "next/navigation";
 
-export function ShadowWikiContent({ codebaseId }: { codebaseId: string }) {
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const { data: codebase, isLoading, error, refetch } = useCodebase(codebaseId);
-  const queryClient = useQueryClient();
+export function ShadowWikiContent() {
+  const { taskId } = useParams<{ taskId: string }>();
+  const { data: codebase, isLoading, error, refetch } = useCodebase(taskId);
   const summaries = useMemo(() => codebase?.summaries || [], [codebase]);
+
+  const queryClient = useQueryClient();
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const generateSummary = async () => {
     if (!codebase?.tasks?.[0]?.id) return;

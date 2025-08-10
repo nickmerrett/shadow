@@ -1,6 +1,7 @@
 "use client";
 
 import { useFileContent } from "@/hooks/use-file-content";
+import { SHADOW_WIKI_PATH } from "@/lib/constants";
 import {
   createContext,
   useContext,
@@ -50,7 +51,7 @@ export function AgentEnvironmentProvider({
   const [terminalResizeTrigger, setTerminalResizeTrigger] = useState(0);
 
   function updateSelectedFilePath(path: string | null) {
-    if (path && !path.startsWith("/")) {
+    if (path && !path.startsWith("/") && path !== SHADOW_WIKI_PATH) {
       setSelectedFilePath("/" + path);
     } else {
       setSelectedFilePath(path);
