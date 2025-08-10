@@ -98,7 +98,7 @@ main() {
     echo -e "\n${GREEN}Local Development${NC}"
     echo "****************************************************"
     echo "Directory where local agent workspaces will be created:"
-    WORKSPACE_DIR=$(ask "Workspace Directory (absolute path)" "$(pwd)/shadow-workspace")
+    WORKSPACE_DIR=$(ask "Workspace Directory (absolute path)" "$(pwd)/shadow-worktree")
 
     # Server Configuration
     echo -e "\n${GREEN}Server Configuration${NC}"
