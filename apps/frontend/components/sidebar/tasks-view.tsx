@@ -12,12 +12,17 @@ import {
   GitBranch,
   Search,
   X,
-  List,
   Archive,
   Plus,
   Minus,
+  ListFilter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Collapsible,
   CollapsibleContent,
@@ -36,6 +41,14 @@ import { Button } from "@/components/ui/button";
 import { useRef, useState } from "react";
 import { useDebounceCallback } from "@/lib/debounce";
 import { useArchiveTask } from "@/hooks/use-archive-task";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 
 type TaskGroup = {
   repoName: string;
@@ -215,9 +228,9 @@ export function SidebarTasksView({
     <>
       {/* Search and Group By Controls */}
       <SidebarGroup>
-        <div className="space-y-2">
+        <div className="flex gap-2">
           {/* Search Input */}
-          <form ref={searchFormRef} className="relative">
+          <form ref={searchFormRef} className="relative flex-1">
             <Search className="text-muted-foreground absolute left-2 top-1/2 size-3.5 -translate-y-1/2" />
             <Input
               placeholder="Search tasks..."
@@ -241,8 +254,67 @@ export function SidebarTasksView({
             )}
           </form>
 
+          <Popover>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <ListFilter className="size-3.5" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="top" align="end" lighter>
+                Group By
+              </TooltipContent>
+            </Tooltip>
+            <PopoverContent
+              align="end"
+              className="bg-sidebar-accent border-sidebar-border flex w-48 select-none flex-col gap-2 p-2"
+            >
+              <div className="flex items-center gap-2 pl-0.5">
+                <span className="text-muted-foreground flex-1 text-[13px]">
+                  Group By
+                </span>
+                <Select
+                  value={groupBy}
+                  onValueChange={(value) => setGroupBy(value as GroupBy)}
+                >
+                  <SelectTrigger
+                    data-size="sm"
+                    className="bg-sidebar-accent border-sidebar-border text-muted-foreground hover:text-foreground"
+                  >
+                    <SelectValue className="text-[13px]" />
+                  </SelectTrigger>
+                  <SelectContent
+                    align="end"
+                    className="bg-sidebar-accent border-sidebar-border"
+                  >
+                    <SelectItem
+                      data-size="sm"
+                      value="repo"
+                      className="hover:bg-sidebar-border!"
+                    >
+                      Repo
+                    </SelectItem>
+                    <SelectItem
+                      data-size="sm"
+                      value="status"
+                      className="hover:bg-sidebar-border!"
+                    >
+                      Status
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverContent>
+          </Popover>
+
           {/* Don't group by if search is active */}
-          {!searchQuery && (
+          {/* {!searchQuery && (
             <div className="bg-sidebar-accent grid grid-cols-2 items-center gap-1 rounded-lg p-0.5">
               <Button
                 variant="ghost"
@@ -273,7 +345,7 @@ export function SidebarTasksView({
                 Status
               </Button>
             </div>
-          )}
+          )} */}
         </div>
       </SidebarGroup>
 
@@ -337,7 +409,7 @@ export function SidebarTasksView({
                         <span className="capitalize">
                           {status.toLowerCase().replaceAll("_", " ")}
                         </span>
-                        <ChevronDown className="ml-auto -rotate-90 transition-transform group-data-[state=open]/collapsible:rotate-0" />
+                        <ChevronDown className="ml-auto -rotate-90 opacity-70 transition-transform group-data-[state=open]/collapsible:rotate-0" />
                       </CollapsibleTrigger>
                     </SidebarGroupLabel>
                     <CollapsibleContent>
@@ -394,7 +466,7 @@ function RepoGroup({
           <CollapsibleTrigger>
             <Folder className="mr-1.5 !size-3.5" />
             {group.repoName}
-            <ChevronDown className="ml-auto -rotate-90 transition-transform group-data-[state=open]/collapsible:rotate-0" />
+            <ChevronDown className="ml-auto -rotate-90 opacity-70 transition-transform group-data-[state=open]/collapsible:rotate-0" />
           </CollapsibleTrigger>
         </SidebarGroupLabel>
         <CollapsibleContent>

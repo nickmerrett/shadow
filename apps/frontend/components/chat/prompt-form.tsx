@@ -595,7 +595,6 @@ export function PromptForm({
               onClick={() => textareaRef.current?.focus()}
             >
               <ModelSelector
-                isHome={isHome}
                 selectedModel={selectedModel}
                 handleSelectModel={handleSelectModel}
               />
