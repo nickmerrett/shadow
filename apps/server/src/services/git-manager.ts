@@ -4,6 +4,7 @@ import { promisify } from "util";
 import { ModelProvider } from "@/agent/llm/models/model-provider";
 import { TaskModelContext } from "./task-model-context";
 import { braintrustService } from "../agent/llm/observability/braintrust-service";
+import { AvailableModels } from "@repo/types";
 
 const execAsync = promisify(exec);
 
@@ -160,10 +161,12 @@ export class GitManager {
       const modelProvider = new ModelProvider();
       const modelInstance = modelProvider.getModel(model, context.getApiKeys());
 
+      const isGPT5 = model === AvailableModels.GPT_5;
+
       const { text } = await generateText({
         model: modelInstance,
-        temperature: 0.3,
-        maxTokens: 100,
+        temperature: isGPT5 ? 1 : 0.3,
+        ...(isGPT5 ? { maxCompletionTokens: 100 } : { maxTokens: 100 }),
         prompt: `Generate a concise git commit message for these changes. Focus on what was changed, not how. Use imperative mood (e.g., "Add", "Fix", "Update"). Keep it under 50 characters.
 
 Git diff:
@@ -175,8 +178,10 @@ Commit message:`,
           {
             model,
             diffLength: diff.length,
-            maxTokens: 100,
-            temperature: 0.3,
+            ...(model === AvailableModels.GPT_5
+              ? { maxCompletionTokens: 100 }
+              : { maxTokens: 100 }),
+            temperature: isGPT5 ? 1 : 0.3,
             workspacePath: this.workspacePath,
           }
         ),
@@ -339,7 +344,9 @@ Commit message:`,
   /**
    * Stash uncommitted changes with timestamped message for safety before git operations
    */
-  async stashChanges(message: string = `Auto-stash-${Date.now()}`): Promise<void> {
+  async stashChanges(
+    message: string = `Auto-stash-${Date.now()}`
+  ): Promise<void> {
     try {
       await this.execGit(`stash push -m "${message}"`);
       console.log(`[GIT_MANAGER] Stashed changes: ${message}`);
@@ -355,7 +362,9 @@ Commit message:`,
   async safeCheckoutCommit(commitSha: string): Promise<boolean> {
     try {
       await this.execGit(`checkout ${commitSha}`);
-      console.log(`[GIT_MANAGER] Successfully checked out to commit ${commitSha}`);
+      console.log(
+        `[GIT_MANAGER] Successfully checked out to commit ${commitSha}`
+      );
       return true;
     } catch (error) {
       console.warn(`[GIT_MANAGER] Cannot checkout to ${commitSha}:`, error);
