@@ -52,8 +52,6 @@ main() {
     echo "============================"
     echo
     echo "This script will help you set up your environment variables."
-    echo "You'll need to have already created a GitHub App for this project."
-    echo "https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app"
     echo
 
     proceed=$(ask "Ready to proceed? (y/N)" "N")
@@ -72,7 +70,7 @@ main() {
     echo -e "\n${GREEN}Pinecone Configuration${NC}"
     echo "****************************************************"
     echo "Get your API key from: https://app.pinecone.io/"
-    echo "${YELLOW}Warning:${NC} If not provided, you will not be able to use indexing."
+    echo "Warning: If not provided, you will not be able to use indexing."
     PINECONE_API_KEY=$(ask "Pinecone API Key")
     PINECONE_INDEX_NAME=$(ask "Pinecone Index Name" "shadow")
 
