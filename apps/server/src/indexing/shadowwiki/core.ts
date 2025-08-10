@@ -159,6 +159,10 @@ function isCriticalFile(filePath: string): boolean {
   const criticalFiles = [
     "package.json",
     "tsconfig.json",
+    "pyproject.toml",
+    "requirements.txt",
+    "cargo.toml",
+    "go.mod",
     "webpack.config.js",
     "vite.config.js",
     "next.config.js",
@@ -169,23 +173,70 @@ function isCriticalFile(filePath: string): boolean {
     "docker-compose.yml",
     "readme.md",
     "claude.md",
+    "makefile",
+    ".gitignore",
   ];
 
   const criticalPatterns = [
-    /\/index\.(ts|js|tsx|jsx)$/,
-    /\/main\.(ts|js|tsx|jsx)$/,
-    /\/app\.(ts|js|tsx|jsx)$/,
-    /\/server\.(ts|js)$/,
+    /\/index\.(ts|js|tsx|jsx|py)$/,
+    /\/main\.(ts|js|tsx|jsx|py)$/,
+    /\/app\.(ts|js|tsx|jsx|py)$/,
+    /\/server\.(ts|js|py)$/,
     /\/client\.(ts|js)$/,
+    /\/__init__\.py$/,
     /types?\.(ts|d\.ts)$/,
-    /config\.(ts|js|json)$/,
-    /schema\.(ts|js|prisma|sql)$/,
+    /config\.(ts|js|json|py)$/,
+    /schema\.(ts|js|prisma|sql|py)$/,
+    /setup\.py$/,
+    /manage\.py$/,
   ];
 
   return (
     criticalFiles.includes(fileName) ||
     criticalPatterns.some((pattern) => pattern.test(relativePath))
   );
+}
+
+// Smart file selection: pick representative files for each directory
+function selectRepresentativeFiles(
+  files: Array<{ path: string; size: number; symbols: Symbols }>,
+  maxFiles: number = 3
+): string[] {
+  if (files.length <= maxFiles) {
+    return files.map((f) => f.path);
+  }
+
+  const selected = new Set<string>();
+
+  // 1. Always include main entry files
+  const entryFiles = files.filter((f) => {
+    const name = path.basename(f.path).toLowerCase();
+    return (
+      name.includes("index") ||
+      name.includes("main") ||
+      name.includes("__init__")
+    );
+  });
+  entryFiles.slice(0, 1).forEach((f) => selected.add(f.path));
+
+  // 2. Include largest file (likely most complex)
+  if (selected.size < maxFiles) {
+    const largest = files.sort((a, b) => b.size - a.size)[0];
+    if (largest) selected.add(largest.path);
+  }
+
+  // 3. Include file with most symbols/imports (most connected)
+  if (selected.size < maxFiles) {
+    const mostConnected = files.sort(
+      (a, b) =>
+        b.symbols.defs.size +
+        b.symbols.imports.size -
+        (a.symbols.defs.size + a.symbols.imports.size)
+    )[0];
+    if (mostConnected) selected.add(mostConnected.path);
+  }
+
+  return Array.from(selected).slice(0, maxFiles);
 }
 
 // Simple truncation - no complex AST logic
@@ -788,9 +839,13 @@ async function summarizeFile(
     }
   }
 
-  const symbols = langSpec 
+  const symbols = langSpec
     ? await extractSymbols(src, langSpec, rel)
-    : { defs: new Set<string>(), calls: new Set<string>(), imports: new Set<string>() };
+    : {
+        defs: new Set<string>(),
+        calls: new Set<string>(),
+        imports: new Set<string>(),
+      };
   const needsDeepAnalysis = analyzeFileComplexity(symbols, src.length);
 
   if (needsDeepAnalysis && !skipLLM) {
@@ -825,7 +880,7 @@ async function analyzeFileWithLLM(
     return null;
   }
 
-  const maxTokens = isCritical ? 800 : isDataFile ? 400 : 400;
+  const maxTokens = 200;
 
   let truncatedSrc = src;
   if (src.length > maxTokens * 4) {
@@ -836,14 +891,16 @@ async function analyzeFileWithLLM(
 
   let systemPrompt = "";
   if (isDataFile) {
-    systemPrompt = `Give a 1-3 line description of this data file. Be extremely concise. File: ${path.basename(rel)}${wasTruncated ? " (content truncated)" : ""}`;
+    systemPrompt = `Give a 1-3 line description of this data file. Be extremely concise. Only describe what you can actually see in the content. Do not hallucinate or assume functionality not present in the code. File: ${path.basename(rel)}${wasTruncated ? " (content truncated)" : ""}`;
   } else {
-    systemPrompt = `Analyze this code file. Be ultra-concise, use bullet points and fragments. Include:
-1. Purpose (1 line)
-2. Main symbols with line numbers (focus on exports and key functions)
-3. Key dependencies and imports
-4. Critical algorithms/patterns (if any)
-${isCritical ? "5. This is a CRITICAL file - provide extra detail on architecture/config" : ""}
+    systemPrompt = `Analyze this code file. Be ultra-concise, use bullet points and fragments. ONLY mention what you can actually see in the code - do not hallucinate or assume functionality. Include:
+1. Purpose (1 line, based only on visible code)
+2. Main symbols with line numbers (only exports and functions you can see)
+3. Key dependencies and imports (only those explicitly imported)
+4. Critical algorithms/patterns (only if clearly visible in code)
+${isCritical ? "5. This is a CRITICAL file - provide extra detail on architecture/config visible in the code" : ""}
+
+IMPORTANT: Only describe the actual tech stack, frameworks, and functionality that you can see in the provided code. Do not make assumptions about the broader system or add information not present in the file.
 
 File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on key sections)" : ""}`;
   }
@@ -915,10 +972,14 @@ async function chat(
   return text?.trim() || "_(no response)_";
 }
 
-// Simple directory analysis - no complex pattern matching
+// Enhanced directory analysis using symbol data
 function analyzeDirectoryPatterns(node: TreeNode): string {
   const dirName = node.name.toLowerCase();
   const files = node.files || [];
+  const symbolData = (global as any).__shadowWikiSymbolData as Map<
+    string,
+    { size: number; symbols: Symbols }
+  >;
 
   const directoryPurposes: Record<string, string> = {
     src: "Source code directory",
@@ -956,42 +1017,99 @@ function analyzeDirectoryPatterns(node: TreeNode): string {
     data: "Data files",
   };
 
+  // Analyze file extensions and symbols
   const extensions = files.map((f) => path.extname(f).toLowerCase());
   const extensionCounts: Record<string, number> = {};
   extensions.forEach((ext) => {
     if (ext) extensionCounts[ext] = (extensionCounts[ext] || 0) + 1;
   });
 
+  // Rich symbol analysis from all files in directory
+  let totalDefs = 0;
+  let totalImports = 0;
+  let majorImports = new Set<string>();
+  let functionTypes = new Set<string>();
+
+  files.forEach((filePath) => {
+    const data = symbolData?.get(filePath);
+    if (data) {
+      totalDefs += data.symbols.defs.size;
+      totalImports += data.symbols.imports.size;
+
+      // Collect major imports/frameworks
+      data.symbols.imports.forEach((imp) => {
+        const cleaned = imp.toLowerCase().replace(/['"`]/g, "");
+        if (cleaned.includes("react")) majorImports.add("React");
+        if (cleaned.includes("express")) majorImports.add("Express");
+        if (
+          cleaned.includes("fastapi") ||
+          cleaned.includes("flask") ||
+          cleaned.includes("django")
+        )
+          majorImports.add("Python Web Framework");
+        if (cleaned.includes("numpy") || cleaned.includes("pandas"))
+          majorImports.add("Data Science");
+        if (
+          cleaned.includes("tensorflow") ||
+          cleaned.includes("torch") ||
+          cleaned.includes("sklearn")
+        )
+          majorImports.add("ML/AI");
+        if (cleaned.includes("prisma") || cleaned.includes("mongoose"))
+          majorImports.add("Database ORM");
+      });
+
+      // Analyze function patterns
+      data.symbols.defs.forEach((def) => {
+        if (def.includes("component") || def.includes("Component"))
+          functionTypes.add("Components");
+        if (
+          def.includes("handler") ||
+          def.includes("Handler") ||
+          def.includes("api")
+        )
+          functionTypes.add("API Handlers");
+        if (
+          def.includes("test") ||
+          def.includes("Test") ||
+          def.includes("spec")
+        )
+          functionTypes.add("Tests");
+        if (def.includes("util") || def.includes("helper"))
+          functionTypes.add("Utilities");
+      });
+    }
+  });
+
+  // Build tech stack from extensions + imports
   const techStack: string[] = [];
-  if (extensionCounts[".tsx"] || extensionCounts[".jsx"])
+  if (
+    extensionCounts[".tsx"] ||
+    extensionCounts[".jsx"] ||
+    majorImports.has("React")
+  )
     techStack.push("React");
   if (extensionCounts[".ts"]) techStack.push("TypeScript");
   if (extensionCounts[".js"]) techStack.push("JavaScript");
   if (extensionCounts[".py"]) techStack.push("Python");
-  if (
-    extensionCounts[".cpp"] ||
-    extensionCounts[".cc"] ||
-    extensionCounts[".h"]
-  )
-    techStack.push("C++");
-  if (extensionCounts[".java"]) techStack.push("Java");
   if (extensionCounts[".go"]) techStack.push("Go");
   if (extensionCounts[".rs"]) techStack.push("Rust");
-  if (extensionCounts[".php"]) techStack.push("PHP");
-  if (extensionCounts[".rb"]) techStack.push("Ruby");
-  if (extensionCounts[".sql"]) techStack.push("SQL");
-  if (extensionCounts[".css"] || extensionCounts[".scss"])
-    techStack.push("Styles");
+  if (extensionCounts[".java"]) techStack.push("Java");
+
+  // Add framework info from imports
+  majorImports.forEach((framework) => techStack.push(framework));
 
   let analysis = directoryPurposes[dirName] || `Directory: ${node.name}`;
 
   if (techStack.length > 0) {
-    analysis += ` (${techStack.join(", ")})`;
+    analysis += ` (${Array.from(new Set(techStack)).join(", ")})`;
   }
 
   const fileCount = files.length;
   if (fileCount > 0) {
     analysis += `\n- ${fileCount} files`;
+    if (totalDefs > 0) analysis += `, ${totalDefs} definitions`;
+    if (totalImports > 0) analysis += `, ${totalImports} imports`;
 
     const mainExtensions = Object.entries(extensionCounts)
       .sort((a, b) => b[1] - a[1])
@@ -1004,9 +1122,9 @@ function analyzeDirectoryPatterns(node: TreeNode): string {
     }
   }
 
-  if (files.length > 0) {
-    const sampleFiles = files.slice(0, 3).map((f) => path.basename(f));
-    analysis += `\n- Key files: ${sampleFiles.join(", ")}${files.length > 3 ? "..." : ""}`;
+  // Add function type insights
+  if (functionTypes.size > 0) {
+    analysis += `\n- Contains: ${Array.from(functionTypes).join(", ")}`;
   }
 
   return analysis;
@@ -1038,14 +1156,14 @@ async function summarizeDir(
   }
 
   const budget = 400;
-  const systemPrompt = `Summarize this code directory. Be ultra-concise.
+  const systemPrompt = `Summarize this code directory. Be ultra-concise. ONLY describe what you can see in the provided file summaries - do not hallucinate or assume functionality.
 
 Include only:
-1. Main purpose (1 line)
-2. Key components and their roles
-3. Critical patterns or algorithms
+1. Main purpose (1 line, based only on visible files)
+2. Key components and their roles (only from actual file content)
+3. Critical patterns or algorithms (only if visible in files)
 
-Use bullet points, fragments, abbreviations. Directory: ${node.relPath}`;
+Use bullet points, fragments, abbreviations. Only mention tech stack and frameworks that are explicitly visible in the file summaries. Directory: ${node.relPath}`;
 
   const userContent = childSummaries.join("\n---\n");
 
@@ -1086,16 +1204,16 @@ async function summarizeRoot(
     return `Empty project: ${node.name}`;
   }
 
-  const budget = 2000;
-  const systemPrompt = `Create a concise architecture overview for ${node.name}.
+  const budget = 800;
+  const systemPrompt = `Create a concise architecture overview for ${node.name}. ONLY describe what you can see in the provided directory summaries - do not hallucinate or assume functionality.
 
 Include only the most essential:
-1. Core components and their roles (very brief)
-2. Main data flows between components
-3. Key architectural patterns
-4. Tech stack basics
+1. Core components and their roles (based only on visible directory content)
+2. Main data flows between components (only if explicitly visible)
+3. Key architectural patterns (only if clearly present in summaries)
+4. Tech stack basics (only technologies explicitly mentioned in summaries)
 
-Use bullet points and fragments. Ultra-concise technical descriptions only.`;
+Use bullet points and fragments. Ultra-concise technical descriptions only. Do not make assumptions about the system beyond what is provided.`;
 
   const userContent = childSummaries.join("\n---\n");
 
@@ -1215,26 +1333,116 @@ export async function runShadowWiki(
     `📁 [SHADOW-WIKI] Discovered ${allFiles.length} files for analysis`
   );
 
-  // Dynamic batch size based on total files to prevent overwhelming large codebases
-  const BATCH_SIZE = Math.max(
-    10,
-    Math.min(50, Math.ceil(allFiles.length / 50))
-  );
-  console.log(
-    `⚡ [SHADOW-WIKI] Optimized batch processing - Batch size: ${BATCH_SIZE}, Total batches: ${Math.ceil(allFiles.length / BATCH_SIZE)}`
-  );
+  // PHASE 1: Fast symbol extraction for ALL files
+  console.log(`⚡ [SHADOW-WIKI] Phase 1: Fast symbol extraction for all files`);
+  const fileData = new Map<
+    string,
+    { size: number; symbols: Symbols; content?: string }
+  >();
 
-  for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
-    const batch = allFiles.slice(i, i + BATCH_SIZE);
-    const skipLLM = consecutiveLLMFailures >= MAX_CONSECUTIVE_FAILURES;
-    if (skipLLM && i === 0) {
+  for (const rel of allFiles) {
+    try {
+      const statsResult = await executor.getFileStats(rel);
+      const fileSize =
+        statsResult.success && statsResult.stats ? statsResult.stats.size : 0;
+
+      const fileResult = await executor.readFile(rel);
+      if (
+        !fileResult.success ||
+        !fileResult.content ||
+        !fileResult.content.trim()
+      ) {
+        continue; // Skip empty/unreadable files
+      }
+
+      const src = fileResult.content;
+      const fileExt = path.extname(rel).toLowerCase();
+
+      // Fast symbol extraction
+      let symbols: Symbols = {
+        defs: new Set(),
+        calls: new Set(),
+        imports: new Set(),
+      };
+      for (const [_key, lang] of Object.entries(LANGUAGES)) {
+        if (lang.extensions.includes(fileExt)) {
+          symbols = await extractSymbols(src, lang, rel);
+          break;
+        }
+      }
+
+      fileData.set(rel, { size: fileSize, symbols, content: src });
+    } catch (error) {
       console.warn(
-        `[SHADOW-WIKI] Too many consecutive LLM failures (${consecutiveLLMFailures}), switching to symbol-only analysis`
+        `[SHADOW-WIKI] Failed to extract symbols from ${rel}:`,
+        error
       );
     }
+  }
+
+  console.log(
+    `📊 [SHADOW-WIKI] Symbol extraction complete: ${fileData.size}/${allFiles.length} files processed`
+  );
+
+  // PHASE 2: Smart file selection for LLM analysis
+  console.log(
+    `🎯 [SHADOW-WIKI] Phase 2: Smart file selection for detailed analysis`
+  );
+
+  const filesToAnalyze = new Set<string>();
+  const filesByDirectory = new Map<
+    string,
+    Array<{ path: string; size: number; symbols: Symbols }>
+  >();
+
+  // Group files by directory
+  for (const [filePath, data] of fileData.entries()) {
+    const dir = path.dirname(filePath);
+    if (!filesByDirectory.has(dir)) {
+      filesByDirectory.set(dir, []);
+    }
+    filesByDirectory
+      .get(dir)!
+      .push({ path: filePath, size: data.size, symbols: data.symbols });
+  }
+
+  // Select files for analysis
+  for (const filePath of fileData.keys()) {
+    // Always analyze critical files
+    if (isCriticalFile(filePath)) {
+      filesToAnalyze.add(filePath);
+    }
+  }
+
+  // Add representative files from each directory
+  for (const [dir, files] of filesByDirectory.entries()) {
+    if (files.length > 3) {
+      // Only sample if directory has many files
+      const representatives = selectRepresentativeFiles(files, 2);
+      representatives.forEach((f) => filesToAnalyze.add(f));
+    } else {
+      // Analyze all files in small directories
+      files.forEach((f) => filesToAnalyze.add(f.path));
+    }
+  }
+
+  console.log(
+    `📋 [SHADOW-WIKI] Selected ${filesToAnalyze.size} files for LLM analysis (${Math.round((filesToAnalyze.size / allFiles.length) * 100)}% of total)`
+  );
+
+  // PHASE 3: LLM analysis of selected files
+  const BATCH_SIZE = 10;
+  const selectedFiles = Array.from(filesToAnalyze);
+
+  for (let i = 0; i < selectedFiles.length; i += BATCH_SIZE) {
+    const batch = selectedFiles.slice(i, i + BATCH_SIZE);
+    const skipLLM = consecutiveLLMFailures >= MAX_CONSECUTIVE_FAILURES;
 
     const batchTasks = batch.map(async (rel) => {
       try {
+        const data = fileData.get(rel);
+        if (!data?.content) return;
+
         const summary = await summarizeFile(
           executor,
           rel,
@@ -1242,36 +1450,25 @@ export async function runShadowWiki(
           skipLLM
         );
 
-        // Only store and count files that have meaningful content
         if (summary !== null) {
           fileCache[rel] = summary;
           stats.filesProcessed++;
         }
-        if (!skipLLM) consecutiveLLMFailures = 0; // Reset on success
+        if (!skipLLM) consecutiveLLMFailures = 0;
       } catch (error) {
         console.error(`[SHADOW-WIKI] Failed to process ${rel}:`, error);
         if (!skipLLM) consecutiveLLMFailures++;
-        // Don't store failed files
       }
     });
 
     await Promise.all(batchTasks);
-    const currentBatch = Math.floor(i / BATCH_SIZE) + 1;
-    const totalBatches = Math.ceil(allFiles.length / BATCH_SIZE);
-    const progressPercent = Math.round(
-      (stats.filesProcessed / allFiles.length) * 100
-    );
     console.log(
-      `📊 [SHADOW-WIKI] Batch ${currentBatch}/${totalBatches} complete - Progress: ${stats.filesProcessed}/${allFiles.length} files (${progressPercent}%)`
+      `🔄 [SHADOW-WIKI] Processed ${Math.min(i + BATCH_SIZE, selectedFiles.length)}/${selectedFiles.length} selected files`
     );
-
-    if (i + BATCH_SIZE < allFiles.length) {
-      // Dynamic delay based on codebase size - smaller for larger codebases
-      const delay =
-        allFiles.length > 1000 ? 200 : allFiles.length > 500 ? 350 : 500;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
   }
+
+  // Store symbol data for directory analysis
+  (global as any).__shadowWikiSymbolData = fileData;
 
   console.log(
     `🏗️ [SHADOW-WIKI] File analysis complete - Starting directory summarization phase`
