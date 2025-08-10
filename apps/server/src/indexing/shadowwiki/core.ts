@@ -4,8 +4,9 @@ import Parser from "tree-sitter";
 import JavaScript from "tree-sitter-javascript";
 import { CodebaseUnderstandingStorage } from "./db-storage";
 import TS from "tree-sitter-typescript";
+const Python = require("tree-sitter-python");
 import { ModelProvider } from "@/agent/llm/models/model-provider";
-import { ModelType, ApiKeys, AvailableModels } from "@repo/types";
+import { ModelType, ApiKeys } from "@repo/types";
 import { CoreMessage, generateText, LanguageModel } from "ai";
 import { TaskModelContext } from "@/services/task-model-context";
 import { braintrustService } from "../../agent/llm/observability/braintrust-service";
@@ -62,13 +63,15 @@ interface Symbols {
   imports: Set<string>;
 }
 
-// Tree-sitter setup - simplified to just JS/TS
+// Tree-sitter setup - JS/TS/Python only
 const parserJS = new Parser();
 parserJS.setLanguage(JavaScript as any);
 const parserTS = new Parser();
 parserTS.setLanguage(TS.typescript as any);
 const parserTSX = new Parser();
 parserTSX.setLanguage(TS.tsx as any);
+const parserPython = new Parser();
+parserPython.setLanguage(Python as any);
 
 const LANGUAGES = {
   js: {
@@ -112,11 +115,26 @@ const LANGUAGES = {
       `(import_statement source: (string) @import.source)`
     ),
   },
+  python: {
+    parser: parserPython,
+    extensions: [".py", ".pyx", ".pyi"],
+    queryDefs: new Parser.Query(
+      Python as any,
+      `
+      (function_definition name: (identifier) @def.name)
+      (class_definition name: (identifier) @def.name)
+      `
+    ),
+    queryImports: new Parser.Query(
+      Python as any,
+      `(import_statement name: (dotted_name) @import.name)`
+    ),
+  },
 };
 
 const sha1 = (data: string) => createHash("sha1").update(data).digest("hex");
 
-// Simple timeout utility
+// Simple timeout utility for tree-sitter parsing
 async function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -141,6 +159,10 @@ function isCriticalFile(filePath: string): boolean {
   const criticalFiles = [
     "package.json",
     "tsconfig.json",
+    "pyproject.toml",
+    "requirements.txt",
+    "cargo.toml",
+    "go.mod",
     "webpack.config.js",
     "vite.config.js",
     "next.config.js",
@@ -151,23 +173,70 @@ function isCriticalFile(filePath: string): boolean {
     "docker-compose.yml",
     "readme.md",
     "claude.md",
+    "makefile",
+    ".gitignore",
   ];
 
   const criticalPatterns = [
-    /\/index\.(ts|js|tsx|jsx)$/,
-    /\/main\.(ts|js|tsx|jsx)$/,
-    /\/app\.(ts|js|tsx|jsx)$/,
-    /\/server\.(ts|js)$/,
+    /\/index\.(ts|js|tsx|jsx|py)$/,
+    /\/main\.(ts|js|tsx|jsx|py)$/,
+    /\/app\.(ts|js|tsx|jsx|py)$/,
+    /\/server\.(ts|js|py)$/,
     /\/client\.(ts|js)$/,
+    /\/__init__\.py$/,
     /types?\.(ts|d\.ts)$/,
-    /config\.(ts|js|json)$/,
-    /schema\.(ts|js|prisma|sql)$/,
+    /config\.(ts|js|json|py)$/,
+    /schema\.(ts|js|prisma|sql|py)$/,
+    /setup\.py$/,
+    /manage\.py$/,
   ];
 
   return (
     criticalFiles.includes(fileName) ||
     criticalPatterns.some((pattern) => pattern.test(relativePath))
   );
+}
+
+// Smart file selection: pick representative files for each directory
+function selectRepresentativeFiles(
+  files: Array<{ path: string; size: number; symbols: Symbols }>,
+  maxFiles: number = 3
+): string[] {
+  if (files.length <= maxFiles) {
+    return files.map((f) => f.path);
+  }
+
+  const selected = new Set<string>();
+
+  // 1. Always include main entry files
+  const entryFiles = files.filter((f) => {
+    const name = path.basename(f.path).toLowerCase();
+    return (
+      name.includes("index") ||
+      name.includes("main") ||
+      name.includes("__init__")
+    );
+  });
+  entryFiles.slice(0, 1).forEach((f) => selected.add(f.path));
+
+  // 2. Include largest file (likely most complex)
+  if (selected.size < maxFiles) {
+    const largest = files.sort((a, b) => b.size - a.size)[0];
+    if (largest) selected.add(largest.path);
+  }
+
+  // 3. Include file with most symbols/imports (most connected)
+  if (selected.size < maxFiles) {
+    const mostConnected = files.sort(
+      (a, b) =>
+        b.symbols.defs.size +
+        b.symbols.imports.size -
+        (a.symbols.defs.size + a.symbols.imports.size)
+    )[0];
+    if (mostConnected) selected.add(mostConnected.path);
+  }
+
+  return Array.from(selected).slice(0, maxFiles);
 }
 
 // Simple truncation - no complex AST logic
@@ -293,7 +362,7 @@ async function extractSymbols(
         });
       }
     } catch (_error) {
-      // Skip defs extraction on error  
+      // Skip defs extraction on error
     }
 
     // Extract imports
@@ -401,37 +470,124 @@ function shouldSkipFile(
   return { skip: false };
 }
 
-// Check if file should be ignored based on Shadow Wiki patterns
-function shouldIgnoreFileForShadowWiki(filePath: string): boolean {
-  const ignorePatterns = [
+// Check if file should be included based on allowlist
+function shouldIncludeFileForShadowWiki(filePath: string): boolean {
+  const fileName = path.basename(filePath).toLowerCase();
+  const ext = path.extname(filePath).toLowerCase();
+
+  // Skip directories we never want to analyze
+  const skipDirectories = [
     "node_modules/",
     ".git/",
     "dist/",
     "build/",
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".gif",
-    ".svg",
-    ".ico",
-    ".lock",
     ".shadow/",
     "coverage/",
     ".nyc_output/",
+    "__pycache__/",
+    ".pytest_cache/",
+    "target/", // Rust
+    "bin/",
+    "obj/", // C#/.NET
   ];
 
-  return ignorePatterns.some((pattern) => {
-    if (pattern.endsWith("/")) {
-      // Directory pattern - check if path contains this directory
-      return filePath.includes(pattern) || filePath.includes(`/${pattern}`);
-    } else if (pattern.startsWith(".")) {
-      // Extension pattern - check if path ends with this extension
-      return filePath.endsWith(pattern);
-    } else {
-      // General pattern - check if path contains it
-      return filePath.includes(pattern);
-    }
-  });
+  if (skipDirectories.some((dir) => filePath.includes(dir))) {
+    return false;
+  }
+
+  // Always include critical files regardless of extension
+  const criticalFiles = [
+    "readme.md",
+    "claude.md",
+    "package.json",
+    "tsconfig.json",
+    "cargo.toml",
+    "pyproject.toml",
+    "requirements.txt",
+    "dockerfile",
+    "docker-compose.yml",
+    "makefile",
+    ".env.example",
+  ];
+
+  if (criticalFiles.includes(fileName)) {
+    return true;
+  }
+
+  // Allowlist of file extensions we want to analyze
+  const allowedExtensions = [
+    // Code files
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".cjs",
+    ".ts",
+    ".tsx",
+    ".mts",
+    ".cts",
+    ".d.ts",
+    ".py",
+    ".pyx",
+    ".pyi",
+    ".cpp",
+    ".cc",
+    ".cxx",
+    ".c++",
+    ".c",
+    ".h",
+    ".hpp",
+    ".hxx",
+    ".java",
+    ".kt",
+    ".scala",
+    ".go",
+    ".rs",
+    ".php",
+    ".rb",
+    ".swift",
+    ".cs",
+    ".fs",
+    ".vb",
+    ".sh",
+    ".bash",
+    ".zsh",
+    ".fish",
+    ".ps1",
+    ".bat",
+    ".cmd",
+
+    // Config/data files
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".ini",
+    ".cfg",
+    ".xml",
+    ".html",
+    ".css",
+    ".scss",
+    ".sass",
+    ".less",
+    ".md",
+    ".mdx",
+    ".txt",
+    ".rst",
+    ".sql",
+    ".prisma",
+    ".graphql",
+    ".gql",
+
+    // Build/project files
+    ".dockerfile",
+    ".containerfile",
+    ".gitignore",
+    ".gitattributes",
+    ".eslintrc",
+    ".prettierrc",
+    ".editorconfig",
+  ];
+
+  return allowedExtensions.includes(ext);
 }
 
 // Build directory tree - using ToolExecutor for both local and remote modes
@@ -457,15 +613,16 @@ async function buildTree(
   let skippedCount = 0;
 
   for (const fileEntry of allFiles) {
-    // Check ignore patterns first
-    if (shouldIgnoreFileForShadowWiki(fileEntry.relativePath)) {
+    // Check if file should be included
+    if (!shouldIncludeFileForShadowWiki(fileEntry.relativePath)) {
       skippedCount++;
       continue;
     }
 
     // Get file stats for skip logic
     const statsResult = await executor.getFileStats(fileEntry.relativePath);
-    const fileSize = statsResult.success && statsResult.stats ? statsResult.stats.size : 0;
+    const fileSize =
+      statsResult.success && statsResult.stats ? statsResult.stats.size : 0;
 
     const { skip } = shouldSkipFile(fileEntry.relativePath, fileSize);
 
@@ -622,9 +779,8 @@ async function summarizeFile(
   rel: string,
   miniModelInstance: LanguageModel,
   skipLLM: boolean = false
-): Promise<string> {
+): Promise<string | null> {
   let src: string;
-  let fileSize: number = 0;
 
   try {
     // Get file stats using executor
@@ -634,32 +790,28 @@ async function summarizeFile(
         `[SHADOW-WIKI] Failed to get stats for ${rel}:`,
         statsResult.error
       );
-      return getBasicFileInfo(rel, 0) + " _(unreadable)_";
+      return null;
     }
-    fileSize = statsResult.stats.size;
 
     // Read file content using executor
     const fileResult = await executor.readFile(rel);
     if (!fileResult.success || !fileResult.content) {
       console.warn(`[SHADOW-WIKI] Failed to read ${rel}:`, fileResult.error);
-      return getBasicFileInfo(rel, fileSize) + " _(unreadable)_";
+      return null;
     }
     src = fileResult.content;
   } catch (error) {
     console.warn(`[SHADOW-WIKI] Failed to read ${rel}:`, error);
-    return getBasicFileInfo(rel, 0) + " _(unreadable)_";
+    return null;
+  }
+
+  // Skip empty files
+  if (!src || src.trim().length === 0) {
+    return null;
   }
 
   const fileExt = path.extname(rel).toLowerCase();
-  const dataFileExtensions = [
-    ".json",
-    ".yaml",
-    ".yml",
-    ".md",
-    ".txt",
-    ".csv",
-    ".xml",
-  ];
+  const dataFileExtensions = [".yaml", ".yml", ".md", ".txt", ".csv", ".xml"];
   const isDataFile = dataFileExtensions.includes(fileExt);
 
   if (isDataFile && src.trim().length > 0) {
@@ -672,10 +824,12 @@ async function summarizeFile(
   }
 
   if (!isParseableFile(src, rel)) {
-    return "_(binary or unsupported file type)_";
+    // Binary or unsupported file - don't store
+    return null;
   }
 
-  let langSpec = LANGUAGES.js;
+  // Only use tree-sitter for supported languages
+  let langSpec = null;
   for (const [_key, lang] of Object.entries(LANGUAGES)) {
     if (lang.extensions.includes(fileExt)) {
       langSpec = lang;
@@ -683,7 +837,13 @@ async function summarizeFile(
     }
   }
 
-  const symbols = await extractSymbols(src, langSpec, rel);
+  const symbols = langSpec
+    ? await extractSymbols(src, langSpec, rel)
+    : {
+        defs: new Set<string>(),
+        calls: new Set<string>(),
+        imports: new Set<string>(),
+      };
   const needsDeepAnalysis = analyzeFileComplexity(symbols, src.length);
 
   if (needsDeepAnalysis && !skipLLM) {
@@ -693,7 +853,8 @@ async function summarizeFile(
     if (markdown) {
       return markdown;
     } else {
-      return getBasicFileInfo(rel, fileSize) + " _(no symbols extracted)_";
+      // No symbols extracted - don't store this file
+      return null;
     }
   }
 }
@@ -704,7 +865,7 @@ async function analyzeFileWithLLM(
   src: string,
   symbols: Symbols,
   miniModelInstance: LanguageModel
-): Promise<string> {
+): Promise<string | null> {
   const ext = path.extname(rel).toLowerCase();
   const isDataFile =
     /\.(csv|json|txt|md|png|jpg|jpeg|gif|svg|ico|xlsx|xls|tsv|yaml|yml)$/i.test(
@@ -714,10 +875,10 @@ async function analyzeFileWithLLM(
 
   // Skip analysis for extremely large files (over 50k chars ~ 12.5k tokens)
   if (src.length > 50000) {
-    return `Large file: ${path.basename(rel)} (${Math.round(src.length / 1000)}KB) - skipped analysis due to size`;
+    return null;
   }
 
-  const maxTokens = isCritical ? 4000 : isDataFile ? 2048 : 2048;
+  const maxTokens = 200;
 
   let truncatedSrc = src;
   if (src.length > maxTokens * 4) {
@@ -728,14 +889,16 @@ async function analyzeFileWithLLM(
 
   let systemPrompt = "";
   if (isDataFile) {
-    systemPrompt = `Give a 1-3 line description of this data file. Be extremely concise. File: ${path.basename(rel)}${wasTruncated ? " (content truncated)" : ""}`;
+    systemPrompt = `Give a 1-3 line description of this data file. Be extremely concise. Only describe what you can actually see in the content. Do not hallucinate or assume functionality not present in the code. File: ${path.basename(rel)}${wasTruncated ? " (content truncated)" : ""}`;
   } else {
-    systemPrompt = `Analyze this code file. Be ultra-concise, use bullet points and fragments. Include:
-1. Purpose (1 line)
-2. Main symbols with line numbers (focus on exports and key functions)
-3. Key dependencies and imports
-4. Critical algorithms/patterns (if any)
-${isCritical ? "5. This is a CRITICAL file - provide extra detail on architecture/config" : ""}
+    systemPrompt = `Analyze this code file. Be ultra-concise, use bullet points and fragments. ONLY mention what you can actually see in the code - do not hallucinate or assume functionality. Include:
+1. Purpose (1 line, based only on visible code)
+2. Main symbols with line numbers (only exports and functions you can see)
+3. Key dependencies and imports (only those explicitly imported)
+4. Critical algorithms/patterns (only if clearly visible in code)
+${isCritical ? "5. This is a CRITICAL file - provide extra detail on architecture/config visible in the code" : ""}
+
+IMPORTANT: Only describe the actual tech stack, frameworks, and functionality that you can see in the provided code. Do not make assumptions about the broader system or add information not present in the file.
 
 File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on key sections)" : ""}`;
   }
@@ -745,32 +908,26 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
     { role: "user" as const, content: truncatedSrc },
   ];
 
-  const isGPT5 = miniModelInstance.modelId === AvailableModels.GPT_5;
-
   try {
-    const { text } = await withTimeout(
-      generateText({
-        model: miniModelInstance,
-        temperature: isGPT5 ? 1 : 0.6,
-        messages,
-        ...(isGPT5 ? { maxCompletionTokens: maxTokens } : { maxTokens }),
-        experimental_telemetry: braintrustService.getOperationTelemetry(
-          "shadowwiki-file-summary",
-          {
-            filePath: rel,
-            fileExtension: path.extname(rel),
-            isCritical,
-            fileSize: truncatedSrc.length,
-            wasTruncated,
-            hasSymbols:
-              symbols.defs.size + symbols.calls.size + symbols.imports.size > 0,
-            analysisType: "llm-deep-analysis",
-          }
-        ),
-      }),
-      60000,
-      `LLM analysis of ${rel}`
-    );
+    const { text } = await generateText({
+      model: miniModelInstance,
+      temperature: 0.6,
+      messages,
+      maxTokens,
+      experimental_telemetry: braintrustService.getOperationTelemetry(
+        "shadowwiki-file-summary",
+        {
+          filePath: rel,
+          fileExtension: path.extname(rel),
+          isCritical,
+          fileSize: truncatedSrc.length,
+          wasTruncated,
+          hasSymbols:
+            symbols.defs.size + symbols.calls.size + symbols.imports.size > 0,
+          analysisType: "llm-deep-analysis",
+        }
+      ),
+    });
 
     let result = text?.trim() || "_(no response)_";
 
@@ -796,33 +953,31 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
 async function chat(
   messages: Array<CoreMessage>,
   budget: number,
-  mainModelInstance: LanguageModel
+  miniModelInstance: LanguageModel
 ): Promise<string> {
-  const isGPT5 = mainModelInstance.modelId === AvailableModels.GPT_5;
-
-  const { text } = await withTimeout(
-    generateText({
-      model: mainModelInstance,
-      temperature: isGPT5 ? 1 : TEMP,
-      messages,
-      ...(isGPT5 ? { maxCompletionTokens: budget } : { maxTokens: budget }),
-      experimental_telemetry: braintrustService.getTelemetryConfig({
-        operation: "shadowwiki-directory-summary",
-        messageCount: messages.length,
-        budget,
-      }),
+  const { text } = await generateText({
+    model: miniModelInstance,
+    temperature: TEMP,
+    messages,
+    maxTokens: budget,
+    experimental_telemetry: braintrustService.getTelemetryConfig({
+      operation: "shadowwiki-directory-summary",
+      messageCount: messages.length,
+      budget,
     }),
-    45000,
-    "Directory/root summary generation"
-  );
+  });
 
   return text?.trim() || "_(no response)_";
 }
 
-// Simple directory analysis - no complex pattern matching
+// Enhanced directory analysis using symbol data
 function analyzeDirectoryPatterns(node: TreeNode): string {
   const dirName = node.name.toLowerCase();
   const files = node.files || [];
+  const symbolData = (global as any).__shadowWikiSymbolData as Map<
+    string,
+    { size: number; symbols: Symbols }
+  >;
 
   const directoryPurposes: Record<string, string> = {
     src: "Source code directory",
@@ -860,42 +1015,99 @@ function analyzeDirectoryPatterns(node: TreeNode): string {
     data: "Data files",
   };
 
+  // Analyze file extensions and symbols
   const extensions = files.map((f) => path.extname(f).toLowerCase());
   const extensionCounts: Record<string, number> = {};
   extensions.forEach((ext) => {
     if (ext) extensionCounts[ext] = (extensionCounts[ext] || 0) + 1;
   });
 
+  // Rich symbol analysis from all files in directory
+  let totalDefs = 0;
+  let totalImports = 0;
+  let majorImports = new Set<string>();
+  let functionTypes = new Set<string>();
+
+  files.forEach((filePath) => {
+    const data = symbolData?.get(filePath);
+    if (data) {
+      totalDefs += data.symbols.defs.size;
+      totalImports += data.symbols.imports.size;
+
+      // Collect major imports/frameworks
+      data.symbols.imports.forEach((imp) => {
+        const cleaned = imp.toLowerCase().replace(/['"`]/g, "");
+        if (cleaned.includes("react")) majorImports.add("React");
+        if (cleaned.includes("express")) majorImports.add("Express");
+        if (
+          cleaned.includes("fastapi") ||
+          cleaned.includes("flask") ||
+          cleaned.includes("django")
+        )
+          majorImports.add("Python Web Framework");
+        if (cleaned.includes("numpy") || cleaned.includes("pandas"))
+          majorImports.add("Data Science");
+        if (
+          cleaned.includes("tensorflow") ||
+          cleaned.includes("torch") ||
+          cleaned.includes("sklearn")
+        )
+          majorImports.add("ML/AI");
+        if (cleaned.includes("prisma") || cleaned.includes("mongoose"))
+          majorImports.add("Database ORM");
+      });
+
+      // Analyze function patterns
+      data.symbols.defs.forEach((def) => {
+        if (def.includes("component") || def.includes("Component"))
+          functionTypes.add("Components");
+        if (
+          def.includes("handler") ||
+          def.includes("Handler") ||
+          def.includes("api")
+        )
+          functionTypes.add("API Handlers");
+        if (
+          def.includes("test") ||
+          def.includes("Test") ||
+          def.includes("spec")
+        )
+          functionTypes.add("Tests");
+        if (def.includes("util") || def.includes("helper"))
+          functionTypes.add("Utilities");
+      });
+    }
+  });
+
+  // Build tech stack from extensions + imports
   const techStack: string[] = [];
-  if (extensionCounts[".tsx"] || extensionCounts[".jsx"])
+  if (
+    extensionCounts[".tsx"] ||
+    extensionCounts[".jsx"] ||
+    majorImports.has("React")
+  )
     techStack.push("React");
   if (extensionCounts[".ts"]) techStack.push("TypeScript");
   if (extensionCounts[".js"]) techStack.push("JavaScript");
   if (extensionCounts[".py"]) techStack.push("Python");
-  if (
-    extensionCounts[".cpp"] ||
-    extensionCounts[".cc"] ||
-    extensionCounts[".h"]
-  )
-    techStack.push("C++");
-  if (extensionCounts[".java"]) techStack.push("Java");
   if (extensionCounts[".go"]) techStack.push("Go");
   if (extensionCounts[".rs"]) techStack.push("Rust");
-  if (extensionCounts[".php"]) techStack.push("PHP");
-  if (extensionCounts[".rb"]) techStack.push("Ruby");
-  if (extensionCounts[".sql"]) techStack.push("SQL");
-  if (extensionCounts[".css"] || extensionCounts[".scss"])
-    techStack.push("Styles");
+  if (extensionCounts[".java"]) techStack.push("Java");
+
+  // Add framework info from imports
+  majorImports.forEach((framework) => techStack.push(framework));
 
   let analysis = directoryPurposes[dirName] || `Directory: ${node.name}`;
 
   if (techStack.length > 0) {
-    analysis += ` (${techStack.join(", ")})`;
+    analysis += ` (${Array.from(new Set(techStack)).join(", ")})`;
   }
 
   const fileCount = files.length;
   if (fileCount > 0) {
     analysis += `\n- ${fileCount} files`;
+    if (totalDefs > 0) analysis += `, ${totalDefs} definitions`;
+    if (totalImports > 0) analysis += `, ${totalImports} imports`;
 
     const mainExtensions = Object.entries(extensionCounts)
       .sort((a, b) => b[1] - a[1])
@@ -908,9 +1120,9 @@ function analyzeDirectoryPatterns(node: TreeNode): string {
     }
   }
 
-  if (files.length > 0) {
-    const sampleFiles = files.slice(0, 3).map((f) => path.basename(f));
-    analysis += `\n- Key files: ${sampleFiles.join(", ")}${files.length > 3 ? "..." : ""}`;
+  // Add function type insights
+  if (functionTypes.size > 0) {
+    analysis += `\n- Contains: ${Array.from(functionTypes).join(", ")}`;
   }
 
   return analysis;
@@ -920,7 +1132,7 @@ function analyzeDirectoryPatterns(node: TreeNode): string {
 async function summarizeDir(
   node: TreeNode,
   childSummaries: string[],
-  mainModelInstance: LanguageModel,
+  miniModelInstance: LanguageModel,
   rootPath?: string
 ): Promise<string> {
   if (!childSummaries || childSummaries.length === 0) {
@@ -931,13 +1143,7 @@ async function summarizeDir(
   }
 
   const meaningfulSummaries = childSummaries.filter(
-    (summary) =>
-      summary &&
-      !summary.includes("_(no symbols found)_") &&
-      !summary.includes("_(no response)_") &&
-      !summary.includes("_(binary or unsupported file type)_") &&
-      !summary.includes("_(unreadable file)_") &&
-      summary.trim().length > 20
+    (summary) => summary && summary.trim().length > 20
   );
 
   if (meaningfulSummaries.length < childSummaries.length * 0.3 && rootPath) {
@@ -947,15 +1153,15 @@ async function summarizeDir(
     );
   }
 
-  const budget = Math.min(800, 200 + childSummaries.length * 40);
-  const systemPrompt = `Summarize this code directory. Be ultra-concise.
+  const budget = 400;
+  const systemPrompt = `Summarize this code directory. Be ultra-concise. ONLY describe what you can see in the provided file summaries - do not hallucinate or assume functionality.
 
 Include only:
-1. Main purpose (1 line)
-2. Key components and their roles
-3. Critical patterns or algorithms
+1. Main purpose (1 line, based only on visible files)
+2. Key components and their roles (only from actual file content)
+3. Critical patterns or algorithms (only if visible in files)
 
-Use bullet points, fragments, abbreviations. Directory: ${node.relPath}`;
+Use bullet points, fragments, abbreviations. Only mention tech stack and frameworks that are explicitly visible in the file summaries. Directory: ${node.relPath}`;
 
   const userContent = childSummaries.join("\n---\n");
 
@@ -983,29 +1189,29 @@ Use bullet points, fragments, abbreviations. Directory: ${node.relPath}`;
     { role: "user" as const, content: userContent },
   ];
 
-  return chat(messages, budget, mainModelInstance);
+  return chat(messages, budget, miniModelInstance);
 }
 
 // Summarize root - simplified
 async function summarizeRoot(
   node: TreeNode,
   childSummaries: string[],
-  mainModelInstance: LanguageModel
+  miniModelInstance: LanguageModel
 ): Promise<string> {
   if (!childSummaries || childSummaries.length === 0) {
     return `Empty project: ${node.name}`;
   }
 
-  const budget = Math.min(500, 150 + childSummaries.length * 30);
-  const systemPrompt = `Create a concise architecture overview for ${node.name}.
+  const budget = 800;
+  const systemPrompt = `Create a concise architecture overview for ${node.name}. ONLY describe what you can see in the provided directory summaries - do not hallucinate or assume functionality.
 
 Include only the most essential:
-1. Core components and their roles (very brief)
-2. Main data flows between components
-3. Key architectural patterns
-4. Tech stack basics
+1. Core components and their roles (based only on visible directory content)
+2. Main data flows between components (only if explicitly visible)
+3. Key architectural patterns (only if clearly present in summaries)
+4. Tech stack basics (only technologies explicitly mentioned in summaries)
 
-Use bullet points and fragments. Ultra-concise technical descriptions only.`;
+Use bullet points and fragments. Ultra-concise technical descriptions only. Do not make assumptions about the system beyond what is provided.`;
 
   const userContent = childSummaries.join("\n---\n");
 
@@ -1023,7 +1229,7 @@ Use bullet points and fragments. Ultra-concise technical descriptions only.`;
     { role: "user" as const, content: userContent },
   ];
 
-  return chat(messages, budget, mainModelInstance);
+  return chat(messages, budget, miniModelInstance);
 }
 
 /**
@@ -1041,9 +1247,13 @@ export async function runShadowWiki(
     modelMini?: ModelType;
   }
 ): Promise<{ codebaseUnderstandingId: string; stats: ProcessingStats }> {
-  console.log(`🔍 [SHADOW-WIKI] Initializing codebase analysis for ${repoFullName}`);
-  console.log(`📋 [SHADOW-WIKI] Task ${taskId} - Repository: ${repoUrl}`);
-  console.log(`⚙️ [SHADOW-WIKI] Configuration - Concurrency: ${options.concurrency || 12}`);
+  console.log(
+    `[SHADOW-WIKI] Initializing codebase analysis for ${repoFullName}`
+  );
+  console.log(`[SHADOW-WIKI] Task ${taskId} - Repository: ${repoUrl}`);
+  console.log(
+    `[SHADOW-WIKI] Configuration: concurrency=${options.concurrency || 12}`
+  );
 
   let context: TaskModelContext;
   if (contextOrApiKeys instanceof TaskModelContext) {
@@ -1076,16 +1286,16 @@ export async function runShadowWiki(
     );
   }
 
-  console.log(`🤖 [SHADOW-WIKI] Model configuration - Main: ${mainModel}, Mini: ${miniModel}`);
-  console.log(`🔑 [SHADOW-WIKI] API validation complete - Provider: ${context.getProvider()}`);
+  console.log(
+    `[SHADOW-WIKI] Model configuration: main=${mainModel}, mini=${miniModel}`
+  );
+  console.log(
+    `[SHADOW-WIKI] API validation complete - provider=${context.getProvider()}`
+  );
 
   const modelProvider = new ModelProvider();
   const miniModelInstance = modelProvider.getModel(
     miniModel,
-    context.getApiKeys()
-  );
-  const mainModelInstance = modelProvider.getModel(
-    mainModel,
     context.getApiKeys()
   );
   const stats: ProcessingStats = {
@@ -1098,11 +1308,11 @@ export async function runShadowWiki(
   const MAX_CONSECUTIVE_FAILURES = 5;
 
   // Create ToolExecutor for file operations (works in both local and remote modes)
-  console.log(`🏗️ [SHADOW-WIKI] Initializing workspace manager and file executor`);
+  console.log(`[SHADOW-WIKI] Initializing workspace manager and file executor`);
   const workspaceManager = createWorkspaceManager();
   const executor = await workspaceManager.getExecutor(taskId);
 
-  console.log(`🌳 [SHADOW-WIKI] Building directory tree structure`);
+  console.log(`[SHADOW-WIKI] Building directory tree structure`);
   const tree = await buildTree(executor, repoFullName);
 
   const fileCache: Record<string, string> = {};
@@ -1115,62 +1325,154 @@ export async function runShadowWiki(
     }
   }
 
-  console.log(`📁 [SHADOW-WIKI] Discovered ${allFiles.length} files for analysis`);
+  console.log(`[SHADOW-WIKI] Discovered ${allFiles.length} files for analysis`);
 
-  // Dynamic batch size based on total files to prevent overwhelming large codebases
-  const BATCH_SIZE = Math.max(
-    10,
-    Math.min(50, Math.ceil(allFiles.length / 50))
-  );
-  console.log(`⚡ [SHADOW-WIKI] Optimized batch processing - Batch size: ${BATCH_SIZE}, Total batches: ${Math.ceil(allFiles.length / BATCH_SIZE)}`);
+  // PHASE 1: Fast symbol extraction for ALL files
+  console.log(`[SHADOW-WIKI] Phase 1: Fast symbol extraction for all files`);
+  const fileData = new Map<
+    string,
+    { size: number; symbols: Symbols; content?: string }
+  >();
 
-  for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
-    const batch = allFiles.slice(i, i + BATCH_SIZE);
-    const skipLLM = consecutiveLLMFailures >= MAX_CONSECUTIVE_FAILURES;
-    if (skipLLM && i === 0) {
+  for (const rel of allFiles) {
+    try {
+      const statsResult = await executor.getFileStats(rel);
+      const fileSize =
+        statsResult.success && statsResult.stats ? statsResult.stats.size : 0;
+
+      const fileResult = await executor.readFile(rel);
+      if (
+        !fileResult.success ||
+        !fileResult.content ||
+        !fileResult.content.trim()
+      ) {
+        continue; // Skip empty/unreadable files
+      }
+
+      const src = fileResult.content;
+      const fileExt = path.extname(rel).toLowerCase();
+
+      // Fast symbol extraction
+      let symbols: Symbols = {
+        defs: new Set(),
+        calls: new Set(),
+        imports: new Set(),
+      };
+      for (const [_key, lang] of Object.entries(LANGUAGES)) {
+        if (lang.extensions.includes(fileExt)) {
+          symbols = await extractSymbols(src, lang, rel);
+          break;
+        }
+      }
+
+      fileData.set(rel, { size: fileSize, symbols, content: src });
+    } catch (error) {
       console.warn(
-        `[SHADOW-WIKI] Too many consecutive LLM failures (${consecutiveLLMFailures}), switching to symbol-only analysis`
+        `[SHADOW-WIKI] Failed to extract symbols from ${rel}:`,
+        error
       );
     }
+  }
+
+  console.log(
+    `[SHADOW-WIKI] Symbol extraction complete: ${fileData.size}/${allFiles.length} files processed`
+  );
+
+  // PHASE 2: Smart file selection for LLM analysis
+  console.log(
+    `[SHADOW-WIKI] Phase 2: Smart file selection for detailed analysis`
+  );
+
+  const filesToAnalyze = new Set<string>();
+  const filesByDirectory = new Map<
+    string,
+    Array<{ path: string; size: number; symbols: Symbols }>
+  >();
+
+  // Group files by directory
+  for (const [filePath, data] of fileData.entries()) {
+    const dir = path.dirname(filePath);
+    if (!filesByDirectory.has(dir)) {
+      filesByDirectory.set(dir, []);
+    }
+    filesByDirectory
+      .get(dir)!
+      .push({ path: filePath, size: data.size, symbols: data.symbols });
+  }
+
+  // Select files for analysis
+  for (const filePath of fileData.keys()) {
+    // Always analyze critical files
+    if (isCriticalFile(filePath)) {
+      filesToAnalyze.add(filePath);
+    }
+  }
+
+  // Add representative files from each directory
+  for (const [, files] of filesByDirectory.entries()) {
+    if (files.length > 3) {
+      // Only sample if directory has many files
+      const representatives = selectRepresentativeFiles(files, 2);
+      representatives.forEach((f) => filesToAnalyze.add(f));
+    } else {
+      // Analyze all files in small directories
+      files.forEach((f) => filesToAnalyze.add(f.path));
+    }
+  }
+
+  console.log(
+    `[SHADOW-WIKI] Selected ${filesToAnalyze.size} files for LLM analysis (${Math.round((filesToAnalyze.size / allFiles.length) * 100)}% of total)`
+  );
+
+  // PHASE 3: LLM analysis of selected files
+  const BATCH_SIZE = 10;
+  const selectedFiles = Array.from(filesToAnalyze);
+
+  for (let i = 0; i < selectedFiles.length; i += BATCH_SIZE) {
+    const batch = selectedFiles.slice(i, i + BATCH_SIZE);
+    const skipLLM = consecutiveLLMFailures >= MAX_CONSECUTIVE_FAILURES;
 
     const batchTasks = batch.map(async (rel) => {
       try {
+        const data = fileData.get(rel);
+        if (!data?.content) return;
+
         const summary = await summarizeFile(
           executor,
           rel,
           miniModelInstance,
           skipLLM
         );
-        fileCache[rel] = summary;
-        stats.filesProcessed++;
-        if (!skipLLM) consecutiveLLMFailures = 0; // Reset on success
+
+        if (summary !== null) {
+          fileCache[rel] = summary;
+          stats.filesProcessed++;
+        }
+        if (!skipLLM) consecutiveLLMFailures = 0;
       } catch (error) {
         console.error(`[SHADOW-WIKI] Failed to process ${rel}:`, error);
         if (!skipLLM) consecutiveLLMFailures++;
-        fileCache[rel] = getBasicFileInfo(rel) + " _(processing failed)_";
-        stats.filesProcessed++;
       }
     });
 
     await Promise.all(batchTasks);
-    const currentBatch = Math.floor(i / BATCH_SIZE) + 1;
-    const totalBatches = Math.ceil(allFiles.length / BATCH_SIZE);
-    const progressPercent = Math.round((stats.filesProcessed / allFiles.length) * 100);
-    console.log(`📊 [SHADOW-WIKI] Batch ${currentBatch}/${totalBatches} complete - Progress: ${stats.filesProcessed}/${allFiles.length} files (${progressPercent}%)`);
-
-    if (i + BATCH_SIZE < allFiles.length) {
-      // Dynamic delay based on codebase size - smaller for larger codebases
-      const delay =
-        allFiles.length > 1000 ? 200 : allFiles.length > 500 ? 350 : 500;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
+    console.log(
+      `[SHADOW-WIKI] Processed ${Math.min(i + BATCH_SIZE, selectedFiles.length)}/${selectedFiles.length} selected files`
+    );
   }
 
-  console.log(`🏗️ [SHADOW-WIKI] File analysis complete - Starting directory summarization phase`);
+  // Store symbol data for directory analysis
+  (global as any).__shadowWikiSymbolData = fileData;
+
+  console.log(
+    `[SHADOW-WIKI] File analysis complete - starting directory summarization phase`
+  );
   const nodesByDepth = Object.keys(tree.nodes).sort(
     (a, b) => tree.nodes[b]!.level - tree.nodes[a]!.level
   );
-  console.log(`📂 [SHADOW-WIKI] Processing ${nodesByDepth.length - 1} directories (excluding root)`);
+  console.log(
+    `[SHADOW-WIKI] Processing ${nodesByDepth.length - 1} directories (excluding root)`
+  );
 
   for (const nid of nodesByDepth) {
     if (nid === "root") continue;
@@ -1185,26 +1487,22 @@ export async function runShadowWiki(
 
     for (const filePath of node.files) {
       const fileName = path.basename(filePath);
-      let fileContent = fileCache[filePath];
+      const fileContent = fileCache[filePath];
 
-      if (!fileContent || fileContent.trim().length === 0) {
-        console.warn(
-          `[SHADOW-WIKI] Missing content for ${filePath}, using fallback`
-        );
-        fileContent = getBasicFileInfo(filePath) + " _(content unavailable)_";
+      // Only include files that were successfully processed and stored
+      if (fileContent) {
+        const contentPreview =
+          fileContent.split("\n\n")[0]?.trim() ||
+          fileContent.trim() ||
+          "_(no content)_";
+        blocks.push(`### ${fileName}\n${contentPreview}`);
       }
-
-      const contentPreview =
-        fileContent.split("\n\n")[0]?.trim() ||
-        fileContent.trim() ||
-        "_(no content)_";
-      blocks.push(`### ${fileName}\n${contentPreview}`);
     }
 
     node.summary = await summarizeDir(
       node,
       blocks,
-      mainModelInstance,
+      miniModelInstance,
       "/workspace" // Use standard workspace path
     );
     stats.directoriesProcessed++;
@@ -1216,10 +1514,10 @@ export async function runShadowWiki(
     return `## ${c.name}\n${c.summary || "_missing_"}`;
   });
 
-  console.log(`🎯 [SHADOW-WIKI] Generating root-level project summary`);
-  root.summary = await summarizeRoot(root, topBlocks, mainModelInstance);
+  console.log(`[SHADOW-WIKI] Generating root-level project summary`);
+  root.summary = await summarizeRoot(root, topBlocks, miniModelInstance);
 
-  console.log(`💾 [SHADOW-WIKI] Preparing summary content for database storage`);
+  console.log(`[SHADOW-WIKI] Preparing summary content for database storage`);
   const summaryContent = {
     rootSummary: root.summary,
     structure: tree,
@@ -1231,7 +1529,7 @@ export async function runShadowWiki(
     },
   };
 
-  console.log(`🗄️ [SHADOW-WIKI] Storing analysis results in database`);
+  console.log(`[SHADOW-WIKI] Storing analysis results in database`);
   const storage = new CodebaseUnderstandingStorage(taskId);
   const codebaseUnderstandingId = await storage.storeSummary(
     repoFullName,
@@ -1240,8 +1538,12 @@ export async function runShadowWiki(
     userId
   );
 
-  console.log(`🎉 [SHADOW-WIKI] Analysis complete! Summary stored with ID: ${codebaseUnderstandingId}`);
-  console.log(`📈 [SHADOW-WIKI] Final statistics - Files: ${stats.filesProcessed}, Directories: ${stats.directoriesProcessed}, Total tokens: ${stats.totalTokens}`);
+  console.log(
+    `[SHADOW-WIKI] Analysis complete! Summary stored with ID: ${codebaseUnderstandingId}`
+  );
+  console.log(
+    `[SHADOW-WIKI] Final statistics - files=${stats.filesProcessed}, directories=${stats.directoriesProcessed}, totalTokens=${stats.totalTokens}`
+  );
 
   return { codebaseUnderstandingId, stats };
 }
