@@ -259,14 +259,14 @@ export function SidebarTasksView({
               className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border! h-7"
             >
               <GitBranch className="size-3.5 text-inherit" />
-              <span className="text-[13px]">Copy branch name</span>
+              <span className="text-[13px]">Copy Branch Name</span>
             </ContextMenuItem>
             <ContextMenuItem
               onClick={() => handleCopyTaskId(task.id)}
               className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border! h-7"
             >
               <Copy className="size-3.5 text-inherit" />
-              <span className="text-[13px]">Copy task ID</span>
+              <span className="text-[13px]">Copy Task ID</span>
             </ContextMenuItem>
             <ContextMenuItem
               onClick={() => handleArchiveTask(task.id)}
@@ -274,7 +274,7 @@ export function SidebarTasksView({
               className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border! h-7"
             >
               <Archive className="size-3.5 text-inherit" />
-              <span className="text-[13px]">Archive</span>
+              <span className="text-[13px]">Archive Task</span>
             </ContextMenuItem>
             <ContextMenuItem
               onClick={() => handleDeleteTask(task.id)}
@@ -282,7 +282,7 @@ export function SidebarTasksView({
               className="text-destructive hover:text-destructive! hover:bg-sidebar-border! h-7"
             >
               <Trash className="size-3.5 text-inherit" />
-              <span className="text-[13px]">Delete</span>
+              <span className="text-[13px]">Delete Task</span>
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
