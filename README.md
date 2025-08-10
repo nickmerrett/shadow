@@ -16,7 +16,8 @@ A remote, autonomous coding agent for complex and long-running tasks. Shadow pro
 - Tool execution with file operations, terminal commands, and code search
 - Memory system for repository-specific knowledge retention
 - Semantic code search, background processing
-- Shadow Wiki generation for comprehensive codebase documentation
+- Lightweight Shadow Wiki generation for comprehensive codebase documentation
+- Custom rules for Shadow code generation
 
 ## Execution Modes
 
@@ -42,11 +43,11 @@ Mode selection is controlled by `NODE_ENV` and `AGENT_MODE` environment variable
 
 [Rajan Agarwal](https://github.com/rajansagarwal), [Twitter](https://x.com/_rajanagarwal)
 - Software Engineering @ University of Waterloo, MoTS Intern @ Amazon AGI Lab
-- Codebase understanding, Semantic Search/Indexing/Wiki/Memory algorithms, LLM integrations, interface
+- Codebase intelligence (Semantic Search/Wiki/Memory/Rules), LLM integrations and Interface fixes
 
 [Elijah Kurien](https://github.com/elijahkurien), [Twitter](https://x.com/ElijahKurien)
 - Software Engineering @ University of Waterloo, MoTS Intern @ Yutori
-- Semantic Search Infrastructure, Context Compaction
+- Semantic Search Infrastructure, 
 
 ## Development Setup
 

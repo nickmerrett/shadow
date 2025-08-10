@@ -282,6 +282,7 @@ model UserSettings {
   enableShadowWiki Boolean  @default(true)
   enableIndexing   Boolean  @default(false)
   selectedModels   String[] @default([])
+  rules            String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)

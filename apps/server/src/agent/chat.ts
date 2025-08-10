@@ -809,6 +809,34 @@ export class ChatService {
         }
       }
 
+      // Add Rules section if available
+      const userRules = task?.user.userSettings?.rules;
+      if (userRules && userRules.trim()) {
+        const rulesContent = `
+<rules>
+CUSTOM USER INSTRUCTIONS:
+${userRules.trim()}
+
+These are specific instructions from the user that should be followed throughout the conversation. Apply these rules when relevant to your responses and actions.
+</rules>`;
+
+        const rulesSequence = await this.getNextSequence(taskId);
+        await this.saveSystemMessage(
+          taskId,
+          rulesContent,
+          context.getMainModel(),
+          rulesSequence
+        );
+
+        systemMessagesToAdd.push({
+          id: randomUUID(),
+          role: "system",
+          content: rulesContent,
+          createdAt: new Date().toISOString(),
+          llmModel: context.getMainModel(),
+        });
+      }
+
       messages.unshift(...systemMessagesToAdd);
     }
 
