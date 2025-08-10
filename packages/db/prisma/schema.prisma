@@ -91,6 +91,7 @@ model Task {
   initStatus                  InitStatus    @default(INACTIVE)
   scheduledCleanupAt          DateTime?
   initializationError         String?
+  errorMessage                String?
   workspaceCleanedUp          Boolean       @default(false)
   createdAt                   DateTime      @default(now())
   updatedAt                   DateTime      @updatedAt

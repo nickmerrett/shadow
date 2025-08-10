@@ -1145,7 +1145,7 @@ These are specific instructions from the user that should be followed throughout
           }
 
           // Update task status to failed
-          await updateTaskStatus(taskId, "FAILED", "CHAT");
+          await updateTaskStatus(taskId, "FAILED", "CHAT", userFriendlyError);
 
           // Clean up stream tracking
           this.activeStreams.delete(taskId);
@@ -1287,15 +1287,16 @@ These are specific instructions from the user that should be followed throughout
     } catch (error) {
       console.error("Error processing user message:", error);
 
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+
       // Update task status to failed when stream processing fails
-      await updateTaskStatus(taskId, "FAILED", "CHAT");
+      await updateTaskStatus(taskId, "FAILED", "CHAT", errorMessage);
 
       // Emit error chunk
       emitStreamChunk(
         {
           type: "error",
-          error:
-            error instanceof Error ? error.message : "Unknown error occurred",
+          error: errorMessage,
           finishReason: "error",
         },
         taskId

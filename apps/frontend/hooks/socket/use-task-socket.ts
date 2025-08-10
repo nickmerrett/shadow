@@ -911,6 +911,7 @@ export function useTaskSocket(taskId: string | undefined) {
                   status: data.status,
                   initStatus: data.initStatus || oldData.task.initStatus,
                   updatedAt: data.timestamp,
+                  errorMessage: data.errorMessage || null,
                 },
               };
             }
@@ -944,6 +945,7 @@ export function useTaskSocket(taskId: string | undefined) {
                     status: data.status,
                     initStatus: data.initStatus || task.initStatus,
                     updatedAt: data.timestamp,
+                    errorMessage: data.errorMessage || null,
                   }
                 : task
             );

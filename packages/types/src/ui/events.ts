@@ -22,6 +22,7 @@ export interface TaskStatusUpdateEvent {
   status: TaskStatus;
   initStatus?: InitStatus;
   timestamp: string;
+  errorMessage?: string;
 }
 
 export interface AutoPRStatusEvent {
