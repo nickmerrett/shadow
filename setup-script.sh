@@ -87,7 +87,6 @@ main() {
     # Authentication Configuration
     echo -e "\n${GREEN}Authentication Configuration${NC}"
     echo "****************************************************"
-    echo "Generate a random secret for BetterAuth (used for JWT signing):"
     gen_better_auth_secret() {
         openssl rand -base64 32
     }
