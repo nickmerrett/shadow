@@ -419,7 +419,7 @@ export function GithubConnection({
             !githubStatus.isAppInstalled ||
             isLoadingStatus
             ? "h-48"
-            : "h-96"
+            : "h-80"
         )}
         align="end"
         onClick={(e) => {

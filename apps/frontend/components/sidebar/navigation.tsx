@@ -70,10 +70,10 @@ export function SidebarNavigation({
                 : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
             )}
             onClick={() => {
-              setSidebarView("agent");
-              if (!open) {
+              if (!open || sidebarView === "agent") {
                 toggleSidebar();
               }
+              setSidebarView("agent");
             }}
           >
             <Play />
@@ -127,10 +127,10 @@ export function SidebarNavigation({
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent border-transparent"
                 )}
                 onClick={() => {
-                  setSidebarView("tasks");
-                  if (!open) {
+                  if (!open || sidebarView === "tasks") {
                     toggleSidebar();
                   }
+                  setSidebarView("tasks");
                 }}
               >
                 <LayoutGrid />
@@ -140,8 +140,12 @@ export function SidebarNavigation({
               Tasks
             </TooltipContent>
           </Tooltip>
-          <div className="bg-border h-px w-full" />
-          {currentTaskId ? agentViewTrigger : null}
+          {currentTaskId ? (
+            <>
+              <div className="bg-border h-px w-full" />
+              {agentViewTrigger}
+            </>
+          ) : null}
         </div>
       </div>
       <div className="flex flex-col gap-3">
