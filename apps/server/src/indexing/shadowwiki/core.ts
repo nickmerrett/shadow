@@ -3,6 +3,7 @@ import path from "path";
 import Parser from "tree-sitter";
 import JavaScript from "tree-sitter-javascript";
 import { prisma, Prisma } from "@repo/db";
+import { CodebaseUnderstandingStorage } from "./db-storage";
 import TS from "tree-sitter-typescript";
 const Python = require("tree-sitter-python");
 import { ModelProvider } from "@/agent/llm/models/model-provider";
@@ -1557,47 +1558,14 @@ export async function runShadowWiki(
   );
 
   console.log(`[SHADOW-WIKI] Storing analysis results in database`);
-  // Create or update CodebaseUnderstanding, and link to task
-  let codebaseUnderstandingId: string;
-  const task = await prisma.task.findUnique({
-    where: { id: taskId },
-    include: { codebaseUnderstanding: true },
-  });
-
-  if (task?.codebaseUnderstanding) {
-    const updated = await prisma.codebaseUnderstanding.update({
-      where: { id: task.codebaseUnderstanding.id },
-      data: { content: contentJson, updatedAt: new Date() },
-    });
-    codebaseUnderstandingId = updated.id;
-  } else {
-    const existingForRepo = await prisma.codebaseUnderstanding.findUnique({
-      where: { repoFullName },
-      select: { id: true },
-    });
-    if (existingForRepo) {
-      await prisma.task.update({
-        where: { id: taskId },
-        data: { codebaseUnderstandingId: existingForRepo.id },
-      });
-      codebaseUnderstandingId = existingForRepo.id;
-    } else {
-      const created = await prisma.codebaseUnderstanding.create({
-        data: {
-          repoFullName,
-          repoUrl,
-          content: contentJson,
-          userId,
-        },
-        select: { id: true },
-      });
-      await prisma.task.update({
-        where: { id: taskId },
-        data: { codebaseUnderstandingId: created.id },
-      });
-      codebaseUnderstandingId = created.id;
-    }
-  }
+  // Use shared storage helper to create/update and link to task
+  const storage = new CodebaseUnderstandingStorage(taskId);
+  const codebaseUnderstandingId = await storage.storeSummary(
+    repoFullName,
+    repoUrl,
+    contentJson,
+    userId
+  );
 
   console.log(
     `[SHADOW-WIKI] Analysis complete! Summary stored with ID: ${codebaseUnderstandingId}`
