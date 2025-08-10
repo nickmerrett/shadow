@@ -1,5 +1,5 @@
 import type { Message } from "@repo/types";
-import { isAssistantMessage, isUserMessage } from "@repo/types";
+import { isAssistantMessage, isUserMessage, AvailableModels } from "@repo/types";
 import { AssistantMessage } from "./assistant-message";
 import { UserMessage } from "./user-message";
 import InitializingAnimation from "../../task/initializing-animation";
@@ -95,8 +95,14 @@ function MessagesComponent({
         const isLastGroup = groupIndex === messageGroups.length - 1;
         const lastMessage = messageGroup[messageGroup.length - 1];
         const endsWithUserMessage = lastMessage && isUserMessage(lastMessage);
+        const endsWithToolResult = lastMessage && 
+          isAssistantMessage(lastMessage) && 
+          lastMessage.llmModel === AvailableModels.GPT_5 &&
+          lastMessage.metadata?.parts &&
+          lastMessage.metadata.parts.length > 0 &&
+          lastMessage.metadata.parts[lastMessage.metadata.parts.length - 1]?.type === "tool-result";
         const shouldShowGenerating =
-          isLastGroup && endsWithUserMessage && isStreamPending;
+          isLastGroup && isStreamPending && (endsWithUserMessage || endsWithToolResult);
 
         return (
           <div className="flex flex-col gap-6" key={groupIndex}>
