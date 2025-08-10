@@ -4,29 +4,26 @@ import { getHighlighter } from "@/lib/editor/highlighter";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
-interface ShikiCodeProps {
-  children: string;
-  className?: string;
-  inline?: boolean;
-}
-
 export function ShikiCode({
   children,
   className,
   inline = false,
-}: ShikiCodeProps) {
+  language,
+}: {
+  children: string;
+  className?: string;
+  inline?: boolean;
+  language?: string;
+}) {
   const [highlightedCode, setHighlightedCode] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
-
-  // Extract language from className (e.g., "language-javascript" -> "javascript")
-  const language = className?.replace(/language-/, "") || "plaintext";
 
   useEffect(() => {
     async function highlightCode() {
       try {
         const highlighter = await getHighlighter();
         const html = highlighter.codeToHtml(children, {
-          lang: language,
+          lang: language || className?.replace(/language-/, "") || "plaintext",
           theme: "vesper",
         });
         setHighlightedCode(html);

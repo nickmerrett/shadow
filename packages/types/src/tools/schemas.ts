@@ -64,7 +64,9 @@ export const EditFileParamsSchema = z.object({
   is_new_file: z
     .boolean()
     .optional()
-    .describe("Whether this is creating a new file (true) or editing an existing file (false)"),
+    .describe(
+      "Whether this is creating a new file (true) or editing an existing file (false)"
+    ),
 });
 
 export const SearchReplaceParamsSchema = z.object({
@@ -78,7 +80,9 @@ export const SearchReplaceParamsSchema = z.object({
   is_new_file: z
     .boolean()
     .optional()
-    .describe("Whether this is creating a new file (true) or editing an existing file (false)"),
+    .describe(
+      "Whether this is creating a new file (true) or editing an existing file (false)"
+    ),
 });
 
 export const RunTerminalCmdParamsSchema = z
@@ -475,7 +479,7 @@ export enum ToolTypes {
 export const TOOL_PREFIXES: Record<ToolTypes, string> = {
   [ToolTypes.EDIT_FILE]: "Edit",
   [ToolTypes.READ_FILE]: "Read",
-  [ToolTypes.SEARCH_REPLACE]: "Edit",
+  [ToolTypes.SEARCH_REPLACE]: "Replace in",
   [ToolTypes.SEMANTIC_SEARCH]: "Semantic search",
   [ToolTypes.GREP_SEARCH]: "Grep",
   [ToolTypes.FILE_SEARCH]: "Search files",
