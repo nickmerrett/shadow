@@ -1,7 +1,15 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { FileText, Loader2, Sparkles, Folder, Circle } from "lucide-react";
+import {
+  FileText,
+  Loader2,
+  Sparkles,
+  Folder,
+  Circle,
+  BookOpen,
+  AlertTriangle,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { MarkdownRenderer } from "@/components/agent-environment/markdown-renderer";
 import { FileIcon } from "@/components/ui/file-icon";
@@ -10,40 +18,44 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Separator } from "../ui/separator";
 import { GithubLogo } from "../graphics/github/github-logo";
 import { useParams } from "next/navigation";
+import { useModal } from "../layout/modal-context";
+import { LogoHover } from "../graphics/logo/logo-hover";
 
 export function ShadowWikiContent() {
   const { taskId } = useParams<{ taskId: string }>();
   const { data: codebase, isLoading, error, refetch } = useCodebase(taskId);
   const summaries = useMemo(() => codebase?.summaries || [], [codebase]);
 
-  const queryClient = useQueryClient();
-  const [isGenerating, setIsGenerating] = useState(false);
+  const { openSettingsModal } = useModal();
 
-  const generateSummary = async () => {
-    if (!codebase?.tasks?.[0]?.id) return;
+  // const queryClient = useQueryClient();
+  // const [isGenerating, setIsGenerating] = useState(false);
 
-    setIsGenerating(true);
-    try {
-      const response = await fetch(
-        `/api/indexing/shadowwiki/generate/${codebase.tasks[0].id}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ forceRefresh: true }),
-        }
-      );
+  // const generateSummary = async () => {
+  //   if (!codebase?.tasks?.[0]?.id) return;
 
-      if (response.ok) {
-        await refetch();
-        // Invalidate codebases query to ensure sidebar updates
-        queryClient.invalidateQueries({ queryKey: ["codebases"] });
-      }
-    } catch (error) {
-      console.error("Failed to generate summary:", error);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+  //   setIsGenerating(true);
+  //   try {
+  //     const response = await fetch(
+  //       `/api/indexing/shadowwiki/generate/${codebase.tasks[0].id}`,
+  //       {
+  //         method: "POST",
+  //         headers: { "Content-Type": "application/json" },
+  //         body: JSON.stringify({ forceRefresh: true }),
+  //       }
+  //     );
+
+  //     if (response.ok) {
+  //       await refetch();
+  //       // Invalidate codebases query to ensure sidebar updates
+  //       queryClient.invalidateQueries({ queryKey: ["codebases"] });
+  //     }
+  //   } catch (error) {
+  //     console.error("Failed to generate summary:", error);
+  //   } finally {
+  //     setIsGenerating(false);
+  //   }
+  // };
 
   // Organize summaries by type
   const { repoSummaries, fileSummaries, directorySummaries } = useMemo(() => {
@@ -64,74 +76,80 @@ export function ShadowWikiContent() {
           s.filePath?.toLowerCase().includes("overview"))
     ) || repoSummaries[0];
 
-  if (isLoading) {
+  if (isLoading)
     return (
-      <div className="flex h-full w-full items-center justify-center p-4">
-        <div className="text-muted-foreground text-center">
-          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin" />
-          <h3 className="mb-2 text-lg font-medium">Loading codebase...</h3>
-        </div>
+      <div className="break-works flex size-full items-center justify-center gap-2 overflow-y-auto p-4">
+        <LogoHover size="sm" forceAnimate className="opacity-60" />
+        Loading Shadow Wiki
       </div>
     );
-  }
+  if (error)
+    return (
+      <div className="break-works flex size-full items-center justify-center gap-2 overflow-y-auto p-4 leading-none">
+        <AlertTriangle className="text-destructive size-4 shrink-0" />
+        Error loading Shadow Wiki: {error.message || "Unknown error"}
+      </div>
+    );
 
   if (!codebase) {
     return (
-      <div className="flex h-full w-full items-center justify-center p-4">
-        <div className="text-muted-foreground text-center">
-          <FileText className="mx-auto mb-4 h-8 w-8" />
-          <h3 className="mb-2 text-lg font-medium">No codebase found</h3>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="mt-12 flex h-full w-full items-center justify-center p-4">
-        <div className="text-muted-foreground text-center">
-          <FileText className="mx-auto mb-4 size-6" />
-          <h3 className="font-medium">Error loading codebase</h3>
-          <p className="text-sm">
-            {error instanceof Error ? error.message : "Failed to load codebase"}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (summaries.length === 0 && codebase) {
-    return (
-      <div className="flex h-full w-full items-center justify-center p-4">
-        <div className="text-muted-foreground text-center">
-          <FileText className="mx-auto mb-4 h-8 w-8" />
-          <h3 className="mb-2 text-lg font-medium">No documentation found</h3>
-          <p className="mb-4 text-sm">
-            Generate summaries for this repository to see documentation
-          </p>
-          {codebase.tasks?.[0]?.id && (
-            <Button
-              onClick={generateSummary}
-              disabled={isGenerating}
-              className="mx-auto"
+      <div className=" flex size-full overflow-y-auto p-4">
+        <div className="mx-auto flex size-full max-w-xs flex-col items-center justify-center gap-2 text-center">
+          <BookOpen className="size-6 shrink-0" />
+          <div className="mb-2 font-medium">No Shadow Wiki Found</div>
+          <div className="text-muted-foreground text-[13px] leading-tight">
+            Shadow Wiki is a codebase understanding service to generate
+            summaries for the agent&apos;s initial context for new tasks.
+          </div>
+          <div className="text-muted-foreground text-[13px] leading-tight">
+            Manage auto-generation in{" "}
+            <button
+              onClick={() => {
+                openSettingsModal("user");
+              }}
+              className="text-foreground inline-block cursor-pointer font-medium hover:underline hover:opacity-90"
             >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Summary
-                </>
-              )}
-            </Button>
-          )}
+              settings
+            </button>
+            .
+          </div>
         </div>
       </div>
     );
   }
+
+  // if (summaries.length === 0 && codebase) {
+  //   return (
+  //     <div className="flex h-full w-full items-center justify-center p-4">
+  //       <div className="text-muted-foreground text-center">
+  //         <FileText className="mx-auto mb-4 h-8 w-8" />
+  //         <h3 className="mb-2 text-lg font-medium">No documentation found</h3>
+  //         <p className="mb-4 text-sm">
+  //           Generate summaries for this repository to see documentation
+  //         </p>
+  //         {codebase.tasks?.[0]?.id && (
+  //           <Button
+  //             onClick={generateSummary}
+  //             disabled={isGenerating}
+  //             className="mx-auto"
+  //           >
+  //             {isGenerating ? (
+  //               <>
+  //                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+  //                 Generating...
+  //               </>
+  //             ) : (
+  //               <>
+  //                 <Sparkles className="mr-2 h-4 w-4" />
+  //                 Generate Summary
+  //               </>
+  //             )}
+  //           </Button>
+  //         )}
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="relative z-0 flex w-full flex-col items-center p-4">

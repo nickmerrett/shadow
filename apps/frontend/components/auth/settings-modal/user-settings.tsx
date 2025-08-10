@@ -73,7 +73,10 @@ export function UserSettings() {
   };
 
   const handleRulesChange = (value: string) => {
-    const words = value.trim().split(/\s+/).filter(word => word.length > 0);
+    const words = value
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0);
     if (words.length <= 100) {
       setRulesValue(value);
       debouncedSave(value);
@@ -129,7 +132,7 @@ export function UserSettings() {
                   Auto-Create Pull Requests
                 </div>
                 <div className="text-muted-foreground text-[11px]">
-                  Automatically create draft pull requests when tasks complete
+                  Automatically draft pull requests when tasks complete
                 </div>
               </label>
               <Checkbox
@@ -157,7 +160,7 @@ export function UserSettings() {
               <label htmlFor="shadow-wiki" className="flex flex-col gap-0">
                 <div className="text-sm font-normal">Enable Shadow Wiki</div>
                 <div className="text-muted-foreground text-[11px]">
-                  Generate lightweight codebase understanding for AI context
+                  Auto-generate codebase understanding docs for AI context
                 </div>
               </label>
               <Checkbox
@@ -169,9 +172,11 @@ export function UserSettings() {
             </div>
             <div className="flex items-center justify-between">
               <label htmlFor="enable-indexing" className="flex flex-col gap-0">
-                <div className="text-sm font-normal">Enable Semantic Search</div>
+                <div className="text-sm font-normal">
+                  Enable Semantic Search
+                </div>
                 <div className="text-muted-foreground text-[11px]">
-                  Index your code for AI-powered semantic search capabilities
+                  Embed your codebases to let the agent do semantic search
                 </div>
               </label>
               <Checkbox
@@ -181,22 +186,28 @@ export function UserSettings() {
                 disabled={isLoadingSettings || updateUserSettings.isPending}
               />
             </div>
-            
+
             {/* Rules Section */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <label htmlFor="rules" className="flex flex-col gap-0">
                   <div className="text-sm font-normal">Rules</div>
                   <div className="text-muted-foreground text-[11px]">
-                    Custom instructions for Shadow's responses (up to 100 words)
+                    Custom instructions for agent responses (max 100 words)
                   </div>
                 </label>
                 <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground text-[10px]">
-                    {rulesValue.trim().split(/\s+/).filter(word => word.length > 0).length}/100 words
+                  <span className="text-muted-foreground">
+                    {
+                      rulesValue
+                        .trim()
+                        .split(/\s+/)
+                        .filter((word) => word.length > 0).length
+                    }
+                    /100 words
                   </span>
                   {isRulesUpdating && (
-                    <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                    <Loader2 className="text-muted-foreground size-3 animate-spin" />
                   )}
                 </div>
               </div>

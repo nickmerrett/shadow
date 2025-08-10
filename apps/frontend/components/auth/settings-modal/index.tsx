@@ -101,7 +101,7 @@ export function SettingsModal() {
 
   return (
     <Dialog open={isSettingsModalOpen} onOpenChange={closeSettingsModal}>
-      <DialogContent className="max-w-2xl! h-full max-h-[500px] overflow-hidden p-0">
+      <DialogContent className="max-w-2xl! h-full max-h-[600px] overflow-hidden p-0">
         <div className="flex max-h-full overflow-hidden">
           {/* Left sidebar */}
           <div className="bg-card w-40 shrink-0 border-r px-2 py-4">
