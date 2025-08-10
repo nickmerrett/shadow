@@ -381,37 +381,78 @@ function shouldSkipFile(
   return { skip: false };
 }
 
-// Check if file should be ignored based on Shadow Wiki patterns
-function shouldIgnoreFileForShadowWiki(filePath: string): boolean {
-  const ignorePatterns = [
+// Check if file should be included based on allowlist
+function shouldIncludeFileForShadowWiki(filePath: string): boolean {
+  const fileName = path.basename(filePath).toLowerCase();
+  const ext = path.extname(filePath).toLowerCase();
+  
+  // Skip directories we never want to analyze
+  const skipDirectories = [
     "node_modules/",
     ".git/",
     "dist/",
     "build/",
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".gif",
-    ".svg",
-    ".ico",
-    ".lock",
     ".shadow/",
     "coverage/",
     ".nyc_output/",
+    "__pycache__/",
+    ".pytest_cache/",
+    "target/", // Rust
+    "bin/",
+    "obj/", // C#/.NET
+  ];
+  
+  if (skipDirectories.some(dir => filePath.includes(dir))) {
+    return false;
+  }
+
+  // Always include critical files regardless of extension
+  const criticalFiles = [
+    "readme.md",
+    "claude.md",
+    "package.json",
+    "tsconfig.json",
+    "cargo.toml",
+    "pyproject.toml",
+    "requirements.txt",
+    "dockerfile",
+    "docker-compose.yml",
+    "makefile",
+    ".env.example",
+  ];
+  
+  if (criticalFiles.includes(fileName)) {
+    return true;
+  }
+
+  // Allowlist of file extensions we want to analyze
+  const allowedExtensions = [
+    // Code files
+    ".js", ".jsx", ".mjs", ".cjs",
+    ".ts", ".tsx", ".mts", ".cts", ".d.ts",
+    ".py", ".pyx", ".pyi",
+    ".cpp", ".cc", ".cxx", ".c++", ".c", ".h", ".hpp", ".hxx",
+    ".java", ".kt", ".scala",
+    ".go", ".rs",
+    ".php", ".rb", ".swift",
+    ".cs", ".fs", ".vb",
+    ".sh", ".bash", ".zsh", ".fish",
+    ".ps1", ".bat", ".cmd",
+    
+    // Config/data files  
+    ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg",
+    ".xml", ".html", ".css", ".scss", ".sass", ".less",
+    ".md", ".mdx", ".txt", ".rst",
+    ".sql", ".prisma", ".graphql", ".gql",
+    
+    // Build/project files
+    ".dockerfile", ".containerfile",
+    ".gitignore", ".gitattributes",
+    ".eslintrc", ".prettierrc",
+    ".editorconfig",
   ];
 
-  return ignorePatterns.some((pattern) => {
-    if (pattern.endsWith("/")) {
-      // Directory pattern - check if path contains this directory
-      return filePath.includes(pattern) || filePath.includes(`/${pattern}`);
-    } else if (pattern.startsWith(".")) {
-      // Extension pattern - check if path ends with this extension
-      return filePath.endsWith(pattern);
-    } else {
-      // General pattern - check if path contains it
-      return filePath.includes(pattern);
-    }
-  });
+  return allowedExtensions.includes(ext);
 }
 
 // Build directory tree - using ToolExecutor for both local and remote modes
@@ -437,8 +478,8 @@ async function buildTree(
   let skippedCount = 0;
 
   for (const fileEntry of allFiles) {
-    // Check ignore patterns first
-    if (shouldIgnoreFileForShadowWiki(fileEntry.relativePath)) {
+    // Check if file should be included
+    if (!shouldIncludeFileForShadowWiki(fileEntry.relativePath)) {
       skippedCount++;
       continue;
     }
@@ -603,7 +644,7 @@ async function summarizeFile(
   rel: string,
   miniModelInstance: LanguageModel,
   skipLLM: boolean = false
-): Promise<string> {
+): Promise<string | null> {
   let src: string;
   let fileSize: number = 0;
 
@@ -615,7 +656,7 @@ async function summarizeFile(
         `[SHADOW-WIKI] Failed to get stats for ${rel}:`,
         statsResult.error
       );
-      return getBasicFileInfo(rel, 0) + " _(unreadable)_";
+      return null;
     }
     fileSize = statsResult.stats.size;
 
@@ -623,12 +664,17 @@ async function summarizeFile(
     const fileResult = await executor.readFile(rel);
     if (!fileResult.success || !fileResult.content) {
       console.warn(`[SHADOW-WIKI] Failed to read ${rel}:`, fileResult.error);
-      return getBasicFileInfo(rel, fileSize) + " _(unreadable)_";
+      return null;
     }
     src = fileResult.content;
   } catch (error) {
     console.warn(`[SHADOW-WIKI] Failed to read ${rel}:`, error);
-    return getBasicFileInfo(rel, 0) + " _(unreadable)_";
+    return null;
+  }
+
+  // Skip empty files
+  if (!src || src.trim().length === 0) {
+    return null;
   }
 
   const fileExt = path.extname(rel).toLowerCase();
@@ -653,7 +699,8 @@ async function summarizeFile(
   }
 
   if (!isParseableFile(src, rel)) {
-    return "_(binary or unsupported file type)_";
+    // Binary or unsupported file - don't store
+    return null;
   }
 
   let langSpec = LANGUAGES.js;
@@ -674,7 +721,8 @@ async function summarizeFile(
     if (markdown) {
       return markdown;
     } else {
-      return getBasicFileInfo(rel, fileSize) + " _(no symbols extracted)_";
+      // No symbols extracted - don't store this file
+      return null;
     }
   }
 }
@@ -685,7 +733,7 @@ async function analyzeFileWithLLM(
   src: string,
   symbols: Symbols,
   miniModelInstance: LanguageModel
-): Promise<string> {
+): Promise<string | null> {
   const ext = path.extname(rel).toLowerCase();
   const isDataFile =
     /\.(csv|json|txt|md|png|jpg|jpeg|gif|svg|ico|xlsx|xls|tsv|yaml|yml)$/i.test(
@@ -695,7 +743,7 @@ async function analyzeFileWithLLM(
 
   // Skip analysis for extremely large files (over 50k chars ~ 12.5k tokens)
   if (src.length > 50000) {
-    return `Large file: ${path.basename(rel)} (${Math.round(src.length / 1000)}KB) - skipped analysis due to size`;
+    return null;
   }
 
   const maxTokens = isCritical ? 4000 : isDataFile ? 2048 : 2048;
@@ -902,10 +950,6 @@ async function summarizeDir(
   const meaningfulSummaries = childSummaries.filter(
     (summary) =>
       summary &&
-      !summary.includes("_(no symbols found)_") &&
-      !summary.includes("_(no response)_") &&
-      !summary.includes("_(binary or unsupported file type)_") &&
-      !summary.includes("_(unreadable file)_") &&
       summary.trim().length > 20
   );
 
@@ -1120,14 +1164,17 @@ export async function runShadowWiki(
           miniModelInstance,
           skipLLM
         );
-        fileCache[rel] = summary;
-        stats.filesProcessed++;
+        
+        // Only store and count files that have meaningful content
+        if (summary !== null) {
+          fileCache[rel] = summary;
+          stats.filesProcessed++;
+        }
         if (!skipLLM) consecutiveLLMFailures = 0; // Reset on success
       } catch (error) {
         console.error(`[SHADOW-WIKI] Failed to process ${rel}:`, error);
         if (!skipLLM) consecutiveLLMFailures++;
-        fileCache[rel] = getBasicFileInfo(rel) + " _(processing failed)_";
-        stats.filesProcessed++;
+        // Don't store failed files
       }
     });
 
@@ -1172,20 +1219,16 @@ export async function runShadowWiki(
 
     for (const filePath of node.files) {
       const fileName = path.basename(filePath);
-      let fileContent = fileCache[filePath];
+      const fileContent = fileCache[filePath];
 
-      if (!fileContent || fileContent.trim().length === 0) {
-        console.warn(
-          `[SHADOW-WIKI] Missing content for ${filePath}, using fallback`
-        );
-        fileContent = getBasicFileInfo(filePath) + " _(content unavailable)_";
+      // Only include files that were successfully processed and stored
+      if (fileContent) {
+        const contentPreview =
+          fileContent.split("\n\n")[0]?.trim() ||
+          fileContent.trim() ||
+          "_(no content)_";
+        blocks.push(`### ${fileName}\n${contentPreview}`);
       }
-
-      const contentPreview =
-        fileContent.split("\n\n")[0]?.trim() ||
-        fileContent.trim() ||
-        "_(no content)_";
-      blocks.push(`### ${fileName}\n${contentPreview}`);
     }
 
     node.summary = await summarizeDir(
