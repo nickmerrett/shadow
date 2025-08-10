@@ -498,7 +498,7 @@ export class TaskInitializationEngine {
         select: { enableShadowWiki: true, enableIndexing: true },
       });
 
-      const enableShadowWiki = userSettings?.enableShadowWiki ?? false;
+      const enableShadowWiki = userSettings?.enableShadowWiki ?? true;
       const enableIndexing = userSettings?.enableIndexing ?? false;
 
       // Start background services using the manager
