@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 import path from "path";
 import Parser from "tree-sitter";
 import JavaScript from "tree-sitter-javascript";
-import { CodebaseUnderstandingStorage } from "./db-storage";
+import { prisma, Prisma } from "@repo/db";
 import TS from "tree-sitter-typescript";
 const Python = require("tree-sitter-python");
 import { ModelProvider } from "@/agent/llm/models/model-provider";
@@ -1247,6 +1247,30 @@ export async function runShadowWiki(
     modelMini?: ModelType;
   }
 ): Promise<{ codebaseUnderstandingId: string; stats: ProcessingStats }> {
+  // Skip regeneration if a summary already exists for this repository
+  try {
+    const existing = await prisma.codebaseUnderstanding.findUnique({
+      where: { repoFullName },
+      select: { id: true },
+    });
+    if (existing) {
+      // Ensure task is linked to existing summary
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { codebaseUnderstandingId: existing.id },
+      });
+      console.log(
+        `[SHADOW-WIKI] Summary already exists for ${repoFullName}. Skipping regeneration.`
+      );
+      return {
+        codebaseUnderstandingId: existing.id,
+        stats: { filesProcessed: 0, directoriesProcessed: 0, totalTokens: 0 },
+      };
+    }
+  } catch (e) {
+    // If check fails, proceed with generation
+    console.warn(`[SHADOW-WIKI] Existing summary check failed, continuing:`, e);
+  }
   console.log(
     `[SHADOW-WIKI] Initializing codebase analysis for ${repoFullName}`
   );
@@ -1528,15 +1552,52 @@ export async function runShadowWiki(
       generatedAt: new Date().toISOString(),
     },
   };
+  const contentJson: Prisma.InputJsonValue = JSON.parse(
+    JSON.stringify(summaryContent)
+  );
 
   console.log(`[SHADOW-WIKI] Storing analysis results in database`);
-  const storage = new CodebaseUnderstandingStorage(taskId);
-  const codebaseUnderstandingId = await storage.storeSummary(
-    repoFullName,
-    repoUrl,
-    summaryContent,
-    userId
-  );
+  // Create or update CodebaseUnderstanding, and link to task
+  let codebaseUnderstandingId: string;
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { codebaseUnderstanding: true },
+  });
+
+  if (task?.codebaseUnderstanding) {
+    const updated = await prisma.codebaseUnderstanding.update({
+      where: { id: task.codebaseUnderstanding.id },
+      data: { content: contentJson, updatedAt: new Date() },
+    });
+    codebaseUnderstandingId = updated.id;
+  } else {
+    const existingForRepo = await prisma.codebaseUnderstanding.findUnique({
+      where: { repoFullName },
+      select: { id: true },
+    });
+    if (existingForRepo) {
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { codebaseUnderstandingId: existingForRepo.id },
+      });
+      codebaseUnderstandingId = existingForRepo.id;
+    } else {
+      const created = await prisma.codebaseUnderstanding.create({
+        data: {
+          repoFullName,
+          repoUrl,
+          content: contentJson,
+          userId,
+        },
+        select: { id: true },
+      });
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { codebaseUnderstandingId: created.id },
+      });
+      codebaseUnderstandingId = created.id;
+    }
+  }
 
   console.log(
     `[SHADOW-WIKI] Analysis complete! Summary stored with ID: ${codebaseUnderstandingId}`
