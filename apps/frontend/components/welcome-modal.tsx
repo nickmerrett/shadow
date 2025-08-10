@@ -28,7 +28,7 @@ export function WelcomeModal({
 }) {
   const { openSettingsModal } = useModal();
 
-  // Don't show welcome modal in local development
+  // In development or non-production, bypass certain requirements (e.g., setup tasks)
   const isLocal = shouldShowWelcomeModal();
   
   const handleConnectGitHub = () => {
