@@ -1247,13 +1247,9 @@ export async function runShadowWiki(
     modelMini?: ModelType;
   }
 ): Promise<{ codebaseUnderstandingId: string; stats: ProcessingStats }> {
-  console.log(
-    `🔍 [SHADOW-WIKI] Initializing codebase analysis for ${repoFullName}`
-  );
-  console.log(`📋 [SHADOW-WIKI] Task ${taskId} - Repository: ${repoUrl}`);
-  console.log(
-    `⚙️ [SHADOW-WIKI] Configuration - Concurrency: ${options.concurrency || 12}`
-  );
+  console.log(`[SHADOW-WIKI] Initializing codebase analysis for ${repoFullName}`);
+  console.log(`[SHADOW-WIKI] Task ${taskId} - Repository: ${repoUrl}`);
+  console.log(`[SHADOW-WIKI] Configuration: concurrency=${options.concurrency || 12}`);
 
   let context: TaskModelContext;
   if (contextOrApiKeys instanceof TaskModelContext) {
@@ -1286,12 +1282,8 @@ export async function runShadowWiki(
     );
   }
 
-  console.log(
-    `🤖 [SHADOW-WIKI] Model configuration - Main: ${mainModel}, Mini: ${miniModel}`
-  );
-  console.log(
-    `🔑 [SHADOW-WIKI] API validation complete - Provider: ${context.getProvider()}`
-  );
+  console.log(`[SHADOW-WIKI] Model configuration: main=${mainModel}, mini=${miniModel}`);
+  console.log(`[SHADOW-WIKI] API validation complete - provider=${context.getProvider()}`);
 
   const modelProvider = new ModelProvider();
   const miniModelInstance = modelProvider.getModel(
@@ -1308,13 +1300,11 @@ export async function runShadowWiki(
   const MAX_CONSECUTIVE_FAILURES = 5;
 
   // Create ToolExecutor for file operations (works in both local and remote modes)
-  console.log(
-    `🏗️ [SHADOW-WIKI] Initializing workspace manager and file executor`
-  );
+  console.log(`[SHADOW-WIKI] Initializing workspace manager and file executor`);
   const workspaceManager = createWorkspaceManager();
   const executor = await workspaceManager.getExecutor(taskId);
 
-  console.log(`🌳 [SHADOW-WIKI] Building directory tree structure`);
+  console.log(`[SHADOW-WIKI] Building directory tree structure`);
   const tree = await buildTree(executor, repoFullName);
 
   const fileCache: Record<string, string> = {};
@@ -1327,12 +1317,10 @@ export async function runShadowWiki(
     }
   }
 
-  console.log(
-    `📁 [SHADOW-WIKI] Discovered ${allFiles.length} files for analysis`
-  );
+  console.log(`[SHADOW-WIKI] Discovered ${allFiles.length} files for analysis`);
 
   // PHASE 1: Fast symbol extraction for ALL files
-  console.log(`⚡ [SHADOW-WIKI] Phase 1: Fast symbol extraction for all files`);
+  console.log(`[SHADOW-WIKI] Phase 1: Fast symbol extraction for all files`);
   const fileData = new Map<
     string,
     { size: number; symbols: Symbols; content?: string }
@@ -1378,14 +1366,10 @@ export async function runShadowWiki(
     }
   }
 
-  console.log(
-    `📊 [SHADOW-WIKI] Symbol extraction complete: ${fileData.size}/${allFiles.length} files processed`
-  );
+  console.log(`[SHADOW-WIKI] Symbol extraction complete: ${fileData.size}/${allFiles.length} files processed`);
 
   // PHASE 2: Smart file selection for LLM analysis
-  console.log(
-    `🎯 [SHADOW-WIKI] Phase 2: Smart file selection for detailed analysis`
-  );
+  console.log(`[SHADOW-WIKI] Phase 2: Smart file selection for detailed analysis`);
 
   const filesToAnalyze = new Set<string>();
   const filesByDirectory = new Map<
@@ -1424,9 +1408,7 @@ export async function runShadowWiki(
     }
   }
 
-  console.log(
-    `📋 [SHADOW-WIKI] Selected ${filesToAnalyze.size} files for LLM analysis (${Math.round((filesToAnalyze.size / allFiles.length) * 100)}% of total)`
-  );
+  console.log(`[SHADOW-WIKI] Selected ${filesToAnalyze.size} files for LLM analysis (${Math.round((filesToAnalyze.size / allFiles.length) * 100)}% of total)`);
 
   // PHASE 3: LLM analysis of selected files
   const BATCH_SIZE = 10;
@@ -1460,23 +1442,17 @@ export async function runShadowWiki(
     });
 
     await Promise.all(batchTasks);
-    console.log(
-      `🔄 [SHADOW-WIKI] Processed ${Math.min(i + BATCH_SIZE, selectedFiles.length)}/${selectedFiles.length} selected files`
-    );
+    console.log(`[SHADOW-WIKI] Processed ${Math.min(i + BATCH_SIZE, selectedFiles.length)}/${selectedFiles.length} selected files`);
   }
 
   // Store symbol data for directory analysis
   (global as any).__shadowWikiSymbolData = fileData;
 
-  console.log(
-    `🏗️ [SHADOW-WIKI] File analysis complete - Starting directory summarization phase`
-  );
+  console.log(`[SHADOW-WIKI] File analysis complete - starting directory summarization phase`);
   const nodesByDepth = Object.keys(tree.nodes).sort(
     (a, b) => tree.nodes[b]!.level - tree.nodes[a]!.level
   );
-  console.log(
-    `📂 [SHADOW-WIKI] Processing ${nodesByDepth.length - 1} directories (excluding root)`
-  );
+  console.log(`[SHADOW-WIKI] Processing ${nodesByDepth.length - 1} directories (excluding root)`);
 
   for (const nid of nodesByDepth) {
     if (nid === "root") continue;
@@ -1518,12 +1494,10 @@ export async function runShadowWiki(
     return `## ${c.name}\n${c.summary || "_missing_"}`;
   });
 
-  console.log(`🎯 [SHADOW-WIKI] Generating root-level project summary`);
+  console.log(`[SHADOW-WIKI] Generating root-level project summary`);
   root.summary = await summarizeRoot(root, topBlocks, miniModelInstance);
 
-  console.log(
-    `💾 [SHADOW-WIKI] Preparing summary content for database storage`
-  );
+  console.log(`[SHADOW-WIKI] Preparing summary content for database storage`);
   const summaryContent = {
     rootSummary: root.summary,
     structure: tree,
@@ -1535,7 +1509,7 @@ export async function runShadowWiki(
     },
   };
 
-  console.log(`🗄️ [SHADOW-WIKI] Storing analysis results in database`);
+  console.log(`[SHADOW-WIKI] Storing analysis results in database`);
   const storage = new CodebaseUnderstandingStorage(taskId);
   const codebaseUnderstandingId = await storage.storeSummary(
     repoFullName,
@@ -1544,12 +1518,8 @@ export async function runShadowWiki(
     userId
   );
 
-  console.log(
-    `🎉 [SHADOW-WIKI] Analysis complete! Summary stored with ID: ${codebaseUnderstandingId}`
-  );
-  console.log(
-    `📈 [SHADOW-WIKI] Final statistics - Files: ${stats.filesProcessed}, Directories: ${stats.directoriesProcessed}, Total tokens: ${stats.totalTokens}`
-  );
+  console.log(`[SHADOW-WIKI] Analysis complete! Summary stored with ID: ${codebaseUnderstandingId}`);
+  console.log(`[SHADOW-WIKI] Final statistics - files=${stats.filesProcessed}, directories=${stats.directoriesProcessed}, totalTokens=${stats.totalTokens}`);
 
   return { codebaseUnderstandingId, stats };
 }
