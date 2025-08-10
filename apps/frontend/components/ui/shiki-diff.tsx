@@ -5,14 +5,21 @@ import { transformerNotationDiff } from "@shikijs/transformers";
 import { BundledLanguage } from "shiki";
 import { getHighlighter } from "@/lib/editor/highlighter";
 import { cn } from "@/lib/utils";
+import { ChevronDown, Expand, Loader2 } from "lucide-react";
+import { Button } from "./button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
-interface ShikiDiffProps {
+export function ShikiDiff({
+  content,
+  language,
+  className,
+  onExpand,
+}: {
   content: string;
   language: BundledLanguage;
   className?: string;
-}
-
-export function ShikiDiff({ content, language, className }: ShikiDiffProps) {
+  onExpand?: () => void;
+}) {
   const [html, setHtml] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>("");
@@ -61,43 +68,48 @@ export function ShikiDiff({ content, language, className }: ShikiDiffProps) {
     return (
       <div
         className={cn(
-          "border-border not-prose overflow-auto rounded-md border p-3 font-mono text-xs [&_code]:border-none [&_code]:bg-transparent [&_code]:p-0",
+          "border-border not-prose flex items-center justify-center overflow-auto rounded-md border p-6",
           className
         )}
       >
-        <div className="text-muted-foreground flex items-center gap-2">
-          <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          Generating diff...
-        </div>
+        <Loader2 className="size-4 animate-spin" />
       </div>
     );
   }
 
   if (error) {
-    return (
-      <div
-        className={cn(
-          "border-border not-prose overflow-auto rounded-md border p-3 font-mono text-xs [&_code]:border-none [&_code]:bg-transparent [&_code]:p-0",
-          className
-        )}
-      >
-        <code>{memoizedContent}</code>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div
-      className={cn(
-        "shiki-diff-container border-border not-prose overflow-auto rounded-md border font-mono text-xs",
-        "[&_.diff.add]:bg-green-50 [&_.diff.add]:dark:bg-green-950/30",
-        "[&_.diff.remove]:bg-red-50 [&_.diff.remove]:dark:bg-red-950/30",
-        "[&_code]:border-none [&_code]:bg-transparent [&_code]:p-0",
-        "[&_pre]:m-0 [&_pre]:bg-transparent [&_pre]:p-3",
-        className
-      )}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <div className="relative z-0 overflow-hidden rounded-md border py-2 font-mono text-xs">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="iconXs"
+            className="text-muted-foreground hover:text-foreground absolute right-1.5 top-1.5 z-10"
+            onClick={onExpand}
+          >
+            <Expand className="size-3.5" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top" align="end">
+          Open In Editor
+        </TooltipContent>
+      </Tooltip>
+      <div
+        className={cn(
+          "shiki-diff-container not-prose overflow-auto",
+          "[&_.diff.add]:inline-block [&_.diff.add]:min-w-full [&_.diff.add]:bg-green-950/30",
+          "[&_.diff.remove]:inline-block [&_.diff.remove]:min-w-full [&_.diff.remove]:bg-red-950/30",
+          "[&_code]:relative [&_code]:border-none [&_code]:bg-transparent [&_code]:p-0",
+          "[&_pre]:m-0 [&_pre]:bg-transparent",
+          className
+        )}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
   );
 }
 
@@ -106,45 +118,4 @@ function escapeHtml(text: string): string {
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
-}
-
-// Simplified version that just shows before/after without syntax highlighting
-interface SimpleDiffProps {
-  oldString: string;
-  newString: string;
-  className?: string;
-}
-
-export function SimpleDiff({
-  oldString,
-  newString,
-  className,
-}: SimpleDiffProps) {
-  return (
-    <div
-      className={cn(
-        "bg-muted overflow-hidden rounded-md border font-mono text-xs",
-        className
-      )}
-    >
-      <div className="space-y-1 p-4">
-        {oldString.split("\n").map((line, i) => (
-          <div key={`old-${i}`} className="flex">
-            <span className="text-destructive mr-2">-</span>
-            <span className="flex-1 bg-red-50 px-1 dark:bg-red-950/30">
-              {line}
-            </span>
-          </div>
-        ))}
-        {newString.split("\n").map((line, i) => (
-          <div key={`new-${i}`} className="flex">
-            <span className="mr-2 text-green-600">+</span>
-            <span className="flex-1 bg-green-50 px-1 dark:bg-green-950/30">
-              {line}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }

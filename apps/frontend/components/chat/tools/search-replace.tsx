@@ -5,8 +5,11 @@ import { ToolTypes } from "@repo/types";
 import { ToolComponent } from "./tool";
 import { ShikiDiff } from "@/components/ui/shiki-diff";
 import { createSimpleDiff } from "@/lib/diff-utils";
+import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 
 export function SearchReplaceTool({ message }: { message: Message }) {
+  const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
+
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
 
@@ -29,9 +32,10 @@ export function SearchReplaceTool({ message }: { message: Message }) {
   const isCompleted = status === "COMPLETED";
 
   // Generate diff content when completed and we have the strings
-  const diffData = isCompleted && oldString && newString 
-    ? createSimpleDiff(oldString, newString, filePath)
-    : null;
+  const diffData =
+    isCompleted && oldString && newString
+      ? createSimpleDiff(oldString, newString, filePath)
+      : null;
 
   return (
     <ToolComponent
@@ -45,16 +49,15 @@ export function SearchReplaceTool({ message }: { message: Message }) {
       collapsible={isCompleted && Boolean(diffData)}
     >
       {diffData && (
-        <div className="space-y-2">
-          <div className="text-muted-foreground text-xs">
-            Replaced text in {filePath}
-          </div>
-          <ShikiDiff 
-            content={diffData.content}
-            language={diffData.language}
-            className="max-h-64 overflow-y-auto"
-          />
-        </div>
+        <ShikiDiff
+          content={diffData.content}
+          language={diffData.language}
+          className="max-h-96"
+          onExpand={() => {
+            updateSelectedFilePath(filePath);
+            expandRightPanel();
+          }}
+        />
       )}
     </ToolComponent>
   );

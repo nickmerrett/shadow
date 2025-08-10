@@ -1,5 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
+import { execSync } from "child_process";
+import * as os from "os";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import { WorkspaceService } from "./workspace-service";
@@ -18,6 +20,76 @@ import {
 
 export class FileService {
   constructor(private workspaceService: WorkspaceService) {}
+
+  /**
+   * Calculate accurate line changes using system diff command
+   */
+  private async calculateDiffStats(
+    oldContent: string,
+    newContent: string
+  ): Promise<{ linesAdded: number; linesRemoved: number }> {
+    try {
+      // Create temporary files for diff comparison
+      const tmpDir = os.tmpdir();
+      const oldFile = path.join(tmpDir, `diff_old_${Date.now()}_${Math.random()}.tmp`);
+      const newFile = path.join(tmpDir, `diff_new_${Date.now()}_${Math.random()}.tmp`);
+
+      await fs.writeFile(oldFile, oldContent);
+      await fs.writeFile(newFile, newContent);
+
+      try {
+        // Use diff -U0 to get minimal unified diff output
+        const diffOutput = execSync(`diff -U0 "${oldFile}" "${newFile}"`, {
+          encoding: "utf8",
+        });
+        
+        // If no diff output, files are identical
+        const lines = diffOutput.split("\n");
+        const addedLines = lines.filter((line: string) => line.startsWith("+") && !line.startsWith("+++")).length;
+        const removedLines = lines.filter((line: string) => line.startsWith("-") && !line.startsWith("---")).length;
+
+        return { linesAdded: addedLines, linesRemoved: removedLines };
+      } catch (error: any) {
+        // diff returns exit code 1 when files differ, which is expected
+        if (error.status === 1) {
+          const diffOutput = error.stdout || "";
+          const lines = diffOutput.split("\n");
+          const addedLines = lines.filter((line: string) => line.startsWith("+") && !line.startsWith("+++")).length;
+          const removedLines = lines.filter((line: string) => line.startsWith("-") && !line.startsWith("---")).length;
+
+          return { linesAdded: addedLines, linesRemoved: removedLines };
+        }
+        
+        // For other errors, fall back to simple line counting
+        logger.warn("Failed to run diff, falling back to simple line counting", { error: error.message });
+        const oldLines = oldContent.split("\n").length;
+        const newLines = newContent.split("\n").length;
+        
+        return {
+          linesAdded: Math.max(0, newLines - oldLines),
+          linesRemoved: Math.max(0, oldLines - newLines),
+        };
+      } finally {
+        // Clean up temporary files
+        try {
+          await fs.unlink(oldFile);
+          await fs.unlink(newFile);
+        } catch (cleanupError) {
+          logger.warn("Failed to clean up temporary diff files", { cleanupError });
+        }
+      }
+    } catch (error) {
+      logger.error("Error in calculateDiffStats", { error });
+      // Fall back to simple line counting on any error
+      const oldLines = oldContent.split("\n").length;
+      const newLines = newContent.split("\n").length;
+      
+      return {
+        linesAdded: Math.max(0, newLines - oldLines),
+        linesRemoved: Math.max(0, oldLines - newLines),
+      };
+    }
+  }
 
   /**
    * Read file contents with optional line range
@@ -149,13 +221,12 @@ export class FileService {
     try {
       const fullPath = this.workspaceService.resolvePath(relativePath);
 
-      // Check if this is a new file
+      // Check if this is a new file and get existing content
       let isNewFile = false;
-      let existingLines = 0;
+      let existingContent = "";
 
       try {
-        const existingContent = await fs.readFile(fullPath, "utf-8");
-        existingLines = existingContent.split("\n").length;
+        existingContent = await fs.readFile(fullPath, "utf-8");
       } catch {
         isNewFile = true;
       }
@@ -167,16 +238,25 @@ export class FileService {
       // Write the file
       await fs.writeFile(fullPath, content, "utf-8");
 
-      const newLines = content.split("\n").length;
+      // Calculate line changes
+      let linesAdded: number;
+      let linesRemoved: number;
+
+      if (isNewFile) {
+        linesAdded = content.split("\n").length;
+        linesRemoved = 0;
+      } else {
+        const diffStats = await this.calculateDiffStats(existingContent, content);
+        linesAdded = diffStats.linesAdded;
+        linesRemoved = diffStats.linesRemoved;
+      }
 
       logger.info("File written", {
         relativePath,
         isNewFile,
         instructions,
-        linesAdded: isNewFile
-          ? newLines
-          : Math.max(0, newLines - existingLines),
-        linesRemoved: isNewFile ? 0 : Math.max(0, existingLines - newLines),
+        linesAdded,
+        linesRemoved,
       });
 
       return {
@@ -185,10 +265,8 @@ export class FileService {
           ? `Created new file: ${relativePath}`
           : `Modified file: ${relativePath}`,
         isNewFile,
-        linesAdded: isNewFile
-          ? newLines
-          : Math.max(0, newLines - existingLines),
-        linesRemoved: isNewFile ? 0 : Math.max(0, existingLines - newLines),
+        linesAdded,
+        linesRemoved,
       };
     } catch (error) {
       logger.error("Failed to write file", { relativePath, error });
@@ -329,14 +407,8 @@ export class FileService {
       // Perform replacement and calculate metrics
       const newContent = existingContent.replace(oldString, newString);
 
-      // Calculate line changes
-      const oldLines = existingContent.split("\n");
-      const newLines = newContent.split("\n");
-      const oldLineCount = oldLines.length;
-      const newLineCount = newLines.length;
-
-      const linesAdded = Math.max(0, newLineCount - oldLineCount);
-      const linesRemoved = Math.max(0, oldLineCount - newLineCount);
+      // Calculate accurate line changes using diff
+      const { linesAdded, linesRemoved } = await this.calculateDiffStats(existingContent, newContent);
 
       // Write the new content
       await fs.writeFile(fullPath, newContent);

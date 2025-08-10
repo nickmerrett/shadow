@@ -35,6 +35,8 @@ export async function getTaskMessages(taskId: string): Promise<Message[]> {
       stackedTask: msg.stackedTask || undefined,
     }));
 
+    console.log("finalMessages", finalMessages);
+
     return finalMessages;
   } catch (err) {
     console.error("Failed to fetch task messages", err);
