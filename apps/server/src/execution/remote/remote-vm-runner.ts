@@ -195,6 +195,7 @@ export class RemoteVMRunner {
           {
             name: "sidecar",
             image: sidecarImage,
+            imagePullPolicy: "Always",
             env: [
               {
                 name: "TASK_ID",
