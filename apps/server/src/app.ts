@@ -202,6 +202,9 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       }
 
       await updateTaskStatus(taskId, "INITIALIZING", "INIT");
+      console.log(
+        `⏳ [TASK_INITIATE] Task ${taskId} status set to INITIALIZING - starting initialization...`
+      );
 
       const initSteps =
         await initializationEngine.getDefaultStepsForTask(userId);
@@ -221,6 +224,9 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       // Update task status to running
       await updateTaskStatus(taskId, "RUNNING", "INIT");
 
+      console.log(
+        `🚀 [TASK_INITIATE] Task ${taskId} status changed: INITIALIZING → RUNNING`
+      );
       console.log(`[TASK_INITIATE] Successfully initialized task ${taskId}`);
 
       // Process the message with the agent using the task workspace
@@ -245,6 +251,9 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       console.error(
         `[TASK_INITIATE] Initialization failed for task ${taskId}:`,
         initError
+      );
+      console.log(
+        `❌ [TASK_INITIATE] Task ${taskId} initialization failed - setting status to FAILED`
       );
 
       await updateTaskStatus(taskId, "FAILED", "INIT");
