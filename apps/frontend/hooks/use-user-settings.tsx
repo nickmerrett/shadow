@@ -94,14 +94,34 @@ export function useUpdateUserSettings(): UseMutationResult<
 
   return useMutation({
     mutationFn: updateUserSettingsAPI,
+    onMutate: async (newSettings) => {
+      await queryClient.cancelQueries({ queryKey: ["user-settings"] });
+
+      const previousSettings = queryClient.getQueryData<UserSettings>([
+        "user-settings",
+      ]);
+
+      if (previousSettings) {
+        queryClient.setQueryData<UserSettings>(["user-settings"], {
+          ...previousSettings,
+          ...newSettings,
+        });
+      }
+
+      return { previousSettings };
+    },
+    onError: (_err, _newSettings, context) => {
+      if (context?.previousSettings) {
+        queryClient.setQueryData(["user-settings"], context.previousSettings);
+      }
+      console.error("Failed to update user settings:", _err);
+    },
     onSuccess: (updatedSettings) => {
-      // Update the cache with the new settings
       queryClient.setQueryData(["user-settings"], updatedSettings);
-      // Invalidate models cache so it refetches with new selections
       queryClient.invalidateQueries({ queryKey: ["models"] });
     },
-    onError: (error) => {
-      console.error("Failed to update user settings:", error);
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-settings"] });
     },
   });
 }

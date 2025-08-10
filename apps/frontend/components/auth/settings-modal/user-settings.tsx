@@ -139,7 +139,7 @@ export function UserSettings() {
                 id="auto-pr"
                 checked={userSettings?.autoPullRequest ?? false}
                 onCheckedChange={handleAutoPRToggle}
-                disabled={isLoadingSettings || updateUserSettings.isPending}
+                disabled={isLoadingSettings}
               />
             </div>
             <div className="flex items-center justify-between">
@@ -153,7 +153,7 @@ export function UserSettings() {
                 id="memories-enabled"
                 checked={userSettings?.memoriesEnabled ?? false}
                 onCheckedChange={handleMemoriesEnabledToggle}
-                disabled={isLoadingSettings || updateUserSettings.isPending}
+                disabled={isLoadingSettings}
               />
             </div>
             <div className="flex items-center justify-between">
@@ -167,7 +167,7 @@ export function UserSettings() {
                 id="shadow-wiki"
                 checked={userSettings?.enableShadowWiki ?? true}
                 onCheckedChange={handleShadowWikiToggle}
-                disabled={isLoadingSettings || updateUserSettings.isPending}
+                disabled={isLoadingSettings}
               />
             </div>
             <div className="flex items-center justify-between">
@@ -183,7 +183,7 @@ export function UserSettings() {
                 id="enable-indexing"
                 checked={userSettings?.enableIndexing ?? false}
                 onCheckedChange={handleIndexingToggle}
-                disabled={isLoadingSettings || updateUserSettings.isPending}
+                disabled={isLoadingSettings}
               />
             </div>
 
