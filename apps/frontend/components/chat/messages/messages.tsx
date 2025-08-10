@@ -85,7 +85,8 @@ function MessagesComponent({
         const endsWithToolResultGPT5 =
           !!lastMessage &&
           isAssistantMessage(lastMessage) &&
-          lastMessage.llmModel === AvailableModels.GPT_5 &&
+          (lastMessage.llmModel === AvailableModels.GPT_5 ||
+            lastMessage.llmModel === AvailableModels.GPT_5_MINI) &&
           !!lastMessage.metadata?.parts &&
           lastMessage.metadata.parts.length > 0 &&
           lastMessage.metadata.parts[lastMessage.metadata.parts.length - 1]
