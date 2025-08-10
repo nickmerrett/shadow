@@ -781,7 +781,6 @@ async function summarizeFile(
   skipLLM: boolean = false
 ): Promise<string | null> {
   let src: string;
-  let fileSize: number = 0;
 
   try {
     // Get file stats using executor
@@ -793,7 +792,6 @@ async function summarizeFile(
       );
       return null;
     }
-    fileSize = statsResult.stats.size;
 
     // Read file content using executor
     const fileResult = await executor.readFile(rel);
