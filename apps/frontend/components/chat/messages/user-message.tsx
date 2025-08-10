@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./messages.css";
 import { cn } from "@/lib/utils";
-import { Textarea } from "../ui/textarea";
+import { Textarea } from "../../ui/textarea";
 import { ArrowUp, Loader2, X } from "lucide-react";
-import { Button } from "../ui/button";
-import { ModelSelector } from "./model-selector";
+import { Button } from "../../ui/button";
+import { ModelSelector } from "../prompt-form/model-selector";
 import { AvailableModels, Message, ModelType } from "@repo/types";
-import { useEditMessageId } from "@/hooks/use-edit-message-id";
+import { useEditMessageId } from "@/hooks/chat/use-edit-message-id";
 import { useQueryClient } from "@tanstack/react-query";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { useEditMessage } from "@/hooks/use-edit-message";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
+import { useEditMessage } from "@/hooks/chat/use-edit-message";
 
 const MAX_CONTENT_HEIGHT = 128;
 

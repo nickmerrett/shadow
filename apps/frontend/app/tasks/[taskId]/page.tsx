@@ -22,8 +22,8 @@ import { StickToBottom } from "use-stick-to-bottom";
 import { MemoizedAgentEnvironment as AgentEnvironment } from "@/components/agent-environment/agent-environment";
 import { MemoizedTaskPageContent as TaskPageContent } from "@/components/task/task-content";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
-import { useTaskTitle, useUpdateTaskTitle } from "@/hooks/use-task-title";
-import { useTaskStatus } from "@/hooks/use-task-status";
+import { useTaskTitle, useUpdateTaskTitle } from "@/hooks/tasks/use-task-title";
+import { useTaskStatus } from "@/hooks/tasks/use-task-status";
 import { useParams } from "next/navigation";
 
 export default function TaskPage() {

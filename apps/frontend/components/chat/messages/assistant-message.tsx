@@ -10,10 +10,10 @@ import type {
 } from "@repo/types";
 import { AlertCircle, Copy, Check, MoreHorizontal } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
-import { MemoizedMarkdown } from "./memoized-markdown";
-import { ToolMessage } from "./tools";
-import { ToolComponent } from "./tools/tool";
-import { ValidationErrorTool } from "./tools/validation-error";
+import { MemoizedMarkdown } from "../markdown/memoized-markdown";
+import { ToolMessage } from "../tools";
+import { ToolComponent } from "../tools/tool";
+import { ValidationErrorTool } from "../tools/validation-error";
 import { ReasoningComponent, RedactedReasoningComponent } from "./reasoning";
 import {
   hasUsefulPartialArgs,
@@ -21,8 +21,8 @@ import {
 } from "@/lib/streaming-args";
 import { PRCard } from "./pr-card";
 import { LoadingPRCard } from "./loading-pr-card";
-import { Button } from "../ui/button";
-import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
+import { Button } from "../../ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useTaskSocketContext } from "@/contexts/task-socket-context";
 import {
@@ -30,7 +30,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+} from "../../ui/dropdown-menu";
 
 function getMessageCopyContent(
   groupedParts: Array<

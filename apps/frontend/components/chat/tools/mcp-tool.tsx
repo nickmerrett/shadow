@@ -1,6 +1,6 @@
 import type { Message } from "@repo/types";
 import { ToolComponent } from "./tool";
-import { FadedMarkdown } from "../memoized-markdown";
+import { FadedMarkdown } from "../markdown/memoized-markdown";
 import { ToolTypes, getMCPToolTitle, getMCPToolPrefix } from "@repo/types";
 import { MCPLogo } from "@/components/graphics/icons/mcp-logo";
 

@@ -13,7 +13,7 @@ import { FileExplorer } from "./file-explorer";
 import { Button } from "../ui/button";
 import { AlertTriangle, TerminalSquare, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { useCodebaseTree } from "@/hooks/use-codebase-tree";
+import { useFileTree } from "@/hooks/agent-environment/use-file-tree";
 import { useAgentEnvironment } from "./agent-environment-context";
 import { LogoHover } from "../graphics/logo/logo-hover";
 import { LeftPanelIcon } from "../graphics/icons/left-panel-icon";
@@ -21,7 +21,7 @@ import { LeftPanelOpenIcon } from "../graphics/icons/left-panel-open-icon";
 import { BottomPanelOpenIcon } from "../graphics/icons/bottom-panel-open-icon";
 import { BottomPanelIcon } from "../graphics/icons/bottom-panel-icon";
 import { Close as SheetPrimitiveClose } from "@radix-ui/react-dialog";
-import { useTaskStatus } from "@/hooks/use-task-status";
+import { useTaskStatus } from "@/hooks/tasks/use-task-status";
 
 const Terminal = dynamic(() => import("./terminal"), { ssr: false });
 
@@ -46,7 +46,7 @@ function AgentEnvironment({
     triggerTerminalResize,
   } = useAgentEnvironment();
 
-  const { data: treeData, error: treeError } = useCodebaseTree(taskId);
+  const { data: treeData, error: treeError } = useFileTree(taskId);
   const { data } = useTaskStatus(taskId);
   const { status, initStatus } = data || {};
   const isLoading = status === "INITIALIZING";

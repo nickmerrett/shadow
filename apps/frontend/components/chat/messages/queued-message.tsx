@@ -1,7 +1,7 @@
 import { ListEnd, X, GitBranchPlus } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../../ui/button";
 import { useParams } from "next/navigation";
-import { useQueuedAction } from "@/hooks/use-queued-action";
+import { useQueuedAction } from "@/hooks/chat/use-queued-action";
 import { useTaskSocketContext } from "@/contexts/task-socket-context";
 import { useQueryClient } from "@tanstack/react-query";
 

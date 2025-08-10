@@ -2,9 +2,9 @@ import { Card } from "@/components/ui/card";
 import { Circle, File } from "lucide-react";
 import Link from "next/link";
 import { PullRequestSnapshot } from "@repo/db";
-import { useTask } from "@/hooks/use-task";
+import { useTask } from "@/hooks/tasks/use-task";
 import Image from "next/image";
-import { MemoizedMarkdown } from "./memoized-markdown";
+import { MemoizedMarkdown } from "../markdown/memoized-markdown";
 
 // Remove the last --- and everything after it (because we manually add a link to the shadow at the end of descriptions)
 const processDescription = (description: string) => {

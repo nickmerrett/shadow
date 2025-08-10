@@ -11,9 +11,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useGitHubBranches } from "@/hooks/use-github-branches";
-import { useGitHubRepositories } from "@/hooks/use-github-repositories";
-import { useGitHubStatus } from "@/hooks/use-github-status";
+import { useGitHubBranches } from "@/hooks/github/use-github-branches";
+import { useGitHubRepositories } from "@/hooks/github/use-github-repositories";
+import { useGitHubStatus } from "@/hooks/github/use-github-status";
 import { saveGitSelectorCookie } from "@/lib/actions/git-selector-cookie";
 import { cn, formatTimeAgo } from "@/lib/utils";
 import {
@@ -30,8 +30,8 @@ import { toast } from "sonner";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
 import Image from "next/image";
 import Link from "next/link";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { GithubLogo } from "../graphics/github/github-logo";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
+import { GithubLogo } from "../../graphics/github/github-logo";
 
 export function GithubConnection({
   isOpen,

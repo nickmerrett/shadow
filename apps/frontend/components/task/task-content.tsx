@@ -1,9 +1,9 @@
 "use client";
 
-import { Messages } from "@/components/chat/messages";
-import { PromptForm } from "@/components/chat/prompt-form";
-import { useSendMessage } from "@/hooks/use-send-message";
-import { useTaskMessages } from "@/hooks/use-task-messages";
+import { Messages } from "@/components/chat/messages/messages";
+import { PromptForm } from "@/components/chat/prompt-form/prompt-form";
+import { useSendMessage } from "@/hooks/chat/use-send-message";
+import { useTaskMessages } from "@/hooks/tasks/use-task-messages";
 import { useTaskSocketContext } from "@/contexts/task-socket-context";
 import { useParams } from "next/navigation";
 import { ScrollToBottom } from "./scroll-to-bottom";
@@ -14,7 +14,7 @@ import {
   deduplicatePartsFromMap,
   convertMapToPartsArray,
 } from "@/lib/streaming";
-import { useTask } from "@/hooks/use-task";
+import { useTask } from "@/hooks/tasks/use-task";
 
 function TaskPageContent() {
   const { taskId } = useParams<{ taskId: string }>();

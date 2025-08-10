@@ -8,7 +8,7 @@ import { Button } from "../ui/button";
 import { useSidebar } from "../ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { statusColorsConfig } from "./status";
-import { useTask } from "@/hooks/use-task";
+import { useTask } from "@/hooks/tasks/use-task";
 import { useMemo, useState } from "react";
 import { LogoBurst } from "../graphics/logo/logo-burst";
 import { TaskStatus } from "@repo/db";

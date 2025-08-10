@@ -8,7 +8,7 @@ import { Separator } from "../ui/separator";
 import { useParams } from "next/navigation";
 import { useModal } from "../layout/modal-context";
 import { LogoHover } from "../graphics/logo/logo-hover";
-import { MemoizedMarkdown } from "../chat/memoized-markdown";
+import { MemoizedMarkdown } from "../chat/markdown/memoized-markdown";
 import { Card } from "../ui/card";
 
 export function ShadowWikiContent() {

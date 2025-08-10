@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { LogoHover } from "../graphics/logo/logo-hover";
-import { PromptForm } from "./prompt-form";
-import { WelcomeModal } from "../welcome-modal";
-import { useAuthSession } from "../auth/session-provider";
+import { LogoHover } from "../../graphics/logo/logo-hover";
+import { PromptForm } from "../prompt-form/prompt-form";
+import { WelcomeModal } from "../../welcome-modal";
+import { useAuthSession } from "../../auth/session-provider";
 import type { FilteredRepository } from "@/lib/github/types";
 import type { ModelType } from "@repo/types";
 

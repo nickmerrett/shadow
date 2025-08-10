@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Circle, GitBranchPlus } from "lucide-react";
-import { Card } from "../ui/card";
-import { useStackedPRInfo } from "@/hooks/use-stacked-pr-info";
-import { statusColorsConfig } from "../sidebar/status";
+import { Card } from "../../ui/card";
+import { useStackedPRInfo } from "@/hooks/chat/use-stacked-pr-info";
+import { statusColorsConfig } from "../../sidebar/status";
 import { cn } from "@/lib/utils";
 import type { TaskStatus } from "@repo/db";
 

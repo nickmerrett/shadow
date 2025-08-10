@@ -2,7 +2,7 @@ import type { Message } from "@repo/types";
 import { isAssistantMessage, isUserMessage } from "@repo/types";
 import { AssistantMessage } from "./assistant-message";
 import { UserMessage } from "./user-message";
-import InitializingAnimation from "../task/initializing-animation";
+import InitializingAnimation from "../../task/initializing-animation";
 import { useMemo, memo, useRef, useEffect, useState } from "react";
 import { StackedPRCard } from "./stacked-pr-card";
 

@@ -14,8 +14,8 @@ import {
   useClearApiKey,
   useApiKeyValidation,
   useSaveApiKeyValidation,
-} from "@/hooks/use-api-keys";
-import { useValidateApiKeys } from "@/hooks/use-api-key-validation";
+} from "@/hooks/api-keys/use-api-keys";
+import { useValidateApiKeys } from "@/hooks/api-keys/use-api-key-validation";
 import {
   Loader2,
   Trash,

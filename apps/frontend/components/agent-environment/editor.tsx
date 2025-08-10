@@ -9,7 +9,7 @@ import { LogoHover } from "../graphics/logo/logo-hover";
 import { SHADOW_WIKI_PATH } from "@/lib/constants";
 import { ShadowWikiContent } from "../shadow-wiki/shadow-wiki";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { MemoizedMarkdown } from "../chat/memoized-markdown";
+import { MemoizedMarkdown } from "../chat/markdown/memoized-markdown";
 
 // Dynamic import Monaco Editor to avoid SSR issues
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {

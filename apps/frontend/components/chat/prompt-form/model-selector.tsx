@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Box } from "lucide-react";
-import { useModels } from "@/hooks/use-models";
-import { useApiKeys, useApiKeyValidation } from "@/hooks/use-api-keys";
+import { useModels } from "@/hooks/chat/use-models";
+import { useApiKeys, useApiKeyValidation } from "@/hooks/api-keys/use-api-keys";
 
 export function ModelSelector({
   selectedModel,

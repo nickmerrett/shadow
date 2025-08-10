@@ -30,11 +30,11 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { GithubConnection } from "./github";
-import { RepoIssues } from "./repo-issues";
+import { RepoIssues } from "../home/repo-issues";
 import type { GitHubIssue } from "@repo/types";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { QueuedAction } from "./queued-message";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
+import { QueuedAction } from "../messages/queued-message";
 import { ModelSelector } from "./model-selector";
 import { generateIssuePrompt } from "@/lib/github/issue-prompt";
 

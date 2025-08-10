@@ -11,7 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useTasks } from "@/hooks/use-tasks";
+import { useTasks } from "@/hooks/tasks/use-tasks";
 import { Task } from "@repo/db";
 import { useEffect, useRef, useState } from "react";
 import { SidebarAgentView } from "./agent-view";

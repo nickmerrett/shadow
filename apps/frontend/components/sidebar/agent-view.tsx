@@ -5,7 +5,7 @@ import {
   SidebarGroupLabel,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useTask } from "@/hooks/use-task";
+import { useTask } from "@/hooks/tasks/use-task";
 import { cn } from "@/lib/utils";
 import {
   CircleDashed,
@@ -30,7 +30,7 @@ import Link from "next/link";
 import { Badge } from "../ui/badge";
 import { Card } from "../ui/card";
 import { GithubLogo } from "../graphics/github/github-logo";
-import { useCreatePR } from "@/hooks/use-create-pr";
+import { useCreatePR } from "@/hooks/chat/use-create-pr";
 import { useTaskSocketContext } from "@/contexts/task-socket-context";
 import { Loader2 } from "lucide-react";
 import { useIndexingStatus } from "@/hooks/use-indexing-status";

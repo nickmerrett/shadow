@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { CodebaseWithSummaries } from "@repo/types";
-import { useTask } from "./use-task";
+import { useTask } from "./tasks/use-task";
 
 export function useCodebase(taskId: string) {
   const { task } = useTask(taskId);

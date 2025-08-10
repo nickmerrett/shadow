@@ -1,6 +1,6 @@
 import { ToolTypes, type ReasoningPart } from "@repo/types";
 import { ChevronDown } from "lucide-react";
-import { ToolComponent } from "./tools/tool";
+import { ToolComponent } from "../tools/tool";
 
 export function ReasoningComponent({
   part,

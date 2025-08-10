@@ -5,7 +5,7 @@ import { getStepsForMode, STEP_DISPLAY_NAMES } from "@repo/types";
 import { Check } from "lucide-react";
 import { LogoHover } from "../graphics/logo/logo-hover";
 import { useEffect, useMemo, useState } from "react";
-import { useTaskStatus } from "@/hooks/use-task-status";
+import { useTaskStatus } from "@/hooks/tasks/use-task-status";
 
 // height of each step
 const LINE_HEIGHT = 20;

@@ -3,9 +3,9 @@ import {
   useQueryClient,
   isCancelledError,
 } from "@tanstack/react-query";
-import { useSocket } from "./socket/use-socket";
+import { useSocket } from "../socket/use-socket";
 import { Message, ModelType } from "@repo/types";
-import { useTaskSocketContext } from "./socket";
+import { useTaskSocketContext } from "../socket";
 
 interface EditMessageParams {
   taskId: string;

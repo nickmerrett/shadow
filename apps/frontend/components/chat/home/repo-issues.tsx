@@ -1,16 +1,16 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useGitHubIssues } from "@/hooks/use-github-issues";
+import { useGitHubIssues } from "@/hooks/github/use-github-issues";
 import type { GitHubIssue } from "@repo/types";
 import type { FilteredRepository as Repository } from "@/lib/github/types";
 import { ArrowRight, Circle, Minus, Plus, RotateCw } from "lucide-react";
 import { useEffect, useState } from "react";
-import { GithubIssueIcon } from "../graphics/github/github-issue-icon";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { GithubIssueIcon } from "../../graphics/github/github-issue-icon";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
 import { cn, formatTimeAgo } from "@/lib/utils";
 import "./repo-issues.css";
-import { GithubLogo } from "../graphics/github/github-logo";
+import { GithubLogo } from "../../graphics/github/github-logo";
 
 export function RepoIssues({
   repository,

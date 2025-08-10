@@ -1,6 +1,6 @@
 "use client";
 
-import { useFileContent } from "@/hooks/use-file-content";
+import { useFileContent } from "@/hooks/agent-environment/use-file-content";
 import { SHADOW_WIKI_PATH } from "@/lib/constants";
 import {
   createContext,

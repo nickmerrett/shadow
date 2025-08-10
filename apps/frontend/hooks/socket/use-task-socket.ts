@@ -3,7 +3,7 @@
 import { useSocket } from "./use-socket";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { extractStreamingArgs } from "@/lib/streaming-args";
-import { useStreamingPartsMap } from "../use-streaming-parts-map";
+import { useStreamingPartsMap } from "./use-streaming-parts-map";
 import { useQueryClient } from "@tanstack/react-query";
 import type {
   AssistantMessagePart,
@@ -20,7 +20,7 @@ import type {
 } from "@repo/types";
 import { TextPart, ToolResultPart } from "ai";
 import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
-import { CodebaseTreeResponse } from "../use-codebase-tree";
+import { FileTreeResponse } from "../agent-environment/use-file-tree";
 import { Task, TodoStatus } from "@repo/db";
 import { TaskStatusData } from "@/lib/db-operations/get-task-status";
 
@@ -53,7 +53,6 @@ function updateCodebaseTreeOptimistically(
   fsChange: FsChangeEvent
 ): FileNode[] {
   const { operation, filePath, isDirectory } = fsChange;
-
 
   if (operation === "file-created" || operation === "directory-created") {
     return addNodeToTree(
@@ -581,8 +580,8 @@ export function useTaskSocket(taskId: string | undefined) {
             );
 
             queryClient.setQueryData(
-              ["codebase-tree", taskId],
-              (oldData: CodebaseTreeResponse) => {
+              ["file-tree", taskId],
+              (oldData: FileTreeResponse) => {
                 if (!oldData || !oldData.success || !oldData.tree)
                   return oldData;
 
@@ -618,8 +617,8 @@ export function useTaskSocket(taskId: string | undefined) {
             );
 
             queryClient.setQueryData(
-              ["codebase-tree", taskId],
-              (oldData: CodebaseTreeResponse) => {
+              ["file-tree", taskId],
+              (oldData: FileTreeResponse) => {
                 if (!oldData) return oldData;
                 return {
                   success: true,
@@ -695,7 +694,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "init-progress":
           if (chunk.initProgress) {
-
             queryClient.setQueryData(
               ["task", taskId],
               (oldData: TaskWithDetails) => {
@@ -824,7 +822,7 @@ export function useTaskSocket(taskId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ["task", taskId] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task-messages", taskId] });
-      queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
+      queryClient.invalidateQueries({ queryKey: ["file-tree", taskId] });
       queryClient.invalidateQueries({ queryKey: ["codebases"] });
     }
 
@@ -927,7 +925,7 @@ export function useTaskSocket(taskId: string | undefined) {
           }
         );
 
-        queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
+        queryClient.invalidateQueries({ queryKey: ["file-tree", taskId] });
 
         if (data.status === "RUNNING") {
           queryClient.invalidateQueries({ queryKey: ["codebases"] });
