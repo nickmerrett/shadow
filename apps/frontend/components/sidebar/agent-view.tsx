@@ -447,10 +447,13 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <FileExplorer
+              isAgentEnvironment={false}
               files={modifiedFileTree}
-              showDiffOperation={true}
-              fileChanges={fileChanges}
-              defaultExpanded={true}
+              fileChangeOperations={fileChanges.map((fileChange) => ({
+                filePath: fileChange.filePath,
+                operation: fileChange.operation,
+              }))}
+              defaultFolderExpansion={true}
               onFileSelect={handleFileSelect}
             />
           </SidebarGroupContent>

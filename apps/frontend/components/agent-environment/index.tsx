@@ -174,12 +174,12 @@ function AgentEnvironment({ isMobile = false }: { isMobile?: boolean }) {
       </div>
       <div className="flex w-full grow overflow-hidden">
         <FileExplorer
+          isAgentEnvironment={true}
           files={treeData?.tree || []}
           onFileSelect={(file) => updateSelectedFilePath(file.path)}
           selectedFilePath={selectedFilePath}
           isCollapsed={isExplorerCollapsed}
           onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
-          autoExpandToSelectedPath={true}
         />
         <div className="flex-1 overflow-hidden">
           <ResizablePanelGroup

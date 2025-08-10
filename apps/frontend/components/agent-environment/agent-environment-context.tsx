@@ -94,8 +94,14 @@ export function AgentEnvironmentProvider({
     }
   }, [rightPanelRef]);
 
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const triggerTerminalResize = useCallback(() => {
-    setTerminalResizeTrigger((prev) => prev + 1);
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    debounceTimeoutRef.current = setTimeout(() => {
+      setTerminalResizeTrigger((prev) => prev + 1);
+    }, 200);
   }, []);
 
   const value: AgentEnvironmentContextType = useMemo(
