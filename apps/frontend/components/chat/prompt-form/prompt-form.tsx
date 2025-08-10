@@ -597,6 +597,7 @@ export function PromptForm({
               <ModelSelector
                 selectedModel={selectedModel}
                 handleSelectModel={handleSelectModel}
+                isHome={isHome}
               />
 
               <div className="flex items-center gap-2 overflow-hidden">

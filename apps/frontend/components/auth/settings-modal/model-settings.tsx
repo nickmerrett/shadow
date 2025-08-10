@@ -26,7 +26,6 @@ import {
   EyeOff,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useDebounceCallbackWithCancel } from "@/lib/debounce";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,10 +35,8 @@ import {
   getModelProvider,
 } from "@repo/types";
 import { useModal } from "@/components/layout/modal-context";
-import {
-  saveModelSelectorCookie,
-  getModelSelectorCookie,
-} from "@/lib/actions/model-selector-cookie";
+import { getModelSelectorCookie } from "@/lib/actions/model-selector-cookie";
+import { useSetSelectedModel } from "@/hooks/chat/use-selected-model";
 import { getValidationResult } from "@/lib/types/validation";
 
 export function ModelSettings() {
@@ -51,7 +48,7 @@ export function ModelSettings() {
   const saveValidationMutation = useSaveApiKeyValidation();
   const queryClient = useQueryClient();
   const { openProviderConfig } = useModal();
-  const router = useRouter();
+  const setSelectedModelMutation = useSetSelectedModel();
 
   const [openaiInput, setOpenaiInput] = useState(apiKeys?.openai ?? "");
   const [anthropicInput, setAnthropicInput] = useState(
@@ -178,8 +175,7 @@ export function ModelSettings() {
               if (isFirstApiKey) {
                 try {
                   const firstModel = getProviderDefaultModel(provider);
-                  await saveModelSelectorCookie(firstModel);
-                  router.refresh(); // Refresh to update UI with new model selection
+                  await setSelectedModelMutation.mutateAsync(firstModel);
                 } catch (error) {
                   console.error("Failed to auto-select model:", error);
                 }
@@ -265,12 +261,10 @@ export function ModelSettings() {
   const handleClearApiKey = async (provider: ApiKeyProvider) => {
     try {
       // Check if currently selected model belongs to this provider and clear it if so
-      let modelCookieCleared = false;
       try {
         const currentModel = await getModelSelectorCookie();
         if (currentModel && getModelProvider(currentModel) === provider) {
-          await saveModelSelectorCookie(null);
-          modelCookieCleared = true;
+          await setSelectedModelMutation.mutateAsync(null);
         }
       } catch (error) {
         console.error("Failed to check/clear model selector cookie:", error);
@@ -300,11 +294,6 @@ export function ModelSettings() {
       // Invalidate queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
       queryClient.invalidateQueries({ queryKey: ["api-key-validation"] });
-      
-      // Refresh router if we cleared the model cookie to update UI
-      if (modelCookieCleared) {
-        router.refresh();
-      }
     } catch (_error) {
       const providerName =
         provider === "openai"

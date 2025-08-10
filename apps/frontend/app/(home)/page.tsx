@@ -9,9 +9,10 @@ import {
   HydrationBoundary,
   QueryClient,
 } from "@tanstack/react-query";
-import { GitCookieDestroyer } from "@/components/task/git-cookie-destroyer";
+import { getUser } from "@/lib/auth/get-user";
 
 export default async function Home() {
+  await getUser();
   const queryClient = new QueryClient();
   const initialGitCookieState = await getGitSelectorCookie();
   const savedModel = await getModelSelectorCookie();
@@ -34,13 +35,21 @@ export default async function Home() {
       .catch((error) => {
         console.log("Could not prefetch API keys:", error?.message || error);
       }),
+    queryClient
+      .prefetchQuery({
+        queryKey: ["selected-model"],
+        queryFn: getModelSelectorCookie,
+      })
+      .catch((error) => {
+        console.log(
+          "Could not prefetch selected model:",
+          error?.message || error
+        );
+      }),
   ];
 
   await Promise.allSettled(prefetchPromises);
 
-  // Since we're not prefetching GitHub status anymore, we can't check installation status
-  // The GitCookieDestroyer component will handle this when GitHub components load
-  const shouldDeleteGitCookie = false;
 
   // Validate saved model against available API keys
   let initialSelectedModel = savedModel;
@@ -72,13 +81,9 @@ export default async function Home() {
     <HydrationBoundary state={dehydrate(queryClient)}>
       <HomeLayoutWrapper>
         <HomePageContent
-          initialGitCookieState={
-            shouldDeleteGitCookie ? null : initialGitCookieState
-          }
+          initialGitCookieState={initialGitCookieState}
           initialSelectedModel={initialSelectedModel}
         />
-        {/* There's no way to delete cookies from a server component so pass down to client component */}
-        <GitCookieDestroyer shouldDeleteGitCookie={shouldDeleteGitCookie} />
       </HomeLayoutWrapper>
     </HydrationBoundary>
   );

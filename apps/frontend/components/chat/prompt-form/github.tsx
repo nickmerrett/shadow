@@ -14,7 +14,7 @@ import {
 import { useGitHubBranches } from "@/hooks/github/use-github-branches";
 import { useGitHubRepositories } from "@/hooks/github/use-github-repositories";
 import { useGitHubStatus } from "@/hooks/github/use-github-status";
-import { saveGitSelectorCookie } from "@/lib/actions/git-selector-cookie";
+import { saveGitSelectorCookie, deleteGitSelectorCookie } from "@/lib/actions/git-selector-cookie";
 import { cn, formatTimeAgo } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -24,7 +24,7 @@ import {
   Loader2,
   Search,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 import type { FilteredRepository as Repository } from "@/lib/github/types";
@@ -60,6 +60,17 @@ export function GithubConnection({
     isLoading: isLoadingStatus,
     error: statusError,
   } = useGitHubStatus();
+
+  // Delete git cookie if GitHub app is not installed
+  useEffect(() => {
+    if (githubStatus && selectedRepo && !githubStatus.isAppInstalled) {
+      deleteGitSelectorCookie().catch((error) => {
+        console.error("Failed to delete git selector cookie:", error);
+      });
+      setSelectedRepo(null);
+      setSelectedBranch(null);
+    }
+  }, [githubStatus, selectedRepo, setSelectedRepo, setSelectedBranch]);
 
   const {
     data: groupedRepos = { groups: [] },

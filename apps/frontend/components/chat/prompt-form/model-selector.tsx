@@ -15,13 +15,16 @@ import { Button } from "@/components/ui/button";
 import { Box } from "lucide-react";
 import { useModels } from "@/hooks/chat/use-models";
 import { useApiKeys, useApiKeyValidation } from "@/hooks/api-keys/use-api-keys";
+import { useSelectedModel } from "@/hooks/chat/use-selected-model";
 
 export function ModelSelector({
   selectedModel,
   handleSelectModel,
+  isHome = false,
 }: {
   selectedModel: ModelType | null;
   handleSelectModel: (model: ModelType | null) => void;
+  isHome?: boolean;
 }) {
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const { openSettingsModal } = useModal();
@@ -29,6 +32,9 @@ export function ModelSelector({
   const { data: availableModels = [] } = useModels();
   const { data: apiKeys } = useApiKeys();
   const { data: validationState } = useApiKeyValidation();
+
+  const { data: querySelectedModel } = useSelectedModel();
+  const currentSelectedModel = isHome ? querySelectedModel : selectedModel;
 
   // Filter models based on valid API keys only
   const filteredModels = availableModels.filter((model) => {
@@ -67,8 +73,8 @@ export function ModelSelector({
               className="text-muted-foreground hover:bg-accent px-2 font-normal"
             >
               <span>
-                {selectedModel
-                  ? ModelInfos[selectedModel].name
+                {currentSelectedModel
+                  ? ModelInfos[currentSelectedModel].name
                   : "No Model Selected"}
               </span>
             </Button>
