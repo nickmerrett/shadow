@@ -64,12 +64,8 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
       const podIP = podDetails.status?.podIP;
       const workspacePath = `/workspace`; // Standard workspace path in VM
 
-      console.log(
-        `[REMOTE_WM] Remote VM workspace ready at ${podIP}:8080`
-      );
-      console.log(
-        `[REMOTE_WM] VM is running with true hardware isolation`
-      );
+      console.log(`[REMOTE_WM] Remote VM workspace ready at ${podIP}:8080`);
+      console.log(`[REMOTE_WM] VM is running with true hardware isolation`);
 
       return {
         success: true,
@@ -198,10 +194,8 @@ export class RemoteWorkspaceManager implements WorkspaceManager {
 
     // Use direct pod IP connectivity
     const sidecarUrl = `http://${podIP}:8080`;
-    console.log(`[REMOTE_WM] Using direct pod IP: ${sidecarUrl}`);
     return new RemoteToolExecutor(taskId, sidecarUrl);
   }
-
 
   async healthCheck(taskId: string): Promise<HealthStatus> {
     try {

@@ -4,7 +4,7 @@ import { sharedConfigSchema, createSharedConfig } from "./shared";
 
 // Only load .env.production if environment variables aren't already set
 if (!process.env.VM_IMAGE_REGISTRY) {
-  dotenv.config({ path: "../../.env.production" });
+  dotenv.config({ path: "../../.env.production", debug: false });
 }
 
 /**

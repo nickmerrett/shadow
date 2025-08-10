@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import { z } from "zod";
 import { sharedConfigSchema, createSharedConfig } from "./shared";
 
-dotenv.config();
+dotenv.config({ debug: false });
 
 /**
  * Development environment configuration schema

@@ -39,13 +39,6 @@ export class RemoteVMRunner {
     const k8sPort = config.kubernetesServicePort || "443";
     const serviceAccountToken = options.token || config.k8sServiceAccountToken;
 
-    console.log(`[REMOTE_VM_RUNNER] Configuring Kubernetes client`, {
-      host: k8sHost,
-      port: k8sPort,
-      namespace: this.namespace,
-      hasToken: !!serviceAccountToken,
-    });
-
     // Validate required configuration
     if (!k8sHost) {
       throw new Error(

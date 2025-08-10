@@ -550,14 +550,30 @@ export function createSocketServer(
 
     // Handle request for chat history
     socket.on("get-chat-history", async (data) => {
+      console.log(`[SOCKET] Received get-chat-history request:`, {
+        taskId: data.taskId,
+        complete: data.complete,
+        connectionId,
+      });
+      
       try {
         const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
         if (!hasAccess) {
+          console.warn(`[SOCKET] Access denied for chat history request:`, {
+            taskId: data.taskId,
+            connectionId,
+          });
           socket.emit("chat-history-error", { error: "Access denied to task" });
           return;
         }
 
         const history = await chatService.getChatHistory(data.taskId);
+        console.log(`[SOCKET] Successfully retrieved chat history:`, {
+          taskId: data.taskId,
+          messageCount: history.length,
+          complete: data.complete,
+        });
+        
         socket.emit("chat-history", {
           taskId: data.taskId,
           messages: history,
@@ -567,7 +583,7 @@ export function createSocketServer(
             : chatService.getQueuedAction(data.taskId),
         });
       } catch (error) {
-        console.error("Error getting chat history:", error);
+        console.error(`[SOCKET] Error getting chat history for task ${data.taskId}:`, error);
         socket.emit("chat-history-error", {
           error: "Failed to get chat history",
         });

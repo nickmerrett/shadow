@@ -1,11 +1,13 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
-dotenv.config();
+dotenv.config({ debug: false });
 
 const configSchema = z.object({
   PORT: z.coerce.number().default(8080),
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  NODE_ENV: z
+    .enum(["development", "production", "test"])
+    .default("development"),
   WORKSPACE_DIR: z.string().default("/workspace"),
   LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
   MAX_FILE_SIZE_MB: z.coerce.number().default(50),

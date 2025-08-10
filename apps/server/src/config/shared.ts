@@ -1,8 +1,7 @@
 import { z } from "zod";
 import dotenv from "dotenv";
 
-// Load environment variables first
-dotenv.config();
+dotenv.config({ debug: false });
 
 /**
  * Shared configuration schema used by both development and production environments
@@ -128,5 +127,5 @@ export const getCorsOrigins = (config: SharedConfig): string[] => {
   if (!config.corsOrigins) {
     return [];
   }
-  return config.corsOrigins.split(',').map(origin => origin.trim());
+  return config.corsOrigins.split(",").map((origin) => origin.trim());
 };

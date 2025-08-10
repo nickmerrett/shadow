@@ -81,10 +81,6 @@ export class RemoteToolExecutor implements ToolExecutor {
       }
 
       const responseData = (await response.json()) as T;
-      console.log(
-        `[REMOTE_TOOL_EXECUTOR] Response data:`,
-        JSON.stringify(responseData, null, 2).slice(0, 10)
-      );
       return responseData;
     } catch (error) {
       clearTimeout(timeoutId);
