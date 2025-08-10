@@ -791,7 +791,7 @@ async function analyzeFileWithLLM(
     return null;
   }
 
-  const maxTokens = isCritical ? 4000 : isDataFile ? 2048 : 2048;
+  const maxTokens = isCritical ? 400 : isDataFile ? 200 : 200;
 
   let truncatedSrc = src;
   if (src.length > maxTokens * 4) {
@@ -1003,7 +1003,7 @@ async function summarizeDir(
     );
   }
 
-  const budget = 500;
+  const budget = 400;
   const systemPrompt = `Summarize this code directory. Be ultra-concise.
 
 Include only:
