@@ -25,7 +25,11 @@ import { useTaskStatus } from "@/hooks/use-task-status";
 
 const Terminal = dynamic(() => import("./terminal"), { ssr: false });
 
-function AgentEnvironment({ isMobile = false }: { isMobile?: boolean }) {
+function AgentEnvironment({
+  isSheetOverlay = false,
+}: {
+  isSheetOverlay?: boolean;
+}) {
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
   const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(false);
 
@@ -58,7 +62,7 @@ function AgentEnvironment({ isMobile = false }: { isMobile?: boolean }) {
   // Loading state UI
   if (isLoading) {
     return (
-      <EmptyStateWrapper onClose={handleClose} isMobile={isMobile}>
+      <EmptyStateWrapper onClose={handleClose} isSheetOverlay={isSheetOverlay}>
         <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
           <LogoHover forceAnimate />
           Initializing Shadow Realm...
@@ -69,7 +73,7 @@ function AgentEnvironment({ isMobile = false }: { isMobile?: boolean }) {
 
   if (isWorkspaceInactive) {
     return (
-      <EmptyStateWrapper onClose={handleClose} isMobile={isMobile}>
+      <EmptyStateWrapper onClose={handleClose} isSheetOverlay={isSheetOverlay}>
         <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
           <LogoHover />
           Workspace Inactive.
@@ -81,7 +85,7 @@ function AgentEnvironment({ isMobile = false }: { isMobile?: boolean }) {
   // Error state UI
   if (treeError) {
     return (
-      <EmptyStateWrapper onClose={handleClose} isMobile={isMobile}>
+      <EmptyStateWrapper onClose={handleClose} isSheetOverlay={isSheetOverlay}>
         <div className="font-departureMono flex items-center gap-4 text-xl font-medium tracking-tighter">
           <AlertTriangle className="text-destructive size-5 shrink-0" />
           Failed to Load Workspace
@@ -144,7 +148,7 @@ function AgentEnvironment({ isMobile = false }: { isMobile?: boolean }) {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              {isMobile ? (
+              {isSheetOverlay ? (
                 <SheetPrimitiveClose asChild>
                   <Button
                     variant="ghost"
@@ -172,7 +176,7 @@ function AgentEnvironment({ isMobile = false }: { isMobile?: boolean }) {
           </Tooltip>
         </div>
       </div>
-      <div className="flex w-full grow overflow-hidden">
+      <div className="@container/agent-environment flex w-full grow overflow-hidden">
         <FileExplorer
           isAgentEnvironment={true}
           files={treeData?.tree || []}
@@ -215,17 +219,17 @@ function AgentEnvironment({ isMobile = false }: { isMobile?: boolean }) {
 function EmptyStateWrapper({
   children,
   onClose,
-  isMobile,
+  isSheetOverlay,
 }: {
   children: React.ReactNode;
   onClose: () => void;
-  isMobile: boolean;
+  isSheetOverlay: boolean;
 }) {
   return (
     <div className="relative flex size-full max-h-svh select-none flex-col items-center justify-center gap-4 p-4 text-center">
       <Tooltip>
         <TooltipTrigger asChild>
-          {isMobile ? (
+          {isSheetOverlay ? (
             <SheetPrimitiveClose asChild>
               <Button
                 variant="ghost"

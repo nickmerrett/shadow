@@ -6,6 +6,8 @@ export function useCodebase(taskId: string) {
   const { task } = useTask(taskId);
   const codebaseId = task?.codebaseUnderstandingId;
 
+  console.log("codebaseId", codebaseId);
+
   return useQuery({
     queryKey: ["codebase", codebaseId],
     queryFn: async (): Promise<CodebaseWithSummaries> => {

@@ -75,6 +75,17 @@ export function ShadowWikiContent() {
     );
   }
 
+  if (!codebase) {
+    return (
+      <div className="flex h-full w-full items-center justify-center p-4">
+        <div className="text-muted-foreground text-center">
+          <FileText className="mx-auto mb-4 h-8 w-8" />
+          <h3 className="mb-2 text-lg font-medium">No codebase found</h3>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="mt-12 flex h-full w-full items-center justify-center p-4">

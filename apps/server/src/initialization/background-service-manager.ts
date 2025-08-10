@@ -100,6 +100,8 @@ export class BackgroundServiceManager {
     taskId: string,
     context: TaskModelContext
   ): Promise<void> {
+    console.log(`🚀 [SHADOW-WIKI] Starting Shadow Wiki generation for task ${taskId}`);
+    
     try {
       // Get task info
       const task = await prisma.task.findUnique({
@@ -120,6 +122,9 @@ export class BackgroundServiceManager {
         throw new Error(`Workspace path not found for task: ${taskId}`);
       }
 
+      console.log(`📊 [SHADOW-WIKI] Task details - Repo: ${task.repoFullName}, Workspace: ${task.workspacePath}`);
+      console.log(`🎯 [SHADOW-WIKI] Using model: ${context.getMainModel()} for analysis`);
+
       // Generate Shadow Wiki documentation
       // Note: runShadowWiki handles duplicate detection and task linking internally
 
@@ -135,11 +140,9 @@ export class BackgroundServiceManager {
         }
       );
 
+      console.log(`✅ [SHADOW-WIKI] Shadow Wiki generation completed successfully for task ${taskId}`);
     } catch (error) {
-      console.error(
-        `[BACKGROUND_SERVICES] Failed to generate Shadow Wiki:`,
-        error
-      );
+      console.error(`❌ [SHADOW-WIKI] Shadow Wiki generation failed for task ${taskId}:`, error);
       // Don't throw - we want to mark as failed but continue
       throw error;
     }

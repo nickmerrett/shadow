@@ -208,7 +208,7 @@ export function FileExplorer(props: AgentEnvironmentProps | OtherViewProps) {
   if (isAgentEnvironment) {
     if (!props.isCollapsed) {
       return (
-        <div className="bg-sidebar border-border flex w-48 shrink-0 select-none flex-col overflow-hidden border-r">
+        <div className="bg-sidebar border-border @max-[500px]/agent-environment:w-36 flex w-48 shrink-0 select-none flex-col overflow-hidden border-r">
           <div className="group/files flex w-full grow flex-col gap-0.5 overflow-y-auto p-1">
             {files.map((file) => renderNode(file))}
           </div>
