@@ -6,10 +6,10 @@ import dynamic from "next/dynamic";
 import { Fragment, useEffect, useState } from "react";
 import { getLanguageFromPath } from "@repo/types";
 import { LogoHover } from "../graphics/logo/logo-hover";
-import { MarkdownRenderer } from "./markdown-renderer";
 import { SHADOW_WIKI_PATH } from "@/lib/constants";
-import { ShadowWikiContent } from "../shadow-wiki/shadow-wiki-content";
+import { ShadowWikiContent } from "../shadow-wiki/shadow-wiki";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { MemoizedMarkdown } from "../chat/memoized-markdown";
 
 // Dynamic import Monaco Editor to avoid SSR issues
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -60,8 +60,7 @@ export function Editor({
               <Info className="size-3.5" />
             </TooltipTrigger>
             <TooltipContent className="h-auto max-w-44" side="bottom">
-              LLM-generated codebase understanding notes used by the agent for
-              initial context on task creation.
+              LLM-generated codebase understanding notes
             </TooltipContent>
           </Tooltip>
         </div>
@@ -106,7 +105,10 @@ export function Editor({
           <ShadowWikiContent />
         ) : isMarkdownFile && fileContentString ? (
           <div className="h-full overflow-auto p-4">
-            <MarkdownRenderer content={fileContentString} />
+            <MemoizedMarkdown
+              content={fileContentString}
+              id={selectedFilePath || ""}
+            />
           </div>
         ) : (
           <MonacoEditor

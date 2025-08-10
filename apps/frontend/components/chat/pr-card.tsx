@@ -4,7 +4,7 @@ import Link from "next/link";
 import { PullRequestSnapshot } from "@repo/db";
 import { useTask } from "@/hooks/use-task";
 import Image from "next/image";
-import { MarkdownRenderer } from "../agent-environment/markdown-renderer";
+import { MemoizedMarkdown } from "./memoized-markdown";
 
 // Remove the last --- and everything after it (because we manually add a link to the shadow at the end of descriptions)
 const processDescription = (description: string) => {
@@ -18,9 +18,11 @@ const processDescription = (description: string) => {
 export function PRCard({
   taskId,
   snapshot,
+  messageId,
 }: {
   taskId: string;
   snapshot: PullRequestSnapshot;
+  messageId: string;
 }) {
   const { task } = useTask(taskId);
 
@@ -63,12 +65,10 @@ export function PRCard({
       </Link>
 
       <div className="mt-3 p-3">
-        <MarkdownRenderer
+        <MemoizedMarkdown
           content={`# Summary\n\n${processDescription(snapshot.description)}`}
-          componentProps={{
-            p: "m-0 whitespace-pre-wrap",
-          }}
-        ></MarkdownRenderer>
+          id={`pr-card-summary-${messageId}`}
+        />
       </div>
     </>
   );

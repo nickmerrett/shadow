@@ -322,7 +322,11 @@ export function AssistantMessage({
 
       {/* Show PR card if this assistant message has a PR snapshot */}
       {message.pullRequestSnapshot && (
-        <PRCard taskId={taskId} snapshot={message.pullRequestSnapshot} />
+        <PRCard
+          taskId={taskId}
+          snapshot={message.pullRequestSnapshot}
+          messageId={message.id}
+        />
       )}
 
       {/* Show loading PR card during auto-PR creation */}
@@ -347,6 +351,7 @@ export function AssistantMessage({
               commitSha: autoPRStatus.snapshot.commitSha,
               createdAt: new Date(),
             }}
+            messageId={message.id}
           />
         ) : null)}
 
