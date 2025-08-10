@@ -12,18 +12,11 @@ export interface LLMConfig {
 export const AvailableModels = {
   // OpenAI models
   GPT_5: "gpt-5-2025-08-07",
+  GPT_5_MINI: "gpt-5-mini-2025-08-07",
   GPT_4_1: "gpt-4.1",
   GPT_4_1_MINI: "gpt-4.1-mini",
   GPT_4O: "gpt-4o",
   GPT_4O_MINI: "gpt-4o-mini",
-  GPT_4O_AUDIO_PREVIEW: "gpt-4o-audio-preview",
-  // O1: "o1",
-  // O1_MINI: "o1-mini",
-  // O1_PREVIEW: "o1-preview",
-  // O3_MINI: "o3-mini",
-  // O3: "o3",
-  // O4_MINI: "o4-mini",
-  CHATGPT_4O_LATEST: "chatgpt-4o-latest",
 
   // Anthropic models
   CLAUDE_OPUS_4: "claude-opus-4-1-20250805",
@@ -32,25 +25,12 @@ export const AvailableModels = {
 
   // OpenRouter models
   XAI_GROK_3: "x-ai/grok-3",
-  // OPENAI_GPT_OSS_120B: "openai/gpt-oss-120b",
-  // OPENAI_GPT_OSS_20B: "openai/gpt-oss-20b",
-  OPENROUTER_HORIZON_BETA: "openrouter/horizon-beta",
+  MOONSHOT_KIMI_K2: "moonshotai/kimi-k2",
   MISTRAL_CODESTRAL_2508: "mistralai/codestral-2508",
   DEEPSEEK_R1_0528: "deepseek/deepseek-r1-0528",
   DEEPSEEK_CHAT_V3_0324: "deepseek/deepseek-chat-v3-0324",
-  // OPENAI_CODEX_MINI: "openai/codex-mini", // Removed - returns "Bad Request"
-  // QWEN_2_5_CODER_32B_INSTRUCT_FREE: "qwen/qwen-2.5-coder-32b-instruct:free", // Removed - rate limiting issues
-  // MOONSHOT_KIMI_K2_FREE: "moonshotai/kimi-k2:free", // Removed - rate limiting issues
+  QWEN_3_CODER: "qwen/qwen3-coder",
   QWEN_3_235B_A22B_2507: "qwen/qwen3-235b-a22b-2507",
-
-  // Groq models (commented out)
-  // GROQ_MIXTRAL_8X7B: "mixtral-8x7b-32768",
-  // GROQ_LLAMA3_70B: "llama3-70b-8192",
-  // GROQ_LLAMA3_8B: "llama3-8b-8192",
-
-  // Ollama models
-  // OLLAMA_GPT_OSS_120B: "gpt-oss:120b",
-  // OLLAMA_GPT_OSS_20B: "gpt-oss:20b",
 } as const;
 
 export type ModelType = (typeof AvailableModels)[keyof typeof AvailableModels];
@@ -88,44 +68,9 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "GPT-4o Mini",
     provider: "openai",
   },
-  [AvailableModels.GPT_4O_AUDIO_PREVIEW]: {
-    id: AvailableModels.GPT_4O_AUDIO_PREVIEW,
-    name: "GPT-4o Audio Preview",
-    provider: "openai",
-  },
-  // [AvailableModels.O1]: {
-  //   id: AvailableModels.O1,
-  //   name: "o1",
-  //   provider: "openai",
-  // },
-  // [AvailableModels.O1_MINI]: {
-  //   id: AvailableModels.O1_MINI,
-  //   name: "o1-mini",
-  //   provider: "openai",
-  // },
-  // [AvailableModels.O1_PREVIEW]: {
-  //   id: AvailableModels.O1_PREVIEW,
-  //   name: "o1-preview",
-  //   provider: "openai",
-  // },
-  // [AvailableModels.O3_MINI]: {
-  //   id: AvailableModels.O3_MINI,
-  //   name: "o3-mini",
-  //   provider: "openai",
-  // },
-  // [AvailableModels.O3]: {
-  //   id: AvailableModels.O3,
-  //   name: "o3",
-  //   provider: "openai",
-  // },
-  // [AvailableModels.O4_MINI]: {
-  //   id: AvailableModels.O4_MINI,
-  //   name: "o4-mini",
-  //   provider: "openai",
-  // },
-  [AvailableModels.CHATGPT_4O_LATEST]: {
-    id: AvailableModels.CHATGPT_4O_LATEST,
-    name: "ChatGPT-4o Latest",
+  [AvailableModels.GPT_5_MINI]: {
+    id: AvailableModels.GPT_5_MINI,
+    name: "GPT-5 Mini",
     provider: "openai",
   },
 
@@ -153,19 +98,9 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "Grok 3",
     provider: "openrouter",
   },
-  // [AvailableModels.OPENAI_GPT_OSS_120B]: {
-  //   id: AvailableModels.OPENAI_GPT_OSS_120B,
-  //   name: "GPT OSS 120B",
-  //   provider: "openrouter",
-  // },
-  // [AvailableModels.OPENAI_GPT_OSS_20B]: {
-  //   id: AvailableModels.OPENAI_GPT_OSS_20B,
-  //   name: "GPT OSS 20B",
-  //   provider: "openrouter",
-  // },
-  [AvailableModels.OPENROUTER_HORIZON_BETA]: {
-    id: AvailableModels.OPENROUTER_HORIZON_BETA,
-    name: "Horizon Beta (Free)",
+  [AvailableModels.MOONSHOT_KIMI_K2]: {
+    id: AvailableModels.MOONSHOT_KIMI_K2,
+    name: "Kimi K2",
     provider: "openrouter",
   },
   [AvailableModels.MISTRAL_CODESTRAL_2508]: {
@@ -183,38 +118,16 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "DeepSeek Chat V3 0324",
     provider: "openrouter",
   },
-  // [AvailableModels.OPENAI_CODEX_MINI]: {
-  //   id: AvailableModels.OPENAI_CODEX_MINI,
-  //   name: "Codex Mini",
-  //   provider: "openrouter",
-  // },
-  // [AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE]: {
-  //   id: AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE,
-  //   name: "Qwen 2.5 Coder 32B Instruct (Free)",
-  //   provider: "openrouter",
-  // },
-  // [AvailableModels.MOONSHOT_KIMI_K2_FREE]: {
-  //   id: AvailableModels.MOONSHOT_KIMI_K2_FREE,
-  //   name: "Moonshot Kimi K2 (Free)",
-  //   provider: "openrouter",
-  // },
+  [AvailableModels.QWEN_3_CODER]: {
+    id: AvailableModels.QWEN_3_CODER,
+    name: "Qwen3 Coder",
+    provider: "openrouter",
+  },
   [AvailableModels.QWEN_3_235B_A22B_2507]: {
     id: AvailableModels.QWEN_3_235B_A22B_2507,
     name: "Qwen 3 235B A22B 2507",
     provider: "openrouter",
   },
-
-  // Ollama models
-  // [AvailableModels.OLLAMA_GPT_OSS_120B]: {
-  //   id: AvailableModels.OLLAMA_GPT_OSS_120B,
-  //   name: "GPT OSS 120B",
-  //   provider: "ollama",
-  // },
-  // [AvailableModels.OLLAMA_GPT_OSS_20B]: {
-  //   id: AvailableModels.OLLAMA_GPT_OSS_20B,
-  //   name: "GPT OSS 20B",
-  //   provider: "ollama",
-  // },
 };
 
 export function getModelProvider(
@@ -255,6 +168,7 @@ export async function getAllPossibleModels(
   if (userApiKeys.openai) {
     models.push(
       AvailableModels.GPT_5,
+      AvailableModels.GPT_5_MINI,
       AvailableModels.GPT_4_1,
       AvailableModels.GPT_4O
     );
@@ -263,15 +177,11 @@ export async function getAllPossibleModels(
   if (userApiKeys.openrouter) {
     models.push(
       AvailableModels.XAI_GROK_3,
-      // AvailableModels.OPENAI_GPT_OSS_120B,
-      // AvailableModels.OPENAI_GPT_OSS_20B,
-      AvailableModels.OPENROUTER_HORIZON_BETA,
+      AvailableModels.MOONSHOT_KIMI_K2,
       AvailableModels.MISTRAL_CODESTRAL_2508,
       AvailableModels.DEEPSEEK_R1_0528,
       AvailableModels.DEEPSEEK_CHAT_V3_0324,
-      // AvailableModels.OPENAI_CODEX_MINI, // Removed - returns "Bad Request"
-      // AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE, // Removed - rate limiting issues
-      // AvailableModels.MOONSHOT_KIMI_K2_FREE, // Removed - rate limiting issues
+      AvailableModels.QWEN_3_CODER,
       AvailableModels.QWEN_3_235B_A22B_2507
     );
   }
@@ -306,6 +216,7 @@ export async function getDefaultSelectedModels(
   if (userApiKeys.openai) {
     defaultModels.push(
       AvailableModels.GPT_5, // default
+      AvailableModels.GPT_5_MINI, // default
       AvailableModels.GPT_4_1, // default
       AvailableModels.GPT_4O // default
       // AvailableModels.O3, // default
@@ -324,15 +235,11 @@ export async function getDefaultSelectedModels(
     // All OpenRouter models default
     defaultModels.push(
       AvailableModels.XAI_GROK_3,
-      // AvailableModels.OPENAI_GPT_OSS_120B,
-      // AvailableModels.OPENAI_GPT_OSS_20B,
-      AvailableModels.OPENROUTER_HORIZON_BETA,
+      AvailableModels.MOONSHOT_KIMI_K2,
       AvailableModels.MISTRAL_CODESTRAL_2508,
       AvailableModels.DEEPSEEK_R1_0528,
       AvailableModels.DEEPSEEK_CHAT_V3_0324,
-      // AvailableModels.OPENAI_CODEX_MINI, // Removed - returns "Bad Request"
-      // AvailableModels.QWEN_2_5_CODER_32B_INSTRUCT_FREE, // Removed - rate limiting issues
-      // AvailableModels.MOONSHOT_KIMI_K2_FREE, // Removed - rate limiting issues
+      AvailableModels.QWEN_3_CODER,
       AvailableModels.QWEN_3_235B_A22B_2507
     );
   }

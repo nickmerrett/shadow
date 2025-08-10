@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import path from "path";
 import Parser from "tree-sitter";
 import JavaScript from "tree-sitter-javascript";
+import { prisma, Prisma } from "@repo/db";
 import { CodebaseUnderstandingStorage } from "./db-storage";
 import TS from "tree-sitter-typescript";
 const Python = require("tree-sitter-python");
@@ -27,7 +28,7 @@ function getHardcodedMiniModel(
     case "openai":
       return "gpt-4o-mini";
     case "openrouter":
-      return "openrouter/horizon-beta";
+      return "x-ai/grok-3";
     default:
       return "claude-3-5-haiku-20241022";
   }
@@ -1247,6 +1248,30 @@ export async function runShadowWiki(
     modelMini?: ModelType;
   }
 ): Promise<{ codebaseUnderstandingId: string; stats: ProcessingStats }> {
+  // Skip regeneration if a summary already exists for this repository
+  try {
+    const existing = await prisma.codebaseUnderstanding.findUnique({
+      where: { repoFullName },
+      select: { id: true },
+    });
+    if (existing) {
+      // Ensure task is linked to existing summary
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { codebaseUnderstandingId: existing.id },
+      });
+      console.log(
+        `[SHADOW-WIKI] Summary already exists for ${repoFullName}. Skipping regeneration.`
+      );
+      return {
+        codebaseUnderstandingId: existing.id,
+        stats: { filesProcessed: 0, directoriesProcessed: 0, totalTokens: 0 },
+      };
+    }
+  } catch (e) {
+    // If check fails, proceed with generation
+    console.warn(`[SHADOW-WIKI] Existing summary check failed, continuing:`, e);
+  }
   console.log(
     `[SHADOW-WIKI] Initializing codebase analysis for ${repoFullName}`
   );
@@ -1528,13 +1553,17 @@ export async function runShadowWiki(
       generatedAt: new Date().toISOString(),
     },
   };
+  const contentJson: Prisma.InputJsonValue = JSON.parse(
+    JSON.stringify(summaryContent)
+  );
 
   console.log(`[SHADOW-WIKI] Storing analysis results in database`);
+  // Use shared storage helper to create/update and link to task
   const storage = new CodebaseUnderstandingStorage(taskId);
   const codebaseUnderstandingId = await storage.storeSummary(
     repoFullName,
     repoUrl,
-    summaryContent,
+    contentJson,
     userId
   );
 

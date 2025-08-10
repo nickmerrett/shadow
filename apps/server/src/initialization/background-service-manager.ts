@@ -25,7 +25,6 @@ export class BackgroundServiceManager {
     userSettings: { enableShadowWiki?: boolean; enableIndexing?: boolean },
     context: TaskModelContext
   ): Promise<void> {
-
     const services: BackgroundService[] = [];
 
     if (userSettings.enableShadowWiki) {
@@ -60,7 +59,7 @@ export class BackgroundServiceManager {
     }
 
     if (userSettings.enableIndexing) {
-        const indexingPromise = this.startIndexing(taskId);
+      const indexingPromise = this.startIndexing(taskId);
 
       const service = {
         name: "indexing" as const,
@@ -100,8 +99,10 @@ export class BackgroundServiceManager {
     taskId: string,
     context: TaskModelContext
   ): Promise<void> {
-    console.log(`🚀 [SHADOW-WIKI] Starting Shadow Wiki generation for task ${taskId}`);
-    
+    console.log(
+      `[SHADOW-WIKI] Starting Shadow Wiki generation for task ${taskId}`
+    );
+
     try {
       // Get task info
       const task = await prisma.task.findUnique({
@@ -111,6 +112,7 @@ export class BackgroundServiceManager {
           repoUrl: true,
           userId: true,
           workspacePath: true,
+          codebaseUnderstandingId: true,
         },
       });
 
@@ -122,8 +124,31 @@ export class BackgroundServiceManager {
         throw new Error(`Workspace path not found for task: ${taskId}`);
       }
 
-      console.log(`📊 [SHADOW-WIKI] Task details - Repo: ${task.repoFullName}, Workspace: ${task.workspacePath}`);
-      console.log(`🎯 [SHADOW-WIKI] Using model: ${context.getMainModel()} for analysis`);
+      // If a summary already exists for this repo, link it and skip generation
+      const existingForRepo = await prisma.codebaseUnderstanding.findUnique({
+        where: { repoFullName: task.repoFullName },
+        select: { id: true },
+      });
+
+      if (existingForRepo) {
+        if (!task.codebaseUnderstandingId) {
+          await prisma.task.update({
+            where: { id: taskId },
+            data: { codebaseUnderstandingId: existingForRepo.id },
+          });
+        }
+        console.log(
+          `[SHADOW-WIKI] Skipping generation for ${task.repoFullName} (summary already exists)`
+        );
+        return;
+      }
+
+      console.log(
+        `[SHADOW-WIKI] Task details - Repo: ${task.repoFullName}, Workspace: ${task.workspacePath}`
+      );
+      console.log(
+        `[SHADOW-WIKI] Using model: ${context.getMainModel()} for analysis`
+      );
 
       // Generate Shadow Wiki documentation
       // Note: runShadowWiki handles duplicate detection and task linking internally
@@ -140,9 +165,14 @@ export class BackgroundServiceManager {
         }
       );
 
-      console.log(`✅ [SHADOW-WIKI] Shadow Wiki generation completed successfully for task ${taskId}`);
+      console.log(
+        `✅ [SHADOW-WIKI] Shadow Wiki generation completed successfully for task ${taskId}`
+      );
     } catch (error) {
-      console.error(`❌ [SHADOW-WIKI] Shadow Wiki generation failed for task ${taskId}:`, error);
+      console.error(
+        `❌ [SHADOW-WIKI] Shadow Wiki generation failed for task ${taskId}:`,
+        error
+      );
       // Don't throw - we want to mark as failed but continue
       throw error;
     }
@@ -165,7 +195,6 @@ export class BackgroundServiceManager {
         clearNamespace: true,
         force: false,
       });
-
     } catch (error) {
       console.error(
         `[BACKGROUND_SERVICES] Failed to start background indexing:`,
