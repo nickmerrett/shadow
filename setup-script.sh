@@ -109,10 +109,10 @@ main() {
     echo "Defaulting FORCE_GITHUB_APP to false. Only set to true if you would like to create your own GitHub App."
     NEXT_PUBLIC_FORCE_GITHUB_APP="false"
 
-    # Create server .env.test file
-    echo -e "\n${GREEN}Creating server .env.test file...${NC}"
+    # Create server .env file
+    echo -e "\n${GREEN}Creating server .env file...${NC}"
 
-    cat > "apps/server/.env.test" << EOF
+    cat > "apps/server/.env" << EOF
 DATABASE_URL="${DATABASE_URL}"
 
 PINECONE_API_KEY="${PINECONE_API_KEY}"
@@ -125,12 +125,12 @@ GITHUB_PERSONAL_TOKEN=${GITHUB_PERSONAL_TOKEN}
 WORKSPACE_DIR=${WORKSPACE_DIR}
 EOF
 
-    echo -e "${GREEN} Created apps/server/.env.test${NC}"
+    echo -e "${GREEN} Created apps/server/.env${NC}"
 
-    # Create frontend .env.test file
-    echo -e "${GREEN}Creating frontend .env.test file...${NC}"
+    # Create frontend .env file
+    echo -e "${GREEN}Creating frontend .env file...${NC}"
     
-    cat > "apps/frontend/.env.test" << EOF
+    cat > "apps/frontend/.env" << EOF
 NEXT_PUBLIC_SERVER_URL="${NEXT_PUBLIC_SERVER_URL}"
 NEXT_PUBLIC_FORCE_GITHUB_APP=${NEXT_PUBLIC_FORCE_GITHUB_APP}
 
@@ -146,13 +146,13 @@ NEXT_PUBLIC_FORCE_GITHUB_APP=${NEXT_PUBLIC_FORCE_GITHUB_APP}
 DATABASE_URL="${DATABASE_URL}"
 EOF
 
-    echo -e "${GREEN} Created apps/frontend/.env.test${NC}"
+    echo -e "${GREEN} Created apps/frontend/.env${NC}"
 
     echo -e "\n${GREEN} Setup Complete!${NC}"
     echo "****************************************************"
     echo "Your environment files have been created:"
-    echo "  apps/server/.env.test"
-    echo "  apps/frontend/.env.test"
+    echo "  apps/server/.env"
+    echo "  apps/frontend/.env"
     echo -e "\n${YELLOW} Next Steps:${NC}"
     echo "1. Make sure your PostgreSQL database is running"
     echo "2. Run database migrations: \`npm run generate\` then \`npm run db:push\` in the /packages/db directory"
