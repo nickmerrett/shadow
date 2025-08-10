@@ -23,6 +23,10 @@ export function WelcomeModal({
 }) {
   const { openSettingsModal } = useModal();
 
+  // Don't show welcome modal in local development
+  const isLocal = process.env.NODE_ENV === "development" || 
+    process.env.NEXT_PUBLIC_VERCEL_ENV !== "production" || process.env.NEXT_PUBLIC_FORCE_GITHUB_APP !== 'true';
+
   const handleConnectGitHub = () => {
     // onOpenChange(false);
     openSettingsModal("github");
@@ -49,7 +53,7 @@ export function WelcomeModal({
     });
 
   // Check if both setup tasks are complete
-  const canGetStarted = hasValidApiKey && githubStatus?.isAppInstalled;
+  const canGetStarted = isLocal || (hasValidApiKey && githubStatus?.isAppInstalled);
 
   return (
     <Dialog open={open} onOpenChange={canGetStarted ? onOpenChange : undefined}>

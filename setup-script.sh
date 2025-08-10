@@ -74,34 +74,28 @@ main() {
     PINECONE_API_KEY=$(ask "Pinecone API Key [If not provided, you will not be able to use indexing]")
     PINECONE_INDEX_NAME=$(ask "Pinecone Index Name " "shadow")
 
-    # GitHub App Configuration
-    echo -e "\n${GREEN}GitHub App Configuration${NC}"
+    # GitHub Credentials
+    echo -e "\n${GREEN}GitHub Credentials${NC}"
     echo "****************************************************"
-    echo "You can find these values in your GitHub App settings:"
-    echo "https://github.com/settings/apps"
-    
-    GITHUB_APP_ID=$(ask_required "GitHub App ID")
-    GITHUB_APP_SLUG=$(ask_required "GitHub App Slug (the app name in lowercase with hyphens)")
-    
-    echo
-    echo "For the private key, paste the entire contents including the header and footer:"
-    echo "Press Enter when done, then Ctrl+D to finish input:"
-    GITHUB_PRIVATE_KEY=$(cat)
-    
-    if [ -z "$GITHUB_PRIVATE_KEY" ]; then
-        echo -e "${RED}[!] GitHub Private Key is required.${NC}"
-        exit 1
-    fi
-    
+    echo "See this guide for more information: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authenticating-to-the-rest-api-with-an-oauth-app"
     GITHUB_CLIENT_ID=$(ask_required "GitHub Client ID")
     GITHUB_CLIENT_SECRET=$(ask_required "GitHub Client Secret")
-    GITHUB_WEBHOOK_SECRET=$(ask_required "GitHub Webhook Secret")
+    echo "See this guide for more information: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
+    echo "Ensure that your token has the ability to: read read contents of repositories (Select 'Contents' in the 'Select scopes' dropdown)"
+    GITHUB_PERSONAL_TOKEN=$(ask_required "GitHub Personal Access Token")
 
     # Authentication Configuration
     echo -e "\n${GREEN}Authentication Configuration${NC}"
     echo "****************************************************"
     echo "Generate a random secret for BetterAuth (used for JWT signing):"
-    BETTER_AUTH_SECRET=$(ask_required "BetterAuth Secret (generate a random string)")
+    gen_better_auth_secret() {
+        openssl rand -base64 32
+    }
+    default_secret="$(gen_better_auth_secret)"
+    BETTER_AUTH_SECRET=$(ask "BetterAuth Secret [Optional - we'll generate a random one for you]" "$default_secret")
+    if [ -z "$BETTER_AUTH_SECRET" ]; then
+        BETTER_AUTH_SECRET="$default_secret"
+    fi
 
     # Local Development
     echo -e "\n${GREEN}Local Development${NC}"
@@ -116,6 +110,7 @@ main() {
 
     # Create server .env.test file
     echo -e "\n${GREEN}Creating server .env.test file...${NC}"
+
     cat > "apps/server/.env.test" << EOF
 DATABASE_URL="${DATABASE_URL}"
 
@@ -124,7 +119,7 @@ PINECONE_INDEX_NAME="${PINECONE_INDEX_NAME}"
 
 GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
 GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
-GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+GITHUB_PERSONAL_TOKEN=${GITHUB_PERSONAL_TOKEN}
 
 WORKSPACE_DIR=${WORKSPACE_DIR}
 EOF
@@ -134,19 +129,14 @@ EOF
     # Create frontend .env.test file
     echo -e "${GREEN}Creating frontend .env.test file...${NC}"
     
-    # Escape newlines in private key for proper .env format
-    ESCAPED_PRIVATE_KEY=$(echo "$GITHUB_PRIVATE_KEY" | sed ':a;N;$!ba;s/\n/\\n/g')
-    
     cat > "apps/frontend/.env.test" << EOF
 NEXT_PUBLIC_SERVER_URL="${NEXT_PUBLIC_SERVER_URL}"
 
 BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 
-GITHUB_APP_ID=${GITHUB_APP_ID}
-GITHUB_APP_SLUG=${GITHUB_APP_SLUG}
-GITHUB_PRIVATE_KEY="${ESCAPED_PRIVATE_KEY}"
 GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
 GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+GITHUB_PERSONAL_TOKEN=${GITHUB_PERSONAL_TOKEN}
 
 DATABASE_URL="${DATABASE_URL}"
 EOF
