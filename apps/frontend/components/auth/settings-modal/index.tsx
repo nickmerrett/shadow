@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useModal } from "@/components/layout/modal-context";
-import { Box, User2, CornerDownRight, ChevronLeft } from "lucide-react";
+import { Box, CornerDownRight, ChevronLeft, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Fragment, useEffect } from "react";
 import { GithubLogo } from "../../graphics/github/github-logo";
@@ -27,9 +27,9 @@ const tabs = [
     value: "models",
   },
   {
-    title: "User Info",
-    sidebarLabel: "User",
-    icon: <User2 className="size-4" />,
+    title: "Preferences",
+    sidebarLabel: "Preferences",
+    icon: <Settings2 className="size-4" />,
     value: "user",
   },
 ];

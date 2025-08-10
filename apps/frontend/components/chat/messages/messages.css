@@ -89,7 +89,7 @@
     #737373 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 3s infinite;
+  animation: shimmer 2s infinite;
   animation-timing-function: linear;
   background-clip: text;
   -webkit-background-clip: text;

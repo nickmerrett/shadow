@@ -1,6 +1,8 @@
 # Shadow
 
-A remote, autonomous coding agent for complex and long-running tasks. Shadow provides hardware-isolated execution environments for AI agents to work on GitHub repositories with real-time collaboration, semantic code search, and long-horizon task management. 
+An open-source background coding agent. Designed to understand, reason about, and contribute to existing codebases. Licensed for open-source use under MIT License
+
+Sets up isolated execution environments for AI agents to work on GitHub repositories with tools to understand code, edit files, and much more.
 
 ### Agent Environment (The Shadow Realm)
 - GitHub repository integration with branch management
@@ -8,7 +10,6 @@ A remote, autonomous coding agent for complex and long-running tasks. Shadow pro
 - Real-time task status tracking and progress updates
 - Automatic workspace setup and cleanup on Micro-VMs
 - Kata QEMU containers for hardware-level isolation
-- Command validation and sanitization, workspace boundary enforcement, path traversal protection
 
 ### Code Generation & Understanding
 - Multi-provider LLM support (Anthropic, OpenAI, OpenRouter)
@@ -25,29 +26,13 @@ Shadow supports two execution modes through an abstraction layer:
 
 ### Local Mode
 - Direct filesystem execution on the host machine
-- Fast iteration and debugging
-- Used for development and testing
 
-### Remote Mode (Optional)
+### Remote Mode (For Deployment)
 - Hardware-isolated execution in Kata QEMU containers
 - True VM isolation via QEMU hypervisor
 - Kubernetes orchestration with bare metal nodes
 
 Mode selection is controlled by `NODE_ENV` and `AGENT_MODE` environment variables.
-
-### Brought To You By
-
-[Ishaan Dey](https://github.com/ishaan1013), [Twitter](https://x.com/ishaandey_)
-- Software Engineering @ University of Waterloo, Prev @ Vercel
-- Architecture, design, remote mode implementation, full-stack & agent workflow
-
-[Rajan Agarwal](https://github.com/rajansagarwal), [Twitter](https://x.com/_rajanagarwal)
-- Software Engineering @ University of Waterloo, MoTS Intern @ Amazon AGI Lab
-- Codebase intelligence (Semantic Search/Wiki/Memory/Rules), LLM integrations and Interface fixes
-
-[Elijah Kurien](https://github.com/elijahkurien), [Twitter](https://x.com/ElijahKurien)
-- Software Engineering @ University of Waterloo, MoTS Intern @ Yutori
-- Semantic Search Infrastructure, 
 
 ## Development Setup
 
@@ -351,16 +336,9 @@ Shadow provides a comprehensive set of tools for AI agents:
    
 We're excited to see what you've built with Shadow!
 
-### Troubleshooting
 
-If you encounter the following issues here are some solutions:
+---
 
-#### Error:
-```bash
-error TS2307: Cannot find module '@repo/db' or its corresponding type declarations.
-```
-
-Solution: Ensure you build the project before running it:
-```bash
-npm run build
-```
+[Ishaan Dey](https://ishaand.com), [X](https://x.com/ishaandey_)
+[Rajan Agarwal](https://github.com/rajansagarwal), [X](https://x.com/_rajanagarwal)
+[Elijah Kurien](https://github.com/elijahkurien), [X](https://x.com/ElijahKurien)
