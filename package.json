@@ -15,6 +15,7 @@
     "db:dev:push": "./scripts/db-dev.sh db push",
     "db:dev:studio": "./scripts/db-dev.sh studio",
     "db:dev:migrate": "./scripts/db-dev.sh migrate dev",
+    "db:dev:migrate:reset": "./scripts/db-dev.sh migrate reset --force",
     "db:prod:push": "./scripts/db-prod.sh db push",
     "db:prod:studio": "./scripts/db-prod.sh studio",
     "db:prod:migrate": "./scripts/db-prod.sh migrate deploy",
