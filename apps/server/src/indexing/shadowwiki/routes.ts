@@ -87,7 +87,6 @@ shadowWikiRouter.post("/generate/:taskId", async (req, res, next) => {
 
     // Run Shadow Wiki analysis directly on workspace
     const result = await runShadowWiki(
-      workspaceDir,
       taskId,
       task.repoFullName,
       task.repoUrl,

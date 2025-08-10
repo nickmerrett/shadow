@@ -1,4 +1,4 @@
-import { TaskStatus, InitStatus } from "@repo/db";
+import { TaskStatus, InitStatus, PullRequestSnapshot } from "@repo/db";
 import type { Message } from "../chat/messages";
 import type { StreamChunk } from "../chat/streaming-client";
 import type { ModelType } from "../llm/models";
@@ -22,6 +22,21 @@ export interface TaskStatusUpdateEvent {
   status: TaskStatus;
   initStatus?: InitStatus;
   timestamp: string;
+  errorMessage?: string;
+}
+
+export interface AutoPRStatusEvent {
+  taskId: string;
+  messageId: string;
+  status: "in-progress" | "completed" | "failed";
+  
+  // Present when status === "completed"
+  snapshot?: Pick<PullRequestSnapshot, "title" | "description" | "filesChanged" | "linesAdded" | "linesRemoved" | "commitSha" | "status">;
+  prNumber?: number;
+  prUrl?: string;
+  
+  // Present when status === "failed"
+  error?: string;
 }
 
 export interface ServerToClientEvents {
@@ -65,6 +80,7 @@ export interface ServerToClientEvents {
   "terminal-error": (data: { error: string }) => void;
 
   "task-status-updated": (data: TaskStatusUpdateEvent) => void;
+  "auto-pr-status": (data: AutoPRStatusEvent) => void;
   "queued-action-processing": (data: {
     taskId: string;
     type: "message" | "stacked-pr";

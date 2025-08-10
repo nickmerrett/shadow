@@ -45,5 +45,9 @@ export * from "./indexing/options";
 // === API Keys Types ===
 export * from "./api-keys";
 
+// === MCP Integration Types ===
+export * from "./mcp/utils";
+export * from "./mcp/types";
+
 // === Task Limits ===
 export const MAX_TASKS_PER_USER_PRODUCTION = 5;

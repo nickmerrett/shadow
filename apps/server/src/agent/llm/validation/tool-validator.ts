@@ -4,17 +4,15 @@ import {
   ToolResultSchemas,
   ValidationErrorResult,
   createValidator,
+  isTransformedMCPTool,
 } from "@repo/types";
 import { ValidationHelpers } from "./validation-helpers";
 
 export class ToolValidator {
   private validationHelpers = new ValidationHelpers();
 
-  /**
-   * Validates a tool result and creates a graceful error result if validation fails
-   */
   validateToolResult(
-    toolName: ToolName,
+    toolName: ToolName | string,
     result: unknown
   ): {
     isValid: boolean;
@@ -26,30 +24,31 @@ export class ToolValidator {
       originalResult: unknown;
     };
   } {
-    console.log(`[VALIDATION_DEBUG] Validating result for ${toolName}:`, {
-      resultType: typeof result,
-      isNull: result === null,
-      isUndefined: result === undefined,
-      isArray: Array.isArray(result),
-      resultShape:
-        result && typeof result === "object"
-          ? Object.keys(result)
-          : "not-object",
-      resultPreview: JSON.stringify(result).substring(0, 200),
-    });
-
     try {
-      // toolName is guaranteed to be valid, validate the result directly
-      const schema = ToolResultSchemas[toolName];
-      console.log(`[VALIDATION_DEBUG] Using schema for ${toolName}:`, {
-        schemaExists: !!schema,
-        schemaType: schema?._def?.typeName,
-      });
+      if (typeof toolName === "string") {
+        // Check original MCP format (server:tool)
+        if (toolName.includes(":")) {
+          return {
+            isValid: true,
+            validatedResult: result as ToolResultTypes["result"],
+            shouldEmitError: false,
+          };
+        }
 
+        // Check transformed MCP format (server_tool)
+        if (isTransformedMCPTool(toolName)) {
+          return {
+            isValid: true,
+            validatedResult: result as ToolResultTypes["result"],
+            shouldEmitError: false,
+          };
+        }
+      }
+
+      const schema = ToolResultSchemas[toolName as ToolName];
       const validation = createValidator(schema)(result);
 
       if (validation.success) {
-        console.log(`[VALIDATION_DEBUG] Validation succeeded for ${toolName}`);
         return {
           isValid: true,
           validatedResult: validation.data!,
@@ -62,7 +61,6 @@ export class ToolValidator {
         validationSuccess: validation.success,
       });
 
-      // Generate helpful error message for the LLM
       const errorMessage = `Tool call validation failed for ${toolName}: ${validation.error}`;
       const suggestedFix =
         this.validationHelpers.generateToolValidationSuggestion(
@@ -93,7 +91,6 @@ export class ToolValidator {
         },
       };
     } catch (error) {
-      // Fallback for unexpected validation errors
       const fallbackMessage = `Unexpected validation error for tool ${toolName}: ${error instanceof Error ? error.message : "Unknown error"}`;
 
       return {

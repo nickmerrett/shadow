@@ -1,11 +1,10 @@
 "use client";
 
-import { Messages } from "@/components/chat/messages";
-import { PromptForm } from "@/components/chat/prompt-form";
-import { useSendMessage } from "@/hooks/use-send-message";
-import { useTaskMessages } from "@/hooks/use-task-messages";
-import { useTaskSocket } from "@/hooks/socket";
-import { StreamingStatus } from "@/lib/constants";
+import { Messages } from "@/components/chat/messages/messages";
+import { PromptForm } from "@/components/chat/prompt-form/prompt-form";
+import { useSendMessage } from "@/hooks/chat/use-send-message";
+import { useTaskMessages } from "@/hooks/tasks/use-task-messages";
+import { useTaskSocketContext } from "@/contexts/task-socket-context";
 import { useParams } from "next/navigation";
 import { ScrollToBottom } from "./scroll-to-bottom";
 import { useCallback, useMemo, memo } from "react";
@@ -15,7 +14,7 @@ import {
   deduplicatePartsFromMap,
   convertMapToPartsArray,
 } from "@/lib/streaming";
-import { useTask } from "@/hooks/use-task";
+import { useTask } from "@/hooks/tasks/use-task";
 
 function TaskPageContent() {
   const { taskId } = useParams<{ taskId: string }>();
@@ -32,12 +31,11 @@ function TaskPageContent() {
   const {
     streamingPartsMap,
     streamingPartsOrder,
-    streamingStatus,
-    setStreamingStatus,
+    isStreaming,
     sendMessage,
     stopStream,
     createStackedPR,
-  } = useTaskSocket(taskId);
+  } = useTaskSocketContext();
 
   const handleSendMessage = useCallback(
     (message: string, model: ModelType, queue: boolean) => {
@@ -82,10 +80,7 @@ function TaskPageContent() {
     const msgs = [...messages];
 
     // Only proceed if we have streaming parts or are actively streaming
-    if (
-      streamingPartsMap.size === 0 &&
-      streamingStatus === StreamingStatus.IDLE
-    ) {
+    if (streamingPartsMap.size === 0 && !isStreaming) {
       return msgs;
     }
 
@@ -148,7 +143,7 @@ function TaskPageContent() {
     messages,
     streamingPartsMap,
     streamingPartsOrder,
-    streamingStatus,
+    isStreaming,
     task?.mainModel,
   ]);
 
@@ -160,8 +155,9 @@ function TaskPageContent() {
         disableEditing={
           task?.status === "ARCHIVED" || task?.status === "INITIALIZING"
         }
-        streamingStatus={streamingStatus}
-        setStreamingStatus={setStreamingStatus}
+        isStreamPending={
+          task?.status === "RUNNING" && streamingPartsMap.size === 0
+        }
       />
 
       {task?.status !== "ARCHIVED" && (
@@ -172,10 +168,7 @@ function TaskPageContent() {
             onSubmit={handleSendMessage}
             onCreateStackedPR={handleCreateStackedPR}
             onStopStream={handleStopStream}
-            isStreaming={
-              streamingStatus !== StreamingStatus.IDLE ||
-              sendMessageMutation.isPending
-            }
+            isStreaming={isStreaming || sendMessageMutation.isPending}
             initialSelectedModel={task?.mainModel as ModelType | null}
             onFocus={() => {
               queryClient.setQueryData(["edit-message-id", taskId], null);

@@ -8,60 +8,20 @@ import {
   setTaskFailed,
   clearTaskProgress,
 } from "../utils/task-status";
-import { startBackgroundIndexing } from "./background-indexing";
-import { runShadowWiki } from "../indexing/shadowwiki/core";
+import { BackgroundServiceManager } from "./background-service-manager";
 import { TaskModelContext } from "../services/task-model-context";
 
 // Helper for async delays
 const delay = (ms: number) =>
   new Promise((resolve) => global.setTimeout(resolve, ms));
 
-// Step definitions with human-readable names
-const STEP_DEFINITIONS: Record<
-  InitStatus,
-  { name: string; description: string }
-> = {
-  INACTIVE: {
-    name: "Not Started",
-    description: "Initialization has not started",
-  },
-  PREPARE_WORKSPACE: {
-    name: "Preparing Workspace",
-    description: "Create local workspace directory and clone repository",
-  },
-  CREATE_VM: {
-    name: "Creating VM",
-    description: "Create remote VM for task execution",
-  },
-  WAIT_VM_READY: {
-    name: "Starting VM",
-    description: "Wait for VM boot and sidecar service to become ready",
-  },
-  VERIFY_VM_WORKSPACE: {
-    name: "Verifying Workspace",
-    description: "Verify workspace is ready and contains repository",
-  },
-  INDEX_REPOSITORY: {
-    name: "Indexing Repository",
-    description: "Index repository files for semantic search",
-  },
-
-  // Shadow Wiki generation step (both modes, optional)
-  GENERATE_SHADOW_WIKI: {
-    name: "Understanding Your Codebase",
-    description: "Generate comprehensive codebase documentation",
-  },
-  ACTIVE: {
-    name: "Ready",
-    description: "Task is ready for execution",
-  },
-};
-
 export class TaskInitializationEngine {
   private abstractWorkspaceManager: AbstractWorkspaceManager;
+  private backgroundServiceManager: BackgroundServiceManager;
 
   constructor() {
     this.abstractWorkspaceManager = createWorkspaceManager(); // Abstraction layer for all modes
+    this.backgroundServiceManager = new BackgroundServiceManager();
   }
 
   /**
@@ -71,12 +31,8 @@ export class TaskInitializationEngine {
     taskId: string,
     steps: InitStatus[] = ["PREPARE_WORKSPACE"],
     userId: string,
-    context: TaskModelContext,
+    context: TaskModelContext
   ): Promise<void> {
-    console.log(
-      `[TASK_INIT] Starting initialization for task ${taskId} with steps: ${steps.join(", ")}`,
-    );
-
     try {
       // Clear any previous progress and start fresh
       await clearTaskProgress(taskId);
@@ -85,8 +41,6 @@ export class TaskInitializationEngine {
       this.emitProgress(taskId, {
         type: "init-start",
         taskId,
-        message: "Starting task initialization...",
-        totalSteps: steps.length,
       });
 
       // Execute each step in sequence
@@ -104,36 +58,24 @@ export class TaskInitializationEngine {
             type: "step-start",
             taskId,
             currentStep: step,
-            stepName: STEP_DEFINITIONS[step].name,
-            message: `${STEP_DEFINITIONS[step].name}...`,
-            stepNumber,
-            totalSteps: steps.length,
           });
-
-          console.log(
-            `[TASK_INIT] ${taskId}: Starting step ${stepNumber}/${steps.length}: ${step}`,
-          );
 
           // Execute the step
           await this.executeStep(taskId, step, userId, context);
 
           // Mark step as completed
           await setInitStatus(taskId, step);
-
-          console.log(
-            `[TASK_INIT] ${taskId}: Completed step ${stepNumber}/${steps.length}: ${step}`,
-          );
         } catch (error) {
           console.error(
             `[TASK_INIT] ${taskId}: Failed at step ${stepNumber}/${steps.length}: ${step}:`,
-            error,
+            error
           );
 
           // Mark as failed with error details
           await setTaskFailed(
             taskId,
             step,
-            error instanceof Error ? error.message : "Unknown error",
+            error instanceof Error ? error.message : "Unknown error"
           );
 
           // Emit error
@@ -141,11 +83,7 @@ export class TaskInitializationEngine {
             type: "init-error",
             taskId,
             currentStep: step,
-            stepName: STEP_DEFINITIONS[step].name,
-            message: `Failed during ${STEP_DEFINITIONS[step].name}`,
             error: error instanceof Error ? error.message : "Unknown error",
-            stepNumber,
-            totalSteps: steps.length,
           });
 
           throw error;
@@ -155,16 +93,12 @@ export class TaskInitializationEngine {
       // All steps completed successfully - set to ACTIVE
       await setInitStatus(taskId, "ACTIVE");
 
-      console.log(
-        `[TASK_INIT] ${taskId}: Initialization completed successfully`,
-      );
+      console.log(`✅ [TASK_INIT] ${taskId}: Ready for RUNNING status`);
 
       // Emit completion
       this.emitProgress(taskId, {
         type: "init-complete",
         taskId,
-        message: "Task initialization completed successfully",
-        totalSteps: steps.length,
       });
     } catch (error) {
       console.error(`[TASK_INIT] ${taskId}: Initialization failed:`, error);
@@ -179,15 +113,13 @@ export class TaskInitializationEngine {
     taskId: string,
     step: InitStatus,
     userId: string,
-    context: TaskModelContext,
+    context: TaskModelContext
   ): Promise<void> {
     switch (step) {
-      // Local mode step
       case "PREPARE_WORKSPACE":
         await this.executePrepareWorkspace(taskId, userId);
         break;
 
-      // Remote mode steps
       case "CREATE_VM":
         await this.executeCreateVM(taskId, userId);
         break;
@@ -200,15 +132,16 @@ export class TaskInitializationEngine {
         await this.executeVerifyVMWorkspace(taskId, userId);
         break;
 
-      // Repository indexing step (both modes)
-      case "INDEX_REPOSITORY":
-        await this.executeIndexRepository(taskId);
-        // Indexing is handled during Shadow Wiki generation
+      case "START_BACKGROUND_SERVICES":
+        await this.executeStartBackgroundServices(taskId, userId, context);
         break;
 
-      // Shadow Wiki generation step (both modes, optional)
-      case "GENERATE_SHADOW_WIKI":
-        await this.executeGenerateShadowWiki(taskId, context);
+      case "INSTALL_DEPENDENCIES":
+        await this.executeInstallDependencies(taskId);
+        break;
+
+      case "COMPLETE_SHADOW_WIKI":
+        await this.executeCompleteShadowWiki(taskId);
         break;
 
       case "INACTIVE":
@@ -227,16 +160,14 @@ export class TaskInitializationEngine {
    */
   private async executePrepareWorkspace(
     taskId: string,
-    userId: string,
+    userId: string
   ): Promise<void> {
     const agentMode = getAgentMode();
     if (agentMode !== "local") {
       throw new Error(
-        `PREPARE_WORKSPACE step should only be used in local mode, but agent mode is: ${agentMode}`,
+        `PREPARE_WORKSPACE step should only be used in local mode, but agent mode is: ${agentMode}`
       );
     }
-
-    console.log(`[TASK_INIT] ${taskId}: Preparing local workspace`);
 
     // Get task info
     const task = await prisma.task.findUnique({
@@ -266,7 +197,7 @@ export class TaskInitializationEngine {
 
     if (!workspaceResult.success) {
       throw new Error(
-        workspaceResult.error || "Failed to prepare local workspace",
+        workspaceResult.error || "Failed to prepare local workspace"
       );
     }
 
@@ -285,11 +216,9 @@ export class TaskInitializationEngine {
     const agentMode = getAgentMode();
     if (agentMode !== "remote") {
       throw new Error(
-        `CREATE_VM step should only be used in remote mode, but agent mode is: ${agentMode}`,
+        `CREATE_VM step should only be used in remote mode, but agent mode is: ${agentMode}`
       );
     }
-
-    console.log(`[TASK_INIT] ${taskId}: Creating remote VM for execution`);
 
     try {
       // Get task info
@@ -321,7 +250,6 @@ export class TaskInitializationEngine {
         throw new Error(`Failed to create VM: ${workspaceInfo.error}`);
       }
 
-      // Create or update TaskSession with VM information
       if (workspaceInfo.podName && workspaceInfo.podNamespace) {
         await prisma.taskSession.create({
           data: {
@@ -333,17 +261,12 @@ export class TaskInitializationEngine {
         });
       }
 
-      // Update task with workspace path
       await prisma.task.update({
         where: { id: taskId },
         data: {
           workspacePath: workspaceInfo.workspacePath,
         },
       });
-
-      console.log(
-        `[TASK_INIT] ${taskId}: Successfully created VM ${workspaceInfo.podName}`,
-      );
     } catch (error) {
       console.error(`[TASK_INIT] ${taskId}: Failed to create VM:`, error);
       throw error;
@@ -354,61 +277,42 @@ export class TaskInitializationEngine {
    * Wait for VM ready step - Wait for VM boot and sidecar API to become healthy
    */
   private async executeWaitVMReady(taskId: string): Promise<void> {
-    console.log(
-      `[TASK_INIT] ${taskId}: Waiting for sidecar service and repository clone to complete`,
-    );
-
     try {
-      // Use the workspace manager's getExecutor() method for consistent connectivity
-      // This ensures initialization uses the same approach as regular execution
       const executor = await this.abstractWorkspaceManager.getExecutor(taskId);
 
       // Wait for both sidecar to be healthy AND repository to be cloned
-      const maxRetries = 5; // 5 * 2s = 10s timeout (faster for testing)
-      const retryDelay = 2000; // 2 seconds between retries
+      const maxRetries = 5;
+      const retryDelay = 2000;
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           // Test sidecar connectivity AND verify workspace has content
           const listing = await executor.listDirectory(".");
 
-          // Debug logging to understand the response
-          console.log(
-            `[TASK_INIT] ${taskId}: listDirectory response (attempt ${attempt}):`,
-            JSON.stringify(listing, null, 2),
-          );
-
-          // Check that both sidecar is responding AND workspace has content
           if (
             listing.success &&
             listing.contents &&
             listing.contents.length > 0
           ) {
-            console.log(
-              `[TASK_INIT] ${taskId}: Sidecar ready and repository cloned (attempt ${attempt})`,
-            );
             return;
           } else {
             throw new Error(
-              `Sidecar responding but workspace appears empty. Response: ${JSON.stringify(listing)}`,
+              `Sidecar responding but workspace appears empty. Response: ${JSON.stringify(listing)}`
             );
           }
         } catch (error) {
           if (attempt === maxRetries) {
             throw new Error(
-              `Sidecar/clone failed to become ready after ${maxRetries} attempts: ${error}`,
+              `Sidecar/clone failed to become ready after ${maxRetries} attempts: ${error}`
             );
           }
-          console.log(
-            `[TASK_INIT] ${taskId}: Sidecar or clone not ready yet (attempt ${attempt}/${maxRetries}), retrying...`,
-          );
           await delay(retryDelay);
         }
       }
     } catch (error) {
       console.error(
         `[TASK_INIT] ${taskId}: Failed waiting for sidecar and clone:`,
-        error,
+        error
       );
       throw error;
     }
@@ -419,12 +323,8 @@ export class TaskInitializationEngine {
    */
   private async executeVerifyVMWorkspace(
     taskId: string,
-    _userId: string,
+    _userId: string
   ): Promise<void> {
-    console.log(
-      `[TASK_INIT] ${taskId}: Verifying workspace is ready and contains repository`,
-    );
-
     try {
       // Get task info
       const task = await prisma.task.findUnique({
@@ -436,16 +336,8 @@ export class TaskInitializationEngine {
         throw new Error(`Task not found: ${taskId}`);
       }
 
-      // Use the workspace manager's getExecutor() method for consistent connectivity
-      // This ensures initialization uses the same approach as regular execution
       const executor = await this.abstractWorkspaceManager.getExecutor(taskId);
 
-      // Final verification that workspace is fully ready with repository content
-      console.log(
-        `[TASK_INIT] ${taskId}: Performing final workspace verification`,
-      );
-
-      // Verify the workspace is ready by checking contents
       const listing = await executor.listDirectory(".");
       if (
         !listing.success ||
@@ -453,146 +345,174 @@ export class TaskInitializationEngine {
         listing.contents.length === 0
       ) {
         throw new Error(
-          "Workspace verification failed - workspace appears empty",
+          "Workspace verification failed - workspace appears empty"
         );
       }
-
-      console.log(
-        `[TASK_INIT] ${taskId}: Successfully verified workspace is ready with repository content`,
-      );
     } catch (error) {
       console.error(
         `[TASK_INIT] ${taskId}: Failed to verify workspace:`,
-        error,
+        error
       );
       throw error;
     }
   }
 
   /**
-   * Generate Shadow Wiki step - Generate comprehensive codebase documentation
+   * Install dependencies step - Install project dependencies (npm, pip, etc.)
    */
-  private async executeGenerateShadowWiki(
-    taskId: string,
-    context: TaskModelContext,
-  ): Promise<void> {
-    console.log(`[TASK_INIT] ${taskId}: Starting Shadow Wiki generation`);
-
+  private async executeInstallDependencies(taskId: string): Promise<void> {
     try {
-      // Get task info
-      const task = await prisma.task.findUnique({
-        where: { id: taskId },
-        select: {
-          repoFullName: true,
-          repoUrl: true,
-          userId: true,
-          workspacePath: true,
-        },
-      });
+      // Get the executor for this task
+      const executor = await this.abstractWorkspaceManager.getExecutor(taskId);
 
-      if (!task) {
-        throw new Error(`Task not found: ${taskId}`);
+      // Check for package.json and install Node.js dependencies
+      const packageJsonExists = await this.checkFileExists(
+        executor,
+        "package.json"
+      );
+      if (packageJsonExists) {
+        await this.runInstallCommand(executor, taskId, "npm install");
       }
 
-      // Check if Shadow Wiki already exists for this repository
-      const existingUnderstanding =
-        await prisma.codebaseUnderstanding.findUnique({
-          where: { repoFullName: task.repoFullName },
-          select: { id: true },
-        });
-
-      if (existingUnderstanding) {
-        // Link task to existing understanding
-        console.log(
-          `[TASK_INIT] ${taskId}: Linking to existing Shadow Wiki for ${task.repoFullName} (ID: ${existingUnderstanding.id})`,
+      // Check for requirements.txt and install Python dependencies
+      const requirementsExists = await this.checkFileExists(
+        executor,
+        "requirements.txt"
+      );
+      if (requirementsExists) {
+        await this.runInstallCommand(
+          executor,
+          taskId,
+          "pip install -r requirements.txt"
         );
-
-        await prisma.task.update({
-          where: { id: taskId },
-          data: { codebaseUnderstandingId: existingUnderstanding.id },
-        });
-
-        console.log(
-          `[TASK_INIT] ${taskId}: Successfully linked to existing codebase understanding`,
-        );
-        return;
       }
 
-      if (!task.workspacePath) {
-        throw new Error(`Workspace path not found for task: ${taskId}`);
+      // Check for pyproject.toml and install Python project
+      const pyprojectExists = await this.checkFileExists(
+        executor,
+        "pyproject.toml"
+      );
+      if (pyprojectExists) {
+        await this.runInstallCommand(executor, taskId, "pip install -e .");
       }
-
-      // Generate Shadow Wiki documentation
-      console.log(
-        `[TASK_INIT] ${taskId}: Generating new Shadow Wiki for ${task.repoFullName}`,
-      );
-
-      // Use TaskModelContext for Shadow Wiki generation during initialization
-      const result = await runShadowWiki(
-        task.workspacePath,
-        taskId,
-        task.repoFullName,
-        task.repoUrl,
-        task.userId,
-        context, // Now using TaskModelContext
-        {
-          concurrency: 12,
-          model: context.getMainModel(),
-        },
-      );
-
-      console.log(
-        `[TASK_INIT] ${taskId}: Successfully generated Shadow Wiki - ${result.stats.filesProcessed} files, ${result.stats.directoriesProcessed} directories processed`,
-      );
     } catch (error) {
       console.error(
-        `[TASK_INIT] ${taskId}: Failed to generate Shadow Wiki:`,
-        error,
+        `[TASK_INIT] ${taskId}: Dependency installation failed:`,
+        error
       );
-      // Don't throw error - we don't want indexing failures to block task startup
-      console.log(
-        `[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`,
+      // Don't throw error - we want to continue initialization even if deps fail
+    }
+  }
+
+  /**
+   * Helper method to check if a file exists in the workspace
+   */
+  private async checkFileExists(
+    executor: any,
+    filename: string
+  ): Promise<boolean> {
+    try {
+      const result = await executor.listDirectory(".");
+      return (
+        result.success &&
+        result.contents?.some(
+          (item: any) => item.name === filename && item.type === "file"
+        )
+      );
+    } catch (error) {
+      console.warn(`Failed to check for ${filename}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Helper method to run installation commands with proper error handling
+   */
+  private async runInstallCommand(
+    executor: any,
+    taskId: string,
+    command: string
+  ): Promise<void> {
+    try {
+      const result = await executor.executeCommand(command, {
+        timeout: 300000, // 5 minutes timeout
+        allowNetworkAccess: true,
+      });
+
+      if (!result.success) {
+        console.warn(`[TASK_INIT] ${taskId}: Command failed: ${command}`);
+        console.warn(
+          `[TASK_INIT] ${taskId}: Error: ${result.error || result.stderr}`
+        );
+      }
+    } catch (error) {
+      console.warn(
+        `[TASK_INIT] ${taskId}: Exception running command "${command}":`,
+        error
       );
     }
   }
 
   /**
-   * Index repository step - Start background indexing (non-blocking)
+   * Start background services step - Start Shadow Wiki generation and indexing in parallel
    */
-  private async executeIndexRepository(taskId: string): Promise<void> {
-    console.log(
-      `[TASK_INIT] ${taskId}: Starting background repository indexing`,
-    );
-
+  private async executeStartBackgroundServices(
+    taskId: string,
+    userId: string,
+    context: TaskModelContext
+  ): Promise<void> {
     try {
-      // Get task info
-      const task = await prisma.task.findUnique({
-        where: { id: taskId },
-        select: { repoFullName: true },
+      // Get user settings to determine which services to start
+      const userSettings = await prisma.userSettings.findUnique({
+        where: { userId },
+        select: { enableShadowWiki: true, enableIndexing: true },
       });
 
-      if (!task) {
-        throw new Error(`Task not found: ${taskId}`);
-      }
+      const enableShadowWiki = userSettings?.enableShadowWiki ?? true;
+      const enableIndexing = userSettings?.enableIndexing ?? false;
 
-      // Start background indexing (non-blocking)
-      await startBackgroundIndexing(task.repoFullName, taskId, {
-        clearNamespace: true,
-        force: false,
-      });
-
-      console.log(
-        `[TASK_INIT] ${taskId}: Background indexing started for repository ${task.repoFullName}`,
+      // Start background services using the manager
+      await this.backgroundServiceManager.startServices(
+        taskId,
+        { enableShadowWiki, enableIndexing },
+        context
       );
     } catch (error) {
       console.error(
-        `[TASK_INIT] ${taskId}: Failed to start background indexing:`,
-        error,
+        `[TASK_INIT] ${taskId}: Failed to start background services:`,
+        error
       );
-      // Don't throw error - we don't want indexing failures to block task startup
-      console.log(
-        `[TASK_INIT] ${taskId}: Continuing task initialization despite indexing failure`,
+      // Don't throw error - we want to continue initialization even if background services fail to start
+    }
+  }
+
+  /**
+   * Complete Shadow Wiki step - Wait for background services to complete
+   */
+  private async executeCompleteShadowWiki(taskId: string): Promise<void> {
+    try {
+      const maxWait = 10 * 60 * 1000; // 10 minutes max
+      const checkInterval = 2000; // Check every 2 seconds
+      const startTime = Date.now();
+
+      // Monitor progress and wait for completion
+      while (Date.now() - startTime < maxWait) {
+        // Check if all services are done
+        const allComplete =
+          this.backgroundServiceManager.areAllServicesComplete(taskId);
+
+        if (allComplete) {
+          break;
+        }
+
+        await delay(checkInterval);
+      }
+    } catch (error) {
+      console.error(
+        `[TASK_INIT] ${taskId}: Failed to complete Shadow Wiki:`,
+        error
       );
+      // Don't throw error - we want to continue to ACTIVE even if background services had issues
     }
   }
 
@@ -605,33 +525,16 @@ export class TaskInitializationEngine {
         type: "init-progress",
         initProgress: progress,
       },
-      taskId,
+      taskId
     );
   }
 
   /**
-   * Get default initialization steps based on agent mode and user settings
+   * Get default initialization steps based on agent mode
+   * Background services are now handled separately and run in parallel
    */
-  async getDefaultStepsForTask(userId: string): Promise<InitStatus[]> {
+  async getDefaultStepsForTask(): Promise<InitStatus[]> {
     const agentMode = getAgentMode();
-
-    // Fetch user settings to determine if Shadow Wiki generation and indexing should be enabled
-    let enableShadowWiki = false; // Default to false
-    let enableIndexing = false; // Default to false
-    try {
-      const userSettings = await prisma.userSettings.findUnique({
-        where: { userId },
-        select: { enableShadowWiki: true, enableIndexing: true },
-      });
-      enableShadowWiki = userSettings?.enableShadowWiki ?? false;
-      enableIndexing = userSettings?.enableIndexing ?? false;
-    } catch (error) {
-      console.warn(
-        `[TASK_INIT] Failed to fetch user settings for ${userId}, using defaults enableShadowWiki=false, enableIndexing=false:`,
-        error,
-      );
-    }
-
-    return getStepsForMode(agentMode, { enableShadowWiki, enableIndexing });
+    return getStepsForMode(agentMode);
   }
 }

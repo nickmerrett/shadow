@@ -16,7 +16,7 @@ import { randomUUID } from "crypto";
 import { type ChatMessage } from "../../../../packages/db/src/client";
 import { LLMService } from "./llm";
 import { getSystemPrompt, getShadowWikiMessage } from "./system-prompt";
-import { createTools } from "./tools";
+import { createTools, stopMCPManager } from "./tools";
 import type { ToolSet } from "ai";
 import { GitManager } from "../services/git-manager";
 import { PRManager } from "../services/pr-manager";
@@ -435,6 +435,18 @@ export class ChatService {
         return;
       }
 
+      if (!messageId) {
+        console.warn(`[CHAT] No messageId provided for auto-PR creation for task ${taskId}`);
+        return;
+      }
+
+      // Emit in-progress event before starting PR creation
+      emitToTask(taskId, "auto-pr-status", {
+        taskId,
+        messageId,
+        status: "in-progress" as const,
+      });
+
       // Use the existing createPRIfNeeded method
       await this.createPRIfNeeded(taskId, workspacePath, messageId, context);
     } catch (error) {
@@ -442,6 +454,17 @@ export class ChatService {
         `[CHAT] Failed to check user auto-PR setting for task ${taskId}:`,
         error
       );
+      
+      // Emit failure event if messageId is available
+      if (messageId) {
+        emitToTask(taskId, "auto-pr-status", {
+          taskId,
+          messageId,
+          status: "failed" as const,
+          error: error instanceof Error ? error.message : "Failed to create pull request",
+        });
+      }
+      
       // Non-blocking - don't throw
     }
   }
@@ -786,6 +809,34 @@ export class ChatService {
         }
       }
 
+      // Add Rules section if available
+      const userRules = task?.user.userSettings?.rules;
+      if (userRules && userRules.trim()) {
+        const rulesContent = `
+<rules>
+CUSTOM USER INSTRUCTIONS:
+${userRules.trim()}
+
+These are specific instructions from the user that should be followed throughout the conversation. Apply these rules when relevant to your responses and actions.
+</rules>`;
+
+        const rulesSequence = await this.getNextSequence(taskId);
+        await this.saveSystemMessage(
+          taskId,
+          rulesContent,
+          context.getMainModel(),
+          rulesSequence
+        );
+
+        systemMessagesToAdd.push({
+          id: randomUUID(),
+          role: "system",
+          content: rulesContent,
+          createdAt: new Date().toISOString(),
+          llmModel: context.getMainModel(),
+        });
+      }
+
       messages.unshift(...systemMessagesToAdd);
     }
 
@@ -1094,12 +1145,19 @@ export class ChatService {
           }
 
           // Update task status to failed
-          await updateTaskStatus(taskId, "FAILED", "CHAT");
+          await updateTaskStatus(taskId, "FAILED", "CHAT", userFriendlyError);
 
           // Clean up stream tracking
           this.activeStreams.delete(taskId);
           this.stopRequested.delete(taskId);
           endStream(taskId);
+
+          // Clean up MCP manager for this task
+          try {
+            await stopMCPManager(taskId);
+          } catch (mcpError) {
+            console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, mcpError);
+          }
 
           // Clear any queued actions (don't process them after error)
           this.clearQueuedAction(taskId);
@@ -1217,20 +1275,28 @@ export class ChatService {
       this.stopRequested.delete(taskId);
       endStream(taskId);
 
+      // Clean up MCP manager for this task
+      try {
+        await stopMCPManager(taskId);
+      } catch (error) {
+        console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, error);
+      }
+
       // Process any queued actions
       await this.processQueuedActions(taskId);
     } catch (error) {
       console.error("Error processing user message:", error);
 
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+
       // Update task status to failed when stream processing fails
-      await updateTaskStatus(taskId, "FAILED", "CHAT");
+      await updateTaskStatus(taskId, "FAILED", "CHAT", errorMessage);
 
       // Emit error chunk
       emitStreamChunk(
         {
           type: "error",
-          error:
-            error instanceof Error ? error.message : "Unknown error occurred",
+          error: errorMessage,
           finishReason: "error",
         },
         taskId
@@ -1240,6 +1306,13 @@ export class ChatService {
       this.activeStreams.delete(taskId);
       this.stopRequested.delete(taskId);
       handleStreamError(error, taskId);
+
+      // Clean up MCP manager for this task
+      try {
+        await stopMCPManager(taskId);
+      } catch (mcpError) {
+        console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, mcpError);
+      }
 
       // Clear any queued actions (don't process them after error)
       this.clearQueuedAction(taskId);
@@ -1350,6 +1423,13 @@ export class ChatService {
 
     // Flush any pending database updates before stopping
     await databaseBatchService.flushAssistantUpdate(taskId);
+
+    // Clean up MCP manager for this task
+    try {
+      await stopMCPManager(taskId);
+    } catch (error) {
+      console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, error);
+    }
 
     // Update task status to stopped when manually stopped by user
     await updateTaskStatus(taskId, "STOPPED", "CHAT");
@@ -1682,13 +1762,20 @@ export class ChatService {
   /**
    * Clean up task-related memory structures
    */
-  cleanupTask(taskId: string): void {
+  async cleanupTask(taskId: string): Promise<void> {
     try {
       // Clean up active streams
       const abortController = this.activeStreams.get(taskId);
       if (abortController) {
         abortController.abort();
         this.activeStreams.delete(taskId);
+      }
+
+      // Clean up MCP manager for this task
+      try {
+        await stopMCPManager(taskId);
+      } catch (mcpError) {
+        console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, mcpError);
       }
 
       // Clean up queued actions

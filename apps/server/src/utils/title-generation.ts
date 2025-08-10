@@ -6,6 +6,7 @@ import {
   cleanTitle,
   generateShadowBranchName,
   getTitleGenerationModel,
+  generateTitlePrompt,
 } from "@repo/types";
 import { TaskModelContext } from "../services/task-model-context";
 import { braintrustService } from "../agent/llm/observability/braintrust-service";
@@ -59,11 +60,7 @@ export async function generateTaskTitleAndBranch(
     const { text: generatedText } = await generateText({
       model,
       temperature: 0.3,
-      prompt: `Generate a concise title (under 50 chars) for this coding task:
-
-"${userPrompt}"
-
-Return ONLY the title.`,
+      prompt: generateTitlePrompt(userPrompt),
       experimental_telemetry: braintrustService.getOperationTelemetry(
         "title-generation",
         {

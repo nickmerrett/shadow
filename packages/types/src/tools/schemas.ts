@@ -468,6 +468,7 @@ export enum ToolTypes {
   REMOVE_MEMORY = "remove_memory",
   REASONING = "reasoning",
   REDACTED_REASONING = "redacted-reasoning",
+  MCP = "mcp",
 }
 
 // Tool prefixes for UI display
@@ -488,4 +489,5 @@ export const TOOL_PREFIXES: Record<ToolTypes, string> = {
   [ToolTypes.REMOVE_MEMORY]: "Remove memory",
   [ToolTypes.REASONING]: "Reasoning",
   [ToolTypes.REDACTED_REASONING]: "Reasoning",
+  [ToolTypes.MCP]: "MCP", // This will be overridden with server name
 };

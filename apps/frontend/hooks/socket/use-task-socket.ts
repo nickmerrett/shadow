@@ -1,16 +1,16 @@
 "use client";
 
 import { useSocket } from "./use-socket";
-import { StreamingStatus } from "@/lib/constants";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { extractStreamingArgs } from "@/lib/streaming-args";
-import { useStreamingPartsMap } from "../use-streaming-parts-map";
+import { useStreamingPartsMap } from "./use-streaming-parts-map";
 import { useQueryClient } from "@tanstack/react-query";
 import type {
   AssistantMessagePart,
   Message,
   StreamChunk,
   TaskStatusUpdateEvent,
+  AutoPRStatusEvent,
   ModelType,
   FileNode,
   QueuedActionUI,
@@ -20,7 +20,7 @@ import type {
 } from "@repo/types";
 import { TextPart, ToolResultPart } from "ai";
 import type { TaskWithDetails } from "@/lib/db-operations/get-task-with-details";
-import { CodebaseTreeResponse } from "../use-codebase-tree";
+import { FileTreeResponse } from "../agent-environment/use-file-tree";
 import { Task, TodoStatus } from "@repo/db";
 import { TaskStatusData } from "@/lib/db-operations/get-task-status";
 
@@ -53,10 +53,6 @@ function updateCodebaseTreeOptimistically(
   fsChange: FsChangeEvent
 ): FileNode[] {
   const { operation, filePath, isDirectory } = fsChange;
-
-  console.log(
-    `[OPTIMISTIC_TREE_UPDATE] ${operation} ${filePath} (isDirectory: ${isDirectory})`
-  );
 
   if (operation === "file-created" || operation === "directory-created") {
     return addNodeToTree(
@@ -243,7 +239,12 @@ export function useTaskSocket(taskId: string | undefined) {
 
   const streamingParts = useStreamingPartsMap();
   const [streamingPartsOrder, setStreamingPartsOrder] = useState<string[]>([]);
-  const [streamingStatus, setStreamingStatus] = useState(StreamingStatus.IDLE);
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  // Auto-PR state management
+  const [autoPRStatus, setAutoPRStatus] = useState<AutoPRStatusEvent | null>(
+    null
+  );
 
   // Ref counters for ID generation (no re-renders needed)
   const textCounterRef = useRef(0);
@@ -267,7 +268,7 @@ export function useTaskSocket(taskId: string | undefined) {
   const clearStreamingState = useCallback(() => {
     streamingParts.clear();
     setStreamingPartsOrder([]);
-    setStreamingStatus(StreamingStatus.IDLE);
+    setIsStreaming(false);
 
     // Reset all ref counters
     textCounterRef.current = 0;
@@ -279,11 +280,9 @@ export function useTaskSocket(taskId: string | undefined) {
   useEffect(() => {
     if (socket && taskId && isConnected) {
       socket.emit("join-task", { taskId });
-      console.log(`[SOCKET] Joined task room: ${taskId}`);
 
       return () => {
         socket.emit("leave-task", { taskId });
-        console.log(`[SOCKET] Left task room: ${taskId}`);
       };
     }
   }, [socket, taskId, isConnected]);
@@ -321,10 +320,7 @@ export function useTaskSocket(taskId: string | undefined) {
       isStreaming: boolean;
       totalChunks: number;
     }) {
-      console.log("Received stream state:", state);
-      setStreamingStatus(
-        state.isStreaming ? StreamingStatus.STREAMING : StreamingStatus.IDLE
-      );
+      setIsStreaming(state.isStreaming);
 
       // Replay chunks to reconstruct streaming parts
       if (state.chunks && state.chunks.length > 0) {
@@ -456,14 +452,11 @@ export function useTaskSocket(taskId: string | undefined) {
 
         streamingParts.update(() => newPartsMap);
         setStreamingPartsOrder(newPartsOrder);
-        console.log(
-          `[STREAM_STATE] Reconstructed ${newPartsMap.size} parts from ${state.chunks.length} chunks`
-        );
       }
     }
 
     function onStreamChunk(chunk: StreamChunk) {
-      setStreamingStatus(StreamingStatus.STREAMING);
+      setIsStreaming(true);
 
       // Handle different types of stream chunks
       switch (chunk.type) {
@@ -587,8 +580,8 @@ export function useTaskSocket(taskId: string | undefined) {
             );
 
             queryClient.setQueryData(
-              ["codebase-tree", taskId],
-              (oldData: CodebaseTreeResponse) => {
+              ["file-tree", taskId],
+              (oldData: FileTreeResponse) => {
                 if (!oldData || !oldData.success || !oldData.tree)
                   return oldData;
 
@@ -624,8 +617,8 @@ export function useTaskSocket(taskId: string | undefined) {
             );
 
             queryClient.setQueryData(
-              ["codebase-tree", taskId],
-              (oldData: CodebaseTreeResponse) => {
+              ["file-tree", taskId],
+              (oldData: FileTreeResponse) => {
                 if (!oldData) return oldData;
                 return {
                   success: true,
@@ -637,11 +630,11 @@ export function useTaskSocket(taskId: string | undefined) {
           break;
 
         case "complete":
-          setStreamingStatus(StreamingStatus.IDLE);
+          setIsStreaming(false);
           break;
 
         case "error": {
-          setStreamingStatus(StreamingStatus.IDLE);
+          setIsStreaming(false);
           console.error("Stream error:", chunk.error);
           break;
         }
@@ -701,8 +694,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "init-progress":
           if (chunk.initProgress) {
-            console.log("Initialization progress:", chunk.initProgress);
-
             queryClient.setQueryData(
               ["task", taskId],
               (oldData: TaskWithDetails) => {
@@ -712,7 +703,6 @@ export function useTaskSocket(taskId: string | undefined) {
                   task: {
                     ...oldData.task,
                     initStatus:
-                      chunk.initProgress?.initStatus ||
                       chunk.initProgress?.currentStep ||
                       oldData.task?.initStatus,
                     initializationError: chunk.initProgress?.error || null,
@@ -729,7 +719,7 @@ export function useTaskSocket(taskId: string | undefined) {
                 return {
                   ...oldData,
                   initStatus:
-                    chunk.initProgress?.initStatus || oldData.initStatus,
+                    chunk.initProgress?.currentStep || oldData.initStatus,
                 };
               }
             );
@@ -741,9 +731,7 @@ export function useTaskSocket(taskId: string | undefined) {
                     ? {
                         ...task,
                         initStatus:
-                          chunk.initProgress?.initStatus ||
-                          chunk.initProgress?.currentStep ||
-                          task.initStatus,
+                          chunk.initProgress?.currentStep || task.initStatus,
                         initializationError: chunk.initProgress?.error || null,
                         updatedAt: new Date().toISOString(),
                       }
@@ -834,7 +822,7 @@ export function useTaskSocket(taskId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ["task", taskId] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task-messages", taskId] });
-      queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
+      queryClient.invalidateQueries({ queryKey: ["file-tree", taskId] });
       queryClient.invalidateQueries({ queryKey: ["codebases"] });
     }
 
@@ -918,6 +906,7 @@ export function useTaskSocket(taskId: string | undefined) {
                   status: data.status,
                   initStatus: data.initStatus || oldData.task.initStatus,
                   updatedAt: data.timestamp,
+                  errorMessage: data.errorMessage || null,
                 },
               };
             }
@@ -936,7 +925,7 @@ export function useTaskSocket(taskId: string | undefined) {
           }
         );
 
-        queryClient.invalidateQueries({ queryKey: ["codebase-tree", taskId] });
+        queryClient.invalidateQueries({ queryKey: ["file-tree", taskId] });
 
         if (data.status === "RUNNING") {
           queryClient.invalidateQueries({ queryKey: ["codebases"] });
@@ -951,12 +940,56 @@ export function useTaskSocket(taskId: string | undefined) {
                     status: data.status,
                     initStatus: data.initStatus || task.initStatus,
                     updatedAt: data.timestamp,
+                    errorMessage: data.errorMessage || null,
                   }
                 : task
             );
           }
           return oldTasks;
         });
+      }
+    }
+
+    function onAutoPRStatus(data: AutoPRStatusEvent) {
+      if (data.taskId === taskId) {
+        console.log(`[TASK_SOCKET] Received auto-PR status update:`, data);
+        setAutoPRStatus(data);
+
+        // Handle different auto-PR statuses
+        switch (data.status) {
+          case "completed":
+            // Optimistically update task with PR number if provided
+            if (data.prNumber) {
+              queryClient.setQueryData(
+                ["task", taskId],
+                (oldData: TaskWithDetails) => {
+                  if (oldData && oldData.task) {
+                    return {
+                      ...oldData,
+                      task: {
+                        ...oldData.task,
+                        pullRequestNumber: data.prNumber,
+                      },
+                    };
+                  }
+                  return oldData;
+                }
+              );
+            }
+            // Clear the auto-PR status after a short delay to allow UI transition
+            setTimeout(() => setAutoPRStatus(null), 2000);
+            break;
+
+          case "failed":
+            // Show error toast and clear status
+            if (typeof window !== "undefined") {
+              import("sonner").then(({ toast }) => {
+                toast.error(data.error || "Failed to create pull request");
+              });
+            }
+            setTimeout(() => setAutoPRStatus(null), 1000);
+            break;
+        }
       }
     }
 
@@ -970,6 +1003,7 @@ export function useTaskSocket(taskId: string | undefined) {
     socket.on("message-error", onMessageError);
     socket.on("queued-action-processing", onQueuedActionProcessing);
     socket.on("task-status-updated", onTaskStatusUpdate);
+    socket.on("auto-pr-status", onAutoPRStatus);
 
     return () => {
       socket.off("connect", onConnect);
@@ -982,6 +1016,7 @@ export function useTaskSocket(taskId: string | undefined) {
       socket.off("message-error", onMessageError);
       socket.off("queued-action-processing", onQueuedActionProcessing);
       socket.off("task-status-updated", onTaskStatusUpdate);
+      socket.off("auto-pr-status", onAutoPRStatus);
     };
   }, [socket, taskId, queryClient]);
 
@@ -991,7 +1026,7 @@ export function useTaskSocket(taskId: string | undefined) {
       if (!socket || !taskId || !message.trim()) return;
 
       console.log("Sending message:", { taskId, message, model, queue });
-      setStreamingStatus(StreamingStatus.PENDING);
+      setIsStreaming(true);
       socket.emit("user-message", {
         taskId,
         message: message.trim(),
@@ -1003,12 +1038,12 @@ export function useTaskSocket(taskId: string | undefined) {
   );
 
   const stopStream = useCallback(() => {
-    if (!socket || !taskId || streamingStatus === StreamingStatus.IDLE) return;
+    if (!socket || !taskId || !isStreaming) return;
 
     console.log("Stopping stream for task:", taskId);
     socket.emit("stop-stream", { taskId });
     clearStreamingState();
-  }, [socket, taskId, streamingStatus, clearStreamingState]);
+  }, [socket, taskId, isStreaming, clearStreamingState]);
 
   const clearQueuedAction = useCallback(() => {
     if (!socket || !taskId) return;
@@ -1033,8 +1068,9 @@ export function useTaskSocket(taskId: string | undefined) {
     isConnected,
     streamingPartsMap: streamingParts.map,
     streamingPartsOrder,
-    streamingStatus,
-    setStreamingStatus,
+    isStreaming,
+    setIsStreaming,
+    autoPRStatus,
     sendMessage,
     stopStream,
     clearQueuedAction,

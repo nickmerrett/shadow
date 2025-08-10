@@ -1,6 +1,7 @@
 "use client";
 
-import { useFileContent } from "@/hooks/use-file-content";
+import { useFileContent } from "@/hooks/agent-environment/use-file-content";
+import { SHADOW_WIKI_PATH } from "@/lib/constants";
 import {
   createContext,
   useContext,
@@ -30,6 +31,7 @@ type AgentEnvironmentContextType = {
   expandRightPanel: () => void;
   triggerTerminalResize: () => void;
   terminalResizeTrigger: number;
+  openShadowWiki: () => void;
 };
 
 const AgentEnvironmentContext = createContext<
@@ -50,7 +52,7 @@ export function AgentEnvironmentProvider({
   const [terminalResizeTrigger, setTerminalResizeTrigger] = useState(0);
 
   function updateSelectedFilePath(path: string | null) {
-    if (path && !path.startsWith("/")) {
+    if (path && !path.startsWith("/") && path !== SHADOW_WIKI_PATH) {
       setSelectedFilePath("/" + path);
     } else {
       setSelectedFilePath(path);
@@ -94,8 +96,19 @@ export function AgentEnvironmentProvider({
     }
   }, [rightPanelRef]);
 
+  const openShadowWiki = useCallback(() => {
+    expandRightPanel();
+    setSelectedFilePath(SHADOW_WIKI_PATH);
+  }, [expandRightPanel]);
+
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const triggerTerminalResize = useCallback(() => {
-    setTerminalResizeTrigger((prev) => prev + 1);
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    debounceTimeoutRef.current = setTimeout(() => {
+      setTerminalResizeTrigger((prev) => prev + 1);
+    }, 200);
   }, []);
 
   const value: AgentEnvironmentContextType = useMemo(
@@ -110,6 +123,7 @@ export function AgentEnvironmentProvider({
       expandRightPanel,
       triggerTerminalResize,
       terminalResizeTrigger,
+      openShadowWiki,
     }),
     [
       selectedFilePath,
@@ -120,6 +134,7 @@ export function AgentEnvironmentProvider({
       expandRightPanel,
       triggerTerminalResize,
       terminalResizeTrigger,
+      openShadowWiki,
     ]
   );
 

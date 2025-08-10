@@ -8,6 +8,7 @@ import {
   cleanTitle,
   generateShadowBranchName,
   getTitleGenerationModel,
+  generateTitlePrompt,
 } from "@repo/types";
 import { getApiKeys } from "./api-keys";
 
@@ -53,11 +54,7 @@ export async function generateTaskTitleAndBranch(
     const { text: generatedText } = await generateText({
       model,
       temperature: 0.3,
-      prompt: `Generate a concise title (under 50 chars) for this coding task:
-
-"${userPrompt}"
-
-Return ONLY the title.`,
+      prompt: generateTitlePrompt(userPrompt),
     });
 
     const title = cleanTitle(generatedText);

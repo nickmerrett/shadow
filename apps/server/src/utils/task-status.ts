@@ -11,18 +11,25 @@ import { getAgentMode } from "../execution";
 export async function updateTaskStatus(
   taskId: string,
   status: TaskStatus,
-  context?: string
+  context?: string,
+  errorMessage?: string
 ): Promise<void> {
   try {
-    // Update task status in database
     await prisma.task.update({
       where: { id: taskId },
-      data: { status },
+      data: {
+        status,
+        errorMessage:
+          status === "FAILED" ? errorMessage || "Unknown error" : null,
+      },
     });
 
     // Log the status change
     const logPrefix = context ? `[${context}]` : "[TASK]";
-    console.log(`${logPrefix} Task ${taskId} status updated to ${status}`);
+    const errorSuffix = errorMessage ? ` (error: ${errorMessage})` : "";
+    console.log(
+      `${logPrefix} Task ${taskId} status updated to ${status}${errorSuffix}`
+    );
 
     // Emit real-time update to all connected clients
     emitTaskStatusUpdate(taskId, status);

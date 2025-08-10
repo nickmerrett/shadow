@@ -19,18 +19,19 @@ import { AppWindowMac } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { StickToBottom } from "use-stick-to-bottom";
-import { MemoizedAgentEnvironment as AgentEnvironment } from "@/components/agent-environment";
+import { MemoizedAgentEnvironment as AgentEnvironment } from "@/components/agent-environment/agent-environment";
 import { MemoizedTaskPageContent as TaskPageContent } from "@/components/task/task-content";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
-import { useTaskTitle, useUpdateTaskTitle } from "@/hooks/use-task-title";
-import { useTaskStatus } from "@/hooks/use-task-status";
+import { useTaskTitle, useUpdateTaskTitle } from "@/hooks/tasks/use-task-title";
+import { useTaskStatus } from "@/hooks/tasks/use-task-status";
 import { useParams } from "next/navigation";
 
 export default function TaskPage() {
   const { taskId } = useParams<{ taskId: string }>();
 
   const { open } = useSidebar();
-  const isMobile = useIsMobile();
+  const shouldUseSheet = useIsMobile({ breakpoint: 1024 });
+
   const [isEditing, setIsEditing] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,7 +83,7 @@ export default function TaskPage() {
   */
 
   const handleToggleRightPanel = useCallback(() => {
-    if (isMobile) {
+    if (shouldUseSheet) {
       setIsSheetOpen(true);
       return;
     }
@@ -98,7 +99,7 @@ export default function TaskPage() {
       lastPanelSizeRef.current = rightPanelRef.current?.getSize() ?? null;
       panel.collapse();
     }
-  }, [isMobile, rightPanelRef]);
+  }, [shouldUseSheet, rightPanelRef]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -219,7 +220,7 @@ export default function TaskPage() {
                   </div>
                 </div>
 
-                {(!isAgentEnvironmentOpen || isMobile) && (
+                {(!isAgentEnvironmentOpen || shouldUseSheet) && (
                   <div className="p-3">
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -243,11 +244,11 @@ export default function TaskPage() {
             </StickToBottom.Content>
           </StickToBottom>
         </ResizablePanel>
-        {!isMobile && (
+        {!shouldUseSheet && (
           <>
             <ResizableHandle />
             <ResizablePanel
-              minSize={30}
+              minSize={40}
               collapsible
               collapsedSize={0}
               defaultSize={0}
@@ -259,7 +260,7 @@ export default function TaskPage() {
         )}
       </ResizablePanelGroup>
 
-      {isMobile && (
+      {shouldUseSheet && (
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
           <SheetContent
             side="right"
@@ -267,7 +268,7 @@ export default function TaskPage() {
             className="w-[90%] sm:w-3/4 sm:max-w-none"
           >
             <div className="flex-1 overflow-hidden">
-              <AgentEnvironment isMobile />
+              <AgentEnvironment isSheetOverlay />
             </div>
           </SheetContent>
         </Sheet>

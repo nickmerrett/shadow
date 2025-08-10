@@ -9,8 +9,15 @@ import { useTerminalSocket } from "@/hooks/socket";
 import { useParams } from "next/navigation";
 import type { TerminalEntry } from "@repo/types";
 import { useAgentEnvironment } from "./agent-environment-context";
+import { Button } from "../ui/button";
+import { ChevronDown } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
-export default function Terminal() {
+export default function Terminal({
+  handleCollapse,
+}: {
+  handleCollapse: () => void;
+}) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -20,11 +27,8 @@ export default function Terminal() {
   const taskId = params?.taskId as string;
 
   // Use our hook architecture but with enhanced terminal functionality
-  const {
-    terminalEntries,
-    isTerminalConnected,
-    clearTerminal: _clearTerminal,
-  } = useTerminalSocket(taskId);
+  const { terminalEntries, clearTerminal: _clearTerminal } =
+    useTerminalSocket(taskId);
 
   // Get terminal resize trigger from context
   const { terminalResizeTrigger } = useAgentEnvironment();
@@ -154,12 +158,21 @@ export default function Terminal() {
   return (
     <div className="bg-background relative flex-1 overflow-hidden">
       {/* Connection status indicator */}
-      <div className="absolute right-4 top-4 z-10">
-        <div
-          className={`h-2 w-2 rounded-full ${isTerminalConnected ? "bg-green-500" : "bg-red-500"}`}
-          title={isTerminalConnected ? "Connected" : "Disconnected"}
-        />
-      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="iconXs"
+            className="text-muted-foreground hover:text-foreground absolute right-1.5 top-1.5 z-10"
+            onClick={handleCollapse}
+          >
+            <ChevronDown />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top" align="end">
+          Collapse Terminal
+        </TooltipContent>
+      </Tooltip>
 
       <div ref={terminalRef} className="hide-scrollbar h-full" />
     </div>

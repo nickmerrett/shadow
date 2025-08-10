@@ -742,18 +742,21 @@ export async function emitTaskStatusUpdate(
   initStatus?: InitStatus
 ) {
   if (io) {
-    // If initStatus not provided, fetch current task state
+    // If initStatus not provided, fetch current task state including error message
     let currentInitStatus = initStatus;
-    if (!currentInitStatus) {
+    let errorMessage: string | undefined;
+    
+    if (!currentInitStatus || status === "FAILED") {
       try {
         const task = await prisma.task.findUnique({
           where: { id: taskId },
-          select: { initStatus: true },
+          select: { initStatus: true, errorMessage: true },
         });
-        currentInitStatus = task?.initStatus;
+        currentInitStatus = currentInitStatus || task?.initStatus;
+        errorMessage = task?.errorMessage || undefined;
       } catch (error) {
         console.error(
-          `[SOCKET] Error fetching initStatus for task ${taskId}:`,
+          `[SOCKET] Error fetching task data for ${taskId}:`,
           error
         );
       }
@@ -764,6 +767,7 @@ export async function emitTaskStatusUpdate(
       status,
       initStatus: currentInitStatus,
       timestamp: new Date().toISOString(),
+      ...(errorMessage && { errorMessage }),
     };
 
     console.log(`[SOCKET] Emitting task status update:`, statusUpdateEvent);

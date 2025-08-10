@@ -1,7 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { CodebaseWithSummaries } from "@repo/types";
+import { useTask } from "./tasks/use-task";
 
-export function useCodebase(codebaseId: string) {
+export function useCodebase(taskId: string) {
+  const { task } = useTask(taskId);
+  const codebaseId = task?.codebaseUnderstandingId;
+
+  console.log("codebaseId", codebaseId);
+
   return useQuery({
     queryKey: ["codebase", codebaseId],
     queryFn: async (): Promise<CodebaseWithSummaries> => {

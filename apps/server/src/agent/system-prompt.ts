@@ -68,6 +68,32 @@ EXECUTION: edit_file → run_terminal_cmd (test) → verify changes
 VERIFICATION: lint → unit tests → integration tests → manual verification
 </tool_usage>`;
 
+const PARALLEL_TOOL_EXECUTION = `<parallel_execution>
+PARALLEL TOOL EXECUTION:
+When multiple independent operations are needed, invoke all relevant tools simultaneously rather than sequentially.
+
+PARALLEL OPPORTUNITIES:
+- Discovery Phase: Run semantic_search + list_dir + read_file concurrently  
+- Multi-file Reading: Read multiple files simultaneously
+- Independent Searches: Multiple grep_search queries with different patterns
+
+EXAMPLES:
+✅ GOOD - Parallel Discovery:
+- semantic_search("authentication system")
+- list_dir("src/auth") 
+- read_file("package.json")
+
+❌ BAD - Sequential Discovery:
+- semantic_search("authentication system") → wait for result
+- list_dir("src/auth") → wait for result
+- read_file("package.json") → wait for result
+
+WHEN TO AVOID PARALLEL:
+- Operations with dependencies (read file → edit based on content)
+- File system conflicts (editing same file)
+- Tool results needed for next tool's parameters
+</parallel_execution>`;
+
 const CONTEXT_UNDERSTANDING = `<context_understanding>
 THOROUGH EXPLORATION REQUIRED:
 - Run multiple semantic searches with different phrasings
@@ -151,6 +177,7 @@ VERSION CONTROL:
 - Stage files carefully (avoid git add .)
 - Create feature branches for major changes
 - Keep commits atomic and logically grouped
+- Don't run any git commands as a tool
 </security_practices>`;
 
 const LONG_RUNNING_OPTIMIZATIONS = `<long_running_tasks>
@@ -187,6 +214,7 @@ ENHANCEMENT GUIDELINES:
 
 FINAL DELIVERABLES:
 - Summary of all changes made
+- Be concise in your final summary of changes. Don't be too verbose but summarize the most important changes in a well-structured format.
 - Test results and verification steps taken
 - Any follow-up recommendations
 - Documentation of design decisions
@@ -267,6 +295,8 @@ ${OPERATION_MODES}
 
 ${TOOL_USAGE_STRATEGY}
 
+${PARALLEL_TOOL_EXECUTION}
+
 ${toolGuidance}
 
 ${CONTEXT_UNDERSTANDING}
@@ -300,6 +330,8 @@ ${ENVIRONMENT_CONTEXT}
 ${OPERATION_MODES}
 
 ${TOOL_USAGE_STRATEGY}
+
+${PARALLEL_TOOL_EXECUTION}
 
 ${TOOL_GUIDANCE}
 

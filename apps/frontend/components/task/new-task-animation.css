@@ -3,8 +3,8 @@
     circle at 50% 0%,
     var(--background) 0%,
     var(--background) 35%,
-    #e5802e 55%,
-    #2ed3a7 75%
+    var(--vesper-orange) 55%,
+    var(--vesper-teal) 75%
   );
   filter: blur(150px);
 

@@ -93,3 +93,13 @@ export function getTitleGenerationModel(config: TitleGenerationConfig): {
 
   return { provider, modelChoice };
 }
+
+export function generateTitlePrompt(userPrompt: string): string {
+  return `<instructions>
+Generate a concise title (under 50 chars) for this user request. If it's a simple word or greeting, use it as-is. If it's a coding task request, summarize the main intent. Return ONLY the title text.
+</instructions>
+
+<user-request>
+${userPrompt}
+</user-request>`;
+}

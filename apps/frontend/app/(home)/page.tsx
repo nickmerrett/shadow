@@ -1,4 +1,4 @@
-import { HomePageContent } from "@/components/chat/home";
+import { HomePageContent } from "@/components/chat/home/home-content";
 import { HomeLayoutWrapper } from "@/components/layout/home-layout";
 import { getGitSelectorCookie } from "@/lib/actions/git-selector-cookie";
 import { getModelSelectorCookie } from "@/lib/actions/model-selector-cookie";

@@ -1,8 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useGitHubStatus } from "@/hooks/use-github-status";
-import { useGitHubRepositories } from "@/hooks/use-github-repositories";
+import { useGitHubStatus } from "@/hooks/github/use-github-status";
+import { useGitHubRepositories } from "@/hooks/github/use-github-repositories";
 import { Loader2, Check, X, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { Fragment } from "react";

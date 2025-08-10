@@ -5,15 +5,15 @@ import {
   SidebarGroupLabel,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useTask } from "@/hooks/use-task";
+import { useTask } from "@/hooks/tasks/use-task";
 import { cn } from "@/lib/utils";
 import {
-  BookOpenText,
   CircleDashed,
   FileDiff,
   Folder,
   FolderGit2,
   GitBranch,
+  BookOpen,
   ListTodo,
   RefreshCcw,
   Square,
@@ -28,10 +28,10 @@ import { useAgentEnvironment } from "@/components/agent-environment/agent-enviro
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
+import { Card } from "../ui/card";
 import { GithubLogo } from "../graphics/github/github-logo";
-import { useCreatePR } from "@/hooks/use-create-pr";
-import { useTaskSocket } from "@/hooks/socket";
-import { StreamingStatus } from "@/lib/constants";
+import { useCreatePR } from "@/hooks/chat/use-create-pr";
+import { useTaskSocketContext } from "@/contexts/task-socket-context";
 import { Loader2 } from "lucide-react";
 import { useIndexingStatus } from "@/hooks/use-indexing-status";
 import { useQueryClient } from "@tanstack/react-query";
@@ -107,8 +107,9 @@ function createFileTree(filePaths: string[]): FileNode[] {
 
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
-  const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
-  const { streamingStatus } = useTaskSocket(taskId);
+  const { updateSelectedFilePath, expandRightPanel, openShadowWiki } =
+    useAgentEnvironment();
+  const { isStreaming, autoPRStatus } = useTaskSocketContext();
   const createPRMutation = useCreatePR();
   const queryClient = useQueryClient();
 
@@ -183,8 +184,9 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
 
   // Determine if we should show create PR button
   const showCreatePR = !task?.pullRequestNumber && fileChanges.length > 0;
+  const isAutoPRInProgress = autoPRStatus?.status === "in-progress";
   const isCreatePRDisabled =
-    streamingStatus !== StreamingStatus.IDLE || createPRMutation.isPending;
+    isStreaming || createPRMutation.isPending || isAutoPRInProgress;
 
   // Indexing button state logic
   const isIndexing = indexingStatus?.status === "indexing";
@@ -233,7 +235,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                     onClick={handleCreatePR}
                     disabled={isCreatePRDisabled}
                   >
-                    {createPRMutation.isPending ? (
+                    {createPRMutation.isPending || isAutoPRInProgress ? (
                       <Loader2 className="size-4 shrink-0 animate-spin" />
                     ) : (
                       <GithubLogo className="size-4 shrink-0" />
@@ -241,7 +243,9 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                     <span className="truncate">
                       {createPRMutation.isPending
                         ? "Creating..."
-                        : "Create Pull Request"}
+                        : isAutoPRInProgress
+                          ? "Auto-Creating..."
+                          : "Create Pull Request"}
                     </span>
                   </Button>
                 )}
@@ -278,15 +282,12 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                   </Link>
                 </DropdownMenuItem>
                 {task.codebaseUnderstandingId && (
-                  <DropdownMenuItem asChild>
-                    <Link
-                      href={`/codebases/${task.codebaseUnderstandingId}`}
-                      target="_blank"
-                      className="hover:bg-sidebar-border!"
-                    >
-                      <BookOpenText className="text-foreground size-4 shrink-0" />
-                      <span>Codebase Wiki</span>
-                    </Link>
+                  <DropdownMenuItem
+                    className="hover:bg-sidebar-border!"
+                    onClick={() => openShadowWiki()}
+                  >
+                    <BookOpen className="text-foreground size-4 shrink-0" />
+                    <span>Shadow Wiki</span>
                   </DropdownMenuItem>
                 )}
                 {userSettings?.enableIndexing && (
@@ -354,6 +355,17 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               })()}
             </div>
           </SidebarMenuItem>
+
+          {/* Error message for failed tasks */}
+          {task.status === "FAILED" && (
+            <SidebarMenuItem className="mt-2">
+              <Card className="border-destructive/10 bg-destructive/5 rounded-lg p-2">
+                <p className="text-destructive line-clamp-4 text-sm">
+                  {task.errorMessage || "Unknown error"}
+                </p>
+              </Card>
+            </SidebarMenuItem>
+          )}
 
           {/* Task total diff */}
           {(diffStats.additions > 0 || diffStats.deletions > 0) && (
@@ -433,10 +445,13 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <FileExplorer
+              isAgentEnvironment={false}
               files={modifiedFileTree}
-              showDiffOperation={true}
-              fileChanges={fileChanges}
-              defaultExpanded={true}
+              fileChangeOperations={fileChanges.map((fileChange) => ({
+                filePath: fileChange.filePath,
+                operation: fileChange.operation,
+              }))}
+              defaultFolderExpansion={true}
               onFileSelect={handleFileSelect}
             />
           </SidebarGroupContent>
