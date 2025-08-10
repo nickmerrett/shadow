@@ -16,8 +16,9 @@ import {
   Plus,
   Minus,
   ListFilter,
+  Copy,
+  Trash,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
   Popover,
   PopoverContent,
@@ -41,7 +42,11 @@ import { Button } from "@/components/ui/button";
 import { useRef, useState } from "react";
 import { useDebounceCallback } from "@/lib/debounce";
 import { useArchiveTask } from "@/hooks/use-archive-task";
+import { useDeleteTask } from "@/hooks/use-delete-task";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { GithubLogo } from "@/components/graphics/github/github-logo";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -82,6 +87,8 @@ export function SidebarTasksView({
   const [searchQuery, setSearchQuery] = useState("");
   const [groupBy, setGroupBy] = useState<GroupBy>("repo");
   const archiveTask = useArchiveTask();
+  const deleteTask = useDeleteTask();
+  const { copyToClipboard } = useCopyToClipboard();
 
   // Debounced search handler
   const debouncedSearch = useDebounceCallback((query: string) => {
@@ -91,6 +98,36 @@ export function SidebarTasksView({
   // Handler for archiving tasks
   const handleArchiveTask = (taskId: string) => {
     archiveTask.mutate(taskId);
+  };
+
+  // Handler for deleting tasks
+  const handleDeleteTask = (taskId: string) => {
+    deleteTask.mutate(taskId);
+  };
+
+  // Handler for copying branch name
+  const handleCopyBranchName = async (shadowBranch: string) => {
+    const success = await copyToClipboard(shadowBranch);
+    if (success) {
+      toast.success("Branch name copied to clipboard");
+    } else {
+      toast.error("Failed to copy branch name");
+    }
+  };
+
+  // Handler for copying task ID
+  const handleCopyTaskId = async (taskId: string) => {
+    const success = await copyToClipboard(taskId);
+    if (success) {
+      toast.success("Task ID copied to clipboard");
+    } else {
+      toast.error("Failed to copy task ID");
+    }
+  };
+
+  // Handler for opening in GitHub
+  const handleOpenInGithub = (repoUrl: string) => {
+    window.open(repoUrl, "_blank");
   };
 
   // Filter tasks based on search query
@@ -209,14 +246,43 @@ export function SidebarTasksView({
               </a>
             </SidebarMenuButton>
           </ContextMenuTrigger>
-          <ContextMenuContent>
+          <ContextMenuContent className="bg-sidebar-accent border-sidebar-border">
+            <ContextMenuItem
+              onClick={() => handleOpenInGithub(task.repoUrl)}
+              className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border! h-7"
+            >
+              <GithubLogo className="size-3.5 text-inherit" />
+              <span className="text-[13px]">Open in GitHub</span>
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => handleCopyBranchName(task.shadowBranch)}
+              className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border! h-7"
+            >
+              <GitBranch className="size-3.5 text-inherit" />
+              <span className="text-[13px]">Copy branch name</span>
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => handleCopyTaskId(task.id)}
+              className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border! h-7"
+            >
+              <Copy className="size-3.5 text-inherit" />
+              <span className="text-[13px]">Copy task ID</span>
+            </ContextMenuItem>
             <ContextMenuItem
               onClick={() => handleArchiveTask(task.id)}
               disabled={archiveTask.isPending}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border! h-7"
             >
               <Archive className="size-3.5 text-inherit" />
-              Archive
+              <span className="text-[13px]">Archive</span>
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => handleDeleteTask(task.id)}
+              disabled={deleteTask.isPending}
+              className="text-destructive hover:text-destructive! hover:bg-sidebar-border! h-7"
+            >
+              <Trash className="size-3.5 text-inherit" />
+              <span className="text-[13px]">Delete</span>
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
