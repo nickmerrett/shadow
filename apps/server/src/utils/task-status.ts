@@ -1,4 +1,4 @@
-import { prisma, TaskStatus, InitStatus, Task } from "@repo/db";
+import { prisma, TaskStatus, InitStatus } from "@repo/db";
 import { emitTaskStatusUpdate } from "../socket";
 import { getAgentMode } from "../execution";
 

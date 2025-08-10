@@ -33,7 +33,6 @@ export class TaskInitializationEngine {
     userId: string,
     context: TaskModelContext
   ): Promise<void> {
-
     try {
       // Clear any previous progress and start fresh
       await clearTaskProgress(taskId);
@@ -61,13 +60,11 @@ export class TaskInitializationEngine {
             currentStep: step,
           });
 
-
           // Execute the step
           await this.executeStep(taskId, step, userId, context);
 
           // Mark step as completed
           await setInitStatus(taskId, step);
-
         } catch (error) {
           console.error(
             `[TASK_INIT] ${taskId}: Failed at step ${stepNumber}/${steps.length}: ${step}:`,
@@ -119,12 +116,10 @@ export class TaskInitializationEngine {
     context: TaskModelContext
   ): Promise<void> {
     switch (step) {
-      // Local mode step
       case "PREPARE_WORKSPACE":
         await this.executePrepareWorkspace(taskId, userId);
         break;
 
-      // Remote mode steps
       case "CREATE_VM":
         await this.executeCreateVM(taskId, userId);
         break;
@@ -137,19 +132,16 @@ export class TaskInitializationEngine {
         await this.executeVerifyVMWorkspace(taskId, userId);
         break;
 
-      // Background services step (both modes)
       case "START_BACKGROUND_SERVICES":
         await this.executeStartBackgroundServices(taskId, userId, context);
         break;
 
-      // Dependency installation step (both modes)
       case "INSTALL_DEPENDENCIES":
         await this.executeInstallDependencies(taskId);
         break;
 
-      // Finalize setup step (both modes)
-      case "FINALIZE_SETUP":
-        await this.executeFinalizeSetup(taskId);
+      case "COMPLETE_SHADOW_WIKI":
+        await this.executeCompleteShadowWiki(taskId);
         break;
 
       case "INACTIVE":
@@ -176,7 +168,6 @@ export class TaskInitializationEngine {
         `PREPARE_WORKSPACE step should only be used in local mode, but agent mode is: ${agentMode}`
       );
     }
-
 
     // Get task info
     const task = await prisma.task.findUnique({
@@ -229,7 +220,6 @@ export class TaskInitializationEngine {
       );
     }
 
-
     try {
       // Get task info
       const task = await prisma.task.findUnique({
@@ -260,7 +250,6 @@ export class TaskInitializationEngine {
         throw new Error(`Failed to create VM: ${workspaceInfo.error}`);
       }
 
-      // Create or update TaskSession with VM information
       if (workspaceInfo.podName && workspaceInfo.podNamespace) {
         await prisma.taskSession.create({
           data: {
@@ -272,14 +261,12 @@ export class TaskInitializationEngine {
         });
       }
 
-      // Update task with workspace path
       await prisma.task.update({
         where: { id: taskId },
         data: {
           workspacePath: workspaceInfo.workspacePath,
         },
       });
-
     } catch (error) {
       console.error(`[TASK_INIT] ${taskId}: Failed to create VM:`, error);
       throw error;
@@ -290,24 +277,18 @@ export class TaskInitializationEngine {
    * Wait for VM ready step - Wait for VM boot and sidecar API to become healthy
    */
   private async executeWaitVMReady(taskId: string): Promise<void> {
-
     try {
-      // Use the workspace manager's getExecutor() method for consistent connectivity
-      // This ensures initialization uses the same approach as regular execution
       const executor = await this.abstractWorkspaceManager.getExecutor(taskId);
 
       // Wait for both sidecar to be healthy AND repository to be cloned
-      const maxRetries = 5; // 5 * 2s = 10s timeout (faster for testing)
-      const retryDelay = 2000; // 2 seconds between retries
+      const maxRetries = 5;
+      const retryDelay = 2000;
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           // Test sidecar connectivity AND verify workspace has content
           const listing = await executor.listDirectory(".");
 
-          // Debug logging to understand the response
-
-          // Check that both sidecar is responding AND workspace has content
           if (
             listing.success &&
             listing.contents &&
@@ -344,7 +325,6 @@ export class TaskInitializationEngine {
     taskId: string,
     _userId: string
   ): Promise<void> {
-
     try {
       // Get task info
       const task = await prisma.task.findUnique({
@@ -356,13 +336,8 @@ export class TaskInitializationEngine {
         throw new Error(`Task not found: ${taskId}`);
       }
 
-      // Use the workspace manager's getExecutor() method for consistent connectivity
-      // This ensures initialization uses the same approach as regular execution
       const executor = await this.abstractWorkspaceManager.getExecutor(taskId);
 
-      // Final verification that workspace is fully ready with repository content
-
-      // Verify the workspace is ready by checking contents
       const listing = await executor.listDirectory(".");
       if (
         !listing.success ||
@@ -373,7 +348,6 @@ export class TaskInitializationEngine {
           "Workspace verification failed - workspace appears empty"
         );
       }
-
     } catch (error) {
       console.error(
         `[TASK_INIT] ${taskId}: Failed to verify workspace:`,
@@ -387,7 +361,6 @@ export class TaskInitializationEngine {
    * Install dependencies step - Install project dependencies (npm, pip, etc.)
    */
   private async executeInstallDependencies(taskId: string): Promise<void> {
-
     try {
       // Get the executor for this task
       const executor = await this.abstractWorkspaceManager.getExecutor(taskId);
@@ -422,7 +395,6 @@ export class TaskInitializationEngine {
       if (pyprojectExists) {
         await this.runInstallCommand(executor, taskId, "pip install -e .");
       }
-
     } catch (error) {
       console.error(
         `[TASK_INIT] ${taskId}: Dependency installation failed:`,
@@ -467,8 +439,7 @@ export class TaskInitializationEngine {
         allowNetworkAccess: true,
       });
 
-      if (result.success) {
-      } else {
+      if (!result.success) {
         console.warn(`[TASK_INIT] ${taskId}: Command failed: ${command}`);
         console.warn(
           `[TASK_INIT] ${taskId}: Error: ${result.error || result.stderr}`
@@ -490,7 +461,6 @@ export class TaskInitializationEngine {
     userId: string,
     context: TaskModelContext
   ): Promise<void> {
-
     try {
       // Get user settings to determine which services to start
       const userSettings = await prisma.userSettings.findUnique({
@@ -507,7 +477,6 @@ export class TaskInitializationEngine {
         { enableShadowWiki, enableIndexing },
         context
       );
-
     } catch (error) {
       console.error(
         `[TASK_INIT] ${taskId}: Failed to start background services:`,
@@ -518,10 +487,9 @@ export class TaskInitializationEngine {
   }
 
   /**
-   * Finalize setup step - Wait for background services to complete
+   * Complete Shadow Wiki step - Wait for background services to complete
    */
-  private async executeFinalizeSetup(taskId: string): Promise<void> {
-
+  private async executeCompleteShadowWiki(taskId: string): Promise<void> {
     try {
       const maxWait = 10 * 60 * 1000; // 10 minutes max
       const checkInterval = 2000; // Check every 2 seconds
@@ -539,9 +507,11 @@ export class TaskInitializationEngine {
 
         await delay(checkInterval);
       }
-
     } catch (error) {
-      console.error(`[TASK_INIT] ${taskId}: Failed to finalize setup:`, error);
+      console.error(
+        `[TASK_INIT] ${taskId}: Failed to complete Shadow Wiki:`,
+        error
+      );
       // Don't throw error - we want to continue to ACTIVE even if background services had issues
     }
   }
@@ -563,11 +533,8 @@ export class TaskInitializationEngine {
    * Get default initialization steps based on agent mode
    * Background services are now handled separately and run in parallel
    */
-  async getDefaultStepsForTask(_userId: string): Promise<InitStatus[]> {
+  async getDefaultStepsForTask(): Promise<InitStatus[]> {
     const agentMode = getAgentMode();
-
-    // User settings are now handled within the BackgroundServiceManager
-    // All tasks get the same steps, services are conditionally started based on user settings
     return getStepsForMode(agentMode);
   }
 }

@@ -146,7 +146,6 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
       });
     }
 
-    // Verify task exists
     const task = await prisma.task.findUnique({
       where: { id: taskId },
     });
@@ -203,8 +202,7 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         `⏳ [TASK_INITIATE] Task ${taskId} status set to INITIALIZING - starting initialization...`
       );
 
-      const initSteps =
-        await initializationEngine.getDefaultStepsForTask(userId);
+      const initSteps = await initializationEngine.getDefaultStepsForTask();
       await initializationEngine.initializeTask(
         taskId,
         initSteps,
@@ -212,24 +210,12 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
         initContext
       );
 
-      // Get updated task with workspace info
       const updatedTask = await prisma.task.findUnique({
         where: { id: taskId },
         select: { workspacePath: true },
       });
 
-      // Update task status to running
       await updateTaskStatus(taskId, "RUNNING", "INIT");
-
-      console.log(
-        `🚀 [TASK_INITIATE] Task ${taskId} status changed: INITIALIZING → RUNNING`
-      );
-      console.log(`[TASK_INITIATE] Successfully initialized task ${taskId}`);
-
-      // Process the message with the agent using the task workspace
-      // Skip saving user message since it's already saved in the server action
-
-      console.log("\n\n[TASK_INITIATE] PROCESSING USER MESSAGE\n\n");
 
       await chatService.processUserMessage({
         taskId,
@@ -279,8 +265,6 @@ app.post("/api/tasks/:taskId/initiate", async (req, res) => {
   }
 });
 
-
-// Get chat messages for a task
 app.get("/api/tasks/:taskId/messages", async (req, res) => {
   try {
     const { taskId } = req.params;
@@ -292,14 +276,12 @@ app.get("/api/tasks/:taskId/messages", async (req, res) => {
   }
 });
 
-// Cleanup workspace for a task
 app.delete("/api/tasks/:taskId/cleanup", async (req, res) => {
   try {
     const { taskId } = req.params;
 
     console.log(`[TASK_CLEANUP] Starting cleanup for task ${taskId}`);
 
-    // Verify task exists and get current status
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: {
@@ -319,7 +301,6 @@ app.delete("/api/tasks/:taskId/cleanup", async (req, res) => {
       });
     }
 
-    // Check if already cleaned up
     if (task.workspaceCleanedUp) {
       console.log(`[TASK_CLEANUP] Task ${taskId} workspace already cleaned up`);
       return res.json({
@@ -334,14 +315,12 @@ app.delete("/api/tasks/:taskId/cleanup", async (req, res) => {
       });
     }
 
-    // Create workspace manager using abstraction layer
     const workspaceManager = createWorkspaceManager();
 
     console.log(
       `[TASK_CLEANUP] Cleaning up workspace for task ${taskId} using ${workspaceManager.isRemote() ? "remote" : "local"} mode`
     );
 
-    // Perform cleanup
     const cleanupResult = await workspaceManager.cleanupWorkspace(taskId);
 
     if (!cleanupResult.success) {
@@ -356,15 +335,10 @@ app.delete("/api/tasks/:taskId/cleanup", async (req, res) => {
       });
     }
 
-    // Update task to mark workspace as cleaned up
     await prisma.task.update({
       where: { id: taskId },
       data: { workspaceCleanedUp: true },
     });
-
-    console.log(
-      `[TASK_CLEANUP] Successfully cleaned up workspace for task ${taskId}`
-    );
 
     res.json({
       success: true,
@@ -392,7 +366,6 @@ app.delete("/api/tasks/:taskId/cleanup", async (req, res) => {
   }
 });
 
-// Create PR for a task
 app.post("/api/tasks/:taskId/pull-request", async (req, res) => {
   try {
     const { taskId } = req.params;
@@ -444,7 +417,6 @@ app.post("/api/tasks/:taskId/pull-request", async (req, res) => {
       });
     }
 
-    // Find the most recent assistant message for this task
     const latestAssistantMessage = await prisma.chatMessage.findFirst({
       where: {
         taskId,

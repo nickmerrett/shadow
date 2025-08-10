@@ -11,7 +11,7 @@ export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
   VERIFY_VM_WORKSPACE: "Verifying Workspace",
   START_BACKGROUND_SERVICES: "Starting Background Services",
   INSTALL_DEPENDENCIES: "Installing Dependencies",
-  FINALIZE_SETUP: "Finalizing Setup",
+  COMPLETE_SHADOW_WIKI: "Complete Shadow Wiki",
   ACTIVE: "Active",
 };
 
@@ -29,14 +29,14 @@ export function getStepsForMode(mode: "local" | "remote"): InitStatus[] {
       "VERIFY_VM_WORKSPACE",
       "START_BACKGROUND_SERVICES",
       "INSTALL_DEPENDENCIES",
-      "FINALIZE_SETUP"
+      "COMPLETE_SHADOW_WIKI"
     );
   } else {
     steps.push(
       "PREPARE_WORKSPACE",
       "START_BACKGROUND_SERVICES",
       "INSTALL_DEPENDENCIES",
-      "FINALIZE_SETUP"
+      "COMPLETE_SHADOW_WIKI"
     );
   }
 
