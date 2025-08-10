@@ -14,7 +14,10 @@ import {
 import { useGitHubBranches } from "@/hooks/github/use-github-branches";
 import { useGitHubRepositories } from "@/hooks/github/use-github-repositories";
 import { useGitHubStatus } from "@/hooks/github/use-github-status";
-import { saveGitSelectorCookie, deleteGitSelectorCookie } from "@/lib/actions/git-selector-cookie";
+import {
+  saveGitSelectorCookie,
+  deleteGitSelectorCookie,
+} from "@/lib/actions/git-selector-cookie";
 import { cn, formatTimeAgo } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -434,7 +437,6 @@ export function GithubConnection({
         )}
         align="end"
         onClick={(e) => {
-          e.preventDefault();
           e.stopPropagation();
         }}
       >
