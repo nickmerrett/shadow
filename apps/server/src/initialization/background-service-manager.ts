@@ -124,7 +124,6 @@ export class BackgroundServiceManager {
       // Note: runShadowWiki handles duplicate detection and task linking internally
 
       await runShadowWiki(
-        task.workspacePath,
         taskId,
         task.repoFullName,
         task.repoUrl,

@@ -1,6 +1,4 @@
-import fg from "fast-glob";
 import { createHash } from "crypto";
-import { readFileSync, statSync } from "fs";
 import path from "path";
 import Parser from "tree-sitter";
 import JavaScript from "tree-sitter-javascript";
@@ -11,6 +9,7 @@ import { ModelType, ApiKeys } from "@repo/types";
 import { CoreMessage, generateText, LanguageModel } from "ai";
 import { TaskModelContext } from "@/services/task-model-context";
 import { braintrustService } from "../../agent/llm/observability/braintrust-service";
+import { createWorkspaceManager, type ToolExecutor } from "@/execution";
 
 // Configuration
 const TEMP = 0.15;
@@ -293,8 +292,8 @@ async function extractSymbols(
           }
         });
       }
-    } catch (error) {
-      console.debug(`[SHADOW-WIKI] Defs query failed for ${filePath}:`, error);
+    } catch (_error) {
+      // Skip defs extraction on error  
     }
 
     // Extract imports
@@ -312,11 +311,8 @@ async function extractSymbols(
           }
         });
       }
-    } catch (error) {
-      console.debug(
-        `[SHADOW-WIKI] Imports query failed for ${filePath}:`,
-        error
-      );
+    } catch (_error) {
+      // Skip imports extraction on error
     }
 
     return out;
@@ -405,50 +401,78 @@ function shouldSkipFile(
   return { skip: false };
 }
 
-// Build directory tree - simplified
-async function buildTree(
-  rootPath: string,
-  repoName?: string
-): Promise<IndexFile> {
-  const ignore = [
-    "**/node_modules/**",
-    "**/.git/**",
-    "**/dist/**",
-    "**/build/**",
-    "**/*.png",
-    "**/*.jpg",
-    "**/*.jpeg",
-    "**/*.gif",
-    "**/*.svg",
-    "**/*.ico",
-    "**/*.lock",
-    "**/.shadow/**",
-    "**/coverage/**",
-    "**/.nyc_output/**",
+// Check if file should be ignored based on Shadow Wiki patterns
+function shouldIgnoreFileForShadowWiki(filePath: string): boolean {
+  const ignorePatterns = [
+    "node_modules/",
+    ".git/",
+    "dist/",
+    "build/",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".svg",
+    ".ico",
+    ".lock",
+    ".shadow/",
+    "coverage/",
+    ".nyc_output/",
   ];
 
-  const entries = await fg(["*", "*/*"], {
-    cwd: rootPath,
-    absolute: true,
-    dot: true,
-    ignore,
+  return ignorePatterns.some((pattern) => {
+    if (pattern.endsWith("/")) {
+      // Directory pattern - check if path contains this directory
+      return filePath.includes(pattern) || filePath.includes(`/${pattern}`);
+    } else if (pattern.startsWith(".")) {
+      // Extension pattern - check if path ends with this extension
+      return filePath.endsWith(pattern);
+    } else {
+      // General pattern - check if path contains it
+      return filePath.includes(pattern);
+    }
   });
+}
 
-  const allFiles = entries.filter((p) => statSync(p).isFile());
+// Build directory tree - using ToolExecutor for both local and remote modes
+async function buildTree(
+  executor: ToolExecutor,
+  repoName?: string
+): Promise<IndexFile> {
+  // Get all files using ToolExecutor
+  const recursiveListing = await executor.listDirectoryRecursive(".");
+
+  if (!recursiveListing.success) {
+    console.error(
+      `[SHADOW-WIKI] Failed to list directory:`,
+      recursiveListing.error
+    );
+    throw new Error(`Failed to list directory: ${recursiveListing.error}`);
+  }
+
+  const allFiles = recursiveListing.entries.filter(
+    (entry: any) => !entry.isDirectory
+  );
   const files: string[] = [];
   let skippedCount = 0;
 
-  for (const filePath of allFiles) {
-    const stats = statSync(filePath);
-    const { skip, reason } = shouldSkipFile(filePath, stats.size);
+  for (const fileEntry of allFiles) {
+    // Check ignore patterns first
+    if (shouldIgnoreFileForShadowWiki(fileEntry.relativePath)) {
+      skippedCount++;
+      continue;
+    }
+
+    // Get file stats for skip logic
+    const statsResult = await executor.getFileStats(fileEntry.relativePath);
+    const fileSize = statsResult.success && statsResult.stats ? statsResult.stats.size : 0;
+
+    const { skip } = shouldSkipFile(fileEntry.relativePath, fileSize);
 
     if (skip) {
-      console.debug(
-        `[SHADOW-WIKI] Skipping ${path.relative(rootPath, filePath)}: ${reason}`
-      );
       skippedCount++;
     } else {
-      files.push(filePath);
+      files.push(fileEntry.relativePath);
     }
   }
 
@@ -464,13 +488,13 @@ async function buildTree(
       ? repoName.split("/").pop()!
       : repoName;
   } else {
-    cleanRepoName = path.basename(rootPath);
+    cleanRepoName = "workspace"; // Default name since we don't have rootPath anymore
   }
 
   const rootNode: TreeNode = {
     id: "root",
     name: cleanRepoName,
-    absPath: rootPath,
+    absPath: "/workspace", // Standard workspace path
     relPath: ".",
     level: 0,
     children: [],
@@ -478,20 +502,19 @@ async function buildTree(
   };
   nodes[rootNode.id] = rootNode;
 
-  for (const abs of files) {
-    const rel = path.relative(rootPath, abs);
-    const parts = rel.split(path.sep);
+  for (const relativePath of files) {
+    const parts = relativePath.split("/");
     let curPath = ".";
     let parent = "root";
 
     for (let d = 0; d < parts.length - 1; d++) {
-      curPath = path.join(curPath, parts[d]!);
+      curPath = curPath === "." ? parts[d]! : `${curPath}/${parts[d]!}`;
       const nid = toNodeId(curPath);
       if (!nodes[nid]) {
         nodes[nid] = {
           id: nid,
           name: parts[d]!,
-          absPath: path.join(rootPath, curPath),
+          absPath: `/workspace/${curPath}`,
           relPath: curPath,
           level: d + 1,
           children: [],
@@ -502,7 +525,7 @@ async function buildTree(
       parent = nid;
     }
 
-    nodes[parent]?.files.push(rel);
+    nodes[parent]?.files.push(relativePath);
   }
 
   return { root: "root", nodes };
@@ -593,30 +616,38 @@ function getBasicFileInfo(filePath: string, fileSize?: number): string {
   return description;
 }
 
-// Summarize a file - simplified
+// Summarize a file - using ToolExecutor for both local and remote modes
 async function summarizeFile(
-  rootPath: string,
+  executor: ToolExecutor,
   rel: string,
   miniModelInstance: LanguageModel,
   skipLLM: boolean = false
 ): Promise<string> {
-  const abs = path.join(rootPath, rel);
-
   let src: string;
   let fileSize: number = 0;
 
   try {
-    const stats = statSync(abs);
-    fileSize = stats.size;
-    src = readFileSync(abs, "utf8");
-  } catch (error) {
-    console.warn(`[SHADOW-WIKI] Failed to read ${rel}:`, error);
-    try {
-      const stats = statSync(abs);
-      return getBasicFileInfo(rel, stats.size) + " _(unreadable)_";
-    } catch {
+    // Get file stats using executor
+    const statsResult = await executor.getFileStats(rel);
+    if (!statsResult.success || !statsResult.stats) {
+      console.warn(
+        `[SHADOW-WIKI] Failed to get stats for ${rel}:`,
+        statsResult.error
+      );
       return getBasicFileInfo(rel, 0) + " _(unreadable)_";
     }
+    fileSize = statsResult.stats.size;
+
+    // Read file content using executor
+    const fileResult = await executor.readFile(rel);
+    if (!fileResult.success || !fileResult.content) {
+      console.warn(`[SHADOW-WIKI] Failed to read ${rel}:`, fileResult.error);
+      return getBasicFileInfo(rel, fileSize) + " _(unreadable)_";
+    }
+    src = fileResult.content;
+  } catch (error) {
+    console.warn(`[SHADOW-WIKI] Failed to read ${rel}:`, error);
+    return getBasicFileInfo(rel, 0) + " _(unreadable)_";
   }
 
   const fileExt = path.extname(rel).toLowerCase();
@@ -686,7 +717,7 @@ async function analyzeFileWithLLM(
     return `Large file: ${path.basename(rel)} (${Math.round(src.length / 1000)}KB) - skipped analysis due to size`;
   }
 
-  const maxTokens = isCritical ? 15000 : isDataFile ? 4000 : 8000;
+  const maxTokens = isCritical ? 4000 : isDataFile ? 2048 : 2048;
 
   let truncatedSrc = src;
   if (src.length > maxTokens * 4) {
@@ -714,13 +745,15 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
     { role: "user" as const, content: truncatedSrc },
   ];
 
+  const isGPT5 = miniModelInstance.modelId === "gpt-5-2025-08-07";
+
   try {
     const { text } = await withTimeout(
       generateText({
         model: miniModelInstance,
-        temperature: 0.6,
+        temperature: isGPT5 ? 1 : 0.6,
         messages,
-        maxTokens: isCritical ? 3000 : 2048,
+        ...(isGPT5 ? { maxCompletionTokens: maxTokens } : { maxTokens }),
         experimental_telemetry: braintrustService.getOperationTelemetry(
           "shadowwiki-file-summary",
           {
@@ -760,18 +793,19 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
   }
 }
 
-// LLM chat function - simplified
 async function chat(
   messages: Array<CoreMessage>,
   budget: number,
   mainModelInstance: LanguageModel
 ): Promise<string> {
+  const isGPT5 = mainModelInstance.modelId === "gpt-5-2025-08-07";
+
   const { text } = await withTimeout(
     generateText({
       model: mainModelInstance,
-      temperature: TEMP,
+      temperature: isGPT5 ? 1 : TEMP,
       messages,
-      maxTokens: budget,
+      ...(isGPT5 ? { maxCompletionTokens: budget } : { maxTokens: budget }),
       experimental_telemetry: braintrustService.getTelemetryConfig({
         operation: "shadowwiki-directory-summary",
         messageCount: messages.length,
@@ -996,7 +1030,6 @@ Use bullet points and fragments. Ultra-concise technical descriptions only.`;
  * Main function to run Shadow Wiki analysis and store in database
  */
 export async function runShadowWiki(
-  repoPath: string,
   taskId: string,
   repoFullName: string,
   repoUrl: string,
@@ -1008,7 +1041,7 @@ export async function runShadowWiki(
     modelMini?: ModelType;
   }
 ): Promise<{ codebaseUnderstandingId: string; stats: ProcessingStats }> {
-  console.log(`[SHADOW-WIKI] Analyzing ${repoPath} for task ${taskId}`);
+  console.log(`[SHADOW-WIKI] Analyzing /workspace for task ${taskId}`);
 
   let context: TaskModelContext;
   if (contextOrApiKeys instanceof TaskModelContext) {
@@ -1063,7 +1096,11 @@ export async function runShadowWiki(
   let consecutiveLLMFailures = 0;
   const MAX_CONSECUTIVE_FAILURES = 5;
 
-  const tree = await buildTree(repoPath, repoFullName);
+  // Create ToolExecutor for file operations (works in both local and remote modes)
+  const workspaceManager = createWorkspaceManager();
+  const executor = await workspaceManager.getExecutor(taskId);
+
+  const tree = await buildTree(executor, repoFullName);
 
   const fileCache: Record<string, string> = {};
   const allFiles: string[] = [];
@@ -1096,7 +1133,7 @@ export async function runShadowWiki(
     const batchTasks = batch.map(async (rel) => {
       try {
         const summary = await summarizeFile(
-          repoPath,
+          executor,
           rel,
           miniModelInstance,
           skipLLM
@@ -1162,7 +1199,7 @@ export async function runShadowWiki(
       node,
       blocks,
       mainModelInstance,
-      repoPath
+      "/workspace" // Use standard workspace path
     );
     stats.directoriesProcessed++;
   }

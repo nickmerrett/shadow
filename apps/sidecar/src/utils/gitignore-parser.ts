@@ -25,10 +25,17 @@ export class GitignoreChecker {
     "*.swo",
   ];
 
-  constructor(workspacePath: string) {
+  constructor(workspacePath: string, gitignoreContent?: string) {
     this.workspacePath = workspacePath;
     this.ignoreFilter = ignore().add(GitignoreChecker.DEFAULT_PATTERNS);
-    this.loadGitignoreFile();
+    
+    if (gitignoreContent !== undefined) {
+      // Use provided gitignore content (remote mode)
+      this.ignoreFilter.add(gitignoreContent);
+    } else {
+      // Read .gitignore file from filesystem (local mode)
+      this.loadGitignoreFile();
+    }
   }
 
   private loadGitignoreFile(): void {
@@ -90,4 +97,21 @@ export function createGitignoreChecker(
   workspacePath: string
 ): GitignoreChecker {
   return new GitignoreChecker(workspacePath);
+}
+
+/**
+ * Create GitignoreChecker by reading .gitignore content via file operations (remote mode)
+ */
+export async function createGitignoreCheckerWithContent(
+  workspacePath: string,
+  readFile: (path: string) => Promise<{ success: boolean; content?: string }>
+): Promise<GitignoreChecker> {
+  try {
+    const gitignoreResult = await readFile(".gitignore");
+    const gitignoreContent = gitignoreResult.success ? gitignoreResult.content || "" : "";
+    return new GitignoreChecker(workspacePath, gitignoreContent);
+  } catch (error) {
+    console.warn(`Warning: Could not read .gitignore: ${error}`);
+    return new GitignoreChecker(workspacePath, "");
+  }
 }
