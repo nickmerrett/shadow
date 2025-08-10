@@ -1415,7 +1415,7 @@ export async function runShadowWiki(
   }
 
   // Add representative files from each directory
-  for (const [dir, files] of filesByDirectory.entries()) {
+  for (const [, files] of filesByDirectory.entries()) {
     if (files.length > 3) {
       // Only sample if directory has many files
       const representatives = selectRepresentativeFiles(files, 2);
