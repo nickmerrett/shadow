@@ -68,7 +68,7 @@ export function ModelSelector({
             >
               <span>
                 {selectedModel
-                  ? ModelInfos[selectedModel].name
+                  ? (ModelInfos[selectedModel]?.name ?? String(selectedModel))
                   : "No Model Selected"}
               </span>
             </Button>

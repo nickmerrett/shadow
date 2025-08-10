@@ -55,7 +55,8 @@ export class StreamProcessor {
 
       const modelProvider = getModelProvider(model);
       const isAnthropicModel = modelProvider === "anthropic";
-      const isGPT5 = model === AvailableModels.GPT_5;
+      const isGPT5Family =
+        model === AvailableModels.GPT_5 || model === AvailableModels.GPT_5_MINI;
 
       let finalMessages: CoreMessage[];
       if (isAnthropicModel) {
@@ -88,7 +89,7 @@ export class StreamProcessor {
             budgetTokens: 12000,
           },
         },
-        ...(isGPT5
+        ...(isGPT5Family
           ? {
               openai: {
                 reasoningEffort: "high",
@@ -101,7 +102,7 @@ export class StreamProcessor {
         model: modelInstance,
         ...(isAnthropicModel ? {} : { system: systemPrompt }),
         messages: finalMessages,
-        temperature: isGPT5 ? 1 : 0.7,
+        temperature: isGPT5Family ? 1 : 0.7,
         maxSteps: MAX_STEPS,
         providerOptions: reasoningProviderOptions,
         ...(isAnthropicModel && {
@@ -120,7 +121,7 @@ export class StreamProcessor {
             enableTools,
             messageCount: finalMessages.length,
             maxSteps: MAX_STEPS,
-            temperature: isGPT5 ? 1 : 0.7,
+            temperature: isGPT5Family ? 1 : 0.7,
             hasWorkspace: !!workspacePath,
             hasTools: enableTools && !!tools,
             isAnthropicModel,

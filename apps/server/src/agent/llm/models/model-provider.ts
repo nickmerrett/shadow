@@ -65,6 +65,7 @@ export class ModelProvider {
             },
           });
           const model = openrouterClient.chat(modelId);
+
           console.log(`[MODEL_PROVIDER] Created OpenRouter model: ${modelId}`);
           return model;
         } catch (error) {
