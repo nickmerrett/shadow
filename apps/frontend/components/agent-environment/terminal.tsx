@@ -10,7 +10,7 @@ import { useParams } from "next/navigation";
 import type { TerminalEntry } from "@repo/types";
 import { useAgentEnvironment } from "./agent-environment-context";
 import { Button } from "../ui/button";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export default function Terminal({
@@ -27,11 +27,8 @@ export default function Terminal({
   const taskId = params?.taskId as string;
 
   // Use our hook architecture but with enhanced terminal functionality
-  const {
-    terminalEntries,
-    isTerminalConnected,
-    clearTerminal: _clearTerminal,
-  } = useTerminalSocket(taskId);
+  const { terminalEntries, clearTerminal: _clearTerminal } =
+    useTerminalSocket(taskId);
 
   // Get terminal resize trigger from context
   const { terminalResizeTrigger } = useAgentEnvironment();
