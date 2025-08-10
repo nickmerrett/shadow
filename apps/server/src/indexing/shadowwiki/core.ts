@@ -4,6 +4,7 @@ import Parser from "tree-sitter";
 import JavaScript from "tree-sitter-javascript";
 import { CodebaseUnderstandingStorage } from "./db-storage";
 import TS from "tree-sitter-typescript";
+const Python = require("tree-sitter-python");
 import { ModelProvider } from "@/agent/llm/models/model-provider";
 import { ModelType, ApiKeys } from "@repo/types";
 import { CoreMessage, generateText, LanguageModel } from "ai";
@@ -62,13 +63,15 @@ interface Symbols {
   imports: Set<string>;
 }
 
-// Tree-sitter setup - simplified to just JS/TS
+// Tree-sitter setup - JS/TS/Python only
 const parserJS = new Parser();
 parserJS.setLanguage(JavaScript as any);
 const parserTS = new Parser();
 parserTS.setLanguage(TS.typescript as any);
 const parserTSX = new Parser();
 parserTSX.setLanguage(TS.tsx as any);
+const parserPython = new Parser();
+parserPython.setLanguage(Python as any);
 
 const LANGUAGES = {
   js: {
@@ -112,9 +115,41 @@ const LANGUAGES = {
       `(import_statement source: (string) @import.source)`
     ),
   },
+  python: {
+    parser: parserPython,
+    extensions: [".py", ".pyx", ".pyi"],
+    queryDefs: new Parser.Query(
+      Python as any,
+      `
+      (function_definition name: (identifier) @def.name)
+      (class_definition name: (identifier) @def.name)
+      `
+    ),
+    queryImports: new Parser.Query(
+      Python as any,
+      `(import_statement name: (dotted_name) @import.name)`
+    ),
+  },
 };
 
 const sha1 = (data: string) => createHash("sha1").update(data).digest("hex");
+
+// Simple timeout utility for tree-sitter parsing
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  operation: string
+): Promise<T> {
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    setTimeout(() => {
+      reject(
+        new Error(`Operation '${operation}' timed out after ${timeoutMs}ms`)
+      );
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]);
+}
 
 // Check if a file is critical and should always be analyzed
 function isCriticalFile(filePath: string): boolean {
@@ -241,7 +276,11 @@ async function extractSymbols(
   }
 
   try {
-    const tree = langSpec.parser.parse(src);
+    const tree = await withTimeout(
+      Promise.resolve(langSpec.parser.parse(src)),
+      5000,
+      `Symbol extraction parsing of ${filePath}`
+    );
 
     if (!tree || !tree.rootNode) {
       return emptySymbols;
@@ -723,15 +762,7 @@ async function summarizeFile(
   }
 
   const fileExt = path.extname(rel).toLowerCase();
-  const dataFileExtensions = [
-    ".json",
-    ".yaml",
-    ".yml",
-    ".md",
-    ".txt",
-    ".csv",
-    ".xml",
-  ];
+  const dataFileExtensions = [".yaml", ".yml", ".md", ".txt", ".csv", ".xml"];
   const isDataFile = dataFileExtensions.includes(fileExt);
 
   if (isDataFile && src.trim().length > 0) {
@@ -748,7 +779,8 @@ async function summarizeFile(
     return null;
   }
 
-  let langSpec = LANGUAGES.js;
+  // Only use tree-sitter for supported languages
+  let langSpec = null;
   for (const [_key, lang] of Object.entries(LANGUAGES)) {
     if (lang.extensions.includes(fileExt)) {
       langSpec = lang;
@@ -756,7 +788,9 @@ async function summarizeFile(
     }
   }
 
-  const symbols = await extractSymbols(src, langSpec, rel);
+  const symbols = langSpec 
+    ? await extractSymbols(src, langSpec, rel)
+    : { defs: new Set<string>(), calls: new Set<string>(), imports: new Set<string>() };
   const needsDeepAnalysis = analyzeFileComplexity(symbols, src.length);
 
   if (needsDeepAnalysis && !skipLLM) {
@@ -791,7 +825,7 @@ async function analyzeFileWithLLM(
     return null;
   }
 
-  const maxTokens = isCritical ? 400 : isDataFile ? 200 : 200;
+  const maxTokens = isCritical ? 800 : isDataFile ? 400 : 400;
 
   let truncatedSrc = src;
   if (src.length > maxTokens * 4) {
