@@ -28,11 +28,10 @@ import { useAgentEnvironment } from "@/components/agent-environment/agent-enviro
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
-import { Card, CardContent } from "../ui/card";
+import { Card } from "../ui/card";
 import { GithubLogo } from "../graphics/github/github-logo";
 import { useCreatePR } from "@/hooks/use-create-pr";
 import { useTaskSocketContext } from "@/contexts/task-socket-context";
-import { StreamingStatus } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
 import { useIndexingStatus } from "@/hooks/use-indexing-status";
 import { useQueryClient } from "@tanstack/react-query";
@@ -109,7 +108,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
   const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
-  const { streamingStatus, autoPRStatus } = useTaskSocketContext();
+  const { isStreaming, autoPRStatus } = useTaskSocketContext();
   const createPRMutation = useCreatePR();
   const queryClient = useQueryClient();
 
@@ -186,9 +185,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   const showCreatePR = !task?.pullRequestNumber && fileChanges.length > 0;
   const isAutoPRInProgress = autoPRStatus?.status === "in-progress";
   const isCreatePRDisabled =
-    streamingStatus !== StreamingStatus.IDLE ||
-    createPRMutation.isPending ||
-    isAutoPRInProgress;
+    isStreaming || createPRMutation.isPending || isAutoPRInProgress;
 
   // Indexing button state logic
   const isIndexing = indexingStatus?.status === "indexing";

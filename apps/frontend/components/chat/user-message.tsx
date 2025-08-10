@@ -10,7 +10,6 @@ import { useEditMessageId } from "@/hooks/use-edit-message-id";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { useEditMessage } from "@/hooks/use-edit-message";
-import { type StreamingStatusSetter } from "@/lib/constants";
 
 const MAX_CONTENT_HEIGHT = 128;
 
@@ -21,7 +20,6 @@ export function UserMessage({
   isFirstMessage,
   disableEditing,
   userMessageWrapperRef,
-  setStreamingStatus,
 }: {
   taskId: string;
   message: Message;
@@ -29,11 +27,10 @@ export function UserMessage({
   className?: string;
   disableEditing: boolean;
   userMessageWrapperRef: React.RefObject<HTMLButtonElement | null>;
-  setStreamingStatus?: StreamingStatusSetter;
 }) {
   const queryClient = useQueryClient();
   const { data: editMessageId } = useEditMessageId(taskId);
-  const editMessageMutation = useEditMessage(setStreamingStatus);
+  const editMessageMutation = useEditMessage();
   const isEditing = useMemo(
     () => editMessageId === message.id,
     [editMessageId, message.id]

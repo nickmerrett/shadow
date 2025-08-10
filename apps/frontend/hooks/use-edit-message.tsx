@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { useSocket } from "./socket/use-socket";
 import { Message, ModelType } from "@repo/types";
-import { StreamingStatus, type StreamingStatusSetter } from "@/lib/constants";
+import { useTaskSocketContext } from "./socket";
 
 interface EditMessageParams {
   taskId: string;
@@ -14,9 +14,10 @@ interface EditMessageParams {
   newModel: ModelType;
 }
 
-export function useEditMessage(setStreamingStatus?: StreamingStatusSetter) {
+export function useEditMessage() {
   const queryClient = useQueryClient();
   const { socket } = useSocket();
+  const { setIsStreaming } = useTaskSocketContext();
 
   return useMutation({
     mutationFn: async ({
@@ -25,7 +26,7 @@ export function useEditMessage(setStreamingStatus?: StreamingStatusSetter) {
       newContent,
       newModel,
     }: EditMessageParams) => {
-      setStreamingStatus?.(StreamingStatus.PENDING);
+      setIsStreaming?.(true);
 
       socket?.emit("edit-user-message", {
         taskId,

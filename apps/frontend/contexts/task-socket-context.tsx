@@ -6,14 +6,12 @@ import type {
   AssistantMessagePart, 
   AutoPRStatusEvent 
 } from "@repo/types";
-import type { StreamingStatus } from "@/lib/constants";
-
 interface TaskSocketContextValue {
   isConnected: boolean;
   streamingPartsMap: Map<string, AssistantMessagePart>;
   streamingPartsOrder: string[];
-  streamingStatus: StreamingStatus;
-  setStreamingStatus: (status: StreamingStatus) => void;
+  isStreaming: boolean;
+  setIsStreaming: (isStreaming: boolean) => void;
   autoPRStatus: AutoPRStatusEvent | null;
   sendMessage: (message: string, model: string, queue?: boolean) => void;
   stopStream: () => void;

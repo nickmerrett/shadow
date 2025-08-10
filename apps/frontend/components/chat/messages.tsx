@@ -5,7 +5,6 @@ import { UserMessage } from "./user-message";
 import InitializingAnimation from "../task/initializing-animation";
 import { useMemo, memo, useRef, useEffect, useState } from "react";
 import { StackedPRCard } from "./stacked-pr-card";
-import { StreamingStatus } from "@/lib/constants";
 
 function GeneratingMessage() {
   const [dots, setDots] = useState(0);
@@ -71,14 +70,12 @@ function MessagesComponent({
   taskId,
   messages,
   disableEditing,
-  streamingStatus,
-  setStreamingStatus,
+  isStreamPending,
 }: {
   taskId: string;
   messages: Message[];
   disableEditing: boolean;
-  streamingStatus?: string;
-  setStreamingStatus?: (status: StreamingStatus) => void;
+  isStreamPending: boolean;
 }) {
   // Used to properly space the initializing animation
   const userMessageWrapperRef = useRef<HTMLButtonElement>(null);
@@ -94,48 +91,54 @@ function MessagesComponent({
         userMessageWrapperRef={userMessageWrapperRef}
       />
 
-      {messageGroups.map((messageGroup, groupIndex) => (
-        <div className="flex flex-col gap-6" key={groupIndex}>
-          {messageGroup.map((message) => {
-            if (isUserMessage(message)) {
-              if (message.stackedTask) {
+      {messageGroups.map((messageGroup, groupIndex) => {
+        const isLastGroup = groupIndex === messageGroups.length - 1;
+        const lastMessage = messageGroup[messageGroup.length - 1];
+        const endsWithUserMessage = lastMessage && isUserMessage(lastMessage);
+        const shouldShowGenerating =
+          isLastGroup && endsWithUserMessage && isStreamPending;
+
+        return (
+          <div className="flex flex-col gap-6" key={groupIndex}>
+            {messageGroup.map((message) => {
+              if (isUserMessage(message)) {
+                if (message.stackedTask) {
+                  return (
+                    <StackedPRCard
+                      key={message.id}
+                      stackedTask={message.stackedTask}
+                    />
+                  );
+                }
+
                 return (
-                  <StackedPRCard
+                  <UserMessage
                     key={message.id}
-                    stackedTask={message.stackedTask}
+                    taskId={taskId}
+                    message={message}
+                    isFirstMessage={groupIndex === 0}
+                    disableEditing={disableEditing}
+                    userMessageWrapperRef={userMessageWrapperRef}
                   />
                 );
               }
+              if (isAssistantMessage(message)) {
+                return (
+                  <AssistantMessage
+                    key={message.id}
+                    message={message}
+                    taskId={taskId}
+                  />
+                );
+              }
+              return null;
+            })}
 
-              return (
-                <UserMessage
-                  key={message.id}
-                  taskId={taskId}
-                  message={message}
-                  isFirstMessage={groupIndex === 0}
-                  disableEditing={disableEditing}
-                  userMessageWrapperRef={userMessageWrapperRef}
-                  setStreamingStatus={setStreamingStatus}
-                />
-              );
-            }
-            if (isAssistantMessage(message)) {
-              return (
-                <AssistantMessage
-                  key={message.id}
-                  message={message}
-                  taskId={taskId}
-                />
-              );
-            }
-            return null;
-          })}
-
-          {/* Show 'Generating...' when waiting for first token */}
-          {streamingStatus === StreamingStatus.PENDING &&
-            groupIndex === messageGroups.length - 1 && <GeneratingMessage />}
-        </div>
-      ))}
+            {/* Show GeneratingMessage when task is RUNNING but no streaming content exists */}
+            {shouldShowGenerating && <GeneratingMessage />}
+          </div>
+        );
+      })}
     </div>
   );
 }
