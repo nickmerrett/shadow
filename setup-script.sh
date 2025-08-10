@@ -107,7 +107,7 @@ main() {
 
     # Optional: Force GitHub App for frontend
     echo "Defaulting FORCE_GITHUB_APP to false. Only set to true if you would like to create your own GitHub App."
-    NEXT_PUBLIC_FORCE_GITHUB_APP=$"false"
+    NEXT_PUBLIC_FORCE_GITHUB_APP="false"
 
     # Create server .env.test file
     echo -e "\n${GREEN}Creating server .env.test file...${NC}"
