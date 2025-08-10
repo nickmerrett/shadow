@@ -12,6 +12,7 @@ import {
   ModelInfos,
   ModelType,
 } from "@repo/types";
+import { ValidationResult } from "@/lib/types/validation";
 import { auth } from "@/lib/auth/auth";
 import { getUserSettings } from "@/lib/db-operations/user-settings";
 
@@ -131,7 +132,7 @@ export async function getApiKeyValidation(): Promise<ApiKeyValidation> {
 
 export async function saveApiKeyValidation(
   provider: ApiKeyProvider,
-  validation: any
+  validation: ValidationResult | null
 ) {
   const cookieStore = await cookies();
   const cookieName = `${provider}-validation`;

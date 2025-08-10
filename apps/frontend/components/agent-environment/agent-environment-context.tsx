@@ -127,10 +127,12 @@ export function AgentEnvironmentProvider({
     }),
     [
       selectedFilePath,
+      selectedFileWithContent,
       updateSelectedFilePath,
       fileContentQuery.isLoading,
       fileContentQuery.error?.message,
       rightPanelRef,
+      lastPanelSizeRef,
       expandRightPanel,
       triggerTerminalResize,
       terminalResizeTrigger,

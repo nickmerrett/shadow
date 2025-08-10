@@ -6,7 +6,7 @@ import { CodebaseUnderstandingStorage } from "./db-storage";
 import TS from "tree-sitter-typescript";
 const Python = require("tree-sitter-python");
 import { ModelProvider } from "@/agent/llm/models/model-provider";
-import { ModelType, ApiKeys } from "@repo/types";
+import { ModelType, ApiKeys, AvailableModels } from "@repo/types";
 import { CoreMessage, generateText, LanguageModel } from "ai";
 import { TaskModelContext } from "@/services/task-model-context";
 import { braintrustService } from "../../agent/llm/observability/braintrust-service";

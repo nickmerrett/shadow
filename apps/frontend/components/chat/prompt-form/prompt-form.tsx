@@ -37,6 +37,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
 import { QueuedAction } from "../messages/queued-message";
 import { ModelSelector } from "./model-selector";
 import { generateIssuePrompt } from "@/lib/github/issue-prompt";
+import { useSelectedModel } from "@/hooks/chat/use-selected-model";
 
 export function PromptForm({
   onSubmit,
@@ -78,9 +79,16 @@ export function PromptForm({
 
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { data: querySelectedModel } = useSelectedModel();
   const [selectedModel, setSelectedModel] = useState<ModelType | null>(
     initialSelectedModel ?? null
   );
+
+  useEffect(() => {
+    if (isHome) {
+      setSelectedModel(querySelectedModel ?? null);
+    }
+  }, [isHome, querySelectedModel]);
 
   const [repo, setRepo] = useState<Repository | null>(
     initialGitCookieState?.repo || null

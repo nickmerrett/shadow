@@ -1,10 +1,5 @@
 import { ApiKeyProvider } from "@repo/types";
-
-export interface ValidationResult {
-  isValid: boolean;
-  error?: string;
-  latencyMs: number;
-}
+import { ValidationResult } from "./types/validation";
 
 export class ApiKeyValidator {
   /**

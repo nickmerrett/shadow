@@ -482,6 +482,7 @@ export function createSocketServer(
           userId: parentTask.userId,
           queue: data.queue || false,
           socket: socket,
+          newTaskId: data.newTaskId,
         });
       } catch (error) {
         console.error("Error creating stacked PR:", error);

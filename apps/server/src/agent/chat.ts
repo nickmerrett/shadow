@@ -64,6 +64,7 @@ type QueuedStackedPRAction = {
     model: ModelType;
     userId: string;
     socket: TypedSocket;
+    newTaskId?: string;
   };
 };
 
@@ -1376,6 +1377,7 @@ These are specific instructions from the user that should be followed throughout
       message: data.message,
       model: data.model,
       userId: data.userId,
+      newTaskId: data.newTaskId,
     });
   }
 
@@ -1536,6 +1538,7 @@ These are specific instructions from the user that should be followed throughout
     userId,
     queue,
     socket,
+    newTaskId,
   }: {
     parentTaskId: string;
     message: string;
@@ -1543,6 +1546,7 @@ These are specific instructions from the user that should be followed throughout
     userId: string;
     queue: boolean;
     socket: TypedSocket;
+    newTaskId?: string;
   }): Promise<void> {
     try {
       // If there's an active stream and queue is true, queue the stacked PR
@@ -1555,6 +1559,7 @@ These are specific instructions from the user that should be followed throughout
             model,
             userId,
             socket,
+            newTaskId,
           },
         });
         return;
@@ -1566,6 +1571,7 @@ These are specific instructions from the user that should be followed throughout
         message,
         model,
         userId,
+        newTaskId,
       });
     } catch (error) {
       console.error(`[CHAT] Error creating stacked PR:`, error);
@@ -1583,11 +1589,13 @@ These are specific instructions from the user that should be followed throughout
     message,
     model,
     userId,
+    newTaskId,
   }: {
     parentTaskId: string;
     message: string;
     model: ModelType;
     userId: string;
+    newTaskId?: string;
   }): Promise<void> {
     try {
       // Get parent task details
@@ -1609,20 +1617,20 @@ These are specific instructions from the user that should be followed throughout
         throw new Error("Unauthorized to create stacked task");
       }
 
-      const newTaskId = generateTaskId();
+      const taskId = newTaskId || generateTaskId();
 
       const parentContext =
         await modelContextService.getContextForTask(parentTaskId);
 
       // Create TaskModelContext for title generation
       const context = await modelContextService.copyContext(
-        newTaskId,
+        taskId,
         parentContext!
       );
 
       // Generate title and branch for the new task
       const { title, shadowBranch } = await generateTaskTitleAndBranch(
-        newTaskId,
+        taskId,
         message,
         context
       );
@@ -1630,7 +1638,7 @@ These are specific instructions from the user that should be followed throughout
       // Create the new stacked task
       await prisma.task.create({
         data: {
-          id: newTaskId,
+          id: taskId,
           title,
           repoFullName: parentTask.repoFullName,
           repoUrl: parentTask.repoUrl,
@@ -1662,14 +1670,14 @@ These are specific instructions from the user that should be followed throughout
           role: MessageRole.USER,
           llmModel: model,
           taskId: parentTaskId,
-          stackedTaskId: newTaskId,
+          stackedTaskId: taskId,
           sequence: parentNextSequence,
         },
       });
 
       // Trigger task initialization (similar to the backend initiate endpoint)
       await this.initializeStackedTask(
-        newTaskId,
+        taskId,
         message,
         model,
         userId,
@@ -1684,6 +1692,7 @@ These are specific instructions from the user that should be followed throughout
         model,
         shadowBranch,
         title,
+        newTaskId: taskId,
       });
     } catch (error) {
       console.error(`[CHAT] Error in _createStackedTaskInternal:`, error);

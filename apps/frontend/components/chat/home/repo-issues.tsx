@@ -145,7 +145,7 @@ function IssuesContent({
                 )}
                 style={{ "--issue-index": index + 1 } as React.CSSProperties}
               >
-                <div className="flex flex-1 items-center gap-2 overflow-hidden">
+                <div className="flex flex-1 items-center gap-1.5 overflow-hidden">
                   <div className="text-foreground truncate">{issue.title}</div>
 
                   <Circle className="fill-muted-foreground size-1 opacity-50" />

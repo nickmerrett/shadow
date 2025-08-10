@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { extractStreamingArgs } from "@/lib/streaming-args";
 import { useStreamingPartsMap } from "./use-streaming-parts-map";
 import { useQueryClient } from "@tanstack/react-query";
+import { generateTaskId } from "@repo/types";
 import type {
   AssistantMessagePart,
   Message,
@@ -843,6 +844,7 @@ export function useTaskSocket(taskId: string | undefined) {
       model: ModelType;
       shadowBranch?: string;
       title?: string;
+      newTaskId?: string;
     }) {
       if (data.taskId === taskId) {
         console.log(`[TASK_SOCKET] Processing queued ${data.type}:`, data);
@@ -858,7 +860,7 @@ export function useTaskSocket(taskId: string | undefined) {
           ...(data.type === "stacked-pr" &&
             data.shadowBranch && {
               stackedTask: {
-                id: "temp",
+                id: data.newTaskId || "temp",
                 title: data.title || data.message.trim(),
                 shadowBranch: data.shadowBranch,
               },
@@ -1054,11 +1056,14 @@ export function useTaskSocket(taskId: string | undefined) {
     (message: string, model: string, queue: boolean = false) => {
       if (!socket || !taskId || !message.trim()) return;
 
+      const newTaskId = generateTaskId();
+      
       socket.emit("create-stacked-pr", {
         taskId,
         message: message.trim(),
         llmModel: model as ModelType,
         queue,
+        newTaskId,
       });
     },
     [socket, taskId]

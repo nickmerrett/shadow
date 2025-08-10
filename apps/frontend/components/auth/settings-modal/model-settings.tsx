@@ -29,8 +29,15 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useDebounceCallbackWithCancel } from "@/lib/debounce";
 import { useQueryClient } from "@tanstack/react-query";
-import { ApiKeyProvider } from "@repo/types";
+import {
+  ApiKeyProvider,
+  getProviderDefaultModel,
+  getModelProvider,
+} from "@repo/types";
 import { useModal } from "@/components/layout/modal-context";
+import { getModelSelectorCookie } from "@/lib/actions/model-selector-cookie";
+import { useSetSelectedModel } from "@/hooks/chat/use-selected-model";
+import { getValidationResult } from "@/lib/types/validation";
 
 export function ModelSettings() {
   const { data: apiKeys, isLoading: isLoadingApiKeys } = useApiKeys();
@@ -41,6 +48,7 @@ export function ModelSettings() {
   const saveValidationMutation = useSaveApiKeyValidation();
   const queryClient = useQueryClient();
   const { openProviderConfig } = useModal();
+  const setSelectedModelMutation = useSetSelectedModel();
 
   const [openaiInput, setOpenaiInput] = useState(apiKeys?.openai ?? "");
   const [anthropicInput, setAnthropicInput] = useState(
@@ -116,6 +124,13 @@ export function ModelSettings() {
       return;
     }
 
+    // Detect if this will be a 0→1 API key transition
+    const currentKeyCount = Object.values(apiKeys || {}).filter((k) =>
+      k?.trim()
+    ).length;
+    const hadKeyBefore = !!apiKeys?.[provider]?.trim();
+    const isFirstApiKey = currentKeyCount === 0 && key.trim() && !hadKeyBefore;
+
     try {
       await saveApiKeyMutation.mutateAsync({ provider, key });
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
@@ -150,11 +165,21 @@ export function ModelSettings() {
 
           // Show toast notification for individual validation
           if (results.individualVerification) {
-            const validationResult = results[provider] as any;
+            const validationResult = getValidationResult(results, provider);
             if (validationResult?.isValid) {
               toast.success(
                 `${provider.charAt(0).toUpperCase() + provider.slice(1)} API key validated successfully!`
               );
+
+              // Auto-select first model if this was the user's first API key
+              if (isFirstApiKey) {
+                try {
+                  const firstModel = getProviderDefaultModel(provider);
+                  await setSelectedModelMutation.mutateAsync(firstModel);
+                } catch (error) {
+                  console.error("Failed to auto-select model:", error);
+                }
+              }
             } else {
               toast.error(
                 `${provider.charAt(0).toUpperCase() + provider.slice(1)} API key validation failed: ${validationResult?.error || "Unknown error"}`
@@ -235,6 +260,16 @@ export function ModelSettings() {
 
   const handleClearApiKey = async (provider: ApiKeyProvider) => {
     try {
+      // Check if currently selected model belongs to this provider and clear it if so
+      try {
+        const currentModel = await getModelSelectorCookie();
+        if (currentModel && getModelProvider(currentModel) === provider) {
+          await setSelectedModelMutation.mutateAsync(null);
+        }
+      } catch (error) {
+        console.error("Failed to check/clear model selector cookie:", error);
+      }
+
       await clearApiKeyMutation.mutateAsync(provider);
       if (provider === "openai") {
         setOpenaiInput("");

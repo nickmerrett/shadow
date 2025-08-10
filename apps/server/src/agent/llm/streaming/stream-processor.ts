@@ -7,6 +7,7 @@ import {
   getModelProvider,
   toCoreMessage,
   ApiKeys,
+  AvailableModels,
 } from "@repo/types";
 import {
   CoreMessage,
@@ -54,7 +55,7 @@ export class StreamProcessor {
 
       const modelProvider = getModelProvider(model);
       const isAnthropicModel = modelProvider === "anthropic";
-      const isGPT5 = model === "gpt-5-2025-08-07";
+      const isGPT5 = model === AvailableModels.GPT_5;
 
       let finalMessages: CoreMessage[];
       if (isAnthropicModel) {

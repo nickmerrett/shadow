@@ -1,13 +1,9 @@
 import { getUser } from "@/lib/auth/get-user";
 import { NextRequest, NextResponse } from "next/server";
 import { getApiKeys } from "@/lib/actions/api-keys";
-import { ApiKeyValidator, ValidationResult } from "@/lib/api-key-validator";
+import { ApiKeyValidator } from "@/lib/api-key-validator";
 import { ApiKeyProvider } from "@repo/types";
-
-export interface ValidationResults {
-  individualVerification: boolean;
-  [provider: string]: ValidationResult | boolean;
-}
+import { ValidationResult, ValidationResults } from "@/lib/types/validation";
 
 export async function POST(request: NextRequest) {
   try {

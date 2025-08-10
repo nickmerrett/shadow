@@ -3,7 +3,7 @@
 import { patchMonacoWithShiki } from "@/lib/editor/highlighter";
 import { AlertTriangle, ChevronRight, Info } from "lucide-react";
 import dynamic from "next/dynamic";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState, memo, useMemo } from "react";
 import { getLanguageFromPath } from "@repo/types";
 import { LogoHover } from "../graphics/logo/logo-hover";
 import { SHADOW_WIKI_PATH } from "@/lib/constants";
@@ -21,7 +21,7 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ),
 });
 
-export function Editor({
+function EditorComponent({
   selectedFilePath,
   selectedFileContent,
   isLoadingContent,
@@ -50,7 +50,7 @@ export function Editor({
     });
   }, []);
 
-  const filePathHeader = (
+  const filePathHeader = useMemo(() => (
     <div className="text-muted-foreground flex items-center gap-0.5 px-5 pb-1 pt-2 text-[13px]">
       {selectedFilePath === SHADOW_WIKI_PATH ? (
         <div className="text-muted-foreground flex items-center gap-2">
@@ -78,7 +78,7 @@ export function Editor({
         ))
       )}
     </div>
-  );
+  ), [selectedFilePath]);
 
   return (
     <div className="bg-background flex size-full flex-col">
@@ -138,3 +138,12 @@ export function Editor({
     </div>
   );
 }
+
+export const Editor = memo(EditorComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.selectedFilePath === nextProps.selectedFilePath &&
+    prevProps.selectedFileContent === nextProps.selectedFileContent &&
+    prevProps.isLoadingContent === nextProps.isLoadingContent &&
+    prevProps.contentError === nextProps.contentError
+  );
+});

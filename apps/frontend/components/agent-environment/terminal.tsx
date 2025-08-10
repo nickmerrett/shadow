@@ -4,7 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as XTerm } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import "./terminal.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, memo, useCallback } from "react";
 import { useTerminalSocket } from "@/hooks/socket";
 import { useParams } from "next/navigation";
 import type { TerminalEntry } from "@repo/types";
@@ -13,7 +13,7 @@ import { Button } from "../ui/button";
 import { ChevronDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
-export default function Terminal({
+function TerminalComponent({
   handleCollapse,
 }: {
   handleCollapse: () => void;
@@ -34,7 +34,7 @@ export default function Terminal({
   const { terminalResizeTrigger } = useAgentEnvironment();
 
   // Terminal entry formatting with ANSI colors
-  const writeToTerminal = (entry: TerminalEntry) => {
+  const writeToTerminal = useCallback((entry: TerminalEntry) => {
     const xterm = xtermRef.current;
     if (!xterm) return;
 
@@ -58,7 +58,7 @@ export default function Terminal({
       default:
         xterm.write(entry.data);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -153,7 +153,7 @@ export default function Terminal({
 
       terminalEntries.forEach((entry) => writeToTerminal(entry));
     }
-  }, [terminalEntries]);
+  }, [terminalEntries, writeToTerminal]);
 
   return (
     <div className="bg-background relative flex-1 overflow-hidden">
@@ -178,3 +178,9 @@ export default function Terminal({
     </div>
   );
 }
+
+const Terminal = memo(TerminalComponent, (prevProps, nextProps) => {
+  return prevProps.handleCollapse === nextProps.handleCollapse;
+});
+
+export default Terminal;
