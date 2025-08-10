@@ -6,9 +6,9 @@ import { logger } from "./logger";
 
 // Security validation regexes
 const SAFE_USERNAME_REGEX = /^[a-zA-Z0-9._\-\[\]]+$/;
-const SAFE_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const SAFE_EMAIL_REGEX = /^[a-zA-Z0-9._%+\-\[\]]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const SAFE_BRANCH_REGEX = /^[a-zA-Z0-9._/-]+$/;
-const SAFE_URL_REGEX = /^https:\/\/[a-zA-Z0-9.-]+\/[a-zA-Z0-9._/-]+\.git$/;
+const SAFE_URL_REGEX = /^https:\/\/([a-zA-Z0-9._-]+@)?[a-zA-Z0-9.-]+\/[a-zA-Z0-9._/-]+\.git$/;
 
 // Input length limits
 const MAX_USERNAME_LENGTH = 100;
