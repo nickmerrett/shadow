@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { LayoutGrid, Play, Plus, Settings } from "lucide-react";
+import { Info, LayoutGrid, Play, Plus, Settings } from "lucide-react";
 import Link from "next/link";
 import { SidebarView } from ".";
 import { useModal } from "../layout/modal-context";
@@ -8,11 +8,11 @@ import { Button } from "../ui/button";
 import { useSidebar } from "../ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { statusColorsConfig } from "./status";
-import { useTask } from "@/hooks/tasks/use-task";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { LogoBurst } from "../graphics/logo/logo-burst";
 import { TaskStatus } from "@repo/db";
-import { AboutModal } from "../about-modal";
+import { useTask } from "@/hooks/tasks/use-task";
+import { GithubLogo } from "../graphics/github/github-logo";
 
 const PINGING_STATUSES: TaskStatus[] = ["INITIALIZING", "RUNNING"];
 
@@ -28,7 +28,6 @@ export function SidebarNavigation({
   const { open, toggleSidebar } = useSidebar();
   const { task } = useTask(currentTaskId ?? "");
   const { openSettingsModal } = useModal();
-  const [aboutModalOpen, setAboutModalOpen] = useState(false);
 
   const currentTaskStatus = task?.status;
 
@@ -149,26 +148,32 @@ export function SidebarNavigation({
         </div>
       </div>
       <div className="flex flex-col gap-3">
-        {/* <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="iconSm"
-              variant="ghost"
-              onClick={() => setAboutModalOpen(true)}
-            >
-              <Info />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent lighter side="right">
-            About
-          </TooltipContent>
-        </Tooltip> */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               size="iconSm"
               variant="ghost"
               className="text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+            >
+              <a
+                target="_blank"
+                href="https://github.com/ishaan1013/shadow"
+                rel="noreferrer"
+              >
+                <GithubLogo />
+              </a>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent lighter side="right">
+            Shadow Source Code
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="iconSm"
+              variant="ghost"
+              className="text-muted-foreground hover:text-foreground hover:bg-sidebar-accent mb-2"
               onClick={() => openSettingsModal()}
             >
               <Settings />
@@ -180,7 +185,6 @@ export function SidebarNavigation({
         </Tooltip>
         <UserMenu />
       </div>
-      <AboutModal open={aboutModalOpen} onOpenChange={setAboutModalOpen} />
     </div>
   );
 }
