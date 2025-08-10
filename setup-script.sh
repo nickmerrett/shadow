@@ -74,7 +74,7 @@ main() {
     echo "Get your API key from: https://app.pinecone.io/"
     echo "${YELLOW}Warning:${NC} If not provided, you will not be able to use indexing."
     PINECONE_API_KEY=$(ask "Pinecone API Key")
-    PINECONE_INDEX_NAME=$(ask "Pinecone Index Name " "shadow")
+    PINECONE_INDEX_NAME=$(ask "Pinecone Index Name" "shadow")
 
     # GitHub Credentials
     echo -e "\n${GREEN}GitHub Credentials${NC}"
