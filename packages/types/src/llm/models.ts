@@ -12,6 +12,7 @@ export interface LLMConfig {
 export const AvailableModels = {
   // OpenAI models
   GPT_5: "gpt-5-2025-08-07",
+  GPT_5_MINI: "gpt-5-mini-2025-08-07",
   GPT_4_1: "gpt-4.1",
   GPT_4_1_MINI: "gpt-4.1-mini",
   GPT_4O: "gpt-4o",
@@ -24,9 +25,11 @@ export const AvailableModels = {
 
   // OpenRouter models
   XAI_GROK_3: "x-ai/grok-3",
+  MOONSHOT_KIMI_K2: "moonshotai/kimi-k2",
   MISTRAL_CODESTRAL_2508: "mistralai/codestral-2508",
   DEEPSEEK_R1_0528: "deepseek/deepseek-r1-0528",
   DEEPSEEK_CHAT_V3_0324: "deepseek/deepseek-chat-v3-0324",
+  QWEN_3_CODER: "qwen/qwen3-coder",
   QWEN_3_235B_A22B_2507: "qwen/qwen3-235b-a22b-2507",
 } as const;
 
@@ -65,6 +68,11 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "GPT-4o Mini",
     provider: "openai",
   },
+  [AvailableModels.GPT_5_MINI]: {
+    id: AvailableModels.GPT_5_MINI,
+    name: "GPT-5 Mini",
+    provider: "openai",
+  },
 
   // Anthropic models
   [AvailableModels.CLAUDE_OPUS_4]: {
@@ -90,6 +98,11 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
     name: "Grok 3",
     provider: "openrouter",
   },
+  [AvailableModels.MOONSHOT_KIMI_K2]: {
+    id: AvailableModels.MOONSHOT_KIMI_K2,
+    name: "Kimi K2",
+    provider: "openrouter",
+  },
   [AvailableModels.MISTRAL_CODESTRAL_2508]: {
     id: AvailableModels.MISTRAL_CODESTRAL_2508,
     name: "Codestral 2508",
@@ -103,6 +116,11 @@ export const ModelInfos: Record<ModelType, ModelInfo> = {
   [AvailableModels.DEEPSEEK_CHAT_V3_0324]: {
     id: AvailableModels.DEEPSEEK_CHAT_V3_0324,
     name: "DeepSeek Chat V3 0324",
+    provider: "openrouter",
+  },
+  [AvailableModels.QWEN_3_CODER]: {
+    id: AvailableModels.QWEN_3_CODER,
+    name: "Qwen3 Coder",
     provider: "openrouter",
   },
   [AvailableModels.QWEN_3_235B_A22B_2507]: {
@@ -150,6 +168,7 @@ export async function getAllPossibleModels(
   if (userApiKeys.openai) {
     models.push(
       AvailableModels.GPT_5,
+      AvailableModels.GPT_5_MINI,
       AvailableModels.GPT_4_1,
       AvailableModels.GPT_4O
     );
@@ -158,9 +177,11 @@ export async function getAllPossibleModels(
   if (userApiKeys.openrouter) {
     models.push(
       AvailableModels.XAI_GROK_3,
+      AvailableModels.MOONSHOT_KIMI_K2,
       AvailableModels.MISTRAL_CODESTRAL_2508,
       AvailableModels.DEEPSEEK_R1_0528,
       AvailableModels.DEEPSEEK_CHAT_V3_0324,
+      AvailableModels.QWEN_3_CODER,
       AvailableModels.QWEN_3_235B_A22B_2507
     );
   }
@@ -195,6 +216,7 @@ export async function getDefaultSelectedModels(
   if (userApiKeys.openai) {
     defaultModels.push(
       AvailableModels.GPT_5, // default
+      AvailableModels.GPT_5_MINI, // default
       AvailableModels.GPT_4_1, // default
       AvailableModels.GPT_4O // default
       // AvailableModels.O3, // default
@@ -213,9 +235,11 @@ export async function getDefaultSelectedModels(
     // All OpenRouter models default
     defaultModels.push(
       AvailableModels.XAI_GROK_3,
+      AvailableModels.MOONSHOT_KIMI_K2,
       AvailableModels.MISTRAL_CODESTRAL_2508,
       AvailableModels.DEEPSEEK_R1_0528,
       AvailableModels.DEEPSEEK_CHAT_V3_0324,
+      AvailableModels.QWEN_3_CODER,
       AvailableModels.QWEN_3_235B_A22B_2507
     );
   }
