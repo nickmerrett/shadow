@@ -93,10 +93,8 @@ main() {
         openssl rand -base64 32
     }
     default_secret="$(gen_better_auth_secret)"
-    BETTER_AUTH_SECRET=$(ask "BetterAuth Secret [Optional - we'll generate a random one for you]" "$default_secret")
-    if [ -z "$BETTER_AUTH_SECRET" ]; then
-        BETTER_AUTH_SECRET="$default_secret"
-    fi
+    echo "Generated random BetterAuth secret automatically."
+    BETTER_AUTH_SECRET="$default_secret"
 
     # Local Development
     echo -e "\n${GREEN}Local Development${NC}"
@@ -108,6 +106,9 @@ main() {
     echo -e "\n${GREEN}Server Configuration${NC}"
     echo "****************************************************"
     NEXT_PUBLIC_SERVER_URL=$(ask "Frontend Server URL" "http://localhost:4000")
+
+    # Optional: Force GitHub App for frontend
+    NEXT_PUBLIC_FORCE_GITHUB_APP=$(ask "Force GitHub App for frontend? (true/false)" "false")
 
     # Create server .env.test file
     echo -e "\n${GREEN}Creating server .env.test file...${NC}"
@@ -132,6 +133,7 @@ EOF
     
     cat > "apps/frontend/.env.test" << EOF
 NEXT_PUBLIC_SERVER_URL="${NEXT_PUBLIC_SERVER_URL}"
+NEXT_PUBLIC_FORCE_GITHUB_APP=${NEXT_PUBLIC_FORCE_GITHUB_APP}
 
 BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 
