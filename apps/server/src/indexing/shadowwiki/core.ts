@@ -116,22 +116,6 @@ const LANGUAGES = {
 
 const sha1 = (data: string) => createHash("sha1").update(data).digest("hex");
 
-// Simple timeout utility
-async function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  operation: string
-): Promise<T> {
-  const timeoutPromise = new Promise<T>((_, reject) => {
-    setTimeout(() => {
-      reject(
-        new Error(`Operation '${operation}' timed out after ${timeoutMs}ms`)
-      );
-    }, timeoutMs);
-  });
-
-  return Promise.race([promise, timeoutPromise]);
-}
 
 // Check if a file is critical and should always be analyzed
 function isCriticalFile(filePath: string): boolean {
@@ -258,11 +242,7 @@ async function extractSymbols(
   }
 
   try {
-    const tree = await withTimeout(
-      Promise.resolve(langSpec.parser.parse(src)),
-      5000,
-      `Symbol extraction parsing of ${filePath}`
-    );
+    const tree = langSpec.parser.parse(src);
 
     if (!tree || !tree.rootNode) {
       return emptySymbols;
@@ -293,7 +273,7 @@ async function extractSymbols(
         });
       }
     } catch (_error) {
-      // Skip defs extraction on error  
+      // Skip defs extraction on error
     }
 
     // Extract imports
@@ -465,7 +445,8 @@ async function buildTree(
 
     // Get file stats for skip logic
     const statsResult = await executor.getFileStats(fileEntry.relativePath);
-    const fileSize = statsResult.success && statsResult.stats ? statsResult.stats.size : 0;
+    const fileSize =
+      statsResult.success && statsResult.stats ? statsResult.stats.size : 0;
 
     const { skip } = shouldSkipFile(fileEntry.relativePath, fileSize);
 
@@ -745,32 +726,26 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
     { role: "user" as const, content: truncatedSrc },
   ];
 
-  const isGPT5 = miniModelInstance.modelId === "gpt-5-2025-08-07";
-
   try {
-    const { text } = await withTimeout(
-      generateText({
-        model: miniModelInstance,
-        temperature: isGPT5 ? 1 : 0.6,
-        messages,
-        ...(isGPT5 ? { maxCompletionTokens: maxTokens } : { maxTokens }),
-        experimental_telemetry: braintrustService.getOperationTelemetry(
-          "shadowwiki-file-summary",
-          {
-            filePath: rel,
-            fileExtension: path.extname(rel),
-            isCritical,
-            fileSize: truncatedSrc.length,
-            wasTruncated,
-            hasSymbols:
-              symbols.defs.size + symbols.calls.size + symbols.imports.size > 0,
-            analysisType: "llm-deep-analysis",
-          }
-        ),
-      }),
-      60000,
-      `LLM analysis of ${rel}`
-    );
+    const { text } = await generateText({
+      model: miniModelInstance,
+      temperature: 0.6,
+      messages,
+      maxTokens,
+      experimental_telemetry: braintrustService.getOperationTelemetry(
+        "shadowwiki-file-summary",
+        {
+          filePath: rel,
+          fileExtension: path.extname(rel),
+          isCritical,
+          fileSize: truncatedSrc.length,
+          wasTruncated,
+          hasSymbols:
+            symbols.defs.size + symbols.calls.size + symbols.imports.size > 0,
+          analysisType: "llm-deep-analysis",
+        }
+      ),
+    });
 
     let result = text?.trim() || "_(no response)_";
 
@@ -796,25 +771,19 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
 async function chat(
   messages: Array<CoreMessage>,
   budget: number,
-  mainModelInstance: LanguageModel
+  miniModelInstance: LanguageModel
 ): Promise<string> {
-  const isGPT5 = mainModelInstance.modelId === "gpt-5-2025-08-07";
-
-  const { text } = await withTimeout(
-    generateText({
-      model: mainModelInstance,
-      temperature: isGPT5 ? 1 : TEMP,
-      messages,
-      ...(isGPT5 ? { maxCompletionTokens: budget } : { maxTokens: budget }),
-      experimental_telemetry: braintrustService.getTelemetryConfig({
-        operation: "shadowwiki-directory-summary",
-        messageCount: messages.length,
-        budget,
-      }),
+  const { text } = await generateText({
+    model: miniModelInstance,
+    temperature: TEMP,
+    messages,
+    maxTokens: budget,
+    experimental_telemetry: braintrustService.getTelemetryConfig({
+      operation: "shadowwiki-directory-summary",
+      messageCount: messages.length,
+      budget,
     }),
-    45000,
-    "Directory/root summary generation"
-  );
+  });
 
   return text?.trim() || "_(no response)_";
 }
@@ -920,7 +889,7 @@ function analyzeDirectoryPatterns(node: TreeNode): string {
 async function summarizeDir(
   node: TreeNode,
   childSummaries: string[],
-  mainModelInstance: LanguageModel,
+  miniModelInstance: LanguageModel,
   rootPath?: string
 ): Promise<string> {
   if (!childSummaries || childSummaries.length === 0) {
@@ -947,7 +916,7 @@ async function summarizeDir(
     );
   }
 
-  const budget = Math.min(800, 200 + childSummaries.length * 40);
+  const budget = 500;
   const systemPrompt = `Summarize this code directory. Be ultra-concise.
 
 Include only:
@@ -983,20 +952,20 @@ Use bullet points, fragments, abbreviations. Directory: ${node.relPath}`;
     { role: "user" as const, content: userContent },
   ];
 
-  return chat(messages, budget, mainModelInstance);
+  return chat(messages, budget, miniModelInstance);
 }
 
 // Summarize root - simplified
 async function summarizeRoot(
   node: TreeNode,
   childSummaries: string[],
-  mainModelInstance: LanguageModel
+  miniModelInstance: LanguageModel
 ): Promise<string> {
   if (!childSummaries || childSummaries.length === 0) {
     return `Empty project: ${node.name}`;
   }
 
-  const budget = Math.min(500, 150 + childSummaries.length * 30);
+  const budget = 2000;
   const systemPrompt = `Create a concise architecture overview for ${node.name}.
 
 Include only the most essential:
@@ -1023,7 +992,7 @@ Use bullet points and fragments. Ultra-concise technical descriptions only.`;
     { role: "user" as const, content: userContent },
   ];
 
-  return chat(messages, budget, mainModelInstance);
+  return chat(messages, budget, miniModelInstance);
 }
 
 /**
@@ -1041,9 +1010,13 @@ export async function runShadowWiki(
     modelMini?: ModelType;
   }
 ): Promise<{ codebaseUnderstandingId: string; stats: ProcessingStats }> {
-  console.log(`🔍 [SHADOW-WIKI] Initializing codebase analysis for ${repoFullName}`);
+  console.log(
+    `🔍 [SHADOW-WIKI] Initializing codebase analysis for ${repoFullName}`
+  );
   console.log(`📋 [SHADOW-WIKI] Task ${taskId} - Repository: ${repoUrl}`);
-  console.log(`⚙️ [SHADOW-WIKI] Configuration - Concurrency: ${options.concurrency || 12}`);
+  console.log(
+    `⚙️ [SHADOW-WIKI] Configuration - Concurrency: ${options.concurrency || 12}`
+  );
 
   let context: TaskModelContext;
   if (contextOrApiKeys instanceof TaskModelContext) {
@@ -1076,16 +1049,16 @@ export async function runShadowWiki(
     );
   }
 
-  console.log(`🤖 [SHADOW-WIKI] Model configuration - Main: ${mainModel}, Mini: ${miniModel}`);
-  console.log(`🔑 [SHADOW-WIKI] API validation complete - Provider: ${context.getProvider()}`);
+  console.log(
+    `🤖 [SHADOW-WIKI] Model configuration - Main: ${mainModel}, Mini: ${miniModel}`
+  );
+  console.log(
+    `🔑 [SHADOW-WIKI] API validation complete - Provider: ${context.getProvider()}`
+  );
 
   const modelProvider = new ModelProvider();
   const miniModelInstance = modelProvider.getModel(
     miniModel,
-    context.getApiKeys()
-  );
-  const mainModelInstance = modelProvider.getModel(
-    mainModel,
     context.getApiKeys()
   );
   const stats: ProcessingStats = {
@@ -1098,7 +1071,9 @@ export async function runShadowWiki(
   const MAX_CONSECUTIVE_FAILURES = 5;
 
   // Create ToolExecutor for file operations (works in both local and remote modes)
-  console.log(`🏗️ [SHADOW-WIKI] Initializing workspace manager and file executor`);
+  console.log(
+    `🏗️ [SHADOW-WIKI] Initializing workspace manager and file executor`
+  );
   const workspaceManager = createWorkspaceManager();
   const executor = await workspaceManager.getExecutor(taskId);
 
@@ -1115,14 +1090,18 @@ export async function runShadowWiki(
     }
   }
 
-  console.log(`📁 [SHADOW-WIKI] Discovered ${allFiles.length} files for analysis`);
+  console.log(
+    `📁 [SHADOW-WIKI] Discovered ${allFiles.length} files for analysis`
+  );
 
   // Dynamic batch size based on total files to prevent overwhelming large codebases
   const BATCH_SIZE = Math.max(
     10,
     Math.min(50, Math.ceil(allFiles.length / 50))
   );
-  console.log(`⚡ [SHADOW-WIKI] Optimized batch processing - Batch size: ${BATCH_SIZE}, Total batches: ${Math.ceil(allFiles.length / BATCH_SIZE)}`);
+  console.log(
+    `⚡ [SHADOW-WIKI] Optimized batch processing - Batch size: ${BATCH_SIZE}, Total batches: ${Math.ceil(allFiles.length / BATCH_SIZE)}`
+  );
 
   for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
     const batch = allFiles.slice(i, i + BATCH_SIZE);
@@ -1155,8 +1134,12 @@ export async function runShadowWiki(
     await Promise.all(batchTasks);
     const currentBatch = Math.floor(i / BATCH_SIZE) + 1;
     const totalBatches = Math.ceil(allFiles.length / BATCH_SIZE);
-    const progressPercent = Math.round((stats.filesProcessed / allFiles.length) * 100);
-    console.log(`📊 [SHADOW-WIKI] Batch ${currentBatch}/${totalBatches} complete - Progress: ${stats.filesProcessed}/${allFiles.length} files (${progressPercent}%)`);
+    const progressPercent = Math.round(
+      (stats.filesProcessed / allFiles.length) * 100
+    );
+    console.log(
+      `📊 [SHADOW-WIKI] Batch ${currentBatch}/${totalBatches} complete - Progress: ${stats.filesProcessed}/${allFiles.length} files (${progressPercent}%)`
+    );
 
     if (i + BATCH_SIZE < allFiles.length) {
       // Dynamic delay based on codebase size - smaller for larger codebases
@@ -1166,11 +1149,15 @@ export async function runShadowWiki(
     }
   }
 
-  console.log(`🏗️ [SHADOW-WIKI] File analysis complete - Starting directory summarization phase`);
+  console.log(
+    `🏗️ [SHADOW-WIKI] File analysis complete - Starting directory summarization phase`
+  );
   const nodesByDepth = Object.keys(tree.nodes).sort(
     (a, b) => tree.nodes[b]!.level - tree.nodes[a]!.level
   );
-  console.log(`📂 [SHADOW-WIKI] Processing ${nodesByDepth.length - 1} directories (excluding root)`);
+  console.log(
+    `📂 [SHADOW-WIKI] Processing ${nodesByDepth.length - 1} directories (excluding root)`
+  );
 
   for (const nid of nodesByDepth) {
     if (nid === "root") continue;
@@ -1204,7 +1191,7 @@ export async function runShadowWiki(
     node.summary = await summarizeDir(
       node,
       blocks,
-      mainModelInstance,
+      miniModelInstance,
       "/workspace" // Use standard workspace path
     );
     stats.directoriesProcessed++;
@@ -1217,9 +1204,11 @@ export async function runShadowWiki(
   });
 
   console.log(`🎯 [SHADOW-WIKI] Generating root-level project summary`);
-  root.summary = await summarizeRoot(root, topBlocks, mainModelInstance);
+  root.summary = await summarizeRoot(root, topBlocks, miniModelInstance);
 
-  console.log(`💾 [SHADOW-WIKI] Preparing summary content for database storage`);
+  console.log(
+    `💾 [SHADOW-WIKI] Preparing summary content for database storage`
+  );
   const summaryContent = {
     rootSummary: root.summary,
     structure: tree,
@@ -1240,8 +1229,12 @@ export async function runShadowWiki(
     userId
   );
 
-  console.log(`🎉 [SHADOW-WIKI] Analysis complete! Summary stored with ID: ${codebaseUnderstandingId}`);
-  console.log(`📈 [SHADOW-WIKI] Final statistics - Files: ${stats.filesProcessed}, Directories: ${stats.directoriesProcessed}, Total tokens: ${stats.totalTokens}`);
+  console.log(
+    `🎉 [SHADOW-WIKI] Analysis complete! Summary stored with ID: ${codebaseUnderstandingId}`
+  );
+  console.log(
+    `📈 [SHADOW-WIKI] Final statistics - Files: ${stats.filesProcessed}, Directories: ${stats.directoriesProcessed}, Total tokens: ${stats.totalTokens}`
+  );
 
   return { codebaseUnderstandingId, stats };
 }
