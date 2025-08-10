@@ -31,6 +31,7 @@ type AgentEnvironmentContextType = {
   expandRightPanel: () => void;
   triggerTerminalResize: () => void;
   terminalResizeTrigger: number;
+  openShadowWiki: () => void;
 };
 
 const AgentEnvironmentContext = createContext<
@@ -95,6 +96,11 @@ export function AgentEnvironmentProvider({
     }
   }, [rightPanelRef]);
 
+  const openShadowWiki = useCallback(() => {
+    expandRightPanel();
+    setSelectedFilePath(SHADOW_WIKI_PATH);
+  }, [expandRightPanel]);
+
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const triggerTerminalResize = useCallback(() => {
     if (debounceTimeoutRef.current) {
@@ -117,6 +123,7 @@ export function AgentEnvironmentProvider({
       expandRightPanel,
       triggerTerminalResize,
       terminalResizeTrigger,
+      openShadowWiki,
     }),
     [
       selectedFilePath,
@@ -127,6 +134,7 @@ export function AgentEnvironmentProvider({
       expandRightPanel,
       triggerTerminalResize,
       terminalResizeTrigger,
+      openShadowWiki,
     ]
   );
 

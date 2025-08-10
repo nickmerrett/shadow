@@ -23,7 +23,7 @@ export type SidebarView = "tasks" | "agent";
 
 const sidebarViewLabels = {
   tasks: { label: "Tasks", tooltip: null },
-  agent: { label: "Agent Environment", tooltip: null },
+  agent: { label: "Agent View", tooltip: null },
 };
 
 export function SidebarViews({

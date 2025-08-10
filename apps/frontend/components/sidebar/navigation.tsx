@@ -80,7 +80,7 @@ export function SidebarNavigation({
           </Button>
         </TooltipTrigger>
         <TooltipContent lighter side="right">
-          Agent View
+          Active Agent View
         </TooltipContent>
       </Tooltip>
     </div>
@@ -137,7 +137,7 @@ export function SidebarNavigation({
               </Button>
             </TooltipTrigger>
             <TooltipContent lighter side="right">
-              Active Tasks
+              Tasks
             </TooltipContent>
           </Tooltip>
           <div className="bg-border h-px w-full" />

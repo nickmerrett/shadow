@@ -11,7 +11,7 @@ import { useState, memo, useCallback } from "react";
 import { Editor } from "./editor";
 import { FileExplorer } from "./file-explorer";
 import { Button } from "../ui/button";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, TerminalSquare, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { useCodebaseTree } from "@/hooks/use-codebase-tree";
 import { useAgentEnvironment } from "./agent-environment-context";
@@ -31,7 +31,7 @@ function AgentEnvironment({
   isSheetOverlay?: boolean;
 }) {
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
-  const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(false);
+  const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(true);
 
   const { taskId } = useParams<{ taskId: string }>();
 
@@ -191,7 +191,7 @@ function AgentEnvironment({
             className="h-full"
             onLayout={triggerTerminalResize}
           >
-            <ResizablePanel minSize={20} defaultSize={80}>
+            <ResizablePanel minSize={30} defaultSize={100}>
               <Editor
                 selectedFilePath={selectedFilePath}
                 selectedFileContent={selectedFileWithContent?.content || ""}
@@ -199,12 +199,22 @@ function AgentEnvironment({
                 contentError={contentError}
               />
             </ResizablePanel>
-            {!isTerminalCollapsed && (
+            {isTerminalCollapsed ? (
+              <button
+                onClick={() => setIsTerminalCollapsed(false)}
+                className="text-muted-foreground hover:text-foreground hover:bg-card hover:border-t-sidebar-border flex h-9 w-full cursor-n-resize items-center justify-start gap-2 border-t px-2 text-sm transition-all"
+              >
+                <TerminalSquare className="size-4 opacity-70" />
+                Terminal
+              </button>
+            ) : (
               <>
                 <ResizableHandle className="bg-sidebar-border" />
-                <ResizablePanel minSize={10} defaultSize={20}>
+                <ResizablePanel minSize={20} defaultSize={0}>
                   <div className="bg-background flex h-full flex-col">
-                    <Terminal />
+                    <Terminal
+                      handleCollapse={() => setIsTerminalCollapsed(true)}
+                    />
                   </div>
                 </ResizablePanel>
               </>

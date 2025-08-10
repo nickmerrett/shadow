@@ -8,12 +8,12 @@ import {
 import { useTask } from "@/hooks/use-task";
 import { cn } from "@/lib/utils";
 import {
-  BookOpenText,
   CircleDashed,
   FileDiff,
   Folder,
   FolderGit2,
   GitBranch,
+  BookOpen,
   ListTodo,
   RefreshCcw,
   Square,
@@ -107,7 +107,8 @@ function createFileTree(filePaths: string[]): FileNode[] {
 
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
-  const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
+  const { updateSelectedFilePath, expandRightPanel, openShadowWiki } =
+    useAgentEnvironment();
   const { isStreaming, autoPRStatus } = useTaskSocketContext();
   const createPRMutation = useCreatePR();
   const queryClient = useQueryClient();
@@ -281,15 +282,12 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                   </Link>
                 </DropdownMenuItem>
                 {task.codebaseUnderstandingId && (
-                  <DropdownMenuItem asChild>
-                    <Link
-                      href={`/codebases/${task.codebaseUnderstandingId}`}
-                      target="_blank"
-                      className="hover:bg-sidebar-border!"
-                    >
-                      <BookOpenText className="text-foreground size-4 shrink-0" />
-                      <span>Codebase Wiki</span>
-                    </Link>
+                  <DropdownMenuItem
+                    className="hover:bg-sidebar-border!"
+                    onClick={() => openShadowWiki()}
+                  >
+                    <BookOpen className="text-foreground size-4 shrink-0" />
+                    <span>Shadow Wiki</span>
                   </DropdownMenuItem>
                 )}
                 {userSettings?.enableIndexing && (
