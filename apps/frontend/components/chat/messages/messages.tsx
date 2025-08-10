@@ -1,30 +1,14 @@
 import type { Message } from "@repo/types";
-import { isAssistantMessage, isUserMessage, AvailableModels } from "@repo/types";
+import {
+  isAssistantMessage,
+  isUserMessage,
+  AvailableModels,
+} from "@repo/types";
 import { AssistantMessage } from "./assistant-message";
 import { UserMessage } from "./user-message";
 import InitializingAnimation from "../../task/initializing-animation";
-import { useMemo, memo, useRef, useEffect, useState } from "react";
+import { useMemo, memo, useRef } from "react";
 import { StackedPRCard } from "./stacked-pr-card";
-
-function GeneratingMessage() {
-  const [dots, setDots] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setDots((dots) => (dots % 3) + 1);
-    }, 300);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <div className="text-muted-foreground flex h-7 items-center px-3 text-[13px]">
-      Generating
-      {Array.from({ length: dots }).map((_, i) => (
-        <span key={i}>.</span>
-      ))}
-    </div>
-  );
-}
 
 function groupMessages(messages: Message[]) {
   const messageGroups: Message[][] = [];
@@ -71,11 +55,13 @@ function MessagesComponent({
   messages,
   disableEditing,
   isStreamPending,
+  isStreaming,
 }: {
   taskId: string;
   messages: Message[];
   disableEditing: boolean;
   isStreamPending: boolean;
+  isStreaming: boolean;
 }) {
   // Used to properly space the initializing animation
   const userMessageWrapperRef = useRef<HTMLButtonElement>(null);
@@ -95,14 +81,18 @@ function MessagesComponent({
         const isLastGroup = groupIndex === messageGroups.length - 1;
         const lastMessage = messageGroup[messageGroup.length - 1];
         const endsWithUserMessage = lastMessage && isUserMessage(lastMessage);
-        const endsWithToolResult = lastMessage && 
-          isAssistantMessage(lastMessage) && 
+
+        const endsWithToolResultGPT5 =
+          !!lastMessage &&
+          isAssistantMessage(lastMessage) &&
           lastMessage.llmModel === AvailableModels.GPT_5 &&
-          lastMessage.metadata?.parts &&
+          !!lastMessage.metadata?.parts &&
           lastMessage.metadata.parts.length > 0 &&
-          lastMessage.metadata.parts[lastMessage.metadata.parts.length - 1]?.type === "tool-result";
+          lastMessage.metadata.parts[lastMessage.metadata.parts.length - 1]
+            ?.type === "tool-result";
+
         const shouldShowGenerating =
-          isLastGroup && isStreamPending && (endsWithUserMessage || endsWithToolResult);
+          isLastGroup && endsWithUserMessage && isStreamPending;
 
         return (
           <div className="flex flex-col gap-6" key={groupIndex}>
@@ -134,6 +124,7 @@ function MessagesComponent({
                     key={message.id}
                     message={message}
                     taskId={taskId}
+                    showGenerating={isStreaming && endsWithToolResultGPT5}
                   />
                 );
               }
@@ -141,7 +132,11 @@ function MessagesComponent({
             })}
 
             {/* Show GeneratingMessage when task is RUNNING but no streaming content exists */}
-            {shouldShowGenerating && <GeneratingMessage />}
+            {shouldShowGenerating && (
+              <div className="shimmer flex h-7 w-fit items-center px-3 text-[13px]">
+                Generating
+              </div>
+            )}
           </div>
         );
       })}

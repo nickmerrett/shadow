@@ -158,6 +158,7 @@ function TaskPageContent() {
         isStreamPending={
           task?.status === "RUNNING" && streamingPartsMap.size === 0
         }
+        isStreaming={isStreaming}
       />
 
       {task?.status !== "ARCHIVED" && (

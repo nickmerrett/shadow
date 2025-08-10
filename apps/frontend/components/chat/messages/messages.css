@@ -80,3 +80,27 @@
     opacity: 0;
   }
 }
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    #737373 25%,
+    var(--foreground) 50%,
+    #737373 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
+  animation-timing-function: linear;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

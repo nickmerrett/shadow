@@ -67,9 +67,11 @@ function getMessageCopyContent(
 export function AssistantMessage({
   message,
   taskId,
+  showGenerating,
 }: {
   message: Message;
   taskId: string;
+  showGenerating: boolean;
 }) {
   const [isMoreDropdownOpen, setIsMoreDropdownOpen] = useState(false);
   const {
@@ -319,6 +321,12 @@ export function AssistantMessage({
 
         return null;
       })}
+
+      {showGenerating && (
+        <div className="shimmer flex h-7 w-fit items-center px-3 text-[13px]">
+          Reasoning
+        </div>
+      )}
 
       {/* Show PR card if this assistant message has a PR snapshot */}
       {message.pullRequestSnapshot && (
