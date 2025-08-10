@@ -28,6 +28,7 @@ import { useAgentEnvironment } from "@/components/agent-environment/agent-enviro
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
+import { Card, CardContent } from "../ui/card";
 import { GithubLogo } from "../graphics/github/github-logo";
 import { useCreatePR } from "@/hooks/use-create-pr";
 import { useTaskSocketContext } from "@/contexts/task-socket-context";
@@ -359,6 +360,17 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
               })()}
             </div>
           </SidebarMenuItem>
+
+          {/* Error message for failed tasks */}
+          {task.status === "FAILED" && (
+            <SidebarMenuItem className="mt-2">
+              <Card className="border-destructive/10 bg-destructive/5 rounded-lg p-2">
+                <p className="text-destructive line-clamp-4 text-sm">
+                  {task.errorMessage || "Unknown error"}
+                </p>
+              </Card>
+            </SidebarMenuItem>
+          )}
 
           {/* Task total diff */}
           {(diffStats.additions > 0 || diffStats.deletions > 0) && (
