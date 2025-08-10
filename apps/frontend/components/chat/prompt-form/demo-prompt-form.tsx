@@ -17,7 +17,7 @@ export function LandingPagePromptForm() {
 
           <div className="from-card/10 to-card relative flex min-h-24 flex-col rounded-lg bg-gradient-to-t">
             <div className="bg-background absolute inset-0 -z-20 rounded-[calc(var(--radius)+1px)]" />
-            <div className="text-muted-foreground/50 h-16 w-full px-3 py-2 text-sm">
+            <div className="text-muted-foreground/50 h-16 w-full select-none px-3 py-2 text-sm">
               Build features, fix bugs, and understand codebases...
             </div>
 

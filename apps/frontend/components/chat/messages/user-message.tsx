@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import "./messages.css";
+import "../messages/messages.css";
 import { cn } from "@/lib/utils";
 import { Textarea } from "../../ui/textarea";
 import { ArrowUp, Loader2, X } from "lucide-react";
