@@ -16,8 +16,8 @@ interface AboutModalProps {
 export function AboutModal({ open, onOpenChange }: AboutModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-[calc(100%-2rem)] sm:max-w-3xl max-h-[90vh] overflow-hidden">
-        <DialogHeader className="border-b pb-4 mb-4">
+      <DialogContent className="max-h-[90vh] w-full max-w-[calc(100%-2rem)] overflow-hidden sm:max-w-3xl">
+        <DialogHeader className="mb-4 border-b pb-4">
           <DialogTitle className="font-departureMono flex items-center gap-4 text-2xl font-medium tracking-tighter">
             <LogoHover size="md" forceAnimate />
             About{" "}
@@ -27,13 +27,13 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="overflow-y-auto max-h-[calc(90vh-120px)] pr-2">
+        <div className="max-h-[calc(90vh-120px)] overflow-y-auto pr-2">
           <div className="space-y-6">
             <section className="space-y-4">
               <h2 className="text-xl font-semibold tracking-tight">
                 What is Shadow?
               </h2>
-              <p className="text-muted-foreground leading-relaxed text-pretty">
+              <p className="text-muted-foreground text-pretty leading-relaxed">
                 Shadow is a powerful AI coding agent designed to work alongside
                 developers, understanding your codebase and helping you build
                 better software. Think of it as having an intelligent coding
@@ -41,7 +41,7 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
                 context, and help you implement features, fix bugs, and improve
                 your code.
               </p>
-              <p className="text-muted-foreground leading-relaxed text-pretty">
+              <p className="text-muted-foreground text-pretty leading-relaxed">
                 Unlike traditional AI coding assistants that work in isolation,
                 Shadow integrates deeply with your GitHub repositories. It can
                 analyze your entire codebase, understand the relationships
@@ -54,7 +54,7 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
               <h2 className="text-xl font-semibold tracking-tight">
                 How It Works
               </h2>
-              <p className="text-muted-foreground leading-relaxed text-pretty">
+              <p className="text-muted-foreground text-pretty leading-relaxed">
                 Shadow transforms your codebase into an intelligent development
                 environment. When you connect a repository, it performs a deep
                 analysis of your entire codebase, examining individual files and
@@ -63,7 +63,7 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
 
               <div className="space-y-3">
                 <h3 className="text-base font-medium">Tree-Sitter Parsing</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                <p className="text-muted-foreground text-pretty text-sm leading-relaxed">
                   Shadow uses tree-sitter parsers for JavaScript, TypeScript,
                   and TSX to extract symbols, function definitions, and import
                   statements. It builds a semantic graph of your codebase with
@@ -75,7 +75,7 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
                 <h3 className="text-base font-medium">
                   Shadow Wiki Generation
                 </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                <p className="text-muted-foreground text-pretty text-sm leading-relaxed">
                   The system creates hierarchical summaries using the buildTree
                   function, processing files in batches with dynamic sizing. It
                   uses different models—faster models for file analysis and more
@@ -90,7 +90,7 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
 
               <div className="space-y-3">
                 <h3 className="text-base font-medium">Memory System</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                <p className="text-muted-foreground text-pretty text-sm leading-relaxed">
                   Shadow uses a repository-specific memory system that stores
                   knowledge about your codebase. Memories are categorized and
                   linked to specific tasks, allowing the AI to recall previous
@@ -100,7 +100,7 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
 
               <div className="space-y-3">
                 <h3 className="text-base font-medium">Semantic Indexing</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                <p className="text-muted-foreground text-pretty text-sm leading-relaxed">
                   Code is processed through an embedding pipeline using models
                   like Jina or local transformers. The system creates vector
                   embeddings that are stored in Pinecone for efficient semantic
@@ -111,7 +111,7 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
 
               <div className="space-y-3">
                 <h3 className="text-base font-medium">Execution Environment</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                <p className="text-muted-foreground text-pretty text-sm leading-relaxed">
                   Shadow supports both local and remote execution modes. Remote
                   mode uses Kata QEMU containers on AWS EKS with hardware-level
                   VM isolation. Each task runs in its own isolated environment
@@ -121,7 +121,7 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
 
               <div className="space-y-3">
                 <h3 className="text-base font-medium">Tool System</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                <p className="text-muted-foreground text-pretty text-sm leading-relaxed">
                   The agent has access to comprehensive tools including file
                   operations (read_file, edit_file, search_replace), terminal
                   commands (run_terminal_cmd), code search (grep_search,
@@ -135,17 +135,17 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
               <h2 className="text-xl font-semibold tracking-tight">
                 The Experience
               </h2>
-              <p className="text-muted-foreground leading-relaxed text-pretty">
+              <p className="text-muted-foreground text-pretty leading-relaxed">
                 Using Shadow feels like having a coding partner who knows your
                 project inside and out. Connect your repository, and within
                 seconds, Shadow has a deep understanding of your codebase that
                 it can leverage for any task.
               </p>
-              <p className="text-muted-foreground leading-relaxed text-pretty">
+              <p className="text-muted-foreground text-pretty leading-relaxed">
                 When you create a task, you get a collaborative development
                 session. Shadow can read your files, understand the context,
                 make intelligent modifications, and create pull requests when
-                you're ready to merge changes.
+                you&apos;re ready to merge changes.
               </p>
             </section>
 
@@ -153,13 +153,13 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
               <h2 className="text-xl font-semibold tracking-tight">
                 AWS Infrastructure
               </h2>
-              <p className="text-muted-foreground leading-relaxed text-pretty">
+              <p className="text-muted-foreground text-pretty leading-relaxed">
                 Shadow runs on AWS with production-grade infrastructure. The
                 backend is deployed on ECS with Application Load Balancer, while
                 remote execution uses EKS with Kata QEMU containers for true
                 hardware isolation.
               </p>
-              <p className="text-muted-foreground leading-relaxed text-pretty">
+              <p className="text-muted-foreground text-pretty leading-relaxed">
                 The system uses Amazon Linux 2023 nodes with KVM support,
                 enabling Kata QEMU microVMs that provide VM-level isolation for
                 secure code execution. Each task runs in its own isolated
@@ -181,7 +181,7 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
                       Ishaan Dey
                     </a>
                   </h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                  <p className="text-muted-foreground text-pretty text-sm leading-relaxed">
                     Software Engineering @ University of Waterloo, Prev @
                     Vercel. Architecture, design, remote mode implementation,
                     full-stack development, and agent workflow.
@@ -198,7 +198,7 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
                       Rajan Agarwal
                     </a>
                   </h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                  <p className="text-muted-foreground text-pretty text-sm leading-relaxed">
                     Software Engineering @ University of Waterloo, MoTS Intern @
                     Amazon AGI Lab. Codebase understanding, semantic search,
                     indexing, Shadow Wiki, memory algorithms, and LLM
@@ -216,7 +216,7 @@ export function AboutModal({ open, onOpenChange }: AboutModalProps) {
                       Elijah Kurien
                     </a>
                   </h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                  <p className="text-muted-foreground text-pretty text-sm leading-relaxed">
                     Software Engineering @ University of Waterloo, MoTS Intern @
                     Yutori. Frontend development, user interface, and real-time
                     collaboration features.

@@ -1,6 +1,12 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Folder, FolderOpen } from "lucide-react";
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { FileNode } from "@repo/types";
@@ -21,6 +27,7 @@ type AgentEnvironmentProps = BaseProps & {
   selectedFilePath: string | null;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  shadowWiki: React.ReactNode | null;
 };
 
 type OtherViewProps = BaseProps & {
@@ -143,7 +150,7 @@ export function FileExplorer(props: AgentEnvironmentProps | OtherViewProps) {
             style={{ left: `${depth * 12 + 12}px` }}
           />
         )}
-        <div
+        <button
           className={`group/item text-foreground/80 hover:text-foreground flex cursor-pointer items-center gap-1.5 overflow-hidden rounded-md px-2 py-1 hover:bg-white/10 ${
             isSelected ? "bg-white/5" : ""
           } ${operation ? "justify-between" : ""}`}
@@ -187,7 +194,7 @@ export function FileExplorer(props: AgentEnvironmentProps | OtherViewProps) {
               {getOperationLetter(operation)}
             </span>
           )}
-        </div>
+        </button>
         {node.type === "folder" && isExpanded && node.children && (
           <div className="flex flex-col gap-0.5">
             {node.children.map((child) => renderNode(child, depth + 1))}
@@ -201,8 +208,34 @@ export function FileExplorer(props: AgentEnvironmentProps | OtherViewProps) {
   if (isAgentEnvironment) {
     if (!props.isCollapsed) {
       return (
-        <div className="bg-sidebar group/files border-border flex w-48 shrink-0 select-none flex-col gap-0.5 overflow-y-auto border-r p-1">
-          {files.map((file) => renderNode(file))}
+        <div className="bg-sidebar border-border flex w-48 shrink-0 select-none flex-col overflow-hidden border-r">
+          <div className="group/files flex w-full grow flex-col gap-0.5 overflow-y-auto p-1">
+            {files.map((file) => renderNode(file))}
+          </div>
+          <div className="relative z-0">
+            <div className="bg-vesper-orange/15 absolute -top-4 left-3 -z-10 h-8 w-1/3 animate-pulse blur-lg delay-500 duration-1000"></div>
+            <div className="bg-vesper-teal/15 absolute -top-1 left-1/3 -z-10 h-6 w-2/3 animate-pulse blur-lg delay-0 duration-1000"></div>
+            <div className="border-sidebar-border bg-sidebar/50 border-t p-1 backdrop-blur-lg">
+              <button
+                className={cn(
+                  "group/item text-foreground/80 hover:text-foreground flex w-full cursor-pointer items-center gap-1.5 overflow-hidden rounded-md px-2 py-1 hover:bg-white/10",
+                  selectedFilePath === "[SHADOW_WIKI]" ? "bg-white/5" : ""
+                )}
+                onClick={() => {
+                  if (props.shadowWiki) {
+                    props.onFileSelect({
+                      path: "[SHADOW_WIKI]",
+                      type: "file",
+                      name: "Shadow Wiki",
+                    });
+                  }
+                }}
+              >
+                <BookOpen className="size-4" />
+                <span className="text-sm">Shadow Wiki</span>
+              </button>
+            </div>
+          </div>
         </div>
       );
     }

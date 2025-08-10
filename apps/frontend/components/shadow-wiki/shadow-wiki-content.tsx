@@ -5,14 +5,12 @@ import { FileText, Loader2, Sparkles, Folder, Circle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { MarkdownRenderer } from "@/components/agent-environment/markdown-renderer";
 import { FileIcon } from "@/components/ui/file-icon";
-import { useParams } from "next/navigation";
 import { useCodebase } from "@/hooks/use-codebase";
 import { useQueryClient } from "@tanstack/react-query";
 import { Separator } from "../ui/separator";
 import { GithubLogo } from "../graphics/github/github-logo";
 
-export function CodebasePageContent() {
-  const { codebaseId } = useParams<{ codebaseId: string }>();
+export function ShadowWikiContent({ codebaseId }: { codebaseId: string }) {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const { data: codebase, isLoading, error, refetch } = useCodebase(codebaseId);
@@ -66,7 +64,7 @@ export function CodebasePageContent() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center p-4">
         <div className="text-muted-foreground text-center">
           <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin" />
           <h3 className="mb-2 text-lg font-medium">Loading codebase...</h3>
@@ -91,7 +89,7 @@ export function CodebasePageContent() {
 
   if (summaries.length === 0 && codebase) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center p-4">
         <div className="text-muted-foreground text-center">
           <FileText className="mx-auto mb-4 h-8 w-8" />
           <h3 className="mb-2 text-lg font-medium">No documentation found</h3>
@@ -123,7 +121,7 @@ export function CodebasePageContent() {
   }
 
   return (
-    <div className="relative z-0 mx-auto flex w-full max-w-2xl flex-col items-center px-4 pb-16 pt-8 sm:px-6">
+    <div className="relative z-0 flex w-full flex-col items-center p-4">
       {/* Overview */}
       <div className="flex w-full flex-col items-start gap-3">
         <div className="text-muted-foreground flex items-center gap-2 overflow-hidden text-sm">

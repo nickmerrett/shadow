@@ -12,7 +12,6 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 import { notFound } from "next/navigation";
-import { getCodebases } from "@/lib/db-operations/get-codebases";
 
 export default async function TaskLayout({
   children,
@@ -25,17 +24,12 @@ export default async function TaskLayout({
 
   const user = await getUser();
 
-  const [
-    initialTasks,
-    initialCodebases,
-    { task, todos, fileChanges, diffStats },
-    taskMessages,
-  ] = await Promise.all([
-    user ? getTasks(user.id) : [],
-    user ? getCodebases(user.id) : [],
-    getTaskWithDetails(taskId),
-    getTaskMessages(taskId),
-  ]);
+  const [initialTasks, { task, todos, fileChanges, diffStats }, taskMessages] =
+    await Promise.all([
+      user ? getTasks(user.id) : [],
+      getTaskWithDetails(taskId),
+      getTaskMessages(taskId),
+    ]);
 
   if (!task) {
     notFound();
@@ -89,11 +83,7 @@ export default async function TaskLayout({
     <HydrationBoundary state={dehydrate(queryClient)}>
       <TaskSocketProvider taskId={taskId}>
         <AgentEnvironmentProvider taskId={taskId}>
-          <SidebarViews
-            initialTasks={initialTasks}
-            initialCodebases={initialCodebases}
-            currentTaskId={task.id}
-          />
+          <SidebarViews initialTasks={initialTasks} currentTaskId={task.id} />
           {children}
         </AgentEnvironmentProvider>
       </TaskSocketProvider>

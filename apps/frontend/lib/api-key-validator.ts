@@ -28,11 +28,11 @@ export class ApiKeyValidator {
         default:
           throw new Error(`Unsupported provider: ${provider}`);
       }
-    } catch (error: any) {
-      console.error(`${provider} validation error:`, error?.message);
+    } catch (error: unknown) {
+      console.error(`${provider} validation error:`, (error as Error)?.message);
       return {
         isValid: false,
-        error: error?.message || "Unknown validation error",
+        error: (error as Error)?.message || "Unknown validation error",
         latencyMs: Date.now() - startTime,
       };
     }
@@ -76,13 +76,13 @@ export class ApiKeyValidator {
           latencyMs,
         };
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const latencyMs = Date.now() - startTime;
 
       // Handle specific error types
       if (
-        error?.message?.includes("401") ||
-        error?.message?.includes("Unauthorized")
+        (error as Error)?.message?.includes("401") ||
+        (error as Error)?.message?.includes("Unauthorized")
       ) {
         return {
           isValid: false,
@@ -90,8 +90,8 @@ export class ApiKeyValidator {
           latencyMs,
         };
       } else if (
-        error?.message?.includes("429") ||
-        error?.message?.includes("rate limit")
+        (error as Error)?.message?.includes("429") ||
+        (error as Error)?.message?.includes("rate limit")
       ) {
         return {
           isValid: false,
@@ -101,7 +101,7 @@ export class ApiKeyValidator {
       } else {
         return {
           isValid: false,
-          error: `OpenAI validation failed: ${error?.message || "Unknown error"}`,
+          error: `OpenAI validation failed: ${(error as Error)?.message || "Unknown error"}`,
           latencyMs,
         };
       }
@@ -147,13 +147,13 @@ export class ApiKeyValidator {
           latencyMs,
         };
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const latencyMs = Date.now() - startTime;
 
       // Handle specific error types
       if (
-        error?.message?.includes("401") ||
-        error?.message?.includes("Unauthorized")
+        (error as Error)?.message?.includes("401") ||
+        (error as Error)?.message?.includes("Unauthorized")
       ) {
         return {
           isValid: false,
@@ -161,8 +161,8 @@ export class ApiKeyValidator {
           latencyMs,
         };
       } else if (
-        error?.message?.includes("429") ||
-        error?.message?.includes("rate limit")
+        (error as Error)?.message?.includes("429") ||
+        (error as Error)?.message?.includes("rate limit")
       ) {
         return {
           isValid: false,
@@ -172,7 +172,7 @@ export class ApiKeyValidator {
       } else {
         return {
           isValid: false,
-          error: `Anthropic validation failed: ${error?.message || "Unknown error"}`,
+          error: `Anthropic validation failed: ${(error as Error)?.message || "Unknown error"}`,
           latencyMs,
         };
       }
@@ -218,13 +218,13 @@ export class ApiKeyValidator {
           latencyMs,
         };
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const latencyMs = Date.now() - startTime;
 
       // Handle specific error types
       if (
-        error?.message?.includes("401") ||
-        error?.message?.includes("Unauthorized")
+        (error as Error)?.message?.includes("401") ||
+        (error as Error)?.message?.includes("Unauthorized")
       ) {
         return {
           isValid: false,
@@ -232,8 +232,8 @@ export class ApiKeyValidator {
           latencyMs,
         };
       } else if (
-        error?.message?.includes("429") ||
-        error?.message?.includes("rate limit")
+        (error as Error)?.message?.includes("429") ||
+        (error as Error)?.message?.includes("rate limit")
       ) {
         return {
           isValid: false,
@@ -243,7 +243,7 @@ export class ApiKeyValidator {
       } else {
         return {
           isValid: false,
-          error: `OpenRouter validation failed: ${error?.message || "Unknown error"}`,
+          error: `OpenRouter validation failed: ${(error as Error)?.message || "Unknown error"}`,
           latencyMs,
         };
       }

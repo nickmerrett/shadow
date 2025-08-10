@@ -180,6 +180,7 @@ function AgentEnvironment({ isMobile = false }: { isMobile?: boolean }) {
           selectedFilePath={selectedFilePath}
           isCollapsed={isExplorerCollapsed}
           onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
+          shadowWiki={null}
         />
         <div className="flex-1 overflow-hidden">
           <ResizablePanelGroup

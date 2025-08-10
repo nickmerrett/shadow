@@ -55,7 +55,7 @@ export async function getModels(): Promise<ModelInfo[]> {
 
       return models.map((modelId) => ModelInfos[modelId]);
     }
-  } catch (error) {
+  } catch (_error) {
     console.log("Could not fetch user settings, falling back to all models");
   }
 

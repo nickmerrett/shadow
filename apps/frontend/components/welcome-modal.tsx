@@ -9,10 +9,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { useModal } from "@/components/layout/modal-context";
 import { LogoBurst } from "./graphics/logo/logo-burst";
-import { Check, ExternalLink } from "lucide-react";
+import { Check } from "lucide-react";
 import { useGitHubStatus } from "@/hooks/use-github-status";
 import { useApiKeys, useApiKeyValidation } from "@/hooks/use-api-keys";
-import { useState } from "react";
 import Link from "next/link";
 
 export function WelcomeModal({
