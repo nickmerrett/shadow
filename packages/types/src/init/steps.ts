@@ -18,13 +18,9 @@ export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
 /**
  * Get all step display names in execution order for a given mode
  */
-export function getStepsForMode(
-  mode: "local" | "remote",
-  _options?: { enableShadowWiki?: boolean; enableIndexing?: boolean }
-): InitStatus[] {
+export function getStepsForMode(mode: "local" | "remote"): InitStatus[] {
   const steps: InitStatus[] = [];
-  // Background services are now enabled by default and run in parallel
-  // The options are still used by BackgroundServiceManager to determine which services to start
+  // Background services are enabled by default and run in parallel
 
   if (mode === "remote") {
     steps.push(

@@ -719,7 +719,6 @@ export function useTaskSocket(taskId: string | undefined) {
                   task: {
                     ...oldData.task,
                     initStatus:
-                      chunk.initProgress?.initStatus ||
                       chunk.initProgress?.currentStep ||
                       oldData.task?.initStatus,
                     initializationError: chunk.initProgress?.error || null,
@@ -736,7 +735,7 @@ export function useTaskSocket(taskId: string | undefined) {
                 return {
                   ...oldData,
                   initStatus:
-                    chunk.initProgress?.initStatus || oldData.initStatus,
+                    chunk.initProgress?.currentStep || oldData.initStatus,
                 };
               }
             );
@@ -748,9 +747,7 @@ export function useTaskSocket(taskId: string | undefined) {
                     ? {
                         ...task,
                         initStatus:
-                          chunk.initProgress?.initStatus ||
-                          chunk.initProgress?.currentStep ||
-                          task.initStatus,
+                          chunk.initProgress?.currentStep || task.initStatus,
                         initializationError: chunk.initProgress?.error || null,
                         updatedAt: new Date().toISOString(),
                       }

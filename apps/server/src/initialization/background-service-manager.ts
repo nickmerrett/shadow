@@ -9,12 +9,8 @@ interface BackgroundService {
   started: boolean;
   completed: boolean;
   failed: boolean;
+  blocking: boolean; // Whether this service blocks initialization completion
   error?: string;
-}
-
-interface ServiceStatus {
-  shadowWiki?: "running" | "completed" | "failed";
-  indexing?: "running" | "completed" | "failed";
 }
 
 /**
@@ -40,25 +36,71 @@ export class BackgroundServiceManager {
         `[BACKGROUND_SERVICES] Starting Shadow Wiki generation for task ${taskId}`
       );
       const shadowWikiPromise = this.startShadowWiki(taskId, context);
-      services.push({
-        name: "shadowWiki",
+
+      const service = {
+        name: "shadowWiki" as const,
         promise: shadowWikiPromise,
         started: true,
         completed: false,
         failed: false,
-      });
+        blocking: true, // Shadow Wiki blocks initialization
+        error: undefined as string | undefined,
+      };
+
+      // Wrap the promise to update completion status when it resolves
+      service.promise = service.promise
+        .then(() => {
+          service.completed = true;
+          console.log(
+            `✅ [BACKGROUND_SERVICES] Service "shadowWiki" (blocking) marked as completed for task ${taskId}`
+          );
+        })
+        .catch((error) => {
+          service.failed = true;
+          service.error =
+            error instanceof Error ? error.message : "Unknown error";
+          console.error(
+            `❌ [BACKGROUND_SERVICES] Service "shadowWiki" marked as failed for task ${taskId}:`,
+            error
+          );
+        });
+
+      services.push(service);
     }
 
     if (userSettings.enableIndexing) {
       console.log(`[BACKGROUND_SERVICES] Starting indexing for task ${taskId}`);
       const indexingPromise = this.startIndexing(taskId);
-      services.push({
-        name: "indexing",
+
+      const service = {
+        name: "indexing" as const,
         promise: indexingPromise,
         started: true,
         completed: false,
         failed: false,
-      });
+        blocking: false, // Indexing runs in background, doesn't block initialization
+        error: undefined as string | undefined,
+      };
+
+      // Wrap the promise to update completion status when it resolves
+      service.promise = service.promise
+        .then(() => {
+          service.completed = true;
+          console.log(
+            `✅ [BACKGROUND_SERVICES] Service "indexing" (non-blocking) marked as completed for task ${taskId}`
+          );
+        })
+        .catch((error) => {
+          service.failed = true;
+          service.error =
+            error instanceof Error ? error.message : "Unknown error";
+          console.error(
+            `❌ [BACKGROUND_SERVICES] Service "indexing" marked as failed for task ${taskId}:`,
+            error
+          );
+        });
+
+      services.push(service);
     }
 
     this.services.set(taskId, services);
@@ -157,74 +199,52 @@ export class BackgroundServiceManager {
     }
   }
 
-  async waitForCompletion(taskId: string, _timeout = 600000): Promise<void> {
-    const services = this.services.get(taskId) || [];
-    if (services.length === 0) {
-      console.log(
-        `[BACKGROUND_SERVICES] No background services to wait for on task ${taskId}`
-      );
-      return;
-    }
-
-    console.log(
-      `[BACKGROUND_SERVICES] Waiting for ${services.length} background services to complete for task ${taskId}`
-    );
-
-    try {
-      // Use Promise.allSettled to wait for all services without failing if one fails
-      await Promise.allSettled(
-        services.map(async (service) => {
-          try {
-            await service.promise;
-            service.completed = true;
-            console.log(
-              `[BACKGROUND_SERVICES] Service ${service.name} completed for task ${taskId}`
-            );
-          } catch (error) {
-            service.failed = true;
-            service.error =
-              error instanceof Error ? error.message : "Unknown error";
-            console.error(
-              `[BACKGROUND_SERVICES] Service ${service.name} failed for task ${taskId}:`,
-              error
-            );
-          }
-        })
-      );
-
-      const completedCount = services.filter((s) => s.completed).length;
-      const failedCount = services.filter((s) => s.failed).length;
-
-      console.log(
-        `[BACKGROUND_SERVICES] Background services finished for task ${taskId}: ${completedCount} completed, ${failedCount} failed`
-      );
-    } finally {
-      // Clean up tracking
-      this.services.delete(taskId);
-    }
-  }
-
-  getStatus(taskId: string): ServiceStatus {
-    const services = this.services.get(taskId) || [];
-    const status: ServiceStatus = {};
-
-    for (const service of services) {
-      if (service.failed) {
-        status[service.name] = "failed";
-      } else if (service.completed) {
-        status[service.name] = "completed";
-      } else {
-        status[service.name] = "running";
-      }
-    }
-
-    return status;
-  }
-
   areAllServicesComplete(taskId: string): boolean {
     const services = this.services.get(taskId) || [];
-    if (services.length === 0) return true;
+    const blockingServices = services.filter((s) => s.blocking);
 
-    return services.every((service) => service.completed || service.failed);
+    console.log(
+      `🔍 [BACKGROUND_SERVICES] Checking completion for task ${taskId}: ${services.length} total services, ${blockingServices.length} blocking services`
+    );
+
+    if (blockingServices.length === 0) {
+      console.log(
+        `📭 [BACKGROUND_SERVICES] No blocking services for task ${taskId} - returning true`
+      );
+      return true;
+    }
+
+    const completedCount = services.filter((s) => s.completed).length;
+    const failedCount = services.filter((s) => s.failed).length;
+    const runningCount = services.filter(
+      (s) => !s.completed && !s.failed
+    ).length;
+
+    console.log(
+      `📊 [BACKGROUND_SERVICES] Task ${taskId} services: ${completedCount} completed, ${failedCount} failed, ${runningCount} running`
+    );
+
+    // Log each service status individually
+    services.forEach((service) => {
+      const status = service.completed
+        ? "completed"
+        : service.failed
+          ? "failed"
+          : "running";
+      const blockingText = service.blocking ? "(BLOCKING)" : "(non-blocking)";
+      console.log(
+        `🔧 [BACKGROUND_SERVICES] Service "${service.name}" ${blockingText}: ${status}`
+      );
+    });
+
+    // Only check blocking services for completion
+    const allBlockingComplete = blockingServices.every(
+      (service) => service.completed || service.failed
+    );
+    console.log(
+      `✅ [BACKGROUND_SERVICES] All blocking services complete for task ${taskId}: ${allBlockingComplete}`
+    );
+
+    return allBlockingComplete;
   }
 }

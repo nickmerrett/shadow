@@ -15,49 +15,6 @@ import { TaskModelContext } from "../services/task-model-context";
 const delay = (ms: number) =>
   new Promise((resolve) => global.setTimeout(resolve, ms));
 
-// Step definitions with human-readable names
-const STEP_DEFINITIONS: Record<
-  InitStatus,
-  { name: string; description: string }
-> = {
-  INACTIVE: {
-    name: "Not Started",
-    description: "Initialization has not started",
-  },
-  PREPARE_WORKSPACE: {
-    name: "Preparing Workspace",
-    description: "Create local workspace directory and clone repository",
-  },
-  CREATE_VM: {
-    name: "Creating VM",
-    description: "Create remote VM for task execution",
-  },
-  WAIT_VM_READY: {
-    name: "Starting VM",
-    description: "Wait for VM boot and sidecar service to become ready",
-  },
-  VERIFY_VM_WORKSPACE: {
-    name: "Verifying Workspace",
-    description: "Verify workspace is ready and contains repository",
-  },
-  START_BACKGROUND_SERVICES: {
-    name: "Starting Background Services",
-    description: "Start Shadow Wiki generation and indexing in background",
-  },
-  INSTALL_DEPENDENCIES: {
-    name: "Installing Dependencies",
-    description: "Install project dependencies (npm, pip, etc.)",
-  },
-  FINALIZE_SETUP: {
-    name: "Finalizing Setup",
-    description: "Wait for background services to complete",
-  },
-  ACTIVE: {
-    name: "Ready",
-    description: "Task is ready for execution",
-  },
-};
-
 export class TaskInitializationEngine {
   private abstractWorkspaceManager: AbstractWorkspaceManager;
   private backgroundServiceManager: BackgroundServiceManager;
@@ -88,8 +45,6 @@ export class TaskInitializationEngine {
       this.emitProgress(taskId, {
         type: "init-start",
         taskId,
-        message: "Starting task initialization...",
-        totalSteps: steps.length,
       });
 
       // Execute each step in sequence
@@ -107,10 +62,6 @@ export class TaskInitializationEngine {
             type: "step-start",
             taskId,
             currentStep: step,
-            stepName: STEP_DEFINITIONS[step].name,
-            message: `${STEP_DEFINITIONS[step].name}...`,
-            stepNumber,
-            totalSteps: steps.length,
           });
 
           console.log(
@@ -144,11 +95,7 @@ export class TaskInitializationEngine {
             type: "init-error",
             taskId,
             currentStep: step,
-            stepName: STEP_DEFINITIONS[step].name,
-            message: `Failed during ${STEP_DEFINITIONS[step].name}`,
             error: error instanceof Error ? error.message : "Unknown error",
-            stepNumber,
-            totalSteps: steps.length,
           });
 
           throw error;
@@ -161,13 +108,14 @@ export class TaskInitializationEngine {
       console.log(
         `[TASK_INIT] ${taskId}: Initialization completed successfully`
       );
+      console.log(
+        `✅ [TASK_INIT] Task ${taskId} initialization finished - ready for RUNNING status`
+      );
 
       // Emit completion
       this.emitProgress(taskId, {
         type: "init-complete",
         taskId,
-        message: "Task initialization completed successfully",
-        totalSteps: steps.length,
       });
     } catch (error) {
       console.error(`[TASK_INIT] ${taskId}: Initialization failed:`, error);
@@ -654,7 +602,13 @@ export class TaskInitializationEngine {
       // Monitor progress and wait for completion
       while (Date.now() - startTime < maxWait) {
         // Check if all services are done
-        if (this.backgroundServiceManager.areAllServicesComplete(taskId)) {
+        const allComplete =
+          this.backgroundServiceManager.areAllServicesComplete(taskId);
+        console.log(
+          `🔄 [TASK_INIT] ${taskId}: Checking background services completion: ${allComplete}`
+        );
+
+        if (allComplete) {
           console.log(
             `[TASK_INIT] ${taskId}: All background services completed`
           );
@@ -663,9 +617,6 @@ export class TaskInitializationEngine {
 
         await delay(checkInterval);
       }
-
-      // Final wait for any remaining services
-      await this.backgroundServiceManager.waitForCompletion(taskId, 5000); // 5 second final timeout
 
       console.log(`[TASK_INIT] ${taskId}: Setup finalization completed`);
     } catch (error) {
