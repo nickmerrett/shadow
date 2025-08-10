@@ -68,6 +68,32 @@ EXECUTION: edit_file → run_terminal_cmd (test) → verify changes
 VERIFICATION: lint → unit tests → integration tests → manual verification
 </tool_usage>`;
 
+const PARALLEL_TOOL_EXECUTION = `<parallel_execution>
+PARALLEL TOOL EXECUTION:
+When multiple independent operations are needed, invoke all relevant tools simultaneously rather than sequentially.
+
+PARALLEL OPPORTUNITIES:
+- Discovery Phase: Run semantic_search + list_dir + read_file concurrently  
+- Multi-file Reading: Read multiple files simultaneously
+- Independent Searches: Multiple grep_search queries with different patterns
+
+EXAMPLES:
+✅ GOOD - Parallel Discovery:
+- semantic_search("authentication system")
+- list_dir("src/auth") 
+- read_file("package.json")
+
+❌ BAD - Sequential Discovery:
+- semantic_search("authentication system") → wait for result
+- list_dir("src/auth") → wait for result
+- read_file("package.json") → wait for result
+
+WHEN TO AVOID PARALLEL:
+- Operations with dependencies (read file → edit based on content)
+- File system conflicts (editing same file)
+- Tool results needed for next tool's parameters
+</parallel_execution>`;
+
 const CONTEXT_UNDERSTANDING = `<context_understanding>
 THOROUGH EXPLORATION REQUIRED:
 - Run multiple semantic searches with different phrasings
@@ -269,6 +295,8 @@ ${OPERATION_MODES}
 
 ${TOOL_USAGE_STRATEGY}
 
+${PARALLEL_TOOL_EXECUTION}
+
 ${toolGuidance}
 
 ${CONTEXT_UNDERSTANDING}
@@ -302,6 +330,8 @@ ${ENVIRONMENT_CONTEXT}
 ${OPERATION_MODES}
 
 ${TOOL_USAGE_STRATEGY}
+
+${PARALLEL_TOOL_EXECUTION}
 
 ${TOOL_GUIDANCE}
 
