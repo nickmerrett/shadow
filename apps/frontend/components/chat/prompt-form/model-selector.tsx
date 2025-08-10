@@ -99,8 +99,8 @@ export function ModelSelector({
             ))
           ) : (
             <div className="text-muted-foreground p-2 text-left text-sm">
-              No models available. Configure and validate your API keys to begin
-              using Shadow.
+              No models available. Configure your API keys to begin using
+              Shadow.
             </div>
           )}
         </div>

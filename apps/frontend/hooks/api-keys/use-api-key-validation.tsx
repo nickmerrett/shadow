@@ -1,16 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ApiKeyProvider } from "@repo/types";
-
-export interface ValidationResult {
-  isValid: boolean;
-  error?: string;
-  latencyMs?: number;
-}
-
-export interface ValidationResults {
-  individualVerification: boolean;
-  [provider: string]: ValidationResult | boolean;
-}
+import { ValidationResults } from "@/lib/types/validation";
 
 export function useValidateApiKeys() {
   return useMutation({

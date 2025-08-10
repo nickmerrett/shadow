@@ -1,4 +1,4 @@
-import { ApiKeys } from "../api-keys";
+import { ApiKeys, ApiKeyProvider } from "../api-keys";
 
 export interface LLMConfig {
   model: string;
@@ -227,6 +227,19 @@ export function getModelInfo(model: ModelType): ModelInfo {
   return ModelInfos[model];
 }
 
+export function getProviderDefaultModel(provider: ApiKeyProvider): ModelType {
+  switch (provider) {
+    case "anthropic":
+      return AvailableModels.CLAUDE_SONNET_4;
+    case "openai":
+      return AvailableModels.GPT_5;
+    case "openrouter":
+      return AvailableModels.XAI_GROK_3;
+    default:
+      throw new Error(`Unknown provider: ${provider}`);
+  }
+}
+
 /**
  * Get all possible models based on user API keys (for settings UI)
  */
@@ -236,10 +249,7 @@ export async function getAllPossibleModels(
   const models: ModelType[] = [];
 
   if (userApiKeys.anthropic) {
-    models.push(
-      AvailableModels.CLAUDE_OPUS_4,
-      AvailableModels.CLAUDE_SONNET_4
-    );
+    models.push(AvailableModels.CLAUDE_OPUS_4, AvailableModels.CLAUDE_SONNET_4);
   }
 
   if (userApiKeys.openai) {

@@ -5,7 +5,7 @@ import JavaScript from "tree-sitter-javascript";
 import { CodebaseUnderstandingStorage } from "./db-storage";
 import TS from "tree-sitter-typescript";
 import { ModelProvider } from "@/agent/llm/models/model-provider";
-import { ModelType, ApiKeys } from "@repo/types";
+import { ModelType, ApiKeys, AvailableModels } from "@repo/types";
 import { CoreMessage, generateText, LanguageModel } from "ai";
 import { TaskModelContext } from "@/services/task-model-context";
 import { braintrustService } from "../../agent/llm/observability/braintrust-service";
@@ -745,7 +745,7 @@ File: ${path.basename(rel)}${wasTruncated ? " (content was truncated to focus on
     { role: "user" as const, content: truncatedSrc },
   ];
 
-  const isGPT5 = miniModelInstance.modelId === "gpt-5-2025-08-07";
+  const isGPT5 = miniModelInstance.modelId === AvailableModels.GPT_5;
 
   try {
     const { text } = await withTimeout(
@@ -798,7 +798,7 @@ async function chat(
   budget: number,
   mainModelInstance: LanguageModel
 ): Promise<string> {
-  const isGPT5 = mainModelInstance.modelId === "gpt-5-2025-08-07";
+  const isGPT5 = mainModelInstance.modelId === AvailableModels.GPT_5;
 
   const { text } = await withTimeout(
     generateText({
