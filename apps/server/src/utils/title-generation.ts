@@ -59,11 +59,13 @@ export async function generateTaskTitleAndBranch(
     const { text: generatedText } = await generateText({
       model,
       temperature: 0.3,
-      prompt: `Generate a concise title (under 50 chars) for this coding task:
+      prompt: `<instructions>
+Generate a concise title (under 50 chars) for this user request. If it's a simple word or greeting, use it as-is. If it's a coding task request, summarize the main intent. Return ONLY the title text.
+</instructions>
 
-"${userPrompt}"
-
-Return ONLY the title.`,
+<user-request>
+${userPrompt}
+</user-request>`,
       experimental_telemetry: braintrustService.getOperationTelemetry(
         "title-generation",
         {
