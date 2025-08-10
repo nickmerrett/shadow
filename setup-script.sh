@@ -67,6 +67,7 @@ main() {
     echo "****************************************************"
     DATABASE_URL=$(ask "Database URL" "postgres://postgres:@127.0.0.1:5432/shadow_dev")
 
+
     # Pinecone Configuration
     echo -e "\n${GREEN}Pinecone Configuration${NC}"
     echo "****************************************************"
