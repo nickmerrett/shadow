@@ -20,7 +20,7 @@ import {
   SquareCheck,
   SquareX,
 } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { statusColorsConfig } from "./status";
 import { FileExplorer } from "@/components/agent-environment/file-explorer";
 import { FileNode } from "@repo/types";
@@ -359,11 +359,9 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           {/* Error message for failed tasks */}
           {task.status === "FAILED" && (
             <SidebarMenuItem className="mt-2">
-              <Card className="border-destructive/10 bg-destructive/5 rounded-lg p-2">
-                <p className="text-destructive line-clamp-4 text-sm">
-                  {task.errorMessage || "Unknown error"}
-                </p>
-              </Card>
+              <ExpandableErrorCard
+                errorMessage={task.errorMessage || "Unknown error"}
+              />
             </SidebarMenuItem>
           )}
 
@@ -458,5 +456,25 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
         </SidebarGroup>
       )}
     </>
+  );
+}
+
+function ExpandableErrorCard({ errorMessage }: { errorMessage: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <Card
+      onClick={() => setIsExpanded(!isExpanded)}
+      className="border-destructive/10 bg-destructive/5 max-h-96 cursor-pointer overflow-y-auto rounded-lg p-2"
+    >
+      <p
+        className={cn(
+          "text-destructive text-sm",
+          isExpanded ? "line-clamp-none" : "line-clamp-4"
+        )}
+      >
+        {errorMessage}
+      </p>
+    </Card>
   );
 }
