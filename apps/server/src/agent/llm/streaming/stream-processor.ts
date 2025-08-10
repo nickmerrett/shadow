@@ -54,6 +54,7 @@ export class StreamProcessor {
 
       const modelProvider = getModelProvider(model);
       const isAnthropicModel = modelProvider === "anthropic";
+      const isGPT5 = model === "gpt-5-2025-08-07";
 
       let finalMessages: CoreMessage[];
       if (isAnthropicModel) {
@@ -86,7 +87,7 @@ export class StreamProcessor {
             budgetTokens: 12000,
           },
         },
-        ...(model === "gpt-5-2025-08-07"
+        ...(isGPT5
           ? {
               openai: {
                 reasoningEffort: "high",
@@ -99,7 +100,7 @@ export class StreamProcessor {
         model: modelInstance,
         ...(isAnthropicModel ? {} : { system: systemPrompt }),
         messages: finalMessages,
-        temperature: 0.7,
+        temperature: isGPT5 ? 1 : 0.7,
         maxSteps: MAX_STEPS,
         providerOptions: reasoningProviderOptions,
         ...(isAnthropicModel && {
@@ -118,7 +119,7 @@ export class StreamProcessor {
             enableTools,
             messageCount: finalMessages.length,
             maxSteps: MAX_STEPS,
-            temperature: 0.7,
+            temperature: isGPT5 ? 1 : 0.7,
             hasWorkspace: !!workspacePath,
             hasTools: enableTools && !!tools,
             isAnthropicModel,
@@ -181,16 +182,14 @@ export class StreamProcessor {
                     },
                   ],
                   tools,
-                  experimental_telemetry: braintrustService.getOperationTelemetry(
-                    "tool-repair",
-                    {
+                  experimental_telemetry:
+                    braintrustService.getOperationTelemetry("tool-repair", {
                       taskId,
                       toolName: toolCall.toolName,
                       errorType: error.constructor.name,
                       originalArgs: toolCall.args,
                       modelProvider,
-                    }
-                  ),
+                    }),
                 });
 
                 console.log(`[REPAIR_DEBUG] Repair result:`, {
