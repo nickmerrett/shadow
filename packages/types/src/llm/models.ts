@@ -256,10 +256,7 @@ export async function getAllPossibleModels(
     models.push(
       AvailableModels.GPT_5,
       AvailableModels.GPT_4_1,
-      AvailableModels.GPT_4O,
-      AvailableModels.GPT_4O_MINI
-      // AvailableModels.O3,
-      // AvailableModels.O4_MINI
+      AvailableModels.GPT_4O
     );
   }
 
