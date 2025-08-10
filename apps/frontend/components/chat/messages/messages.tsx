@@ -82,14 +82,21 @@ function MessagesComponent({
         const lastMessage = messageGroup[messageGroup.length - 1];
         const endsWithUserMessage = lastMessage && isUserMessage(lastMessage);
 
-        const endsWithToolResultGPT5 =
-          !!lastMessage &&
-          isAssistantMessage(lastMessage) &&
-          lastMessage.llmModel === AvailableModels.GPT_5 &&
-          !!lastMessage.metadata?.parts &&
-          lastMessage.metadata.parts.length > 0 &&
-          lastMessage.metadata.parts[lastMessage.metadata.parts.length - 1]
-            ?.type === "tool-result";
+        const shouldForceGPT5ReasoningText = () => {
+          if (!lastMessage || lastMessage.llmModel !== AvailableModels.GPT_5)
+            return false;
+
+          const isLastPartValid =
+            isAssistantMessage(lastMessage) &&
+            !!lastMessage.metadata?.parts &&
+            lastMessage.metadata.parts.length > 0 &&
+            (lastMessage.metadata.parts[lastMessage.metadata.parts.length - 1]
+              ?.type === "tool-result" ||
+              lastMessage.metadata.parts[lastMessage.metadata.parts.length - 1]
+                ?.type === "text");
+
+          return isLastPartValid;
+        };
 
         const shouldShowGenerating =
           isLastGroup && endsWithUserMessage && isStreamPending;
@@ -124,7 +131,9 @@ function MessagesComponent({
                     key={message.id}
                     message={message}
                     taskId={taskId}
-                    showGenerating={isStreaming && endsWithToolResultGPT5}
+                    showGenerating={
+                      isStreaming && shouldForceGPT5ReasoningText()
+                    }
                   />
                 );
               }
