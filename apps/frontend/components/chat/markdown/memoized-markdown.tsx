@@ -1,7 +1,8 @@
 import { marked } from "marked";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useEffect, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { ShikiCode } from "@/components/ui/shiki-code";
+import { useStickToBottom } from "use-stick-to-bottom";
 
 function parseMarkdownIntoBlocks(markdown: string): string[] {
   const tokens = marked.lexer(markdown);
@@ -65,10 +66,62 @@ export function FadedMarkdown({
   content: string;
   id: string;
 }) {
+  const { scrollRef, contentRef, isAtBottom } = useStickToBottom();
+  const [isAtTop, setIsAtTop] = useState(true);
+  const [hasOverflow, setHasOverflow] = useState(false);
+
+  // Check if content overflows and scroll position
+  useEffect(() => {
+    const container = scrollRef.current;
+    const content = contentRef.current;
+    
+    if (!container || !content) return;
+
+    const checkOverflowAndPosition = () => {
+      // Check if content height exceeds container height (accounting for max-h-96 = 384px)
+      const containerHeight = container.clientHeight;
+      const contentHeight = content.scrollHeight;
+      const hasContentOverflow = contentHeight > containerHeight;
+      setHasOverflow(hasContentOverflow);
+
+      // Check if at top (within 10px buffer)
+      const scrollTop = container.scrollTop;
+      setIsAtTop(scrollTop <= 10);
+    };
+
+    checkOverflowAndPosition();
+
+    // Listen to scroll events
+    container.addEventListener('scroll', checkOverflowAndPosition);
+
+    // Use ResizeObserver to detect content changes
+    const resizeObserver = new ResizeObserver(checkOverflowAndPosition);
+    resizeObserver.observe(content);
+
+    return () => {
+      container.removeEventListener('scroll', checkOverflowAndPosition);
+      resizeObserver.disconnect();
+    };
+  }, [content, scrollRef, contentRef]);
+
+  const showTopFade = hasOverflow && !isAtTop;
+  const showBottomFade = hasOverflow && !isAtBottom;
+
   return (
-    <div className="relative z-0 max-h-96 overflow-hidden opacity-70">
-      <div className="from-background absolute -bottom-px left-0 z-10 h-24 w-full bg-gradient-to-t to-transparent" />
-      <MemoizedMarkdown content={content} id={id} />
+    <div className="relative z-0 max-h-96 overflow-auto opacity-70" ref={scrollRef}>
+      {/* Top fade */}
+      {showTopFade && (
+        <div className="from-background absolute top-0 left-0 z-10 h-24 w-full bg-gradient-to-b to-transparent pointer-events-none" />
+      )}
+      
+      {/* Bottom fade */}
+      {showBottomFade && (
+        <div className="from-background absolute -bottom-px left-0 z-10 h-24 w-full bg-gradient-to-t to-transparent pointer-events-none" />
+      )}
+      
+      <div className="space-y-2" ref={contentRef}>
+        <MemoizedMarkdown content={content} id={id} />
+      </div>
     </div>
   );
 }
