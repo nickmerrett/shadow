@@ -1178,13 +1178,13 @@ These are specific instructions from the user that should be followed throughout
       // Update task status and schedule cleanup based on how stream ended
       if (hasError) {
         // Error already handled above, just ensure cleanup happens
-        await scheduleTaskCleanup(taskId, 10);
+        await scheduleTaskCleanup(taskId, 30);
       } else if (wasStoppedEarly) {
         await updateTaskStatus(taskId, "STOPPED", "CHAT");
-        await scheduleTaskCleanup(taskId, 10);
+        await scheduleTaskCleanup(taskId, 30);
       } else {
         await updateTaskStatus(taskId, "COMPLETED", "CHAT");
-        await scheduleTaskCleanup(taskId, 10);
+        await scheduleTaskCleanup(taskId, 30);
 
         // Update task activity timestamp when assistant completes response
         await updateTaskActivity(taskId, "CHAT");
