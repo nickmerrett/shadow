@@ -17,6 +17,7 @@ import { createToolExecutor } from "./execution";
 import { setupSidecarNamespace } from "./services/sidecar-socket-handler";
 import { parseApiKeysFromCookies } from "./utils/cookie-parser";
 import { modelContextService } from "./services/model-context-service";
+import { ensureTaskInfrastructureExists } from "./utils/infrastructure-check";
 
 interface ConnectionState {
   lastSeen: number;
@@ -400,24 +401,32 @@ export function createSocketServer(
           return;
         }
 
-        // Update task status to running when user sends a new message
-        await updateTaskStatus(data.taskId, "RUNNING", "SOCKET");
-
-        // Start terminal polling for this task when user sends a message
-        startTerminalPolling(data.taskId);
-
-        // Get task workspace path from database
+        // Get task workspace path and user info from database
         const task = await prisma.task.findUnique({
           where: { id: data.taskId },
           select: { workspacePath: true, userId: true },
         });
 
-        // Create or get model context for this task
+        if (!task) {
+          socket.emit("message-error", { error: "Task not found" });
+          return;
+        }
+
+        // Create model context for this task
         const modelContext = await modelContextService.createContext(
           data.taskId,
           socket.handshake.headers.cookie,
           data.llmModel as ModelType
         );
+
+        await ensureTaskInfrastructureExists(
+          data.taskId,
+          task.userId,
+          modelContext
+        );
+
+        await updateTaskStatus(data.taskId, "RUNNING", "SOCKET");
+        startTerminalPolling(data.taskId);
 
         // Validate that user has the required API key for the selected model
         if (!modelContext.validateAccess()) {
@@ -500,24 +509,33 @@ export function createSocketServer(
           return;
         }
 
-        // Update task status to running when user edits a message
-        await updateTaskStatus(data.taskId, "RUNNING", "SOCKET");
-
-        // Start terminal polling for this task when user edits a message
-        startTerminalPolling(data.taskId);
-
-        // Get task workspace path from database
+        // Get task workspace path and user info from database
         const task = await prisma.task.findUnique({
           where: { id: data.taskId },
           select: { workspacePath: true, userId: true },
         });
 
-        // Create or get model context for this task
+        if (!task) {
+          socket.emit("message-error", { error: "Task not found" });
+          return;
+        }
+
+        // Create model context for this task
         const modelContext = await modelContextService.createContext(
           data.taskId,
           socket.handshake.headers.cookie,
           data.llmModel as ModelType
         );
+
+        // Ensure task infrastructure exists before proceeding
+        await ensureTaskInfrastructureExists(
+          data.taskId,
+          task.userId,
+          modelContext
+        );
+
+        await updateTaskStatus(data.taskId, "RUNNING", "SOCKET");
+        startTerminalPolling(data.taskId);
 
         // Validate that user has the required API key for the selected model
         if (!modelContext.validateAccess()) {
@@ -555,7 +573,7 @@ export function createSocketServer(
         complete: data.complete,
         connectionId,
       });
-      
+
       try {
         const hasAccess = await verifyTaskAccess(connectionId, data.taskId);
         if (!hasAccess) {
@@ -573,7 +591,7 @@ export function createSocketServer(
           messageCount: history.length,
           complete: data.complete,
         });
-        
+
         socket.emit("chat-history", {
           taskId: data.taskId,
           messages: history,
@@ -583,7 +601,10 @@ export function createSocketServer(
             : chatService.getQueuedAction(data.taskId),
         });
       } catch (error) {
-        console.error(`[SOCKET] Error getting chat history for task ${data.taskId}:`, error);
+        console.error(
+          `[SOCKET] Error getting chat history for task ${data.taskId}:`,
+          error
+        );
         socket.emit("chat-history-error", {
           error: "Failed to get chat history",
         });
@@ -762,7 +783,7 @@ export async function emitTaskStatusUpdate(
     // If initStatus not provided, fetch current task state including error message
     let currentInitStatus = initStatus;
     let errorMessage: string | undefined;
-    
+
     if (!currentInitStatus || status === "FAILED") {
       try {
         const task = await prisma.task.findUnique({

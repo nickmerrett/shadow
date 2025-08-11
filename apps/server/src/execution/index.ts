@@ -40,7 +40,9 @@ export async function createToolExecutor(
     const podIP = pod.status?.podIP;
 
     if (!podIP) {
-      throw new Error(`Pod IP not available for task ${taskId}. Pod may not be running.`);
+      throw new Error(
+        `Pod IP not available for task ${taskId}. Pod may not be running.`
+      );
     }
 
     // Use direct pod IP connectivity (same approach as working file operations)
@@ -48,8 +50,27 @@ export async function createToolExecutor(
     console.log(`[CREATE_TOOL_EXECUTOR] Using dynamic pod IP: ${sidecarUrl}`);
     return new RemoteToolExecutor(taskId, sidecarUrl);
   } catch (error) {
-    console.error(`[CREATE_TOOL_EXECUTOR] Failed to find pod for task ${taskId}:`, error);
-    throw new Error(`Cannot create remote tool executor for task ${taskId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error(
+      `[CREATE_TOOL_EXECUTOR] Failed to find pod for task ${taskId}:`,
+      error
+    );
+
+    // Check if this is a pod not found error (404)
+    const isNotFound =
+      error instanceof Error &&
+      (error.message.includes("404") ||
+        error.message.includes("not found") ||
+        error.message.includes("NotFound"));
+
+    if (isNotFound) {
+      throw new Error(
+        `Remote workspace for task ${taskId} is not available. This usually means the workspace was cleaned up due to inactivity. Please try your request again to automatically reconnect.`
+      );
+    }
+
+    throw new Error(
+      `Cannot create remote tool executor for task ${taskId}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
   }
 }
 
@@ -84,7 +105,7 @@ export function getAgentMode(): AgentMode {
  */
 export async function createGitService(taskId: string): Promise<GitService> {
   const agentMode = getAgentMode();
-  
+
   if (agentMode === "remote") {
     // For remote mode, use the tool executor to wrap git operations
     const toolExecutor = await createToolExecutor(taskId);
