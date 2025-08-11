@@ -8,7 +8,7 @@ import { createSimpleDiff } from "@/lib/diff-utils";
 import { useAgentEnvironment } from "@/components/agent-environment/agent-environment-context";
 
 export function SearchReplaceTool({ message }: { message: Message }) {
-  const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
+  const { updateSelectedFilePath, openAgentEnvironment } = useAgentEnvironment();
 
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
@@ -55,7 +55,7 @@ export function SearchReplaceTool({ message }: { message: Message }) {
           className="max-h-96"
           onExpand={() => {
             updateSelectedFilePath(filePath);
-            expandRightPanel();
+            openAgentEnvironment();
           }}
         />
       )}

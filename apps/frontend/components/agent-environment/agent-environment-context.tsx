@@ -2,6 +2,7 @@
 
 import { useFileContent } from "@/hooks/agent-environment/use-file-content";
 import { SHADOW_WIKI_PATH } from "@/lib/constants";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   createContext,
   useContext,
@@ -29,9 +30,14 @@ type AgentEnvironmentContextType = {
   rightPanelRef: React.RefObject<ImperativePanelHandle | null>;
   lastPanelSizeRef: React.RefObject<number | null>;
   expandRightPanel: () => void;
+  openAgentEnvironment: () => void;
   triggerTerminalResize: () => void;
   terminalResizeTrigger: number;
   openShadowWiki: () => void;
+  // Sheet management - exposed for page components
+  isSheetOpen: boolean;
+  setIsSheetOpen: (open: boolean) => void;
+  shouldUseSheet: boolean;
 };
 
 const AgentEnvironmentContext = createContext<
@@ -50,6 +56,10 @@ export function AgentEnvironmentProvider({
 
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [terminalResizeTrigger, setTerminalResizeTrigger] = useState(0);
+  
+  // Sheet management
+  const shouldUseSheet = useIsMobile({ breakpoint: 1024 });
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   function updateSelectedFilePath(path: string | null) {
     if (path && !path.startsWith("/") && path !== SHADOW_WIKI_PATH) {
@@ -96,10 +106,20 @@ export function AgentEnvironmentProvider({
     }
   }, [rightPanelRef]);
 
-  const openShadowWiki = useCallback(() => {
+  const openAgentEnvironment = useCallback(() => {
+    if (shouldUseSheet) {
+      setIsSheetOpen(true);
+      return;
+    }
+
+    // Fall back to expanding the panel (desktop mode)
     expandRightPanel();
+  }, [shouldUseSheet, expandRightPanel]);
+
+  const openShadowWiki = useCallback(() => {
+    openAgentEnvironment();
     setSelectedFilePath(SHADOW_WIKI_PATH);
-  }, [expandRightPanel]);
+  }, [openAgentEnvironment]);
 
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const triggerTerminalResize = useCallback(() => {
@@ -121,9 +141,13 @@ export function AgentEnvironmentProvider({
       rightPanelRef,
       lastPanelSizeRef,
       expandRightPanel,
+      openAgentEnvironment,
       triggerTerminalResize,
       terminalResizeTrigger,
       openShadowWiki,
+      isSheetOpen,
+      setIsSheetOpen,
+      shouldUseSheet,
     }),
     [
       selectedFilePath,
@@ -134,9 +158,12 @@ export function AgentEnvironmentProvider({
       rightPanelRef,
       lastPanelSizeRef,
       expandRightPanel,
+      openAgentEnvironment,
       triggerTerminalResize,
       terminalResizeTrigger,
       openShadowWiki,
+      isSheetOpen,
+      shouldUseSheet,
     ]
   );
 

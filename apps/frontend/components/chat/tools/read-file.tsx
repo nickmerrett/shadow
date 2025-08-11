@@ -5,7 +5,7 @@ import { ToolTypes } from "@repo/types";
 import { ToolComponent } from "./tool";
 
 export function ReadFileTool({ message }: { message: Message }) {
-  const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
+  const { updateSelectedFilePath, openAgentEnvironment } = useAgentEnvironment();
 
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
@@ -30,7 +30,7 @@ export function ReadFileTool({ message }: { message: Message }) {
       isLoading={isLoading}
       onClick={() => {
         updateSelectedFilePath(filePath);
-        expandRightPanel();
+        openAgentEnvironment();
       }}
     />
   );

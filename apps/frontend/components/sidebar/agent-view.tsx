@@ -107,7 +107,7 @@ function createFileTree(filePaths: string[]): FileNode[] {
 
 export function SidebarAgentView({ taskId }: { taskId: string }) {
   const { task, todos, fileChanges, diffStats } = useTask(taskId);
-  const { updateSelectedFilePath, expandRightPanel, openShadowWiki } =
+  const { updateSelectedFilePath, openAgentEnvironment, openShadowWiki } =
     useAgentEnvironment();
   const { isStreaming, autoPRStatus } = useTaskSocketContext();
   const createPRMutation = useCreatePR();
@@ -139,9 +139,9 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   const handleFileSelect = useCallback(
     (file: FileNode) => {
       updateSelectedFilePath(file.path);
-      expandRightPanel();
+      openAgentEnvironment();
     },
-    [expandRightPanel, updateSelectedFilePath]
+    [openAgentEnvironment, updateSelectedFilePath]
   );
 
   const handleCreatePR = useCallback(async () => {

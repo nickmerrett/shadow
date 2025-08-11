@@ -6,7 +6,7 @@ import { ToolTypes } from "@repo/types";
 import { ToolComponent } from "./tool";
 
 export function EditFileTool({ message }: { message: Message }) {
-  const { updateSelectedFilePath, expandRightPanel } = useAgentEnvironment();
+  const { updateSelectedFilePath, openAgentEnvironment } = useAgentEnvironment();
 
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
@@ -40,7 +40,7 @@ export function EditFileTool({ message }: { message: Message }) {
       prefix={isNewFile ? "Create" : undefined}
       onClick={() => {
         updateSelectedFilePath(filePath);
-        expandRightPanel();
+        openAgentEnvironment();
       }}
     />
   );

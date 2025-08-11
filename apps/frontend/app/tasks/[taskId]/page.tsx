@@ -13,7 +13,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { AppWindowMac } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -30,10 +29,8 @@ export default function TaskPage() {
   const { taskId } = useParams<{ taskId: string }>();
 
   const { open } = useSidebar();
-  const shouldUseSheet = useIsMobile({ breakpoint: 1024 });
 
   const [isEditing, setIsEditing] = useState(false);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { data } = useTaskStatus(taskId);
@@ -58,8 +55,14 @@ export default function TaskPage() {
   Resizable panel state
   */
 
-  const { rightPanelRef, lastPanelSizeRef, triggerTerminalResize } =
-    useAgentEnvironment();
+  const { 
+    rightPanelRef, 
+    lastPanelSizeRef, 
+    triggerTerminalResize,
+    isSheetOpen,
+    setIsSheetOpen,
+    shouldUseSheet,
+  } = useAgentEnvironment();
   const [isAgentEnvironmentOpen, setIsAgentEnvironmentOpen] = useState(false);
   const resizablePanelGroupRef = useRef<ImperativePanelGroupHandle>(null);
 

@@ -86,7 +86,7 @@ export function ShikiDiff({
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
-            variant="ghost"
+            variant="secondary"
             size="iconXs"
             className="text-muted-foreground hover:text-foreground absolute right-1.5 top-1.5 z-10"
             onClick={onExpand}
