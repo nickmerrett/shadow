@@ -365,13 +365,26 @@ export class TaskInitializationEngine {
       // Get the executor for this task
       const executor = await this.abstractWorkspaceManager.getExecutor(taskId);
 
-      // Check for package.json and install Node.js dependencies
+      // Check for package.json and install Node.js dependencies with appropriate package manager
       const packageJsonExists = await this.checkFileExists(
         executor,
         "package.json"
       );
       if (packageJsonExists) {
-        await this.runInstallCommand(executor, taskId, "npm install");
+        // Determine which package manager to use based on lockfiles
+        const yarnLockExists = await this.checkFileExists(executor, "yarn.lock");
+        const pnpmLockExists = await this.checkFileExists(executor, "pnpm-lock.yaml");
+        const bunLockExists = await this.checkFileExists(executor, "bun.lockb");
+
+        if (bunLockExists) {
+          await this.runInstallCommand(executor, taskId, "bun install");
+        } else if (pnpmLockExists) {
+          await this.runInstallCommand(executor, taskId, "pnpm install");
+        } else if (yarnLockExists) {
+          await this.runInstallCommand(executor, taskId, "yarn install");
+        } else {
+          await this.runInstallCommand(executor, taskId, "npm install");
+        }
       }
 
       // Check for requirements.txt and install Python dependencies

@@ -34,6 +34,11 @@ WORKDIR /app
 
 RUN apk add --no-cache bash git openssh-client ripgrep findutils coreutils curl
 
+# Install additional package managers
+RUN npm install -g yarn pnpm
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="${PATH}:/home/sidecar/.bun/bin"
+
 # Create non-root user and workspace directory
 RUN addgroup -g 1001 sidecar && adduser -D -u 1001 -G sidecar sidecar
 RUN mkdir -p /workspace && chown -R sidecar:sidecar /workspace
