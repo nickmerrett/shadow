@@ -10,11 +10,12 @@ export async function getGitHubFileChanges(
   shadowBranch: string,
   userId: string
 ): Promise<{ fileChanges: FileChange[]; diffStats: DiffStats }> {
+  const startTime = Date.now();
   const apiClient = new GitHubApiClient();
 
   try {
     console.log(
-      `[GITHUB_FILE_CHANGES] Getting file changes via GitHub API: ${baseBranch}...${shadowBranch}`
+      `[FILE_CHANGES_DEBUG] GitHub API call start - repo: ${repoFullName}, comparison: ${baseBranch}...${shadowBranch}, userId: ${userId}`
     );
 
     const compareResult = await apiClient.compareBranches(
@@ -23,16 +24,30 @@ export async function getGitHubFileChanges(
       userId
     );
 
+    const apiDuration = Date.now() - startTime;
+    console.log(
+      `[FILE_CHANGES_DEBUG] GitHub API response received - duration: ${apiDuration}ms, files: ${compareResult.files?.length || 0}, additions: ${compareResult.stats?.additions || 0}, deletions: ${compareResult.stats?.deletions || 0}`
+    );
+
     const now = new Date().toISOString();
 
     // Convert GitHub file changes to our FileChange format
-    const fileChanges: FileChange[] = compareResult.files.map((file) => ({
-      filePath: file.filename,
-      operation: mapGitHubStatusToOperation(file.status),
-      additions: file.additions,
-      deletions: file.deletions,
-      createdAt: now,
-    }));
+    const fileChanges: FileChange[] = compareResult.files.map((file, index) => {
+      if (index < 5) { // Log first 5 files to avoid spam
+        console.log(`[FILE_CHANGES_DEBUG] GitHub file ${index + 1} - path: ${file.filename}, status: ${file.status}, +${file.additions}/-${file.deletions}`);
+      }
+      return {
+        filePath: file.filename,
+        operation: mapGitHubStatusToOperation(file.status),
+        additions: file.additions,
+        deletions: file.deletions,
+        createdAt: now,
+      };
+    });
+    
+    if (compareResult.files.length > 5) {
+      console.log(`[FILE_CHANGES_DEBUG] ... and ${compareResult.files.length - 5} more GitHub files`);
+    }
 
     const diffStats: DiffStats = {
       additions: compareResult.stats.additions,
@@ -40,14 +55,16 @@ export async function getGitHubFileChanges(
       totalFiles: compareResult.stats.total,
     };
 
+    const totalDuration = Date.now() - startTime;
     console.log(
-      `[GITHUB_FILE_CHANGES] Retrieved ${fileChanges.length} file changes via GitHub API`
+      `[FILE_CHANGES_DEBUG] GitHub file changes processed - totalFiles: ${fileChanges.length}, totalDuration: ${totalDuration}ms`
     );
 
     return { fileChanges, diffStats };
   } catch (error) {
+    const duration = Date.now() - startTime;
     console.error(
-      `[GITHUB_FILE_CHANGES] Error getting file changes via GitHub API:`,
+      `[FILE_CHANGES_DEBUG] GitHub API error (duration: ${duration}ms) - repo: ${repoFullName}, comparison: ${baseBranch}...${shadowBranch}:`,
       error
     );
 

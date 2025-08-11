@@ -156,8 +156,11 @@ router.get("/:taskId/files/content", async (req, res) => {
 
 // GET /api/tasks/:taskId/file-changes - Get git-based file changes
 router.get("/:taskId/file-changes", async (req, res) => {
+  const startTime = Date.now();
   try {
     const { taskId } = req.params;
+    
+    console.log(`[FILE_CHANGES_DEBUG] Route entry - taskId: ${taskId}, timestamp: ${new Date().toISOString()}`);
 
     // Validate task exists and get full status
     const task = await prisma.task.findUnique({
@@ -174,7 +177,10 @@ router.get("/:taskId/file-changes", async (req, res) => {
       },
     });
 
+    console.log(`[FILE_CHANGES_DEBUG] Task lookup result - taskId: ${taskId}, found: ${!!task}, status: ${task?.status}, initStatus: ${task?.initStatus}, workspacePath: ${task?.workspacePath}`);
+
     if (!task) {
+      console.log(`[FILE_CHANGES_DEBUG] Task not found - taskId: ${taskId}`);
       return res.status(404).json({
         success: false,
         error: "Task not found",
@@ -183,6 +189,7 @@ router.get("/:taskId/file-changes", async (req, res) => {
 
     // Don't return file changes if task is still initializing
     if (task.status === "INITIALIZING") {
+      console.log(`[FILE_CHANGES_DEBUG] Task still initializing - taskId: ${taskId}, returning empty changes`);
       return res.json({
         success: true,
         fileChanges: [],
@@ -192,7 +199,10 @@ router.get("/:taskId/file-changes", async (req, res) => {
 
     // If task workspace is INACTIVE (cleaned up), use GitHub API
     if (task.initStatus === "INACTIVE") {
+      console.log(`[FILE_CHANGES_DEBUG] Task workspace INACTIVE - taskId: ${taskId}, using GitHub API path`);
+      
       if (!task.repoFullName || !task.shadowBranch) {
+        console.log(`[FILE_CHANGES_DEBUG] Missing GitHub info - taskId: ${taskId}, repoFullName: ${task.repoFullName}, shadowBranch: ${task.shadowBranch}`);
         return res.json({
           success: true,
           fileChanges: [],
@@ -200,6 +210,7 @@ router.get("/:taskId/file-changes", async (req, res) => {
         });
       }
 
+      console.log(`[FILE_CHANGES_DEBUG] Calling GitHub API - taskId: ${taskId}, repo: ${task.repoFullName}, base: ${task.baseBranch}, shadow: ${task.shadowBranch}`);
       const { fileChanges, diffStats } = await getGitHubFileChanges(
         task.repoFullName,
         task.baseBranch,
@@ -207,6 +218,7 @@ router.get("/:taskId/file-changes", async (req, res) => {
         task.userId
       );
 
+      console.log(`[FILE_CHANGES_DEBUG] GitHub API response - taskId: ${taskId}, fileChanges: ${fileChanges.length}, additions: ${diffStats.additions}, deletions: ${diffStats.deletions}`);
       return res.json({
         success: true,
         fileChanges,
@@ -215,10 +227,14 @@ router.get("/:taskId/file-changes", async (req, res) => {
     }
 
     // For ACTIVE tasks, use local git operations
+    console.log(`[FILE_CHANGES_DEBUG] Task ACTIVE - taskId: ${taskId}, using local git operations`);
+    
     // Check if workspace has git repository
     const hasGit = await hasGitRepository(taskId);
+    console.log(`[FILE_CHANGES_DEBUG] Git repository check - taskId: ${taskId}, hasGit: ${hasGit}`);
 
     if (!hasGit) {
+      console.log(`[FILE_CHANGES_DEBUG] No git repository found - taskId: ${taskId}, returning empty changes`);
       return res.json({
         success: true,
         fileChanges: [],
@@ -226,18 +242,23 @@ router.get("/:taskId/file-changes", async (req, res) => {
       });
     }
 
+    console.log(`[FILE_CHANGES_DEBUG] Calling getFileChanges - taskId: ${taskId}, baseBranch: ${task.baseBranch}`);
     const { fileChanges, diffStats } = await getFileChanges(
       taskId,
       task.baseBranch
     );
 
+    const duration = Date.now() - startTime;
+    console.log(`[FILE_CHANGES_DEBUG] Final response - taskId: ${taskId}, fileChanges: ${fileChanges.length}, additions: ${diffStats.additions}, deletions: ${diffStats.deletions}, duration: ${duration}ms`);
+    
     res.json({
       success: true,
       fileChanges,
       diffStats,
     });
   } catch (error) {
-    console.error("[FILE_CHANGES_API_ERROR]", error);
+    const duration = Date.now() - startTime;
+    console.error(`[FILE_CHANGES_DEBUG] Error in file-changes route - taskId: ${req.params.taskId}, duration: ${duration}ms`, error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
