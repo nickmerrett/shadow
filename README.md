@@ -117,10 +117,7 @@ An easy way to do this is run the `./setup-script.sh` which will take in your in
 DATABASE_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
 BETTER_AUTH_SECRET="dev-secret"
 
-# Personal token mode (local): either var works
 GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxx
-# or
-# GITHUB_TOKEN=ghp_xxx
 
 # Local mode
 NODE_ENV=development
@@ -142,55 +139,16 @@ NEXT_PUBLIC_SERVER_URL=http://localhost:4000
 # Marks environment; any value other than "production" enables local behavior
 NEXT_PUBLIC_VERCEL_ENV=development
 
-# Optional (only if you want OAuth login locally)
-BETTER_AUTH_SECRET=dev-secret
+GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxx
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
+
+# Optional (only if you want OAuth login locally)
+BETTER_AUTH_SECRET=dev-secret
 ```
 
-Notes:
-- With `GITHUB_PERSONAL_ACCESS_TOKEN` set on the server and `NEXT_PUBLIC_VERCEL_ENV` not equal to `production`, the backend uses your PAT for repo/branch/issue queries. The frontend's GitHub selector works immediately.
-- In this local PAT mode, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_APP_USER_ID`, and `GITHUB_APP_SLUG` are NOT required by the server.
-- Production continues to require the GitHub App configuration and OAuth secrets.
+With `GITHUB_PERSONAL_ACCESS_TOKEN` set on the server and `NEXT_PUBLIC_VERCEL_ENV` not equal to `production`, the backend uses your PAT for repo/branch/issue queries. The frontend's GitHub selector works immediately.
 
-#### Full configuration (production / GitHub App)
-If you deploy or want to test with the GitHub App, set these server vars instead of the PAT:
-
-`apps/server/.env`
-```bash
-DATABASE_URL=postgres://...
-BETTER_AUTH_SECRET=your-secret
-
-# GitHub OAuth & App
-GITHUB_CLIENT_ID=...
-GITHUB_CLIENT_SECRET=...
-GITHUB_APP_USER_ID=...
-GITHUB_APP_SLUG=...
-GITHUB_WEBHOOK_SECRET=optional
-
-NODE_ENV=production
-AGENT_MODE=remote
-
-# Optional: Pinecone for semantic search
-PINECONE_API_KEY=...
-PINECONE_INDEX_NAME="shadow"
-```
-
-`apps/frontend/.env`
-```bash
-NEXT_PUBLIC_VERCEL_ENV=production
-NEXT_PUBLIC_SERVER_URL="http://localhost:4000"
-
-BETTER_AUTH_SECRET= # TODO: Set this to your BetterAuth secret
-
-GITHUB_APP_ID= # TODO: Set this to your GitHub app ID (same as server .env)
-GITHUB_APP_SLUG= # TODO: Set this to your GitHub app slug (same as server .env)
-GITHUB_PRIVATE_KEY= # TODO: Set this to your GitHub private key (same as server .env)
-GITHUB_CLIENT_ID= # TODO: Set this to your GitHub client ID (same as server .env)
-GITHUB_CLIENT_SECRET= # TODO: Set this to your GitHub client secret (same as server .env)
-
-DATABASE_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
-```
 ## Development Commands
 
 ### Linting and Formatting
@@ -235,51 +193,6 @@ npm run build
 npm run build --filter=frontend
 npm run build --filter=server
 npm run build --filter=sidecar
-```
-
-## Production Deployment (Optional)
-
-### Remote Infrastructure (AWS EKS)
-
-Shadow supports production deployment on AWS with Kata QEMU containers:
-
-1. **Deploy EKS Cluster with Kata Containers:**
-```bash
-# Configure AWS SSO
-aws configure sso --profile=ID
-
-# Deploy infrastructure (25-35 minutes)
-./scripts/deploy-remote-infrastructure.sh
-```
-
-2. **Deploy Shadow Application:**
-```bash
-# Deploy complete platform
-./scripts/deploy-full-infrastructure.sh
-```
-
-### Infrastructure Components
-
-- **EKS Cluster** - Amazon Linux 2023 nodes with Kata Containers support
-- **Kata QEMU Runtime** - Hardware-level VM isolation
-- **GitHub Container Registry** - Container image storage
-- **ECS Backend** - Application Load Balancer with optional SSL
-- **EFS Storage** - Persistent workspace storage
-
-### Infrastructure Management
-
-```bash
-# Deploy only EKS cluster with Kata Containers
-./scripts/deploy-remote-infrastructure.sh
-
-# Deploy only ECS backend service
-./scripts/deploy-backend-ecs.sh
-
-# Deploy complete infrastructure (EKS + ECS)
-./scripts/deploy-full-infrastructure.sh
-
-# Clean up infrastructure
-./scripts/cleanup-infrastructure.sh
 ```
 
 ## Tool System
@@ -341,6 +254,6 @@ We're excited to see what you've built with Shadow!
 
 ---
 
-[Ishaan Dey](https://ishaand.com), [X](https://x.com/ishaandey_)
-[Rajan Agarwal](https://github.com/rajansagarwal), [X](https://x.com/_rajanagarwal)
+[Ishaan Dey](https://ishaand.com) [X](https://x.com/ishaandey_) —— 
+[Rajan Agarwal](https://github.com/rajansagarwal) [X](https://x.com/_rajanagarwal) ——
 [Elijah Kurien](https://github.com/elijahkurien), [X](https://x.com/ElijahKurien)
