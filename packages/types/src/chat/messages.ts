@@ -6,7 +6,7 @@ import type {
   FinishReason,
 } from "ai";
 import { ToolExecutionStatusType } from "../tools/execution";
-import { ToolResultTypes } from "../tools/schemas";
+import { ToolResultTypes } from "../tools/tool-schemas";
 import type { PullRequestSnapshot, TaskStatus, Todo } from "@repo/db";
 
 // Error part type for AI SDK error chunks
@@ -123,7 +123,6 @@ export const isAssistantMessage = (
   message: Message
 ): message is Message & { role: "assistant" } =>
   message.role.toLowerCase() === "assistant";
-
 
 export const isSystemMessage = (
   message: Message

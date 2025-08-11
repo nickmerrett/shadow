@@ -15,8 +15,8 @@ import type {
   AddMemoryResult,
   ListMemoriesResult,
   RemoveMemoryResult,
-} from "./schemas";
-import { ToolResultSchemas } from "./schemas";
+} from "./tool-schemas";
+import { ToolResultSchemas } from "./tool-schemas";
 import { z } from "zod";
 
 export interface ValidationResult<T> {

@@ -5,7 +5,7 @@ export * from "./chat/streaming-client";
 // === Tool Result Types ===
 export * from "./tools/execution";
 export * from "./tools/guards";
-export * from "./tools/schemas";
+export * from "./tools/tool-schemas";
 
 // === LLM Integration Types ===
 export * from "./llm/models";

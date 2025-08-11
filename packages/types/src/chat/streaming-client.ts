@@ -1,6 +1,6 @@
 import type { FinishReason } from "ai";
 import type { InitStatus } from "@repo/db";
-import { ToolResultTypes } from "../tools/schemas";
+import { ToolResultTypes } from "../tools/tool-schemas";
 import { CompletionTokenUsage } from "./messages";
 
 // Validation error result interface
