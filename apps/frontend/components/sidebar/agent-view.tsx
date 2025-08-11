@@ -339,14 +339,21 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                 const StatusIcon =
                   statusColorsConfig[
                     task.status as keyof typeof statusColorsConfig
-                  ]?.icon || CircleDashed;
+                  ]?.icon || Square;
                 const statusClass =
                   statusColorsConfig[
                     task.status as keyof typeof statusColorsConfig
                   ]?.className || "text-muted-foreground";
                 return (
                   <>
-                    <StatusIcon className={cn("size-4", statusClass)} />
+                    <StatusIcon
+                      className={cn(
+                        "size-4",
+                        statusClass,
+                        task.status === "INITIALIZING" &&
+                          "animate-spin duration-1000"
+                      )}
+                    />
                     <span className="capitalize">
                       {task.status.toLowerCase().replace("_", " ")}
                     </span>

@@ -18,12 +18,13 @@ export function MCPTool({ message }: { message: Message }) {
     }
 
     if (typeof toolMeta.result === "string") {
-      return (
-        <FadedMarkdown
-          content={(toolMeta.result as string).slice(0, 800)}
-          id={`mcp-${message.id}`}
-        />
-      );
+      const metaResult = toolMeta.result as string;
+      const content =
+        metaResult.length > 1000
+          ? `${metaResult.slice(0, 1000)}\n\n**+ ${metaResult.length - 1000} more chars**`
+          : metaResult;
+
+      return <FadedMarkdown content={content} id={`mcp-${message.id}`} />;
     }
 
     if (typeof toolMeta.result === "object") {
@@ -41,21 +42,27 @@ export function MCPTool({ message }: { message: Message }) {
           typeof firstContent === "object" &&
           "text" in firstContent
         ) {
+          const firstContentText = firstContent.text as string;
+          const content =
+            firstContentText.length > 1000
+              ? `${firstContentText.slice(0, 1000)}\n\n**+ ${firstContentText.length - 1000} more chars**`
+              : firstContentText;
+
           return (
-            <FadedMarkdown
-              content={(firstContent.text as string).slice(0, 800)}
-              id={`mcp-content-${message.id}`}
-            />
+            <FadedMarkdown content={content} id={`mcp-content-${message.id}`} />
           );
         }
       }
 
       if ("content" in result && typeof result.content === "string") {
+        const resultContent = result.content as string;
+        const content =
+          resultContent.length > 1000
+            ? `${resultContent.slice(0, 1000)}\n\n+ ${resultContent.length - 1000} more chars`
+            : resultContent;
+
         return (
-          <FadedMarkdown
-            content={(result.content as string).slice(0, 800)}
-            id={`mcp-content-${message.id}`}
-          />
+          <FadedMarkdown content={content} id={`mcp-content-${message.id}`} />
         );
       }
     }

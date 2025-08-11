@@ -5,6 +5,7 @@ import JavaScript from "tree-sitter-javascript";
 import { prisma, Prisma } from "@repo/db";
 import { CodebaseUnderstandingStorage } from "./db-storage";
 import TS from "tree-sitter-typescript";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const Python = require("tree-sitter-python");
 import { ModelProvider } from "@/agent/llm/models/model-provider";
 import { ModelType, ApiKeys } from "@repo/types";
@@ -1030,8 +1031,8 @@ function analyzeDirectoryPatterns(node: TreeNode): string {
   // Rich symbol analysis from all files in directory
   let totalDefs = 0;
   let totalImports = 0;
-  let majorImports = new Set<string>();
-  let functionTypes = new Set<string>();
+  const majorImports = new Set<string>();
+  const functionTypes = new Set<string>();
 
   files.forEach((filePath) => {
     const data = symbolData?.get(filePath);

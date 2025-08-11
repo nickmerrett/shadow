@@ -22,7 +22,9 @@ function StatusIcon({ status }: { status: TodoItem["status"] }) {
     case "pending":
       return <Square className="size-4 shrink-0" />;
     case "in_progress":
-      return <CircleDashed className="size-4 shrink-0" />;
+      return (
+        <CircleDashed className="size-4 shrink-0 animate-spin duration-1000" />
+      );
     case "completed":
       return <CheckSquare2 className="size-4 shrink-0" />;
     case "cancelled":
@@ -84,7 +86,7 @@ export function TodoWriteTool({ message }: { message: Message }) {
 
   const icon =
     lastTodo?.status === "in_progress" ? (
-      <CircleDashed />
+      <CircleDashed className="animate-spin duration-1000" />
     ) : lastTodo?.status === "completed" ? (
       <Check />
     ) : (
