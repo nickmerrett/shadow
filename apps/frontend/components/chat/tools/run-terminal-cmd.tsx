@@ -6,7 +6,7 @@ import { ToolTypes } from "@repo/types";
 import { ToolComponent } from "./tool";
 
 export function RunTerminalCmdTool({ message }: { message: Message }) {
-  const { expandRightPanel } = useAgentEnvironment();
+  const { openAgentEnvironment } = useAgentEnvironment();
 
   const toolMeta = message.metadata?.tool;
   if (!toolMeta) return null;
@@ -32,7 +32,7 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
       suffix={suffix}
       hasStdErr={!!_error}
       isLoading={isLoading}
-      onClick={() => expandRightPanel()}
+      onClick={() => openAgentEnvironment()}
     />
   );
 }

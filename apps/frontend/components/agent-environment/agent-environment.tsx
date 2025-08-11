@@ -22,6 +22,7 @@ import { BottomPanelOpenIcon } from "../graphics/icons/bottom-panel-open-icon";
 import { BottomPanelIcon } from "../graphics/icons/bottom-panel-icon";
 import { Close as SheetPrimitiveClose } from "@radix-ui/react-dialog";
 import { useTaskStatus } from "@/hooks/tasks/use-task-status";
+import { SheetTitle } from "../ui/sheet";
 
 const Terminal = dynamic(() => import("./terminal"), { ssr: false });
 
@@ -44,6 +45,7 @@ function AgentEnvironment({
     isLoadingContent,
     contentError,
     triggerTerminalResize,
+    shouldUseSheet,
   } = useAgentEnvironment();
 
   const { data: treeData, error: treeError } = useFileTree(taskId);
@@ -106,7 +108,15 @@ function AgentEnvironment({
   return (
     <div className="flex size-full h-svh flex-col overflow-hidden">
       <div className="border-border bg-card h-13 flex shrink-0 items-center justify-between border-b px-2">
-        <div className="font-departureMono tracking-tight">Shadow Realm</div>
+        {shouldUseSheet ? (
+          <SheetTitle className="font-departureMono font-normal tracking-tight">
+            Shadow Realm
+          </SheetTitle>
+        ) : (
+          <div className="font-departureMono font-normal tracking-tight">
+            Shadow Realm
+          </div>
+        )}
         <div className="flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
