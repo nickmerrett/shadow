@@ -1,6 +1,7 @@
 import { ToolTypes, type ReasoningPart } from "@repo/types";
 import { ChevronDown } from "lucide-react";
 import { ToolComponent } from "../tools/tool";
+import { FadedMarkdown } from "../markdown/memoized-markdown";
 
 export function ReasoningComponent({
   part,
@@ -21,9 +22,7 @@ export function ReasoningComponent({
       isLoading={isLoading}
       type={ToolTypes.REASONING}
     >
-      <div className="text-muted-foreground whitespace-pre-wrap pb-1 text-sm">
-        {trimmedPart}
-      </div>
+      <FadedMarkdown content={trimmedPart} id={JSON.stringify(part)} />
     </ToolComponent>
   );
 }

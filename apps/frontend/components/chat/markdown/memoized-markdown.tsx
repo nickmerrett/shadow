@@ -66,19 +66,21 @@ export function FadedMarkdown({
   content: string;
   id: string;
 }) {
-  const { scrollRef, contentRef, isAtBottom } = useStickToBottom();
+  const { scrollRef, contentRef } = useStickToBottom();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAtTop, setIsAtTop] = useState(true);
+  const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasOverflow, setHasOverflow] = useState(false);
 
-  // Check if content overflows and scroll position
+  // Check if content overflows and handle top scroll detection
   useEffect(() => {
-    const container = scrollRef.current;
+    const container = scrollContainerRef.current;
     const content = contentRef.current;
-    
+
     if (!container || !content) return;
 
     const checkOverflowAndPosition = () => {
-      // Check if content height exceeds container height (accounting for max-h-96 = 384px)
+      // Check if content height exceeds container height
       const containerHeight = container.clientHeight;
       const contentHeight = content.scrollHeight;
       const hasContentOverflow = contentHeight > containerHeight;
@@ -87,40 +89,56 @@ export function FadedMarkdown({
       // Check if at top (within 10px buffer)
       const scrollTop = container.scrollTop;
       setIsAtTop(scrollTop <= 10);
+
+      // Check if at bottom (within 10px buffer)
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      const isNearBottom = scrollTop + clientHeight >= scrollHeight - 10;
+      setIsAtBottom(isNearBottom);
     };
 
     checkOverflowAndPosition();
 
-    // Listen to scroll events
-    container.addEventListener('scroll', checkOverflowAndPosition);
+    // Listen to scroll events with passive option
+    container.addEventListener("scroll", checkOverflowAndPosition, {
+      passive: true,
+    });
 
     // Use ResizeObserver to detect content changes
     const resizeObserver = new ResizeObserver(checkOverflowAndPosition);
     resizeObserver.observe(content);
 
     return () => {
-      container.removeEventListener('scroll', checkOverflowAndPosition);
+      container.removeEventListener("scroll", checkOverflowAndPosition);
       resizeObserver.disconnect();
     };
-  }, [content, scrollRef, contentRef]);
+  }, [content, contentRef]);
 
   const showTopFade = hasOverflow && !isAtTop;
   const showBottomFade = hasOverflow && !isAtBottom;
 
   return (
-    <div className="relative z-0 max-h-96 overflow-auto opacity-70" ref={scrollRef}>
+    <div className="relative z-0">
       {/* Top fade */}
       {showTopFade && (
-        <div className="from-background absolute top-0 left-0 z-10 h-24 w-full bg-gradient-to-b to-transparent pointer-events-none" />
+        <div className="from-background pointer-events-none absolute -top-px left-0 z-10 h-16 w-full bg-gradient-to-b to-transparent" />
       )}
-      
+
       {/* Bottom fade */}
       {showBottomFade && (
-        <div className="from-background absolute -bottom-px left-0 z-10 h-24 w-full bg-gradient-to-t to-transparent pointer-events-none" />
+        <div className="from-background pointer-events-none absolute -bottom-px left-0 z-10 h-16 w-full bg-gradient-to-t to-transparent" />
       )}
-      
-      <div className="space-y-2" ref={contentRef}>
-        <MemoizedMarkdown content={content} id={id} />
+
+      <div
+        className="max-h-80 overflow-auto opacity-70"
+        ref={(el) => {
+          scrollRef.current = el;
+          scrollContainerRef.current = el;
+        }}
+      >
+        <div ref={contentRef}>
+          <MemoizedMarkdown content={content} id={id} />
+        </div>
       </div>
     </div>
   );
