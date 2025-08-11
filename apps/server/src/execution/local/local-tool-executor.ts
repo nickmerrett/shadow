@@ -7,6 +7,7 @@ import {
 import { spawn } from "child_process";
 import * as fs from "fs/promises";
 import * as path from "path";
+import * as diff from "diff";
 import config from "../../config";
 import { execAsync } from "../../utils/exec";
 import { ToolExecutor } from "../interfaces/tool-executor";
@@ -58,6 +59,32 @@ export class LocalToolExecutor implements ToolExecutor {
         console.log(`[LOCAL_SECURITY] ${message}`, details);
       },
     };
+  }
+
+  /**
+   * Calculate accurate line changes using diff library
+   */
+  private calculateDiffStats(
+    oldContent: string,
+    newContent: string
+  ): { linesAdded: number; linesRemoved: number } {
+    const changes = diff.diffLines(oldContent, newContent);
+    let linesAdded = 0;
+    let linesRemoved = 0;
+
+    for (const change of changes) {
+      if (change.added) {
+        linesAdded += change.count || 0;
+      } else if (change.removed) {
+        linesRemoved += change.count || 0;
+      }
+    }
+
+    // Log the diff calculation with emoji (local mode only)
+    console.log(`📊 Diff calculated: +${linesAdded} -${linesRemoved} lines`);
+    console.log(`📝 Comparing ${oldContent.split('\n').length} → ${newContent.split('\n').length} lines`);
+
+    return { linesAdded, linesRemoved };
   }
 
   async readFile(
@@ -187,15 +214,14 @@ export class LocalToolExecutor implements ToolExecutor {
           linesAdded: content.split("\n").length,
         };
       } else {
-        const existingLines = existingContent.split("\n").length;
-        const newLines = content.split("\n").length;
+        const diffStats = this.calculateDiffStats(existingContent, content);
 
         return {
           success: true,
           isNewFile: false,
           message: `Modified file: ${targetFile}`,
-          linesAdded: Math.max(0, newLines - existingLines),
-          linesRemoved: Math.max(0, existingLines - newLines),
+          linesAdded: diffStats.linesAdded,
+          linesRemoved: diffStats.linesRemoved,
         };
       }
     } catch (error) {
@@ -327,24 +353,18 @@ export class LocalToolExecutor implements ToolExecutor {
       // Perform replacement and calculate metrics
       const newContent = existingContent.replace(oldString, newString);
 
-      // Calculate line changes
-      const oldLines = existingContent.split("\n");
-      const newLines = newContent.split("\n");
-      const oldLineCount = oldLines.length;
-      const newLineCount = newLines.length;
-
-      const linesAdded = Math.max(0, newLineCount - oldLineCount);
-      const linesRemoved = Math.max(0, oldLineCount - newLineCount);
+      // Calculate line changes using diff
+      const diffStats = this.calculateDiffStats(existingContent, newContent);
 
       // Write the new content
       await fs.writeFile(resolvedPath, newContent);
 
       return {
         success: true,
-        message: `Successfully replaced text in ${filePath}: ${occurrences} occurrence(s), ${linesAdded} lines added, ${linesRemoved} lines removed`,
+        message: `Successfully replaced text in ${filePath}: ${occurrences} occurrence(s), ${diffStats.linesAdded} lines added, ${diffStats.linesRemoved} lines removed`,
         isNewFile: false,
-        linesAdded,
-        linesRemoved,
+        linesAdded: diffStats.linesAdded,
+        linesRemoved: diffStats.linesRemoved,
         occurrences,
         oldLength: existingContent.length,
         newLength: newContent.length,

@@ -82,7 +82,7 @@ function MessagesComponent({
         const lastMessage = messageGroup[messageGroup.length - 1];
         const endsWithUserMessage = lastMessage && isUserMessage(lastMessage);
 
-        const shouldForceGPT5ReasoningText = () => {
+        const showGPT5Reasoning = () => {
           if (!lastMessage || lastMessage.llmModel !== AvailableModels.GPT_5)
             return false;
 
@@ -131,9 +131,7 @@ function MessagesComponent({
                     key={message.id}
                     message={message}
                     taskId={taskId}
-                    showGenerating={
-                      isStreaming && shouldForceGPT5ReasoningText()
-                    }
+                    showGenerating={isStreaming && showGPT5Reasoning()}
                   />
                 );
               }

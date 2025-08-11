@@ -1,7 +1,6 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import { execSync } from "child_process";
-import * as os from "os";
+import * as diff from "diff";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import { WorkspaceService } from "./workspace-service";
@@ -22,73 +21,29 @@ export class FileService {
   constructor(private workspaceService: WorkspaceService) {}
 
   /**
-   * Calculate accurate line changes using system diff command
+   * Calculate accurate line changes using diff library
    */
-  private async calculateDiffStats(
+  private calculateDiffStats(
     oldContent: string,
     newContent: string
-  ): Promise<{ linesAdded: number; linesRemoved: number }> {
-    try {
-      // Create temporary files for diff comparison
-      const tmpDir = os.tmpdir();
-      const oldFile = path.join(tmpDir, `diff_old_${Date.now()}_${Math.random()}.tmp`);
-      const newFile = path.join(tmpDir, `diff_new_${Date.now()}_${Math.random()}.tmp`);
+  ): { linesAdded: number; linesRemoved: number } {
+    const changes = diff.diffLines(oldContent, newContent);
+    let linesAdded = 0;
+    let linesRemoved = 0;
 
-      await fs.writeFile(oldFile, oldContent);
-      await fs.writeFile(newFile, newContent);
-
-      try {
-        // Use diff -U0 to get minimal unified diff output
-        const diffOutput = execSync(`diff -U0 "${oldFile}" "${newFile}"`, {
-          encoding: "utf8",
-        });
-        
-        // If no diff output, files are identical
-        const lines = diffOutput.split("\n");
-        const addedLines = lines.filter((line: string) => line.startsWith("+") && !line.startsWith("+++")).length;
-        const removedLines = lines.filter((line: string) => line.startsWith("-") && !line.startsWith("---")).length;
-
-        return { linesAdded: addedLines, linesRemoved: removedLines };
-      } catch (error: any) {
-        // diff returns exit code 1 when files differ, which is expected
-        if (error.status === 1) {
-          const diffOutput = error.stdout || "";
-          const lines = diffOutput.split("\n");
-          const addedLines = lines.filter((line: string) => line.startsWith("+") && !line.startsWith("+++")).length;
-          const removedLines = lines.filter((line: string) => line.startsWith("-") && !line.startsWith("---")).length;
-
-          return { linesAdded: addedLines, linesRemoved: removedLines };
-        }
-        
-        // For other errors, fall back to simple line counting
-        logger.warn("Failed to run diff, falling back to simple line counting", { error: error.message });
-        const oldLines = oldContent.split("\n").length;
-        const newLines = newContent.split("\n").length;
-        
-        return {
-          linesAdded: Math.max(0, newLines - oldLines),
-          linesRemoved: Math.max(0, oldLines - newLines),
-        };
-      } finally {
-        // Clean up temporary files
-        try {
-          await fs.unlink(oldFile);
-          await fs.unlink(newFile);
-        } catch (cleanupError) {
-          logger.warn("Failed to clean up temporary diff files", { cleanupError });
-        }
+    for (const change of changes) {
+      if (change.added) {
+        linesAdded += change.count || 0;
+      } else if (change.removed) {
+        linesRemoved += change.count || 0;
       }
-    } catch (error) {
-      logger.error("Error in calculateDiffStats", { error });
-      // Fall back to simple line counting on any error
-      const oldLines = oldContent.split("\n").length;
-      const newLines = newContent.split("\n").length;
-      
-      return {
-        linesAdded: Math.max(0, newLines - oldLines),
-        linesRemoved: Math.max(0, oldLines - newLines),
-      };
     }
+
+    // Log the diff calculation with emoji
+    logger.info(`📊 Diff calculated: +${linesAdded} -${linesRemoved} lines`);
+    logger.info(`📝 Comparing ${oldContent.split('\n').length} → ${newContent.split('\n').length} lines`);
+
+    return { linesAdded, linesRemoved };
   }
 
   /**
@@ -246,7 +201,7 @@ export class FileService {
         linesAdded = content.split("\n").length;
         linesRemoved = 0;
       } else {
-        const diffStats = await this.calculateDiffStats(existingContent, content);
+        const diffStats = this.calculateDiffStats(existingContent, content);
         linesAdded = diffStats.linesAdded;
         linesRemoved = diffStats.linesRemoved;
       }
@@ -408,7 +363,7 @@ export class FileService {
       const newContent = existingContent.replace(oldString, newString);
 
       // Calculate accurate line changes using diff
-      const { linesAdded, linesRemoved } = await this.calculateDiffStats(existingContent, newContent);
+      const { linesAdded, linesRemoved } = this.calculateDiffStats(existingContent, newContent);
 
       // Write the new content
       await fs.writeFile(fullPath, newContent);

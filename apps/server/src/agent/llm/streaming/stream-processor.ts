@@ -92,7 +92,7 @@ export class StreamProcessor {
         ...(isGPT5Family
           ? {
               openai: {
-                reasoningEffort: "high",
+                reasoningEffort: "medium",
               },
             }
           : {}),
