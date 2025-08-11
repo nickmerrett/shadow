@@ -323,8 +323,13 @@ export function AssistantMessage({
       })}
 
       {showGenerating && (
-        <div className="shimmer flex h-7 w-fit items-center px-3 text-[13px]">
-          Reasoning
+        <div
+          key={JSON.stringify(message.metadata.parts)}
+          className="animate-in fade-in delay-2000 fill-mode-both ease-out-quad duration-300"
+        >
+          <div className="shimmer flex h-7 w-fit items-center px-3 text-[13px]">
+            Reasoning
+          </div>
         </div>
       )}
 

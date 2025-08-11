@@ -83,8 +83,10 @@ function MessagesComponent({
         const endsWithUserMessage = lastMessage && isUserMessage(lastMessage);
 
         const showGPT5Reasoning = () => {
-          if (!lastMessage || lastMessage.llmModel !== AvailableModels.GPT_5)
-            return false;
+          const isGPT5Family =
+            lastMessage?.llmModel === AvailableModels.GPT_5 ||
+            lastMessage?.llmModel === AvailableModels.GPT_5_MINI;
+          if (!lastMessage || !isGPT5Family) return false;
 
           const isLastPartValid =
             isAssistantMessage(lastMessage) &&
