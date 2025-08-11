@@ -1,13 +1,6 @@
 import { db } from "@repo/db";
 import { generateTaskId } from "@repo/types";
 
-/**
- * Simple database storage for codebase understanding summaries
- * Uses the new Prisma CodebaseUnderstanding model linked to tasks
- *
- * Note: taskId is used ONLY for database operations and task linking,
- * never included in the actual content to keep it portable across tasks
- */
 export class CodebaseUnderstandingStorage {
   private taskId: string;
 
@@ -15,10 +8,6 @@ export class CodebaseUnderstandingStorage {
     this.taskId = taskId;
   }
 
-  /**
-   * Store or update summary for a task
-   * Creates/updates a single CodebaseUnderstanding record linked to the task
-   */
   async storeSummary(
     repoFullName: string,
     repoUrl: string,

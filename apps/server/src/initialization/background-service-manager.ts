@@ -162,6 +162,7 @@ export class BackgroundServiceManager {
         {
           concurrency: 12,
           model: context.getMainModel(),
+          recursionLimit: 1,
         }
       );
 

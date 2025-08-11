@@ -50,35 +50,40 @@ function EditorComponent({
     });
   }, []);
 
-  const filePathHeader = useMemo(() => (
-    <div className="text-muted-foreground flex items-center gap-0.5 px-5 pb-1 pt-2 text-[13px]">
-      {selectedFilePath === SHADOW_WIKI_PATH ? (
-        <div className="text-muted-foreground flex items-center gap-2">
-          Shadow Wiki{" "}
-          <Tooltip>
-            <TooltipTrigger>
-              <Info className="size-3.5" />
-            </TooltipTrigger>
-            <TooltipContent className="h-auto max-w-44" side="bottom">
-              LLM-generated codebase understanding notes
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      ) : (
-        selectedFilePath &&
-        selectedFilePath.split("/").map((part, index) => (
-          <Fragment key={index}>
-            {index > 1 && (
-              <span className="text-muted-foreground">
-                <ChevronRight className="size-3" />
+  const filePathHeader = useMemo(
+    () => (
+      <div className="text-muted-foreground flex items-center gap-0.5 px-5 pb-1 pt-2 text-[13px]">
+        {selectedFilePath === SHADOW_WIKI_PATH ? (
+          <div className="text-muted-foreground flex items-center gap-2">
+            Shadow Wiki{" "}
+            <Tooltip>
+              <TooltipTrigger>
+                <Info className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent className="h-auto max-w-44" side="bottom">
+                LLM-generated codebase understanding notes
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        ) : (
+          selectedFilePath &&
+          selectedFilePath.split("/").map((part, index) => (
+            <Fragment key={index}>
+              {index > 1 && (
+                <span className="text-muted-foreground">
+                  <ChevronRight className="size-3" />
+                </span>
+              )}
+              <span className="text-muted-foreground leading-tight">
+                {part}
               </span>
-            )}
-            <span className="text-muted-foreground leading-tight">{part}</span>
-          </Fragment>
-        ))
-      )}
-    </div>
-  ), [selectedFilePath]);
+            </Fragment>
+          ))
+        )}
+      </div>
+    ),
+    [selectedFilePath]
+  );
 
   return (
     <div className="bg-background flex size-full flex-col">

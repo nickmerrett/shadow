@@ -37,7 +37,7 @@ shadowWikiRouter.post("/generate/:taskId", async (req, res, next) => {
     // Get or create model context for this task
     const modelContext = await modelContextService.refreshContext(
       taskId,
-      req.headers.cookie,
+      req.headers.cookie
     );
 
     if (!modelContext) {
@@ -96,7 +96,8 @@ shadowWikiRouter.post("/generate/:taskId", async (req, res, next) => {
         concurrency: 12,
         model: model as ModelType,
         modelMini: modelMini as ModelType,
-      },
+        recursionLimit: 1,
+      }
     );
 
     res.json({

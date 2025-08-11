@@ -16,9 +16,6 @@ import { createWorkspaceManager, type ToolExecutor } from "@/execution";
 // Configuration
 const TEMP = 0.15;
 
-/**
- * Get hardcoded mini model for each provider
- */
 function getHardcodedMiniModel(
   provider: "anthropic" | "openai" | "openrouter"
 ): ModelType {
@@ -594,7 +591,8 @@ function shouldIncludeFileForShadowWiki(filePath: string): boolean {
 // Build directory tree - using ToolExecutor for both local and remote modes
 async function buildTree(
   executor: ToolExecutor,
-  repoName?: string
+  repoName?: string,
+  recursionLimit: number = Number.POSITIVE_INFINITY
 ): Promise<IndexFile> {
   // Get all files using ToolExecutor
   const recursiveListing = await executor.listDirectoryRecursive(".");
@@ -614,6 +612,12 @@ async function buildTree(
   let skippedCount = 0;
 
   for (const fileEntry of allFiles) {
+    // Enforce recursion limit early (depth from root based on path parts)
+    const depthFromRoot = fileEntry.relativePath.split("/").length - 1;
+    if (depthFromRoot > recursionLimit) {
+      skippedCount++;
+      continue;
+    }
     // Check if file should be included
     if (!shouldIncludeFileForShadowWiki(fileEntry.relativePath)) {
       skippedCount++;
@@ -1246,6 +1250,7 @@ export async function runShadowWiki(
     concurrency?: number;
     model?: ModelType;
     modelMini?: ModelType;
+    recursionLimit?: number;
   }
 ): Promise<{ codebaseUnderstandingId: string; stats: ProcessingStats }> {
   // Skip regeneration if a summary already exists for this repository
@@ -1318,6 +1323,14 @@ export async function runShadowWiki(
     `[SHADOW-WIKI] API validation complete - provider=${context.getProvider()}`
   );
 
+  const recursionLimit =
+    typeof options.recursionLimit === "number"
+      ? options.recursionLimit
+      : Number.POSITIVE_INFINITY;
+  console.log(
+    `[SHADOW-WIKI] Recursion limit: ${Number.isFinite(recursionLimit) ? recursionLimit : "unlimited"}`
+  );
+
   const modelProvider = new ModelProvider();
   const miniModelInstance = modelProvider.getModel(
     miniModel,
@@ -1338,15 +1351,17 @@ export async function runShadowWiki(
   const executor = await workspaceManager.getExecutor(taskId);
 
   console.log(`[SHADOW-WIKI] Building directory tree structure`);
-  const tree = await buildTree(executor, repoFullName);
+  const tree = await buildTree(executor, repoFullName, recursionLimit);
 
   const fileCache: Record<string, string> = {};
   const allFiles: string[] = [];
 
   for (const nid in tree.nodes) {
     const node = tree.nodes[nid]!;
-    for (const rel of node.files || []) {
-      allFiles.push(rel);
+    if (node.level <= recursionLimit) {
+      for (const rel of node.files || []) {
+        allFiles.push(rel);
+      }
     }
   }
 
@@ -1492,9 +1507,9 @@ export async function runShadowWiki(
   console.log(
     `[SHADOW-WIKI] File analysis complete - starting directory summarization phase`
   );
-  const nodesByDepth = Object.keys(tree.nodes).sort(
-    (a, b) => tree.nodes[b]!.level - tree.nodes[a]!.level
-  );
+  const nodesByDepth = Object.keys(tree.nodes)
+    .filter((id) => tree.nodes[id]!.level <= recursionLimit)
+    .sort((a, b) => tree.nodes[b]!.level - tree.nodes[a]!.level);
   console.log(
     `[SHADOW-WIKI] Processing ${nodesByDepth.length - 1} directories (excluding root)`
   );
@@ -1502,13 +1517,18 @@ export async function runShadowWiki(
   for (const nid of nodesByDepth) {
     if (nid === "root") continue;
     const node = tree.nodes[nid]!;
+    if (node.level > recursionLimit) continue;
 
     const blocks: string[] = [];
 
-    node.children.forEach((cid) => {
-      const c = tree.nodes[cid]!;
-      blocks.push(`## Directory: ${c.name}\n${c.summary || "_missing_"}`);
-    });
+    if (node.level < recursionLimit) {
+      node.children.forEach((cid) => {
+        const c = tree.nodes[cid]!;
+        if (c.level <= recursionLimit) {
+          blocks.push(`## Directory: ${c.name}\n${c.summary || "_missing_"}`);
+        }
+      });
+    }
 
     for (const filePath of node.files) {
       const fileName = path.basename(filePath);
@@ -1534,10 +1554,10 @@ export async function runShadowWiki(
   }
 
   const root = tree.nodes[tree.root]!;
-  const topBlocks = root.children.map((cid) => {
-    const c = tree.nodes[cid]!;
-    return `## ${c.name}\n${c.summary || "_missing_"}`;
-  });
+  const topBlocks = root.children
+    .map((cid) => tree.nodes[cid]!)
+    .filter((c) => c.level <= recursionLimit)
+    .map((c) => `## ${c.name}\n${c.summary || "_missing_"}`);
 
   console.log(`[SHADOW-WIKI] Generating root-level project summary`);
   root.summary = await summarizeRoot(root, topBlocks, miniModelInstance);
