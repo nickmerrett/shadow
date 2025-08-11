@@ -21,7 +21,6 @@ import { emitTerminalOutput, emitStreamChunk } from "../../socket";
 import { isIndexingComplete } from "../../initialization/background-indexing";
 import type { TerminalEntry } from "@repo/types";
 import { MCPManager } from "../mcp/mcp-manager";
-import { MCP_ENABLED } from "../../config/mcp";
 import {
   transformMCPToolName,
   type MCPToolMeta,
@@ -169,26 +168,23 @@ export async function createTools(taskId: string, workspacePath?: string) {
 
   // Initialize MCP manager if enabled
   let mcpManager: MCPManager | undefined;
-  if (MCP_ENABLED) {
-    try {
-      // Check if we already have an MCP manager for this task
-      if (!activeMCPManagers.has(taskId)) {
-        console.log(`[TOOLS] Initializing MCP manager for task ${taskId}`);
-        mcpManager = new MCPManager();
-        await mcpManager.initializeConnections();
-        activeMCPManagers.set(taskId, mcpManager);
-        console.log(`[TOOLS] MCP manager initialized for task ${taskId}`);
-      } else {
-        mcpManager = activeMCPManagers.get(taskId);
-        console.log(`[TOOLS] Reusing existing MCP manager for task ${taskId}`);
-      }
-    } catch (error) {
-      console.error(
-        `[TOOLS] Failed to initialize MCP manager for task ${taskId}:`,
-        error
-      );
-      // Continue without MCP tools - graceful degradation
+  try {
+    // Check if we already have an MCP manager for this task
+    if (!activeMCPManagers.has(taskId)) {
+      console.log(`[TOOLS] Initializing MCP manager for task ${taskId}`);
+      mcpManager = new MCPManager();
+      await mcpManager.initializeConnections();
+      activeMCPManagers.set(taskId, mcpManager);
+      console.log(`[TOOLS] MCP manager initialized for task ${taskId}`);
+    } else {
+      mcpManager = activeMCPManagers.get(taskId);
+      console.log(`[TOOLS] Reusing existing MCP manager for task ${taskId}`);
     }
+  } catch (error) {
+    console.error(
+      `[TOOLS] Failed to initialize MCP manager for task ${taskId}:`,
+      error
+    );
   }
 
   // Initialize filesystem watcher for local mode

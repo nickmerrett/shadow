@@ -1,21 +1,26 @@
 import { experimental_createMCPClient } from "ai";
 import type { ToolSet } from "ai";
-import type {
-  MCPServerConfig,
-  MCPConnectionStatus,
-  MCPClientWrapper,
-  MCPToolInfo,
-} from "./types";
-import { getEnabledMCPServers } from "../../config/mcp";
+import type { MCPServerConfig, MCPClientWrapper } from "./types";
+
+const MCP_SERVERS: MCPServerConfig[] = [
+  {
+    name: "context7",
+    transport: "sse",
+    url: process.env.MCP_CONTEXT7_URL || "https://mcp.context7.com/sse",
+    enabled: process.env.MCP_CONTEXT7_ENABLED !== "false", // Default to enabled
+    timeout: 30000, // 30 second timeout
+    headers: {
+      "User-Agent": "Shadow-Agent/1.0",
+    },
+  },
+];
 
 export class MCPManager {
   private clients: Map<string, MCPClientWrapper> = new Map();
   private isShuttingDown: boolean = false;
 
   async initializeConnections(): Promise<void> {
-    const servers = getEnabledMCPServers();
-
-    const connectionPromises = servers.map(async (config) => {
+    const connectionPromises = MCP_SERVERS.map(async (config) => {
       try {
         await this.connectToServer(config);
       } catch (error) {
@@ -34,10 +39,6 @@ export class MCPManager {
     });
 
     await Promise.allSettled(connectionPromises);
-
-    const connectedCount = Array.from(this.clients.values()).filter(
-      (c) => c.connected
-    ).length;
   }
 
   /**
@@ -169,53 +170,7 @@ export class MCPManager {
       }
     }
 
-    const toolCount = Object.keys(toolSet).length;
-
     return toolSet;
-  }
-
-  /**
-   * Get connection status for all servers
-   */
-  getConnectionStatus(): MCPConnectionStatus[] {
-    return Array.from(this.clients.values()).map((client) => ({
-      serverName: client.serverName,
-      connected: client.connected,
-      lastConnected: client.lastConnected,
-      lastError: client.lastError,
-      toolCount: 0, // TODO: Track tool count per server
-    }));
-  }
-
-  /**
-   * Get list of available tools with metadata
-   */
-  async getToolInfo(): Promise<MCPToolInfo[]> {
-    const tools: MCPToolInfo[] = [];
-
-    for (const client of this.clients.values()) {
-      if (!client.connected || !client.client) continue;
-
-      try {
-        const serverTools = await client.client.tools();
-        if (serverTools && typeof serverTools === "object") {
-          for (const toolName of Object.keys(serverTools)) {
-            tools.push({
-              name: `${client.serverName}:${toolName}`,
-              serverName: client.serverName,
-              description: `Tool from ${client.serverName} MCP server`,
-            });
-          }
-        }
-      } catch (error) {
-        console.error(
-          `[MCP_MANAGER] Failed to get tool info from ${client.serverName}:`,
-          error
-        );
-      }
-    }
-
-    return tools;
   }
 
   /**
@@ -241,49 +196,5 @@ export class MCPManager {
 
     await Promise.allSettled(closePromises);
     this.clients.clear();
-  }
-
-  /**
-   * Reconnect to a specific server
-   */
-  async reconnectToServer(serverName: string): Promise<boolean> {
-    const existingClient = this.clients.get(serverName);
-    if (existingClient?.connected) {
-      return true;
-    }
-
-    // Close existing connection if any
-    if (existingClient?.client) {
-      try {
-        await existingClient.client.close();
-      } catch (error) {
-        console.error(
-          `[MCP_MANAGER] Error closing existing connection to ${serverName}:`,
-          error
-        );
-      }
-    }
-
-    // Find server config
-    const servers = getEnabledMCPServers();
-    const config = servers.find((s) => s.name === serverName);
-
-    if (!config) {
-      console.error(
-        `[MCP_MANAGER] No configuration found for server ${serverName}`
-      );
-      return false;
-    }
-
-    try {
-      await this.connectToServer(config);
-      return true;
-    } catch (error) {
-      console.error(
-        `[MCP_MANAGER] Reconnection failed for ${serverName}:`,
-        error
-      );
-      return false;
-    }
   }
 }

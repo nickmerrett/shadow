@@ -13,10 +13,6 @@ if (nodeEnv === "production") {
   config = prodConfig;
 } else {
   // Development/test environment: Use local-focused configuration
-  console.log(
-    `[CONFIG] Loading development configuration (Local mode) - NODE_ENV: ${nodeEnv}`
-  );
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { default: devConfig } = require("./dev");
   config = devConfig;
 }
@@ -29,7 +25,3 @@ export type { DevConfig } from "./dev";
 export type { ProdConfig } from "./prod";
 export type { SharedConfig } from "./shared";
 export { getCorsOrigins } from "./shared";
-
-// MCP configuration exports
-export { MCP_SERVERS, getEnabledMCPServers, getMCPServerConfig, MCP_ENABLED } from "./mcp";
-export type { MCPServerConfig } from "../agent/mcp/types";
