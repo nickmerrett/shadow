@@ -12,7 +12,10 @@ export function RunTerminalCmdTool({ message }: { message: Message }) {
   if (!toolMeta) return null;
 
   const { args, status } = toolMeta;
-  const command = args.command as string;
+
+  const streamingPartialArgs = message.metadata?.partialArgs;
+  const command = (streamingPartialArgs?.command || args.command) as string;
+
   const isBackground = args.is_background as boolean;
 
   // Use typed tool result accessor

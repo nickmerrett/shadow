@@ -359,9 +359,20 @@ export function useTaskSocket(taskId: string | undefined) {
             // Update existing part if it exists
             const existingPart = newPartsMap.get(partId);
             if (existingPart?.type === "tool-call") {
+              const newAccumulatedText =
+                (existingPart.accumulatedArgsText || "") +
+                chunk.toolCallDelta.argsTextDelta;
+
+              const partialArgs = extractStreamingArgs(
+                newAccumulatedText,
+                chunk.toolCallDelta.name
+              );
+
               const updatedPart: ToolCallPart = {
                 ...existingPart,
                 streamingState: "streaming",
+                accumulatedArgsText: newAccumulatedText,
+                partialArgs,
               };
               newPartsMap.set(partId, updatedPart);
             }
@@ -369,6 +380,9 @@ export function useTaskSocket(taskId: string | undefined) {
             const partId = chunk.toolCall.id;
             // Check if we already have a starting version
             const existingPart = newPartsMap.get(partId);
+            // Preserve any existing partial args from streaming
+            const existingPartialArgs = existingPart?.type === "tool-call" ? existingPart.partialArgs : undefined;
+            
             const toolCallPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
@@ -376,6 +390,8 @@ export function useTaskSocket(taskId: string | undefined) {
               args: chunk.toolCall.args, // Complete args
               streamingState: "complete",
               argsComplete: true,
+              // Preserve partial args from streaming state
+              partialArgs: existingPartialArgs,
             };
             newPartsMap.set(partId, toolCallPart);
             // Only push to order if this is the first time seeing this ID
@@ -473,6 +489,10 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "tool-call":
           if (chunk.toolCall) {
+            // Preserve any existing partial args from the streaming part
+            const existingPart = streamingParts.current.get(chunk.toolCall.id);
+            const existingPartialArgs = existingPart?.type === "tool-call" ? existingPart.partialArgs : undefined;
+            
             const toolCallPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
@@ -480,6 +500,8 @@ export function useTaskSocket(taskId: string | undefined) {
               args: chunk.toolCall.args,
               streamingState: "complete",
               argsComplete: true,
+              // Preserve partial args from streaming state
+              partialArgs: existingPartialArgs,
             };
             addStreamingPart(toolCallPart, chunk.toolCall.id);
           }

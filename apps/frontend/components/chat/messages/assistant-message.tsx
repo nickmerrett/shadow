@@ -230,19 +230,6 @@ export function AssistantMessage({
             ) {
               const hasUseful = hasUsefulPartialArgs(part.partialArgs || {}, part.toolName);
               
-              if (part.toolName === "run_terminal_cmd") {
-                console.log("🖥️ [ASSISTANT-MESSAGE] Terminal tool streaming check:", {
-                  toolName: part.toolName,
-                  isStreamingMessage,
-                  isInProgress,
-                  partialArgs: part.partialArgs,
-                  hasUsefulPartialArgs: hasUseful,
-                  willShow: hasUseful,
-                  streamingState: part.streamingState,
-                  argsComplete: part.argsComplete
-                });
-              }
-              
               if (!hasUseful) {
                 return null;
               }
