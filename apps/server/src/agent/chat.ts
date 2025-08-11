@@ -45,6 +45,7 @@ import { createGitService } from "../execution";
 import { memoryService } from "../services/memory-service";
 import { TaskInitializationEngine } from "@/initialization";
 import { databaseBatchService } from "../services/database-batch-service";
+import { ChatSummarizationService } from "../services/chat-summarization-service";
 
 // Discriminated union types for queued actions
 type QueuedMessageAction = {
@@ -228,7 +229,6 @@ export class ChatService {
     });
   }
 
-
   /**
    * Commit changes to git if there are any changes after an LLM response
    */
@@ -268,16 +268,21 @@ export class ChatService {
 
       // Get diff for commit message generation
       const diff = await gitService.getDiff();
-      
+
       // Generate commit message using existing logic
       let commitMessage = "Update code via Shadow agent";
       if (diff) {
         // Generate commit message using server-side GitManager (which has AI integration)
         const tempGitManager = new GitManager("");
-        commitMessage = await tempGitManager.generateCommitMessage(diff, context);
+        commitMessage = await tempGitManager.generateCommitMessage(
+          diff,
+          context
+        );
       }
 
-      console.log(`[CHAT] Generated commit message for task ${taskId}: "${commitMessage}"`);
+      console.log(
+        `[CHAT] Generated commit message for task ${taskId}: "${commitMessage}"`
+      );
 
       // Commit changes with Shadow as author and user as co-author
       const commitResult = await gitService.commitChanges({
@@ -303,7 +308,10 @@ export class ChatService {
 
       // Push the commit to remote
       try {
-        const pushResult = await gitService.pushBranch(task.shadowBranch, false);
+        const pushResult = await gitService.pushBranch(
+          task.shadowBranch,
+          false
+        );
         if (!pushResult.success) {
           console.warn(
             `[CHAT] Failed to push changes for task ${taskId}: ${pushResult.message}`
@@ -313,10 +321,7 @@ export class ChatService {
           console.log(`[CHAT] Successfully pushed changes for task ${taskId}`);
         }
       } catch (pushError) {
-        console.warn(
-          `[CHAT] Push failed for task ${taskId}:`,
-          pushError
-        );
+        console.warn(`[CHAT] Push failed for task ${taskId}:`, pushError);
         // Don't throw - commit succeeded even if push failed
       }
 
@@ -468,7 +473,9 @@ export class ChatService {
       }
 
       if (!messageId) {
-        console.warn(`[CHAT] No messageId provided for auto-PR creation for task ${taskId}`);
+        console.warn(
+          `[CHAT] No messageId provided for auto-PR creation for task ${taskId}`
+        );
         return;
       }
 
@@ -486,21 +493,23 @@ export class ChatService {
         `[CHAT] Failed to check user auto-PR setting for task ${taskId}:`,
         error
       );
-      
+
       // Emit failure event if messageId is available
       if (messageId) {
         emitToTask(taskId, "auto-pr-status", {
           taskId,
           messageId,
           status: "failed" as const,
-          error: error instanceof Error ? error.message : "Failed to create pull request",
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to create pull request",
         });
       }
-      
+
       // Non-blocking - don't throw
     }
   }
-
 
   async getChatHistory(taskId: string): Promise<Message[]> {
     const dbMessages = await prisma.chatMessage.findMany({
@@ -534,7 +543,6 @@ export class ChatService {
       stackedTask: msg.stackedTask || undefined,
     }));
   }
-
 
   /**
    * Handle follow-up logic for tasks
@@ -803,7 +811,6 @@ These are specific instructions from the user that should be followed throughout
     let finishReason: MessageMetadata["finishReason"];
     let hasError = false;
 
-
     // Track active reasoning parts for signature association
     const activeReasoningParts: Map<number, ReasoningPart> = new Map();
     let reasoningCounter = 0;
@@ -991,7 +998,6 @@ These are specific instructions from the user that should be followed throughout
               lastUpdateTime: Date.now(),
             });
           }
-
         }
 
         // Update tool results when they complete
@@ -1027,7 +1033,6 @@ These are specific instructions from the user that should be followed throughout
               lastUpdateTime: Date.now(),
             });
           }
-
         }
 
         // Handle error chunks from LLM service
@@ -1063,9 +1068,11 @@ These are specific instructions from the user that should be followed throughout
           // Flush any pending updates and immediately update with error
           if (assistantMessageId) {
             // Clear pending timer and flush immediately on error
-            console.log(`[CHAT] Error occurred, immediately flushing DB update for task ${taskId}`);
+            console.log(
+              `[CHAT] Error occurred, immediately flushing DB update for task ${taskId}`
+            );
             databaseBatchService.clear(taskId);
-            
+
             const fullContent = assistantParts
               .filter((part) => part.type === "text")
               .map((part) => (part as TextPart).text)
@@ -1097,7 +1104,10 @@ These are specific instructions from the user that should be followed throughout
           try {
             await stopMCPManager(taskId);
           } catch (mcpError) {
-            console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, mcpError);
+            console.error(
+              `[CHAT] Error stopping MCP manager for task ${taskId}:`,
+              mcpError
+            );
           }
 
           // Clear any queued actions (don't process them after error)
@@ -1129,9 +1139,11 @@ These are specific instructions from the user that should be followed throughout
       // Flush any pending updates and perform final update with complete metadata
       if (assistantMessageId) {
         // Clear any pending timer and flush immediately for final update
-        console.log(`[CHAT] Stream completed, performing final DB update for task ${taskId}`);
+        console.log(
+          `[CHAT] Stream completed, performing final DB update for task ${taskId}`
+        );
         databaseBatchService.clear(taskId);
-        
+
         if (usageMetadata) {
           const fullContent = assistantParts
             .filter((part) => part.type === "text")
@@ -1220,7 +1232,10 @@ These are specific instructions from the user that should be followed throughout
       try {
         await stopMCPManager(taskId);
       } catch (error) {
-        console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, error);
+        console.error(
+          `[CHAT] Error stopping MCP manager for task ${taskId}:`,
+          error
+        );
       }
 
       // Process any queued actions
@@ -1228,7 +1243,8 @@ These are specific instructions from the user that should be followed throughout
     } catch (error) {
       console.error("Error processing user message:", error);
 
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
 
       // Update task status to failed when stream processing fails
       await updateTaskStatus(taskId, "FAILED", "CHAT", errorMessage);
@@ -1252,7 +1268,10 @@ These are specific instructions from the user that should be followed throughout
       try {
         await stopMCPManager(taskId);
       } catch (mcpError) {
-        console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, mcpError);
+        console.error(
+          `[CHAT] Error stopping MCP manager for task ${taskId}:`,
+          mcpError
+        );
       }
 
       // Clear any queued actions (don't process them after error)
@@ -1353,7 +1372,10 @@ These are specific instructions from the user that should be followed throughout
     this.queuedActions.delete(taskId);
   }
 
-  async stopStream(taskId: string, updateStatus: boolean = false): Promise<void> {
+  async stopStream(
+    taskId: string,
+    updateStatus: boolean = false
+  ): Promise<void> {
     // Mark stop requested so generator exits early
     this.stopRequested.add(taskId);
 
@@ -1370,7 +1392,10 @@ These are specific instructions from the user that should be followed throughout
     try {
       await stopMCPManager(taskId);
     } catch (error) {
-      console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, error);
+      console.error(
+        `[CHAT] Error stopping MCP manager for task ${taskId}:`,
+        error
+      );
     }
 
     // Update task status to stopped only when explicitly requested (e.g., manual stop)
@@ -1690,6 +1715,27 @@ These are specific instructions from the user that should be followed throughout
 
       setTimeout(async () => {
         try {
+          // Generate conversation summary from parent task
+          const chatSummarizationService = new ChatSummarizationService();
+          const conversationSummary =
+            await chatSummarizationService.summarizeParentChat(
+              parentTaskId,
+              newTaskContext
+            );
+
+          // Inject conversation summary as system message before user message
+          if (conversationSummary && conversationSummary.trim()) {
+            const contextMessage = `<parent_task_conversation_summary>${conversationSummary}</parent_task_conversation_summary>`;
+
+            const contextSequence = await this.getNextSequence(taskId);
+            await this.saveSystemMessage(
+              taskId,
+              contextMessage,
+              newTaskContext.getMainModel(),
+              contextSequence
+            );
+          }
+
           await this.processUserMessage({
             taskId,
             userMessage: message,
@@ -1726,12 +1772,15 @@ These are specific instructions from the user that should be followed throughout
       try {
         await stopMCPManager(taskId);
       } catch (mcpError) {
-        console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, mcpError);
+        console.error(
+          `[CHAT] Error stopping MCP manager for task ${taskId}:`,
+          mcpError
+        );
       }
 
       // Clean up queued actions
       this.queuedActions.delete(taskId);
-      
+
       // Clean up batched database updates
       databaseBatchService.clear(taskId);
     } catch (error) {
