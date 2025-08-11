@@ -367,7 +367,7 @@ export class GitService {
         logger.warn("[GIT_SERVICE] Uncommitted changes detected during checkout", {
           commitSha,
         });
-        // For safety, we could stash changes, but for now we'll proceed with a warning
+        // Git checkout will fail if these changes would be overwritten
       }
 
       // Perform the checkout

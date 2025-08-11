@@ -341,20 +341,6 @@ Commit message:`,
     }
   }
 
-  /**
-   * Stash uncommitted changes with timestamped message for safety before git operations
-   */
-  async stashChanges(
-    message: string = `Auto-stash-${Date.now()}`
-  ): Promise<void> {
-    try {
-      await this.execGit(`stash push -m "${message}"`);
-      console.log(`[GIT_MANAGER] Stashed changes: ${message}`);
-    } catch (error) {
-      console.warn(`[GIT_MANAGER] Failed to stash changes:`, error);
-      // Non-blocking - continue with operations
-    }
-  }
 
   /**
    * Safely checkout to specific commit with error handling

@@ -82,7 +82,6 @@ export class LocalToolExecutor implements ToolExecutor {
 
     // Log the diff calculation with emoji (local mode only)
     console.log(`📊 Diff calculated: +${linesAdded} -${linesRemoved} lines`);
-    console.log(`📝 Comparing ${oldContent.split('\n').length} → ${newContent.split('\n').length} lines`);
 
     return { linesAdded, linesRemoved };
   }
@@ -269,7 +268,7 @@ export class LocalToolExecutor implements ToolExecutor {
     try {
       // Note: _providedIsNewFile parameter is ignored for search/replace operations
       // since they can only be performed on existing files (isNewFile is always false)
-      
+
       // Input validation
       if (!oldString) {
         return {

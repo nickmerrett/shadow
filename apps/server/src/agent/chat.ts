@@ -1353,7 +1353,7 @@ These are specific instructions from the user that should be followed throughout
     this.queuedActions.delete(taskId);
   }
 
-  async stopStream(taskId: string): Promise<void> {
+  async stopStream(taskId: string, updateStatus: boolean = false): Promise<void> {
     // Mark stop requested so generator exits early
     this.stopRequested.add(taskId);
 
@@ -1373,8 +1373,10 @@ These are specific instructions from the user that should be followed throughout
       console.error(`[CHAT] Error stopping MCP manager for task ${taskId}:`, error);
     }
 
-    // Update task status to stopped when manually stopped by user
-    await updateTaskStatus(taskId, "STOPPED", "CHAT");
+    // Update task status to stopped only when explicitly requested (e.g., manual stop)
+    if (updateStatus) {
+      await updateTaskStatus(taskId, "STOPPED", "CHAT");
+    }
   }
 
   async editUserMessage({

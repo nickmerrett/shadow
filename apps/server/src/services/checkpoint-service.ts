@@ -5,7 +5,6 @@ import {
   RecursiveDirectoryEntry,
 } from "@repo/types";
 import type { Todo } from "@repo/db";
-import { GitManager } from "./git-manager";
 import { emitStreamChunk } from "../socket";
 import { getFileChanges } from "../utils/git-operations";
 import { createToolExecutor, createGitService } from "../execution";
@@ -148,15 +147,11 @@ export class CheckpointService {
       console.log(`[CHECKPOINT] 🔍 Checking for uncommitted changes...`);
       const hasChanges = await gitService.hasChanges();
       if (hasChanges) {
-        console.log(
-          `[CHECKPOINT] 📦 Stashing uncommitted changes before restoration...`
-        );
-        // Note: Stash functionality not yet implemented in git service abstraction
         console.warn(
-          `[CHECKPOINT] ⚠️ Stash functionality not yet implemented for unified git service - skipping stash`
+          `[CHECKPOINT] ⚠️ Uncommitted changes detected before checkpoint restoration. Git checkout will fail if these changes would be overwritten.`
         );
       } else {
-        console.log(`[CHECKPOINT] ✨ Workspace is clean, no need to stash`);
+        console.log(`[CHECKPOINT] ✨ Workspace is clean, proceeding with restore`);
       }
 
       // 4. Restore git state
@@ -391,48 +386,43 @@ export class CheckpointService {
     );
 
     try {
-      // Get task's initial commit SHA and workspace path
+      // Get task's initial commit SHA
       const task = await prisma.task.findUnique({
         where: { id: taskId },
-        select: { workspacePath: true, baseCommitSha: true },
+        select: { baseCommitSha: true },
       });
 
-      if (!task?.workspacePath || !task?.baseCommitSha) {
+      if (!task?.baseCommitSha) {
         console.warn(
-          `[CHECKPOINT] ❌ Missing workspace path or base commit SHA for task ${taskId}`
+          `[CHECKPOINT] ❌ Missing base commit SHA for task ${taskId}`
         );
         return;
       }
 
       console.log(
-        `[CHECKPOINT] 📁 Using workspace path: ${task.workspacePath}`
-      );
-      console.log(
         `[CHECKPOINT] 🎯 Target base commit SHA: ${task.baseCommitSha}`
       );
 
-      const gitManager = new GitManager(task.workspacePath);
+      // Create git service for the task (handles both local and remote modes)
+      console.log(`[CHECKPOINT] 🔧 Creating git service for task ${taskId}...`);
+      const gitService = await createGitService(taskId);
 
       // Pause filesystem watcher to prevent spurious events from git operations
       await this.pauseFilesystemWatcher(taskId);
 
       // Handle uncommitted changes
       console.log(`[CHECKPOINT] 🔍 Checking for uncommitted changes...`);
-      const hasChanges = await gitManager.hasChanges();
+      const hasChanges = await gitService.hasChanges();
       if (hasChanges) {
-        console.log(
-          `[CHECKPOINT] 📦 Stashing uncommitted changes before initial state restoration...`
-        );
-        await gitManager.stashChanges(`Pre-initial-restore-${Date.now()}`);
-        console.log(
-          `[CHECKPOINT] ✅ Stashed uncommitted changes before restore`
+        console.warn(
+          `[CHECKPOINT] ⚠️ Uncommitted changes detected before initial state restoration. Git checkout will fail if these changes would be overwritten.`
         );
       } else {
-        console.log(`[CHECKPOINT] ✨ Workspace is clean, no need to stash`);
+        console.log(`[CHECKPOINT] ✨ Workspace is clean, proceeding with restore`);
       }
 
       // Restore git state to initial commit
-      const success = await gitManager.safeCheckoutCommit(task.baseCommitSha);
+      const success = await gitService.safeCheckoutCommit(task.baseCommitSha);
       if (!success) {
         console.warn(`[CHECKPOINT] Could not checkout to initial commit`);
       }

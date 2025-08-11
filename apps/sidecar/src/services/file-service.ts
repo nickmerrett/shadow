@@ -41,7 +41,6 @@ export class FileService {
 
     // Log the diff calculation with emoji
     logger.info(`📊 Diff calculated: +${linesAdded} -${linesRemoved} lines`);
-    logger.info(`📝 Comparing ${oldContent.split('\n').length} → ${newContent.split('\n').length} lines`);
 
     return { linesAdded, linesRemoved };
   }
@@ -363,7 +362,10 @@ export class FileService {
       const newContent = existingContent.replace(oldString, newString);
 
       // Calculate accurate line changes using diff
-      const { linesAdded, linesRemoved } = this.calculateDiffStats(existingContent, newContent);
+      const { linesAdded, linesRemoved } = this.calculateDiffStats(
+        existingContent,
+        newContent
+      );
 
       // Write the new content
       await fs.writeFile(fullPath, newContent);

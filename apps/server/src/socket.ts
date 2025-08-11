@@ -621,7 +621,7 @@ export function createSocketServer(
           return;
         }
 
-        await chatService.stopStream(data.taskId);
+        await chatService.stopStream(data.taskId, true);
 
         endStream(data.taskId);
 
