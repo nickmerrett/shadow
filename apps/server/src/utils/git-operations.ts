@@ -20,7 +20,7 @@ function hasStdout(error: unknown): error is { stdout: string } {
     typeof error === "object" &&
     error !== null &&
     "stdout" in error &&
-    typeof error.stdout === "string"
+    typeof (error as any).stdout === "string"
   );
 }
 
@@ -29,7 +29,7 @@ function hasMessage(error: unknown): error is { message: string } {
     typeof error === "object" &&
     error !== null &&
     "message" in error &&
-    typeof error.message === "string"
+    typeof (error as any).message === "string"
   );
 }
 
@@ -40,43 +40,24 @@ async function getCommittedChanges(
   baseBranch: string
 ) {
   const startTime = Date.now();
-  console.log(
-    `[FILE_CHANGES_DEBUG] getCommittedChanges start - baseBranch: ${baseBranch}, workspacePath: ${workspacePath}`
-  );
 
   const diffCommand = `git diff --name-status ${baseBranch}...HEAD`;
-  console.log(`[FILE_CHANGES_DEBUG] Running git diff command: ${diffCommand}`);
 
   const { stdout: committedStatusOutput } = await execAsync(diffCommand, {
     cwd: workspacePath,
   });
 
-  console.log(
-    `[FILE_CHANGES_DEBUG] Git diff status output length: ${committedStatusOutput.length}, hasContent: ${!!committedStatusOutput.trim()}`
-  );
-
   if (committedStatusOutput.trim()) {
     // Detailed diff stats for committed changes
     const diffStatsCommand = `git diff --numstat ${baseBranch}...HEAD`;
-    console.log(
-      `[FILE_CHANGES_DEBUG] Running git numstat command: ${diffStatsCommand}`
-    );
 
     const { stdout: committedStatsOutput } = await execAsync(diffStatsCommand, {
       cwd: workspacePath,
     });
 
-    console.log(
-      `[FILE_CHANGES_DEBUG] Git numstat output length: ${committedStatsOutput.length}`
-    );
-
     // Parse committed changes
     const statusLines = committedStatusOutput.trim().split("\n");
     const statsLines = committedStatsOutput.trim().split("\n");
-
-    console.log(
-      `[FILE_CHANGES_DEBUG] Parsing committed changes - statusLines: ${statusLines.length}, statsLines: ${statsLines.length}`
-    );
 
     // Create a map of filePath -> {additions, deletions}
     const statsMap = new Map<
@@ -94,12 +75,7 @@ async function getCommittedChanges(
       }
     }
 
-    console.log(
-      `[FILE_CHANGES_DEBUG] Stats map created - entries: ${statsMap.size}`
-    );
-
     // Process committed changes
-    let processedFiles = 0;
     for (const line of statusLines) {
       if (!line.trim()) continue;
 
@@ -119,18 +95,10 @@ async function getCommittedChanges(
         deletions: stats.deletions,
         createdAt: now,
       });
-      processedFiles++;
     }
-
-    const duration = Date.now() - startTime;
-    console.log(
-      `[FILE_CHANGES_DEBUG] getCommittedChanges completed - processedFiles: ${processedFiles}, duration: ${duration}ms`
-    );
   } else {
-    const duration = Date.now() - startTime;
-    console.log(
-      `[FILE_CHANGES_DEBUG] getCommittedChanges - no committed changes found, duration: ${duration}ms`
-    );
+    // No committed changes
+    void startTime; // preserve variable usage to avoid unused warnings
   }
 }
 
@@ -139,23 +107,11 @@ async function getUncommittedChanges(
   allFiles: Map<string, FileChange>,
   now: string
 ) {
-  const startTime = Date.now();
-  console.log(
-    `[FILE_CHANGES_DEBUG] getUncommittedChanges start - workspacePath: ${workspacePath}`
-  );
-
   const statusCommand = "git status --porcelain";
-  console.log(
-    `[FILE_CHANGES_DEBUG] Running git status command: ${statusCommand}`
-  );
 
   const { stdout: uncommittedOutput } = await execAsync(statusCommand, {
     cwd: workspacePath,
   });
-
-  console.log(
-    `[FILE_CHANGES_DEBUG] Git status output length: ${uncommittedOutput.length}, hasContent: ${!!uncommittedOutput.trim()}`
-  );
 
   if (uncommittedOutput.trim()) {
     const uncommittedLines = uncommittedOutput.trim().split("\n");
@@ -374,10 +330,6 @@ async function getUncommittedChanges(
       );
 
       // Phase 3: Create file change objects with accurate stats
-      console.log(
-        `[FILE_CHANGES_DEBUG] Creating file change objects - uncommittedFiles: ${uncommittedFiles.length}, diffResults: ${diffResults.length}`
-      );
-
       for (const { filePath, operation } of uncommittedFiles) {
         const stats = diffStatsMap.get(filePath) || {
           additions: 0,
@@ -392,16 +344,6 @@ async function getUncommittedChanges(
           createdAt: now,
         });
       }
-
-      const duration = Date.now() - startTime;
-      console.log(
-        `[FILE_CHANGES_DEBUG] getUncommittedChanges completed - processedFiles: ${uncommittedFiles.length}, duration: ${duration}ms`
-      );
-    } else {
-      const duration = Date.now() - startTime;
-      console.log(
-        `[FILE_CHANGES_DEBUG] getUncommittedChanges - no uncommitted changes found, duration: ${duration}ms`
-      );
     }
   }
 }
@@ -416,34 +358,17 @@ export async function getFileChangesForWorkspace(
 ): Promise<{ fileChanges: FileChange[]; diffStats: DiffStats }> {
   const startTime = Date.now();
 
-  console.log(
-    `[FILE_CHANGES_DEBUG] getFileChangesForWorkspace entry - workspacePath: ${workspacePath}, baseBranch: ${baseBranch}`
-  );
-
   if (!(await hasGitRepositoryAtPath(workspacePath))) {
-    console.log(
-      `[FILE_CHANGES_DEBUG] No git repository found at ${workspacePath}, returning empty changes`
-    );
     return {
       fileChanges: [],
       diffStats: { additions: 0, deletions: 0, totalFiles: 0 },
     };
   }
 
-  console.log(
-    `[FILE_CHANGES_DEBUG] Git repository confirmed at ${workspacePath}, proceeding with git operations`
-  );
-
   try {
-    console.log(
-      `[FILE_CHANGES_DEBUG] Refreshing git index - workspacePath: ${workspacePath}`
-    );
     // Refresh git index to ensure consistency after potential checkout operations
     await execAsync("git update-index --refresh", { cwd: workspacePath }).catch(
-      (error) => {
-        console.log(
-          `[FILE_CHANGES_DEBUG] Git index refresh failed (non-blocking) - workspacePath: ${workspacePath}, error: ${error}`
-        );
+      () => {
         // Non-blocking - update-index may fail if no changes, which is fine
       }
     );
@@ -451,50 +376,12 @@ export async function getFileChangesForWorkspace(
     const now = new Date().toISOString();
     const allFiles = new Map<string, FileChange>();
 
-    console.log(
-      `[FILE_CHANGES_DEBUG] Starting parallel git operations - workspacePath: ${workspacePath}, timestamp: ${now}`
-    );
-
-    const commitTime = Date.now();
-    const uncommitTime = Date.now();
-
     await Promise.all([
-      getCommittedChanges(workspacePath, allFiles, now, baseBranch).then(() => {
-        const duration = Date.now() - commitTime;
-        console.log(
-          `[FILE_CHANGES_DEBUG] getCommittedChanges completed - workspacePath: ${workspacePath}, duration: ${duration}ms, files: ${Array.from(allFiles.keys()).filter((f) => Array.from(allFiles.values()).find((v) => v.filePath === f)?.createdAt === now).length}`
-        );
-      }),
-      getUncommittedChanges(workspacePath, allFiles, now).then(() => {
-        const duration = Date.now() - uncommitTime;
-        const uncommittedFiles = Array.from(allFiles.values()).filter(
-          (f) => f.createdAt === now
-        );
-        console.log(
-          `[FILE_CHANGES_DEBUG] getUncommittedChanges completed - workspacePath: ${workspacePath}, duration: ${duration}ms, uncommitted files: ${uncommittedFiles.length}`
-        );
-      }),
+      getCommittedChanges(workspacePath, allFiles, now, baseBranch),
+      getUncommittedChanges(workspacePath, allFiles, now),
     ]);
 
     const fileChanges = Array.from(allFiles.values());
-    console.log(
-      `[FILE_CHANGES_DEBUG] All files aggregated - workspacePath: ${workspacePath}, total files: ${fileChanges.length}`
-    );
-
-    // Log detailed file information
-    fileChanges.forEach((file, index) => {
-      if (index < 10) {
-        // Log first 10 files to avoid spam
-        console.log(
-          `[FILE_CHANGES_DEBUG] File ${index + 1} - workspacePath: ${workspacePath}, path: ${file.filePath}, operation: ${file.operation}, +${file.additions}/-${file.deletions}`
-        );
-      }
-    });
-    if (fileChanges.length > 10) {
-      console.log(
-        `[FILE_CHANGES_DEBUG] ... and ${fileChanges.length - 10} more files - workspacePath: ${workspacePath}`
-      );
-    }
 
     const diffStats = fileChanges.reduce(
       (acc, file) => ({
@@ -505,10 +392,7 @@ export async function getFileChangesForWorkspace(
       { additions: 0, deletions: 0, totalFiles: 0 }
     );
 
-    const totalDuration = Date.now() - startTime;
-    console.log(
-      `[FILE_CHANGES_DEBUG] getFileChangesForWorkspace completed - workspacePath: ${workspacePath}, totalFiles: ${diffStats.totalFiles}, additions: ${diffStats.additions}, deletions: ${diffStats.deletions}, totalDuration: ${totalDuration}ms`
-    );
+    void startTime; // silence unused variable if not used below
 
     return { fileChanges, diffStats };
   } catch (error) {
@@ -564,10 +448,6 @@ function mapGitStatusToOperation(status: string): FileChange["operation"] {
 export async function hasGitRepositoryAtPath(
   workspacePath: string
 ): Promise<boolean> {
-  console.log(
-    `[FILE_CHANGES_DEBUG] hasGitRepositoryAtPath check - workspacePath: ${workspacePath}`
-  );
-
   try {
     const { stdout } = await execAsync("git rev-parse --git-dir", {
       cwd: workspacePath,
@@ -576,15 +456,8 @@ export async function hasGitRepositoryAtPath(
     const gitDir = stdout.trim();
     const hasGit = gitDir === `.git`;
 
-    console.log(
-      `[FILE_CHANGES_DEBUG] Git directory check - workspacePath: ${workspacePath}, gitDir: "${gitDir}", hasGit: ${hasGit}`
-    );
-
     return hasGit;
   } catch (error) {
-    console.log(
-      `[FILE_CHANGES_DEBUG] Git repository check failed - workspacePath: ${workspacePath}, error: ${error}`
-    );
     return false;
   }
 }

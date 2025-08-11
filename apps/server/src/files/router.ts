@@ -159,10 +159,6 @@ router.get("/:taskId/file-changes", async (req, res) => {
   try {
     const { taskId } = req.params;
 
-    console.log(
-      `[FILE_CHANGES_DEBUG] Route entry - taskId: ${taskId}, timestamp: ${new Date().toISOString()}`
-    );
-
     // Validate task exists and get full status
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -178,12 +174,7 @@ router.get("/:taskId/file-changes", async (req, res) => {
       },
     });
 
-    console.log(
-      `[FILE_CHANGES_DEBUG] Task lookup result - taskId: ${taskId}, found: ${!!task}, status: ${task?.status}, initStatus: ${task?.initStatus}, workspacePath: ${task?.workspacePath}`
-    );
-
     if (!task) {
-      console.log(`[FILE_CHANGES_DEBUG] Task not found - taskId: ${taskId}`);
       return res.status(404).json({
         success: false,
         error: "Task not found",
@@ -192,9 +183,6 @@ router.get("/:taskId/file-changes", async (req, res) => {
 
     // Don't return file changes if task is still initializing
     if (task.status === "INITIALIZING") {
-      console.log(
-        `[FILE_CHANGES_DEBUG] Task still initializing - taskId: ${taskId}, returning empty changes`
-      );
       return res.json({
         success: true,
         fileChanges: [],
@@ -204,14 +192,7 @@ router.get("/:taskId/file-changes", async (req, res) => {
 
     // If task workspace is INACTIVE (cleaned up), use GitHub API
     if (task.initStatus === "INACTIVE") {
-      console.log(
-        `[FILE_CHANGES_DEBUG] Task workspace INACTIVE - taskId: ${taskId}, using GitHub API path`
-      );
-
       if (!task.repoFullName || !task.shadowBranch) {
-        console.log(
-          `[FILE_CHANGES_DEBUG] Missing GitHub info - taskId: ${taskId}, repoFullName: ${task.repoFullName}, shadowBranch: ${task.shadowBranch}`
-        );
         return res.json({
           success: true,
           fileChanges: [],
@@ -219,9 +200,6 @@ router.get("/:taskId/file-changes", async (req, res) => {
         });
       }
 
-      console.log(
-        `[FILE_CHANGES_DEBUG] Calling GitHub API - taskId: ${taskId}, repo: ${task.repoFullName}, base: ${task.baseBranch}, shadow: ${task.shadowBranch}`
-      );
       const { fileChanges, diffStats } = await getGitHubFileChanges(
         task.repoFullName,
         task.baseBranch,
@@ -229,9 +207,6 @@ router.get("/:taskId/file-changes", async (req, res) => {
         task.userId
       );
 
-      console.log(
-        `[FILE_CHANGES_DEBUG] GitHub API response - taskId: ${taskId}, fileChanges: ${fileChanges.length}, additions: ${diffStats.additions}, deletions: ${diffStats.deletions}`
-      );
       return res.json({
         success: true,
         fileChanges,
@@ -240,27 +215,11 @@ router.get("/:taskId/file-changes", async (req, res) => {
     }
 
     // For ACTIVE tasks, use GitService abstraction (handles both local and remote modes)
-    console.log(
-      `[FILE_CHANGES_DEBUG] Task ACTIVE - taskId: ${taskId}, using GitService abstraction`
-    );
-
     try {
       const gitService = await createGitService(taskId);
-      console.log(
-        `[FILE_CHANGES_DEBUG] GitService created - taskId: ${taskId}, calling getFileChanges with baseBranch: ${task.baseBranch}`
-      );
 
       const { fileChanges, diffStats } = await gitService.getFileChanges(
         task.baseBranch
-      );
-
-      console.log(
-        `[FILE_CHANGES_DEBUG] GitService response - taskId: ${taskId}, fileChanges: ${fileChanges.length}, additions: ${diffStats.additions}, deletions: ${diffStats.deletions}`
-      );
-
-      const duration = Date.now() - startTime;
-      console.log(
-        `[FILE_CHANGES_DEBUG] Final response - taskId: ${taskId}, fileChanges: ${fileChanges.length}, additions: ${diffStats.additions}, deletions: ${diffStats.deletions}, duration: ${duration}ms`
       );
 
       res.json({
@@ -276,11 +235,6 @@ router.get("/:taskId/file-changes", async (req, res) => {
       );
 
       // Fallback to empty response on error
-      const duration = Date.now() - startTime;
-      console.log(
-        `[FILE_CHANGES_DEBUG] Returning empty fallback response - taskId: ${taskId}, duration: ${duration}ms`
-      );
-
       res.json({
         success: true,
         fileChanges: [],
