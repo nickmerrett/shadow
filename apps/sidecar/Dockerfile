@@ -35,9 +35,16 @@ WORKDIR /app
 RUN apk add --no-cache bash git openssh-client ripgrep findutils coreutils curl
 
 # Install additional package managers
-RUN npm install -g yarn pnpm
+# Node 18+ ships with Corepack, which provides shims for Yarn and pnpm.
+# Using npm -g conflicts with pre-existing shims in /usr/local/bin (EEXIST),
+# so enable Corepack and activate desired versions instead.
+RUN corepack enable \
+    && corepack prepare yarn@stable --activate \
+    && corepack prepare pnpm@latest --activate
+
+# Install Bun. The official installer places Bun under /root/.bun when run as root.
 RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="${PATH}:/home/sidecar/.bun/bin"
+ENV PATH="${PATH}:/root/.bun/bin"
 
 # Create non-root user and workspace directory
 RUN addgroup -g 1001 sidecar && adduser -D -u 1001 -G sidecar sidecar
