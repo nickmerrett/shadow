@@ -12,6 +12,7 @@ interface TaskSocketContextValue {
   streamingPartsOrder: string[];
   isStreaming: boolean;
   setIsStreaming: (isStreaming: boolean) => void;
+  isCompletionPending: boolean;
   autoPRStatus: AutoPRStatusEvent | null;
   sendMessage: (message: string, model: string, queue?: boolean) => void;
   stopStream: () => void;

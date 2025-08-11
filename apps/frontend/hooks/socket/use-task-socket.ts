@@ -247,6 +247,9 @@ export function useTaskSocket(taskId: string | undefined) {
     null
   );
 
+  // Stream completion state to prevent race condition
+  const [isCompletionPending, setIsCompletionPending] = useState(false);
+
   // Ref counters for ID generation (no re-renders needed)
   const textCounterRef = useRef(0);
   const redactedReasoningCounterRef = useRef(0);
@@ -270,6 +273,7 @@ export function useTaskSocket(taskId: string | undefined) {
     streamingParts.clear();
     setStreamingPartsOrder([]);
     setIsStreaming(false);
+    setIsCompletionPending(false);
 
     // Reset all ref counters
     textCounterRef.current = 0;
@@ -312,7 +316,9 @@ export function useTaskSocket(taskId: string | undefined) {
         );
         queryClient.setQueryData(["queued-action", taskId], data.queuedAction);
 
+        // Clear streaming state and completion pending flag now that fresh data has arrived
         clearStreamingState();
+        setIsCompletionPending(false);
       }
     }
 
@@ -836,8 +842,10 @@ export function useTaskSocket(taskId: string | undefined) {
     }
 
     function onStreamComplete() {
-      clearStreamingState();
-      console.log("Stream completed");
+      // Don't clear streaming state immediately - wait for server response
+      setIsStreaming(false);
+      setIsCompletionPending(true);
+      console.log("Stream completed - requesting fresh data");
       if (taskId) {
         socket.emit("get-chat-history", { taskId, complete: true });
       }
@@ -1097,6 +1105,7 @@ export function useTaskSocket(taskId: string | undefined) {
     streamingPartsOrder,
     isStreaming,
     setIsStreaming,
+    isCompletionPending,
     autoPRStatus,
     sendMessage,
     stopStream,

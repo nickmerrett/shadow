@@ -32,6 +32,7 @@ function TaskPageContent() {
     streamingPartsMap,
     streamingPartsOrder,
     isStreaming,
+    isCompletionPending,
     sendMessage,
     stopStream,
     createStackedPR,
@@ -79,8 +80,8 @@ function TaskPageContent() {
   const displayMessages = useMemo(() => {
     const msgs = [...messages];
 
-    // Only proceed if we have streaming parts or are actively streaming
-    if (streamingPartsMap.size === 0 && !isStreaming) {
+    // Only proceed if we have streaming parts, are actively streaming, or completion is pending
+    if (streamingPartsMap.size === 0 && !isStreaming && !isCompletionPending) {
       return msgs;
     }
 
@@ -144,6 +145,7 @@ function TaskPageContent() {
     streamingPartsMap,
     streamingPartsOrder,
     isStreaming,
+    isCompletionPending,
     task?.mainModel,
   ]);
 
