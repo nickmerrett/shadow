@@ -151,30 +151,11 @@ export class ChunkHandlers {
     chunk: AIStreamChunk & { type: "tool-result" },
     toolCallMap: Map<string, ToolName>
   ): StreamChunk | null {
-    console.log(`[CHUNK_DEBUG] Processing tool result:`, {
-      toolCallId: chunk.toolCallId,
-      resultType: typeof chunk.result,
-      resultPreview: JSON.stringify(chunk.result).substring(0, 100),
-      mapHasToolCall: toolCallMap.has(chunk.toolCallId),
-      mapSize: toolCallMap.size,
-    });
-
     const toolName = toolCallMap.get(chunk.toolCallId);
 
     if (!toolName) {
-      console.warn(
-        `[CHUNK_DEBUG] Skipping result for invalid tool call ID: ${chunk.toolCallId}`,
-        { availableIds: Array.from(toolCallMap.keys()) }
-      );
+      console.warn({ availableIds: Array.from(toolCallMap.keys()) });
       return null;
-    }
-
-    console.log(
-      `[CHUNK_DEBUG] Found tool name ${toolName} for call ID ${chunk.toolCallId}`
-    );
-
-    if (isTransformedMCPTool(toolName)) {
-      console.log(`🎯 [MCP_RESULT] Processing MCP tool result for ${toolName}`);
     }
 
     // Validate tool execution results (not parameters - those are handled by AI SDK repair)
@@ -185,9 +166,6 @@ export class ChunkHandlers {
     );
 
     if (validation.isValid) {
-      console.log(
-        `[CHUNK_DEBUG] Tool result validation passed for ${toolName}`
-      );
       // Valid result - emit normal tool-result
       return {
         type: "tool-result",

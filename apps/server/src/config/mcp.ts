@@ -1,4 +1,4 @@
-import type { MCPServerConfig } from '../agent/mcp/types';
+import type { MCPServerConfig } from "../agent/mcp/types";
 
 /**
  * MCP Server Configurations
@@ -8,32 +8,21 @@ import type { MCPServerConfig } from '../agent/mcp/types';
  */
 export const MCP_SERVERS: MCPServerConfig[] = [
   {
-    name: 'context7',
-    transport: 'sse',
-    url: process.env.MCP_CONTEXT7_URL || 'https://mcp.context7.com/sse',
-    enabled: process.env.MCP_CONTEXT7_ENABLED !== 'false', // Default to enabled
+    name: "context7",
+    transport: "sse",
+    url: process.env.MCP_CONTEXT7_URL || "https://mcp.context7.com/sse",
+    enabled: process.env.MCP_CONTEXT7_ENABLED !== "false", // Default to enabled
     timeout: 30000, // 30 second timeout
     headers: {
-      'User-Agent': 'Shadow-Agent/1.0',
+      "User-Agent": "Shadow-Agent/1.0",
     },
   },
 ];
 
-/**
- * Get enabled MCP server configurations
- */
 export function getEnabledMCPServers(): MCPServerConfig[] {
-  return MCP_SERVERS.filter(server => server.enabled);
+  return MCP_SERVERS.filter((server) => server.enabled);
 }
 
-/**
- * Get MCP server configuration by name
- */
 export function getMCPServerConfig(name: string): MCPServerConfig | undefined {
-  return MCP_SERVERS.find(server => server.name === name);
+  return MCP_SERVERS.find((server) => server.name === name);
 }
-
-/**
- * MCP feature flag
- */
-export const MCP_ENABLED = process.env.MCP_ENABLED !== 'false'; // Default to enabled
