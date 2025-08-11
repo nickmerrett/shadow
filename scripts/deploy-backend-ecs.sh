@@ -34,6 +34,18 @@ TASK_CPU="${TASK_CPU:-1024}"
 TASK_MEMORY="${TASK_MEMORY:-2048}"
 CONTAINER_PORT="${CONTAINER_PORT:-4000}"
 
+# Autoscaling Configuration
+# Scales to match K8s Shadow task capacity (~80 tasks per c5.metal node)
+# Each backend task handles ~20-30 concurrent WebSocket connections
+# Cost: ~$29/month (1 task) to ~$435/month (15 tasks max)
+ENABLE_AUTOSCALING="${ENABLE_AUTOSCALING:-true}"
+MIN_CAPACITY="${MIN_CAPACITY:-1}"
+MAX_CAPACITY="${MAX_CAPACITY:-15}"
+TARGET_CPU_UTILIZATION="${TARGET_CPU_UTILIZATION:-65}"
+TARGET_MEMORY_UTILIZATION="${TARGET_MEMORY_UTILIZATION:-75}"
+SCALE_OUT_COOLDOWN="${SCALE_OUT_COOLDOWN:-180}"  # 3 minutes
+SCALE_IN_COOLDOWN="${SCALE_IN_COOLDOWN:-300}"    # 5 minutes
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -961,6 +973,82 @@ create_ecs_service() {
     log "ECS service created successfully"
 }
 
+# Setup autoscaling for ECS service
+setup_autoscaling() {
+    if [[ "$ENABLE_AUTOSCALING" != "true" ]]; then
+        log "Autoscaling disabled, skipping autoscaling setup"
+        return 0
+    fi
+    
+    log "Setting up ECS autoscaling..."
+    log "  Min capacity: $MIN_CAPACITY tasks"
+    log "  Max capacity: $MAX_CAPACITY tasks"
+    log "  CPU target: $TARGET_CPU_UTILIZATION%"
+    log "  Memory target: $TARGET_MEMORY_UTILIZATION%"
+    
+    # Check if service exists first
+    if ! aws ecs describe-services --cluster "$ECS_CLUSTER_NAME" --services "$SERVICE_NAME" --region "$AWS_REGION" --profile "$AWS_PROFILE" --query 'services[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
+        warn "Service '$SERVICE_NAME' does not exist, skipping autoscaling setup"
+        return 0
+    fi
+    
+    # Register the service as a scalable target
+    log "Registering scalable target..."
+    aws application-autoscaling register-scalable-target \
+        --service-namespace ecs \
+        --resource-id "service/$ECS_CLUSTER_NAME/$SERVICE_NAME" \
+        --scalable-dimension ecs:service:DesiredCount \
+        --min-capacity "$MIN_CAPACITY" \
+        --max-capacity "$MAX_CAPACITY" \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" || {
+        warn "Failed to register scalable target, continuing..."
+        return 0
+    }
+    
+    # Create CPU utilization scaling policy
+    log "Creating CPU utilization scaling policy..."
+    aws application-autoscaling put-scaling-policy \
+        --service-namespace ecs \
+        --resource-id "service/$ECS_CLUSTER_NAME/$SERVICE_NAME" \
+        --scalable-dimension ecs:service:DesiredCount \
+        --policy-name "shadow-cpu-scaling" \
+        --policy-type "TargetTrackingScaling" \
+        --target-tracking-scaling-policy-configuration "{
+            \"TargetValue\": $TARGET_CPU_UTILIZATION.0,
+            \"PredefinedMetricSpecification\": {
+                \"PredefinedMetricType\": \"ECSServiceAverageCPUUtilization\"
+            },
+            \"ScaleOutCooldown\": $SCALE_OUT_COOLDOWN,
+            \"ScaleInCooldown\": $SCALE_IN_COOLDOWN
+        }" \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" || warn "CPU scaling policy creation failed"
+    
+    # Create Memory utilization scaling policy
+    log "Creating Memory utilization scaling policy..."
+    aws application-autoscaling put-scaling-policy \
+        --service-namespace ecs \
+        --resource-id "service/$ECS_CLUSTER_NAME/$SERVICE_NAME" \
+        --scalable-dimension ecs:service:DesiredCount \
+        --policy-name "shadow-memory-scaling" \
+        --policy-type "TargetTrackingScaling" \
+        --target-tracking-scaling-policy-configuration "{
+            \"TargetValue\": $TARGET_MEMORY_UTILIZATION.0,
+            \"PredefinedMetricSpecification\": {
+                \"PredefinedMetricType\": \"ECSServiceAverageMemoryUtilization\"
+            },
+            \"ScaleOutCooldown\": $SCALE_OUT_COOLDOWN,
+            \"ScaleInCooldown\": $SCALE_IN_COOLDOWN
+        }" \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" || warn "Memory scaling policy creation failed"
+    
+    log "✅ Autoscaling configured successfully"
+    log "  Service will scale between $MIN_CAPACITY-$MAX_CAPACITY tasks"
+    log "  Triggers: CPU >$TARGET_CPU_UTILIZATION% or Memory >$TARGET_MEMORY_UTILIZATION%"
+}
+
 # Update ECS service to use latest task definition revision
 update_service_to_latest() {
     log "Updating ECS service to use latest task definition revision..."
@@ -1080,6 +1168,13 @@ ECS_SECURITY_GROUP=$ECS_SG
 
 # ECR
 ECR_REPOSITORY_URI=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME
+
+# Autoscaling Configuration
+AUTOSCALING_ENABLED=$ENABLE_AUTOSCALING
+MIN_CAPACITY=$MIN_CAPACITY
+MAX_CAPACITY=$MAX_CAPACITY
+TARGET_CPU_UTILIZATION=$TARGET_CPU_UTILIZATION
+TARGET_MEMORY_UTILIZATION=$TARGET_MEMORY_UTILIZATION
 EOF
     
     log "Configuration saved to: .env.ecs-result"
@@ -1142,6 +1237,7 @@ main() {
     create_task_definition
     create_ecs_service
     update_service_to_latest
+    setup_autoscaling
     get_service_info
     verify_deployment
     
@@ -1157,11 +1253,19 @@ main() {
         log "3. Test HTTP/WS connections"
     fi
     log "3. Verify remote VM communication"
+    if [[ "$ENABLE_AUTOSCALING" == "true" ]]; then
+        log "4. Monitor autoscaling: Service will scale between $MIN_CAPACITY-$MAX_CAPACITY tasks"
+    fi
     log ""
     log "Useful commands:"
     log "- Check service: aws ecs describe-services --cluster $ECS_CLUSTER_NAME --services $SERVICE_NAME"
     log "- View logs: aws logs tail /ecs/shadow-server --follow"
-    log "- Scale service: aws ecs update-service --cluster $ECS_CLUSTER_NAME --service $SERVICE_NAME --desired-count N"
+    if [[ "$ENABLE_AUTOSCALING" == "true" ]]; then
+        log "- Check scaling: aws application-autoscaling describe-scaling-activities --service-namespace ecs"
+        log "- View scaling policies: aws application-autoscaling describe-scaling-policies --service-namespace ecs"
+    else
+        log "- Manual scale: aws ecs update-service --cluster $ECS_CLUSTER_NAME --service $SERVICE_NAME --desired-count N"
+    fi
 }
 
 # Handle cleanup on exit
