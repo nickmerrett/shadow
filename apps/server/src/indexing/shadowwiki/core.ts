@@ -594,7 +594,8 @@ function shouldIncludeFileForShadowWiki(filePath: string): boolean {
 // Build directory tree - using ToolExecutor for both local and remote modes
 async function buildTree(
   executor: ToolExecutor,
-  repoName?: string
+  repoName?: string,
+  recursionLimit: number = Number.POSITIVE_INFINITY
 ): Promise<IndexFile> {
   // Get all files using ToolExecutor
   const recursiveListing = await executor.listDirectoryRecursive(".");
@@ -614,6 +615,12 @@ async function buildTree(
   let skippedCount = 0;
 
   for (const fileEntry of allFiles) {
+    // Enforce recursion limit early (depth from root based on path parts)
+    const depthFromRoot = fileEntry.relativePath.split("/").length - 1;
+    if (depthFromRoot > recursionLimit) {
+      skippedCount++;
+      continue;
+    }
     // Check if file should be included
     if (!shouldIncludeFileForShadowWiki(fileEntry.relativePath)) {
       skippedCount++;
@@ -1347,7 +1354,7 @@ export async function runShadowWiki(
   const executor = await workspaceManager.getExecutor(taskId);
 
   console.log(`[SHADOW-WIKI] Building directory tree structure`);
-  const tree = await buildTree(executor, repoFullName);
+  const tree = await buildTree(executor, repoFullName, recursionLimit);
 
   const fileCache: Record<string, string> = {};
   const allFiles: string[] = [];
@@ -1503,9 +1510,9 @@ export async function runShadowWiki(
   console.log(
     `[SHADOW-WIKI] File analysis complete - starting directory summarization phase`
   );
-  const nodesByDepth = Object.keys(tree.nodes).sort(
-    (a, b) => tree.nodes[b]!.level - tree.nodes[a]!.level
-  );
+  const nodesByDepth = Object.keys(tree.nodes)
+    .filter((id) => tree.nodes[id]!.level <= recursionLimit)
+    .sort((a, b) => tree.nodes[b]!.level - tree.nodes[a]!.level);
   console.log(
     `[SHADOW-WIKI] Processing ${nodesByDepth.length - 1} directories (excluding root)`
   );
