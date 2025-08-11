@@ -44,6 +44,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import { toast } from "sonner";
 
 const todoStatusConfig = {
   PENDING: { icon: Square, className: "text-muted-foreground" },
@@ -116,6 +124,9 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   // Use indexing status hook for unified status tracking
   const { data: indexingStatus } = useIndexingStatus(task?.repoFullName || "");
   const { data: userSettings } = useUserSettings();
+  
+  // Copy to clipboard functionality
+  const { copyToClipboard } = useCopyToClipboard();
 
   const completedTodos = useMemo(
     () => todos.filter((todo) => todo.status === "COMPLETED").length,
@@ -181,6 +192,16 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
       console.error("Failed to start indexing:", error);
     }
   }, [task?.repoFullName, task?.id, queryClient]);
+
+  // Handler for copying branch name
+  const handleCopyBranchName = async (shadowBranch: string) => {
+    const success = await copyToClipboard(shadowBranch);
+    if (success) {
+      toast.success("Branch name copied to clipboard");
+    } else {
+      toast.error("Failed to copy branch name");
+    }
+  };
 
   // Determine if we should show create PR button
   const showCreatePR = !task?.pullRequestNumber && fileChanges.length > 0;
@@ -310,19 +331,32 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
           </SidebarMenuItem>
 
           <SidebarMenuItem>
-            <Button
-              variant="ghost"
-              className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
-              asChild
-            >
-              <Link
-                href={`${task.repoUrl}/tree/${task.shadowBranch}`}
-                target="_blank"
-              >
-                <GitBranch className="size-4 shrink-0" />
-                <span className="truncate">{task.shadowBranch}</span>
-              </Link>
-            </Button>
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="hover:bg-sidebar-accent px-2! w-full justify-start font-normal"
+                  asChild
+                >
+                  <Link
+                    href={`${task.repoUrl}/tree/${task.shadowBranch}`}
+                    target="_blank"
+                  >
+                    <GitBranch className="size-4 shrink-0" />
+                    <span className="truncate">{task.shadowBranch}</span>
+                  </Link>
+                </Button>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="bg-sidebar-accent border-sidebar-border">
+                <ContextMenuItem
+                  onClick={() => handleCopyBranchName(task.shadowBranch)}
+                  className="text-muted-foreground hover:text-foreground hover:bg-sidebar-border! h-7"
+                >
+                  <GitBranch className="size-3.5 text-inherit" />
+                  <span className="text-[13px]">Copy Branch Name</span>
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           </SidebarMenuItem>
         </SidebarGroupContent>
       </SidebarGroup>
