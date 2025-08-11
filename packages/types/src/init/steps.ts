@@ -16,6 +16,19 @@ export const STEP_DISPLAY_NAMES: Record<InitStatus, string> = {
 };
 
 /**
+ * Get the display name for a step based on user settings
+ */
+export function getStepDisplayName(
+  step: InitStatus,
+  userSettings?: { enableShadowWiki?: boolean }
+): string {
+  if (step === "COMPLETE_SHADOW_WIKI" && userSettings?.enableShadowWiki === false) {
+    return "Completing Setup";
+  }
+  return STEP_DISPLAY_NAMES[step];
+}
+
+/**
  * Get all step display names in execution order for a given mode
  */
 export function getStepsForMode(mode: "local" | "remote"): InitStatus[] {

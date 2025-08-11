@@ -1,11 +1,12 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { getStepsForMode, STEP_DISPLAY_NAMES } from "@repo/types";
+import { getStepsForMode, getStepDisplayName } from "@repo/types";
 import { Check } from "lucide-react";
 import { LogoHover } from "../graphics/logo/logo-hover";
 import { useEffect, useMemo, useState } from "react";
 import { useTaskStatus } from "@/hooks/tasks/use-task-status";
+import { useUserSettings } from "@/hooks/use-user-settings";
 
 // height of each step
 const LINE_HEIGHT = 20;
@@ -21,6 +22,7 @@ export default function InitializingAnimation({
   userMessageWrapperRef: React.RefObject<HTMLButtonElement | null>;
 }) {
   const { data } = useTaskStatus(taskId);
+  const { data: userSettings } = useUserSettings();
   const { status, initStatus } = data || {};
 
   const [topSpacing, setTopSpacing] = useState(0);
@@ -94,7 +96,7 @@ export default function InitializingAnimation({
                   size="sm"
                 />
               )}
-              {STEP_DISPLAY_NAMES[step]}
+              {getStepDisplayName(step, userSettings)}
             </div>
           ))}
         </div>
