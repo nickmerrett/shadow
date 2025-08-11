@@ -1,5 +1,6 @@
 import type { Task, Todo } from "@repo/db";
 import { db } from "@repo/db";
+import { makeBackendRequest } from "../make-backend-request";
 
 export interface FileChange {
   filePath: string;
@@ -26,8 +27,8 @@ async function fetchFileChanges(
   taskId: string
 ): Promise<{ fileChanges: FileChange[]; diffStats: DiffStats }> {
   try {
-    const response = await fetch(
-      `http://localhost:4000/api/tasks/${taskId}/file-changes`
+    const response = await makeBackendRequest(
+      `/api/tasks/${taskId}/file-changes`
     );
     if (!response.ok) {
       console.warn(

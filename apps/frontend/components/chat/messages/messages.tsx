@@ -95,7 +95,7 @@ function MessagesComponent({
               lastMessage.metadata.parts[lastMessage.metadata.parts.length - 1]
                 ?.type === "text");
 
-          return isLastPartValid;
+          return isLastGroup && isLastPartValid;
         };
 
         const shouldShowGenerating =
