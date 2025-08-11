@@ -6,7 +6,6 @@ import {
 } from "@repo/types";
 import type { Todo } from "@repo/db";
 import { emitStreamChunk } from "../socket";
-import { getFileChanges } from "../utils/git-operations";
 import { createToolExecutor, createGitService } from "../execution";
 import { getFileSystemWatcher } from "../agent/tools";
 import config from "../config";
@@ -151,7 +150,9 @@ export class CheckpointService {
           `[CHECKPOINT] ⚠️ Uncommitted changes detected before checkpoint restoration. Git checkout will fail if these changes would be overwritten.`
         );
       } else {
-        console.log(`[CHECKPOINT] ✨ Workspace is clean, proceeding with restore`);
+        console.log(
+          `[CHECKPOINT] ✨ Workspace is clean, proceeding with restore`
+        );
       }
 
       // 4. Restore git state
@@ -272,10 +273,10 @@ export class CheckpointService {
         return;
       }
 
-      // Compute current file changes using existing git diff logic
-      console.log(`[CHECKPOINT] 📁 Computing file changes from git diff...`);
-      const { fileChanges, diffStats } = await getFileChanges(
-        taskId,
+      // Create git service and compute current file changes
+      console.log(`[CHECKPOINT] 📁 Computing file changes from GitService...`);
+      const gitService = await createGitService(taskId);
+      const { fileChanges, diffStats } = await gitService.getFileChanges(
         task.baseBranch
       );
       console.log(`[CHECKPOINT] ✅ Found ${fileChanges.length} file changes`);
@@ -305,7 +306,7 @@ export class CheckpointService {
         {
           type: "fs-override",
           fsOverride: {
-            fileChanges: fileChanges.map((fc) => ({
+            fileChanges: fileChanges.map((fc: any) => ({
               filePath: fc.filePath,
               operation: fc.operation,
               additions: fc.additions,
@@ -418,7 +419,9 @@ export class CheckpointService {
           `[CHECKPOINT] ⚠️ Uncommitted changes detected before initial state restoration. Git checkout will fail if these changes would be overwritten.`
         );
       } else {
-        console.log(`[CHECKPOINT] ✨ Workspace is clean, proceeding with restore`);
+        console.log(
+          `[CHECKPOINT] ✨ Workspace is clean, proceeding with restore`
+        );
       }
 
       // Restore git state to initial commit
@@ -504,8 +507,15 @@ export class CheckpointService {
         const toolExecutor = await createToolExecutor(taskId);
         try {
           // Call sidecar API to pause filesystem watcher
-          // Access the sidecar URL through the private property (casting to any for access)
-          const sidecarUrl = (toolExecutor as any).sidecarUrl;
+          // Access the sidecar URL using established pattern from codebase
+          const sidecarUrl = "sidecarUrl" in toolExecutor 
+            ? (toolExecutor as { sidecarUrl: string }).sidecarUrl 
+            : null;
+          if (!sidecarUrl) {
+            console.warn(`[CHECKPOINT] No sidecar URL available for task ${taskId}`);
+            return;
+          }
+          
           const response = await fetch(`${sidecarUrl}/api/watcher/pause`, {
             method: "POST",
             headers: {
@@ -557,8 +567,15 @@ export class CheckpointService {
         const toolExecutor = await createToolExecutor(taskId);
         try {
           // Call sidecar API to resume filesystem watcher
-          // Access the sidecar URL through the private property (casting to any for access)
-          const sidecarUrl = (toolExecutor as any).sidecarUrl;
+          // Access the sidecar URL using established pattern from codebase
+          const sidecarUrl = "sidecarUrl" in toolExecutor 
+            ? (toolExecutor as { sidecarUrl: string }).sidecarUrl 
+            : null;
+          if (!sidecarUrl) {
+            console.warn(`[CHECKPOINT] No sidecar URL available for task ${taskId}`);
+            return;
+          }
+          
           const response = await fetch(`${sidecarUrl}/api/watcher/resume`, {
             method: "POST",
             headers: {

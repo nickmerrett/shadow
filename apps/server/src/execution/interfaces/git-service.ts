@@ -48,7 +48,10 @@ export interface GitService {
    * @param branchName - Branch to push
    * @param setUpstream - Whether to set upstream tracking
    */
-  pushBranch(branchName: string, setUpstream?: boolean): Promise<GitPushResponse>;
+  pushBranch(
+    branchName: string,
+    setUpstream?: boolean
+  ): Promise<GitPushResponse>;
 
   /**
    * Get git diff of current changes
@@ -82,5 +85,49 @@ export interface GitService {
    * @param baseBranch - The base branch to compare against
    * @param limit - Maximum number of commit messages to return (default: 5)
    */
-  getRecentCommitMessages(baseBranch: string, limit?: number): Promise<string[]>;
+  getRecentCommitMessages(
+    baseBranch: string,
+    limit?: number
+  ): Promise<string[]>;
+
+  /**
+   * Get file changes since base branch
+   * @param baseBranch - Base branch to compare against (default: "main")
+   */
+  getFileChanges(baseBranch?: string): Promise<{
+    fileChanges: FileChange[];
+    diffStats: DiffStats;
+  }>;
+}
+
+export interface FileChange {
+  filePath: string;
+  operation: "CREATE" | "UPDATE" | "DELETE" | "RENAME";
+  additions: number;
+  deletions: number;
+  createdAt: string;
+}
+
+export interface DiffStats {
+  additions: number;
+  deletions: number;
+  totalFiles: number;
+}
+
+export interface GitFileChangesError {
+  code:
+    | "NO_GIT_REPO"
+    | "WORKSPACE_NOT_FOUND"
+    | "COMMAND_FAILED"
+    | "NETWORK_ERROR"
+    | "UNKNOWN";
+  message: string;
+  details?: string;
+}
+
+export interface GitFileChangesResult {
+  success: boolean;
+  fileChanges: FileChange[];
+  diffStats: DiffStats;
+  error?: GitFileChangesError;
 }

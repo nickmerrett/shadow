@@ -288,7 +288,7 @@ Commit message:`,
   /**
    * Execute a git command in the workspace directory
    */
-  private async execGit(
+  public async execGit(
     gitArgs: string
   ): Promise<{ stdout: string; stderr: string }> {
     const command = `git ${gitArgs}`;
@@ -397,6 +397,14 @@ Commit message:`,
       throw error;
     }
   }
+
+  /**
+   * Get the workspace path
+   */
+  public getWorkspacePath(): string {
+    return this.workspacePath;
+  }
+
 }
 
 export default GitManager;

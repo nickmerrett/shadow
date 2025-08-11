@@ -352,7 +352,11 @@ export class GitService {
 
       // First verify the commit exists
       try {
-        await this.execGitSecure(["rev-parse", "--verify", `${commitSha}^{commit}`]);
+        await this.execGitSecure([
+          "rev-parse",
+          "--verify",
+          `${commitSha}^{commit}`,
+        ]);
       } catch (_error) {
         return {
           success: false,
@@ -364,9 +368,12 @@ export class GitService {
       // Check if there are uncommitted changes that could be lost
       const statusResult = await this.hasChanges();
       if (statusResult.hasChanges) {
-        logger.warn("[GIT_SERVICE] Uncommitted changes detected during checkout", {
-          commitSha,
-        });
+        logger.warn(
+          "[GIT_SERVICE] Uncommitted changes detected during checkout",
+          {
+            commitSha,
+          }
+        );
         // Git checkout will fail if these changes would be overwritten
       }
 
@@ -374,7 +381,8 @@ export class GitService {
       try {
         await this.execGitSecure(["checkout", commitSha]);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         return {
           success: false,
           message: `Failed to checkout ${commitSha}: ${errorMessage}`,
@@ -410,7 +418,10 @@ export class GitService {
   /**
    * Get recent commit messages from current branch compared to base branch
    */
-  async getRecentCommitMessages(baseBranch: string, limit = 5): Promise<GitCommitMessagesResponse> {
+  async getRecentCommitMessages(
+    baseBranch: string,
+    limit = 5
+  ): Promise<GitCommitMessagesResponse> {
     try {
       logger.info("[GIT_SERVICE] Getting recent commit messages", {
         baseBranch,
@@ -418,11 +429,11 @@ export class GitService {
       });
 
       const result = await this.execGitSecure([
-        "log", 
-        `${baseBranch}..HEAD`, 
-        "--oneline", 
-        `-${limit}`, 
-        "--pretty=format:%s"
+        "log",
+        `${baseBranch}..HEAD`,
+        "--oneline",
+        `-${limit}`,
+        "--pretty=format:%s",
       ]);
 
       const commitMessages = result.stdout.trim().split("\n").filter(Boolean);
@@ -633,7 +644,8 @@ export class GitService {
         currentBranch,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       logger.error("[GIT_SERVICE] Failed to get current branch", {
         error: errorMessage,
       });
@@ -654,7 +666,7 @@ export class GitService {
       logger.info("[GIT_SERVICE] Getting current commit SHA");
 
       const commitSha = await this.getCurrentCommitSha();
-      
+
       if (commitSha === "unknown") {
         throw new Error("Failed to retrieve commit SHA");
       }
@@ -667,7 +679,8 @@ export class GitService {
         commitSha,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       logger.error("[GIT_SERVICE] Failed to get commit SHA", {
         error: errorMessage,
       });
@@ -760,6 +773,198 @@ export class GitService {
         reject(error);
       });
     });
+  }
+
+  /**
+   * Get file changes since base branch (for file changes API)
+   */
+  async getFileChanges(baseBranch: string = "main"): Promise<{
+    success: boolean;
+    fileChanges: Array<{
+      filePath: string;
+      operation: "CREATE" | "UPDATE" | "DELETE" | "RENAME";
+      additions: number;
+      deletions: number;
+      createdAt: string;
+    }>;
+    diffStats: {
+      additions: number;
+      deletions: number;
+      totalFiles: number;
+    };
+    message?: string;
+    error?: string;
+  }> {
+    try {
+      logger.info("[GIT_SERVICE] Getting file changes since base branch", {
+        baseBranch,
+      });
+
+      const now = new Date().toISOString();
+
+      // Get committed changes using git diff --name-status
+      const statusResult = await this.execGitSecure([
+        "diff",
+        "--name-status",
+        `${baseBranch}...HEAD`,
+      ]);
+
+      // Get detailed stats using git diff --numstat
+      const statsResult = await this.execGitSecure([
+        "diff",
+        "--numstat",
+        `${baseBranch}...HEAD`,
+      ]);
+
+      // Get uncommitted changes using git status --porcelain
+      const uncommittedResult = await this.execGitSecure([
+        "status",
+        "--porcelain",
+      ]);
+
+      const fileChanges: Array<{
+        filePath: string;
+        operation: "CREATE" | "UPDATE" | "DELETE" | "RENAME";
+        additions: number;
+        deletions: number;
+        createdAt: string;
+      }> = [];
+
+      // Parse committed changes
+      if (statusResult.stdout.trim()) {
+        const statusLines = statusResult.stdout.trim().split("\n");
+        const statsLines = statsResult.stdout.trim().split("\n");
+
+        // Create stats map
+        const statsMap = new Map<
+          string,
+          { additions: number; deletions: number }
+        >();
+        for (const line of statsLines) {
+          if (!line.trim()) continue;
+          const parts = line.split("\t");
+          if (parts.length >= 3 && parts[0] && parts[1] && parts[2]) {
+            const additions = parseInt(parts[0]) || 0;
+            const deletions = parseInt(parts[1]) || 0;
+            const filePath = parts[2];
+            statsMap.set(filePath, { additions, deletions });
+          }
+        }
+
+        // Process status lines
+        for (const line of statusLines) {
+          if (!line.trim()) continue;
+          const parts = line.split("\t");
+          if (parts.length >= 2 && parts[0] && parts[1]) {
+            const status = parts[0];
+            const filePath = parts[1];
+            const stats = statsMap.get(filePath) || {
+              additions: 0,
+              deletions: 0,
+            };
+
+            let operation: "CREATE" | "UPDATE" | "DELETE" | "RENAME";
+            switch (status.trim()) {
+              case "A":
+                operation = "CREATE";
+                break;
+              case "D":
+                operation = "DELETE";
+                break;
+              case "R":
+                operation = "RENAME";
+                break;
+              default:
+                operation = "UPDATE";
+                break;
+            }
+
+            fileChanges.push({
+              filePath,
+              operation,
+              additions: stats.additions,
+              deletions: stats.deletions,
+              createdAt: now,
+            });
+          }
+        }
+      }
+
+      // Parse uncommitted changes
+      if (uncommittedResult.stdout.trim()) {
+        const uncommittedLines = uncommittedResult.stdout.trim().split("\n");
+
+        for (const line of uncommittedLines) {
+          if (!line.trim()) continue;
+
+          const status = line.substring(0, 2);
+          const filePath = line.substring(2).replace(/^\s+/, "");
+
+          // Skip if already included from committed changes
+          if (fileChanges.some((f) => f.filePath === filePath)) {
+            continue;
+          }
+
+          let operation: "CREATE" | "UPDATE" | "DELETE" | "RENAME";
+          if (status.includes("??")) {
+            operation = "CREATE";
+          } else if (status.includes("D")) {
+            operation = "DELETE";
+          } else {
+            operation = "UPDATE";
+          }
+
+          // For uncommitted files, we'd need additional git diff calls to get exact stats
+          // For now, using placeholder values - this can be enhanced if needed
+          fileChanges.push({
+            filePath,
+            operation,
+            additions: 0, // Could be enhanced with individual git diff calls
+            deletions: 0,
+            createdAt: now,
+          });
+        }
+      }
+
+      // Calculate diff stats
+      const diffStats = fileChanges.reduce(
+        (acc, file) => ({
+          additions: acc.additions + file.additions,
+          deletions: acc.deletions + file.deletions,
+          totalFiles: acc.totalFiles + 1,
+        }),
+        { additions: 0, deletions: 0, totalFiles: 0 }
+      );
+
+      logger.info("[GIT_SERVICE] File changes retrieval completed", {
+        baseBranch,
+        totalFiles: diffStats.totalFiles,
+        additions: diffStats.additions,
+        deletions: diffStats.deletions,
+      });
+
+      return {
+        success: true,
+        fileChanges,
+        diffStats,
+        message: `Found ${diffStats.totalFiles} file changes since ${baseBranch}`,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      logger.error("[GIT_SERVICE] Failed to get file changes", {
+        baseBranch,
+        error: errorMessage,
+      });
+
+      return {
+        success: false,
+        fileChanges: [],
+        diffStats: { additions: 0, deletions: 0, totalFiles: 0 },
+        message: `Failed to get file changes since ${baseBranch}: ${errorMessage}`,
+        error: "FILE_CHANGES_FAILED",
+      };
+    }
   }
 
   /**

@@ -49,7 +49,7 @@ export class RemoteToolExecutor implements ToolExecutor {
   /**
    * Make authenticated HTTP request to VM sidecar API
    */
-  private async makeSidecarRequest<T>(
+  public async makeSidecarRequest<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {

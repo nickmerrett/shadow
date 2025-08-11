@@ -19,9 +19,15 @@ export function createGitRouter(gitService: GitService): Router {
   router.post(
     "/api/git/clone",
     asyncHandler(async (req, res) => {
-      const { repoUrl, branch, githubToken } = GitCloneRequestSchema.parse(req.body);
+      const { repoUrl, branch, githubToken } = GitCloneRequestSchema.parse(
+        req.body
+      );
 
-      const result = await gitService.cloneRepository(repoUrl, branch, githubToken);
+      const result = await gitService.cloneRepository(
+        repoUrl,
+        branch,
+        githubToken
+      );
 
       if (!result.success) {
         const statusCode = result.error === "CLONE_FAILED" ? 500 : 400;
@@ -59,9 +65,14 @@ export function createGitRouter(gitService: GitService): Router {
   router.post(
     "/api/git/branch",
     asyncHandler(async (req, res) => {
-      const { baseBranch, shadowBranch } = GitBranchRequestSchema.parse(req.body);
+      const { baseBranch, shadowBranch } = GitBranchRequestSchema.parse(
+        req.body
+      );
 
-      const result = await gitService.createShadowBranch(baseBranch, shadowBranch);
+      const result = await gitService.createShadowBranch(
+        baseBranch,
+        shadowBranch
+      );
 
       if (!result.success) {
         const statusCode = result.error === "BRANCH_FAILED" ? 500 : 400;
@@ -158,9 +169,12 @@ export function createGitRouter(gitService: GitService): Router {
       const result = await gitService.safeCheckoutCommit(commitSha);
 
       if (!result.success) {
-        const statusCode = 
-          result.error === "COMMIT_NOT_FOUND" ? 404 :
-          result.error === "CHECKOUT_FAILED" ? 500 : 400;
+        const statusCode =
+          result.error === "COMMIT_NOT_FOUND"
+            ? 404
+            : result.error === "CHECKOUT_FAILED"
+              ? 500
+              : 400;
         res.status(statusCode).json(result);
       } else {
         res.json(result);
@@ -192,7 +206,8 @@ export function createGitRouter(gitService: GitService): Router {
       );
 
       if (!result.success) {
-        const statusCode = result.error === "COMMIT_MESSAGES_FAILED" ? 500 : 400;
+        const statusCode =
+          result.error === "COMMIT_MESSAGES_FAILED" ? 500 : 400;
         res.status(statusCode).json(result);
       } else {
         res.json(result);
@@ -243,7 +258,9 @@ export function createGitRouter(gitService: GitService): Router {
   router.post(
     "/api/git/commit",
     asyncHandler(async (req, res) => {
-      const { user, coAuthor, message } = GitCommitRequestSchema.parse(req.body);
+      const { user, coAuthor, message } = GitCommitRequestSchema.parse(
+        req.body
+      );
 
       const result = await gitService.commitChanges({
         user,
@@ -273,6 +290,37 @@ export function createGitRouter(gitService: GitService): Router {
 
       if (!result.success) {
         const statusCode = result.error === "PUSH_FAILED" ? 500 : 400;
+        res.status(statusCode).json(result);
+      } else {
+        res.json(result);
+      }
+    })
+  );
+
+  /**
+   * POST /api/git/file-changes
+   * Get file changes since base branch
+   */
+  router.post(
+    "/api/git/file-changes",
+    asyncHandler(async (req, res) => {
+      const { baseBranch } = req.body;
+
+      if (!baseBranch || typeof baseBranch !== "string") {
+        res.status(400).json({
+          success: false,
+          message: "baseBranch is required and must be a string",
+          error: "INVALID_REQUEST",
+          fileChanges: [],
+          diffStats: { additions: 0, deletions: 0, totalFiles: 0 },
+        });
+        return;
+      }
+
+      const result = await gitService.getFileChanges(baseBranch);
+
+      if (!result.success) {
+        const statusCode = result.error === "FILE_CHANGES_FAILED" ? 500 : 400;
         res.status(statusCode).json(result);
       } else {
         res.json(result);

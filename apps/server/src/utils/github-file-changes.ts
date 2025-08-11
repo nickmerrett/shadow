@@ -1,5 +1,8 @@
 import { GitHubApiClient } from "../github/github-api";
-import type { FileChange, DiffStats } from "./git-operations";
+import type {
+  FileChange,
+  DiffStats,
+} from "../execution/interfaces/git-service";
 
 /**
  * Get file changes for a task using GitHub API (for INACTIVE tasks)
@@ -33,8 +36,11 @@ export async function getGitHubFileChanges(
 
     // Convert GitHub file changes to our FileChange format
     const fileChanges: FileChange[] = compareResult.files.map((file, index) => {
-      if (index < 5) { // Log first 5 files to avoid spam
-        console.log(`[FILE_CHANGES_DEBUG] GitHub file ${index + 1} - path: ${file.filename}, status: ${file.status}, +${file.additions}/-${file.deletions}`);
+      if (index < 5) {
+        // Log first 5 files to avoid spam
+        console.log(
+          `[FILE_CHANGES_DEBUG] GitHub file ${index + 1} - path: ${file.filename}, status: ${file.status}, +${file.additions}/-${file.deletions}`
+        );
       }
       return {
         filePath: file.filename,
@@ -44,9 +50,11 @@ export async function getGitHubFileChanges(
         createdAt: now,
       };
     });
-    
+
     if (compareResult.files.length > 5) {
-      console.log(`[FILE_CHANGES_DEBUG] ... and ${compareResult.files.length - 5} more GitHub files`);
+      console.log(
+        `[FILE_CHANGES_DEBUG] ... and ${compareResult.files.length - 5} more GitHub files`
+      );
     }
 
     const diffStats: DiffStats = {

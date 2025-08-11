@@ -1,4 +1,4 @@
-import { GitService } from "../interfaces/git-service";
+import { GitService, FileChange, DiffStats } from "../interfaces/git-service";
 import { GitManager, GitUser } from "../../services/git-manager";
 import { TaskModelContext } from "../../services/task-model-context";
 import {
@@ -7,6 +7,7 @@ import {
   GitPushResponse,
   GitConfigResponse,
 } from "@repo/types";
+import { getFileChangesForWorkspace } from "../../utils/git-operations";
 
 /**
  * LocalGitService wraps GitManager to provide unified git operations interface
@@ -27,7 +28,10 @@ export class LocalGitService implements GitService {
     return this.gitManager.getCurrentBranch();
   }
 
-  async createShadowBranch(baseBranch: string, shadowBranch: string): Promise<string> {
+  async createShadowBranch(
+    baseBranch: string,
+    shadowBranch: string
+  ): Promise<string> {
     return this.gitManager.createShadowBranch(baseBranch, shadowBranch);
   }
 
@@ -65,7 +69,10 @@ export class LocalGitService implements GitService {
     }
   }
 
-  async pushBranch(branchName: string, setUpstream = false): Promise<GitPushResponse> {
+  async pushBranch(
+    branchName: string,
+    setUpstream = false
+  ): Promise<GitPushResponse> {
     try {
       await this.gitManager.pushBranch(branchName, setUpstream);
       return {
@@ -130,16 +137,61 @@ export class LocalGitService implements GitService {
     }
   }
 
-  async getRecentCommitMessages(baseBranch: string, limit = 5): Promise<string[]> {
+  async getRecentCommitMessages(
+    baseBranch: string,
+    limit = 5
+  ): Promise<string[]> {
     try {
       // Use the same logic that was in PRManager but through GitManager's execGit method
-      const { stdout } = await (this.gitManager as any).execGit(
+      const { stdout } = await this.gitManager.execGit(
         `log ${baseBranch}..HEAD --oneline -${limit} --pretty=format:"%s"`
       );
       return stdout.trim().split("\n").filter(Boolean);
     } catch (error) {
-      console.warn(`[LOCAL_GIT_SERVICE] Failed to get recent commit messages:`, error);
+      console.warn(
+        `[LOCAL_GIT_SERVICE] Failed to get recent commit messages:`,
+        error
+      );
       return [];
+    }
+  }
+
+  async getFileChanges(baseBranch: string = "main"): Promise<{
+    fileChanges: FileChange[];
+    diffStats: DiffStats;
+  }> {
+    try {
+      // Use the workspace-path agnostic utility function
+      return await getFileChangesForWorkspace(
+        this.gitManager.getWorkspacePath(),
+        baseBranch
+      );
+    } catch (error) {
+      const isGitError =
+        error instanceof Error &&
+        (error.message.includes("not a git repository") ||
+          error.message.includes("git"));
+      const isFileSystemError =
+        error instanceof Error &&
+        (error.message.includes("ENOENT") ||
+          error.message.includes("no such file"));
+
+      const errorCode = isGitError
+        ? "NO_GIT_REPO"
+        : isFileSystemError
+          ? "WORKSPACE_NOT_FOUND"
+          : "COMMAND_FAILED";
+
+      console.error(`[LOCAL_GIT_SERVICE] Failed to get file changes:`, {
+        code: errorCode,
+        message: error instanceof Error ? error.message : "Unknown error",
+        details: String(error),
+      });
+
+      return {
+        fileChanges: [],
+        diffStats: { additions: 0, deletions: 0, totalFiles: 0 },
+      };
     }
   }
 }
