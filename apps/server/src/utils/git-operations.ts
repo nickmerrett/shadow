@@ -20,7 +20,7 @@ function hasStdout(error: unknown): error is { stdout: string } {
     typeof error === "object" &&
     error !== null &&
     "stdout" in error &&
-    typeof (error as any).stdout === "string"
+    typeof error.stdout === "string"
   );
 }
 
@@ -29,7 +29,7 @@ function hasMessage(error: unknown): error is { message: string } {
     typeof error === "object" &&
     error !== null &&
     "message" in error &&
-    typeof (error as any).message === "string"
+    typeof error.message === "string"
   );
 }
 
@@ -39,8 +39,6 @@ async function getCommittedChanges(
   now: string,
   baseBranch: string
 ) {
-  const startTime = Date.now();
-
   const diffCommand = `git diff --name-status ${baseBranch}...HEAD`;
 
   const { stdout: committedStatusOutput } = await execAsync(diffCommand, {
@@ -48,7 +46,6 @@ async function getCommittedChanges(
   });
 
   if (committedStatusOutput.trim()) {
-    // Detailed diff stats for committed changes
     const diffStatsCommand = `git diff --numstat ${baseBranch}...HEAD`;
 
     const { stdout: committedStatsOutput } = await execAsync(diffStatsCommand, {
@@ -96,9 +93,6 @@ async function getCommittedChanges(
         createdAt: now,
       });
     }
-  } else {
-    // No committed changes
-    void startTime; // preserve variable usage to avoid unused warnings
   }
 }
 
@@ -356,8 +350,6 @@ export async function getFileChangesForWorkspace(
   workspacePath: string,
   baseBranch: string = "main"
 ): Promise<{ fileChanges: FileChange[]; diffStats: DiffStats }> {
-  const startTime = Date.now();
-
   if (!(await hasGitRepositoryAtPath(workspacePath))) {
     return {
       fileChanges: [],
@@ -368,9 +360,7 @@ export async function getFileChangesForWorkspace(
   try {
     // Refresh git index to ensure consistency after potential checkout operations
     await execAsync("git update-index --refresh", { cwd: workspacePath }).catch(
-      () => {
-        // Non-blocking - update-index may fail if no changes, which is fine
-      }
+      () => {}
     );
 
     const now = new Date().toISOString();
@@ -392,16 +382,12 @@ export async function getFileChangesForWorkspace(
       { additions: 0, deletions: 0, totalFiles: 0 }
     );
 
-    void startTime; // silence unused variable if not used below
-
     return { fileChanges, diffStats };
   } catch (error) {
-    const duration = Date.now() - startTime;
     console.error(
-      `[FILE_CHANGES_DEBUG] Error getting file changes for workspace ${workspacePath} (duration: ${duration}ms):`,
+      `[FILE_CHANGES_DEBUG] Error getting file changes for workspace ${workspacePath}:`,
       error
     );
-    // Return empty array instead of throwing to avoid breaking the UI
     return {
       fileChanges: [],
       diffStats: { additions: 0, deletions: 0, totalFiles: 0 },
@@ -457,7 +443,7 @@ export async function hasGitRepositoryAtPath(
     const hasGit = gitDir === `.git`;
 
     return hasGit;
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 }
