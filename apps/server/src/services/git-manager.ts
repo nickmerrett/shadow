@@ -161,12 +161,13 @@ export class GitManager {
       const modelProvider = new ModelProvider();
       const modelInstance = modelProvider.getModel(model, context.getApiKeys());
 
-      const isGPT5 = model === AvailableModels.GPT_5;
+      const isGPT5Family =
+        model === AvailableModels.GPT_5 || model === AvailableModels.GPT_5_MINI;
 
       const { text } = await generateText({
         model: modelInstance,
-        temperature: isGPT5 ? 1 : 0.3,
-        ...(isGPT5 ? { maxCompletionTokens: 100 } : { maxTokens: 100 }),
+        temperature: isGPT5Family ? 1 : 0.3,
+        ...(isGPT5Family ? { maxCompletionTokens: 100 } : { maxTokens: 100 }),
         prompt: `Generate a concise git commit message for these changes. Focus on what was changed, not how. Use imperative mood (e.g., "Add", "Fix", "Update"). Keep it under 50 characters.
 
 Git diff:
@@ -181,7 +182,7 @@ Commit message:`,
             ...(model === AvailableModels.GPT_5
               ? { maxCompletionTokens: 100 }
               : { maxTokens: 100 }),
-            temperature: isGPT5 ? 1 : 0.3,
+            temperature: isGPT5Family ? 1 : 0.3,
             workspacePath: this.workspacePath,
           }
         ),
@@ -340,7 +341,6 @@ Commit message:`,
       }
     }
   }
-
 
   /**
    * Safely checkout to specific commit with error handling
