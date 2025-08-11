@@ -385,7 +385,7 @@ export async function getFileChangesForWorkspace(
     return { fileChanges, diffStats };
   } catch (error) {
     console.error(
-      `[FILE_CHANGES_DEBUG] Error getting file changes for workspace ${workspacePath}:`,
+      `Error getting file changes for workspace ${workspacePath}:`,
       error
     );
     return {
