@@ -148,11 +148,24 @@ EOF
 
     echo -e "${GREEN} Created apps/frontend/.env${NC}"
 
+    # Create packages/db .env file
+    echo -e "${GREEN}Creating packages/db/.env file...${NC}"
+    if [ -f "packages/db/.env.template" ]; then
+        cp "packages/db/.env.template" "packages/db/.env"
+        echo -e "${GREEN} Created packages/db/.env from template${NC}"
+    else
+        cat > "packages/db/.env" << EOF
+DATABASE_URL="${DATABASE_URL}"
+EOF
+        echo -e "${YELLOW} packages/db/.env.template not found; created packages/db/.env with DATABASE_URL only.${NC}"
+    fi
+
     echo -e "\n${GREEN} Setup Complete!${NC}"
     echo "****************************************************"
     echo "Your environment files have been created:"
     echo "  apps/server/.env"
     echo "  apps/frontend/.env"
+    echo "  packages/db/.env"
     echo -e "\n${YELLOW} Next Steps:${NC}"
     echo "1. Make sure your PostgreSQL database is running"
     echo "2. Run database migrations: \`npm run generate\` then \`npm run db:push\` in the /packages/db directory"

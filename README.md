@@ -147,6 +147,12 @@ GITHUB_CLIENT_SECRET=
 BETTER_AUTH_SECRET=dev-secret
 ```
 
+`packages/db/.env`
+```bash
+DATABASE_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
+DIRECT_URL="postgres://postgres:@127.0.0.1:5432/shadow_dev"
+```
+
 With `GITHUB_PERSONAL_ACCESS_TOKEN` set on the server and `NEXT_PUBLIC_VERCEL_ENV` not equal to `production`, the backend uses your PAT for repo/branch/issue queries. The frontend's GitHub selector works immediately.
 
 ## Development Commands
