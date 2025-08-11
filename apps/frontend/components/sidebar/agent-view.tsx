@@ -124,7 +124,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
   // Use indexing status hook for unified status tracking
   const { data: indexingStatus } = useIndexingStatus(task?.repoFullName || "");
   const { data: userSettings } = useUserSettings();
-  
+
   // Copy to clipboard functionality
   const { copyToClipboard } = useCopyToClipboard();
 
@@ -385,7 +385,7 @@ export function SidebarAgentView({ taskId }: { taskId: string }) {
                         "size-4",
                         statusClass,
                         task.status === "INITIALIZING" &&
-                          "animate-spin duration-1000"
+                          "animation-duration-[5s] size-4 animate-spin"
                       )}
                     />
                     <span className="capitalize">

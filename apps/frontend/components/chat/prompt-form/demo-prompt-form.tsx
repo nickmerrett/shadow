@@ -39,7 +39,7 @@ export function LandingPagePromptForm() {
                   tabIndex={-1}
                 >
                   <Folder className="size-4" />
-                  <span className="truncate">ishaan1013/shadow</span>
+                  <span className="truncate">organization/repository</span>
                   <GitBranch className="size-4" />
                   <span title="main">main</span>
                 </Button>

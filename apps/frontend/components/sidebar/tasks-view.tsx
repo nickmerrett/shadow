@@ -470,7 +470,7 @@ export function SidebarTasksView({
                     <SidebarGroupLabel asChild>
                       <CollapsibleTrigger>
                         <StatusIcon
-                          className={`mr-1.5 !size-3.5 ${statusColorsConfig[displayStatus].className} ${displayStatus === "INITIALIZING" ? "animate-spin duration-1000" : ""}`}
+                          className={`mr-1.5 !size-3.5 ${statusColorsConfig[displayStatus].className} ${displayStatus === "INITIALIZING" ? "animation-duration-[5s] size-4 animate-spin" : ""}`}
                         />
                         <span className="capitalize">
                           {status.toLowerCase().replaceAll("_", " ")}
