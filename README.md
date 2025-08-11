@@ -109,6 +109,8 @@ Use a personal GitHub token so the GitHub selector works instantly without insta
 1) Create a GitHub Personal Access Token with scopes: `repo`, `read:org`.
 2) Add env vars:
 
+An easy way to do this is run the `./setup-script.sh` which will take in your input variables and autoset them in the right places for you! If you would like to do it manually, follow the instructions below
+
 `apps/server/.env`
 ```bash
 # Required
