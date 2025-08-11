@@ -16,9 +16,6 @@ import { createWorkspaceManager, type ToolExecutor } from "@/execution";
 // Configuration
 const TEMP = 0.15;
 
-/**
- * Get hardcoded mini model for each provider
- */
 function getHardcodedMiniModel(
   provider: "anthropic" | "openai" | "openrouter"
 ): ModelType {
