@@ -1,5 +1,7 @@
 # Shadow
 
+![Shadow Screenshot](https://raw.githubusercontent.com/ishaan1013/shadow/refs/heads/main/apps/frontend/app/opengraph-image.png)
+
 An open-source background coding agent. Designed to understand, reason about, and contribute to existing codebases. Licensed for open-source use under MIT License
 
 Sets up isolated execution environments for AI agents to work on GitHub repositories with tools to understand code, edit files, and much more.
