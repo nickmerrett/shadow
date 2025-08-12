@@ -15,9 +15,12 @@ import { useApiKeys, useApiKeyValidation } from "@/hooks/api-keys/use-api-keys";
 import Link from "next/link";
 
 export const shouldShowWelcomeModal = () => {
-  return process.env.NODE_ENV === "development" || 
-    process.env.NEXT_PUBLIC_VERCEL_ENV !== "production" || process.env.NEXT_PUBLIC_FORCE_GITHUB_APP !== 'true';
-}
+  return (
+    process.env.NODE_ENV === "development" ||
+    process.env.NEXT_PUBLIC_VERCEL_ENV !== "production" ||
+    process.env.NEXT_PUBLIC_FORCE_GITHUB_APP !== "true"
+  );
+};
 
 export function WelcomeModal({
   open,
@@ -30,7 +33,7 @@ export function WelcomeModal({
 
   // In development or non-production, bypass certain requirements (e.g., setup tasks)
   const isLocal = shouldShowWelcomeModal();
-  
+
   const handleConnectGitHub = () => {
     // onOpenChange(false);
     openSettingsModal("github");
@@ -57,7 +60,8 @@ export function WelcomeModal({
     });
 
   // Check if both setup tasks are complete
-  const canGetStarted = isLocal || (hasValidApiKey && githubStatus?.isAppInstalled);
+  const canGetStarted =
+    isLocal || (hasValidApiKey && githubStatus?.isAppInstalled);
 
   return (
     <Dialog open={open} onOpenChange={canGetStarted ? onOpenChange : undefined}>
@@ -123,13 +127,14 @@ export function WelcomeModal({
                   securely, we recommend not working on codebases requiring
                   enterprise-grade security with Shadow. Your API keys are never
                   permanently stored remotely.{" "}
-                  <Link
-                    href="https://example.com"
+                  <a
+                    href="https://docs.google.com/document/d/1_xpk3NP_HCgMvpwMo9W93RFD_PsiXhwrLGNtZnJesnA"
                     target="_blank"
-                    className="font-medium underline"
+                    className="text-foreground inline-block cursor-pointer font-medium hover:underline hover:opacity-90"
+                    rel="noreferrer"
                   >
                     Privacy Policy
-                  </Link>
+                  </a>
                 </p>
               </div>
             </div>
