@@ -7,6 +7,7 @@ import {
   setInitStatus,
   setTaskFailed,
   clearTaskProgress,
+  setTaskInitialized,
 } from "../utils/task-status";
 import { BackgroundServiceManager } from "./background-service-manager";
 import { TaskModelContext } from "../services/task-model-context";
@@ -92,6 +93,8 @@ export class TaskInitializationEngine {
 
       // All steps completed successfully - set to ACTIVE
       await setInitStatus(taskId, "ACTIVE");
+      // Mark task as having been initialized for the first time
+      await setTaskInitialized(taskId);
 
       console.log(`✅ [TASK_INIT] ${taskId}: Ready for RUNNING status`);
 
@@ -372,8 +375,14 @@ export class TaskInitializationEngine {
       );
       if (packageJsonExists) {
         // Determine which package manager to use based on lockfiles
-        const yarnLockExists = await this.checkFileExists(executor, "yarn.lock");
-        const pnpmLockExists = await this.checkFileExists(executor, "pnpm-lock.yaml");
+        const yarnLockExists = await this.checkFileExists(
+          executor,
+          "yarn.lock"
+        );
+        const pnpmLockExists = await this.checkFileExists(
+          executor,
+          "pnpm-lock.yaml"
+        );
         const bunLockExists = await this.checkFileExists(executor, "bun.lockb");
 
         if (bunLockExists) {

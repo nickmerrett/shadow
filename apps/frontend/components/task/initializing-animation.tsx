@@ -23,7 +23,7 @@ export default function InitializingAnimation({
 }) {
   const { data } = useTaskStatus(taskId);
   const { data: userSettings } = useUserSettings();
-  const { status, initStatus } = data || {};
+  const { status, initStatus, hasBeenInitialized } = data || {};
 
   const [topSpacing, setTopSpacing] = useState(0);
   useEffect(() => {
@@ -53,7 +53,9 @@ export default function InitializingAnimation({
     <div
       className={cn(
         "font-departureMono bg-background pointer-events-none absolute z-20 flex w-full select-none flex-col gap-1 px-3 tracking-tight transition-[visibility,opacity,transform] duration-1000 ease-in-out",
-        currentStepIndex === steps.length || status !== "INITIALIZING"
+        currentStepIndex === steps.length ||
+          status !== "INITIALIZING" ||
+          hasBeenInitialized === true
           ? "invisible opacity-0"
           : "visible opacity-100"
       )}

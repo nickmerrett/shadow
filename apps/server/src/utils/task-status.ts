@@ -184,3 +184,17 @@ export async function cancelTaskCleanup(taskId: string): Promise<void> {
 
   console.log(`[TASK_CLEANUP] Cancelled cleanup for task ${taskId}`);
 }
+
+/**
+ * Mark task as having been initialized for the first time
+ */
+export async function setTaskInitialized(taskId: string): Promise<void> {
+  await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      hasBeenInitialized: true,
+    },
+  });
+
+  console.log(`[TASK_STATUS] Task ${taskId} marked as initialized`);
+}

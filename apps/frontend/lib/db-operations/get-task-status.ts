@@ -4,6 +4,7 @@ export type TaskStatusData = {
   status: TaskStatus;
   initStatus: InitStatus;
   initializationError: string | null;
+  hasBeenInitialized: boolean;
 };
 
 export async function getTaskStatus(taskId: string): Promise<TaskStatusData> {
@@ -13,6 +14,7 @@ export async function getTaskStatus(taskId: string): Promise<TaskStatusData> {
       status: true,
       initStatus: true,
       initializationError: true,
+      hasBeenInitialized: true,
     },
   });
 
@@ -24,5 +26,6 @@ export async function getTaskStatus(taskId: string): Promise<TaskStatusData> {
     status: data.status,
     initStatus: data.initStatus,
     initializationError: data.initializationError,
+    hasBeenInitialized: data.hasBeenInitialized,
   };
 }
