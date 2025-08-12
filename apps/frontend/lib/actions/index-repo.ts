@@ -39,6 +39,5 @@ export async function fetchIndexApi({
   }
 
   const data = await response.json();
-  console.log("Indexing completed", data);
   return data;
 }

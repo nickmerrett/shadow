@@ -8,7 +8,6 @@ import {
 export function parseCodebaseSummaries(
   codebase: CodebaseUnderstanding
 ): CodebaseSummary[] {
-  console.log("Fetching summaries for codebase:", codebase.id);
   const codebaseContent = codebase.content;
 
   try {
@@ -66,7 +65,6 @@ export function parseCodebaseSummaries(
       }
     });
 
-    console.log("Total parsed summaries:", summaries.length);
     return summaries;
   } catch (e) {
     console.error("Error parsing codebase content", e);

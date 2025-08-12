@@ -124,7 +124,6 @@ export function PromptForm({
         toast.error("Please select a model first");
         return;
       }
-      console.log("queue");
       onSubmit?.(message, selectedModel, true);
       queryClient.setQueryData(["queued-action", taskId], {
         type: "message",
@@ -139,7 +138,6 @@ export function PromptForm({
         toast.error("Please select a model first");
         return;
       }
-      console.log("send");
       onSubmit?.(message, selectedModel, false);
       setMessage("");
     };
@@ -416,8 +414,6 @@ export function PromptForm({
 
     const completeRepoUrl = `https://github.com/${repo.full_name}`;
     const issuePrompt = generateIssuePrompt(issue);
-
-    console.log("issuePrompt", issuePrompt);
 
     const formData = new FormData();
     formData.append("message", issuePrompt);

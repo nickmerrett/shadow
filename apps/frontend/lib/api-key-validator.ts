@@ -9,7 +9,6 @@ export class ApiKeyValidator {
     provider: ApiKeyProvider,
     apiKey: string
   ): Promise<ValidationResult> {
-    console.log(`Validating ${provider} API key...`);
     const startTime = Date.now();
 
     try {

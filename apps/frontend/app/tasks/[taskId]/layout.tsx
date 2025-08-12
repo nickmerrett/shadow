@@ -72,8 +72,8 @@ export default async function TaskLayout({
         queryKey: ["models"],
         queryFn: getModels,
       })
-      .catch((error) => {
-        console.log("Could not prefetch models:", error?.message || error);
+      .catch(() => {
+        // Could not prefetch models
       }),
   ];
 

@@ -130,8 +130,6 @@ export async function createTask(formData: FormData) {
 
         if (!response.ok) {
           console.error("Failed to initiate task:", await response.text());
-        } else {
-          console.log("Task initiated successfully:", task.id);
         }
       } catch (error) {
         console.error("Error initiating task:", error);

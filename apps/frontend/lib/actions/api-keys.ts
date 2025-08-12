@@ -57,7 +57,7 @@ export async function getModels(): Promise<ModelInfo[]> {
       return models.map((modelId) => ModelInfos[modelId]);
     }
   } catch (_error) {
-    console.log("Could not fetch user settings, falling back to all models");
+    // Could not fetch user settings, fall back to all models
   }
 
   // Fallback if no user session or error occurred

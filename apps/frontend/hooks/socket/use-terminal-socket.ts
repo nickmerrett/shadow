@@ -14,7 +14,6 @@ export function useTerminalSocket(taskId: string | undefined) {
     if (socket && taskId && isConnected) {
       socket.emit('join-task', { taskId });
       socket.emit('get-terminal-history', { taskId });
-      console.log(`[TERMINAL] Joined task room and requested history: ${taskId}`);
     }
   }, [socket, taskId, isConnected]);
 
@@ -22,12 +21,10 @@ export function useTerminalSocket(taskId: string | undefined) {
   useEffect(() => {
     if (!socket || !taskId) return;
 
-    console.log("[TERMINAL] Setting up Socket.IO listeners for task:", taskId);
 
     const handleTerminalHistory = (data: { taskId: string; entries: TerminalEntry[] }) => {
       if (data.taskId !== taskId) return;
 
-      console.log("[TERMINAL] Received terminal history:", data.entries.length, "entries");
       setTerminalEntries(data.entries);
       setIsTerminalConnected(true);
     };
@@ -35,14 +32,12 @@ export function useTerminalSocket(taskId: string | undefined) {
     const handleTerminalOutput = (data: { taskId: string; entry: TerminalEntry }) => {
       if (data.taskId !== taskId) return;
 
-      console.log("[TERMINAL] Received terminal output:", data.entry);
       setTerminalEntries(prev => [...prev, data.entry]);
     };
 
     const handleTerminalCleared = (data: { taskId: string }) => {
       if (data.taskId !== taskId) return;
 
-      console.log("[TERMINAL] Terminal cleared");
       setTerminalEntries([]);
     };
 
@@ -57,7 +52,6 @@ export function useTerminalSocket(taskId: string | undefined) {
     };
 
     const handleConnect = () => {
-      console.log("[TERMINAL] Socket connected");
       setIsTerminalConnected(true);
       // Re-request terminal history on reconnect
       if (taskId) {
@@ -66,7 +60,6 @@ export function useTerminalSocket(taskId: string | undefined) {
     };
 
     const handleDisconnect = () => {
-      console.log("[TERMINAL] Socket disconnected");
       setIsTerminalConnected(false);
     };
 
@@ -95,7 +88,6 @@ export function useTerminalSocket(taskId: string | undefined) {
 
   const clearTerminal = useCallback(() => {
     if (socket && taskId) {
-      console.log("[TERMINAL] Clearing terminal for task:", taskId);
       socket.emit('clear-terminal', { taskId });
     }
   }, [socket, taskId]);

@@ -16,17 +16,14 @@ export function useSocket() {
   useEffect(() => {
     const handleConnect = () => {
       setIsConnected(true);
-      console.log('[SOCKET] Connected');
     };
     
     const handleDisconnect = () => {
       setIsConnected(false);
-      console.log('[SOCKET] Disconnected');
     };
     
     const handleConnectionInfo = (info: ConnectionInfo) => {
       setConnectionInfo(info);
-      console.log('[SOCKET] Connection info:', info);
     };
 
     const handleError = (error: Error) => {

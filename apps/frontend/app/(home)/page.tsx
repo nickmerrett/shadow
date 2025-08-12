@@ -24,27 +24,24 @@ export default async function Home() {
         queryKey: ["models"],
         queryFn: getModels,
       })
-      .catch((error) => {
-        console.log("Could not prefetch models:", error?.message || error);
+      .catch(() => {
+        // Could not prefetch models
       }),
     queryClient
       .prefetchQuery({
         queryKey: ["api-keys"],
         queryFn: getApiKeys,
       })
-      .catch((error) => {
-        console.log("Could not prefetch API keys:", error?.message || error);
+      .catch(() => {
+        // Could not prefetch API keys
       }),
     queryClient
       .prefetchQuery({
         queryKey: ["selected-model"],
         queryFn: getModelSelectorCookie,
       })
-      .catch((error) => {
-        console.log(
-          "Could not prefetch selected model:",
-          error?.message || error
-        );
+      .catch(() => {
+        // Could not prefetch selected model
       }),
   ];
 

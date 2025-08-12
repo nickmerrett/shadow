@@ -301,7 +301,6 @@ export function useTaskSocket(taskId: string | undefined) {
     }
 
     function onDisconnect() {
-      console.log("[TASK-SOCKET] Disconnected");
     }
 
     function onChatHistory(data: {
@@ -577,7 +576,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "fs-change":
           if (chunk.fsChange) {
-            console.log("File system change:", chunk.fsChange);
 
             queryClient.setQueryData(
               ["task", taskId],
@@ -630,7 +628,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "fs-override":
           if (chunk.fsOverride) {
-            console.log("File state override:", chunk.fsOverride.message);
 
             // Replace entire file state (not optimistic merge)
             queryClient.setQueryData(
@@ -669,7 +666,6 @@ export function useTaskSocket(taskId: string | undefined) {
         }
 
         case "usage":
-          console.log("Usage:", chunk.usage);
           break;
 
         case "reasoning":
@@ -774,7 +770,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "todo-update":
           if (chunk.todoUpdate) {
-            console.log("Todo update:", chunk.todoUpdate);
             const todos = chunk.todoUpdate.todos;
             const action = chunk.todoUpdate.action;
 
@@ -845,7 +840,6 @@ export function useTaskSocket(taskId: string | undefined) {
       // Don't clear streaming state immediately - wait for server response
       setIsStreaming(false);
       setIsCompletionPending(true);
-      console.log("Stream completed - requesting fresh data");
       if (taskId) {
         socket.emit("get-chat-history", { taskId, complete: true });
       }
@@ -877,7 +871,6 @@ export function useTaskSocket(taskId: string | undefined) {
       newTaskId?: string;
     }) {
       if (data.taskId === taskId) {
-        console.log(`[TASK_SOCKET] Processing queued ${data.type}:`, data);
 
         const optimisticMessage: Message = {
           id: `temp-queued-${Date.now()}`,
@@ -925,7 +918,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
     function onTaskStatusUpdate(data: TaskStatusUpdateEvent) {
       if (data.taskId === taskId) {
-        console.log(`[TASK_SOCKET] Received task status update:`, data);
 
         queryClient.setQueryData(
           ["task", taskId],
@@ -984,7 +976,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
     function onAutoPRStatus(data: AutoPRStatusEvent) {
       if (data.taskId === taskId) {
-        console.log(`[TASK_SOCKET] Received auto-PR status update:`, data);
         setAutoPRStatus(data);
 
         // Handle different auto-PR statuses
@@ -1057,7 +1048,6 @@ export function useTaskSocket(taskId: string | undefined) {
     (message: string, model: string, queue: boolean = false) => {
       if (!socket || !taskId || !message.trim()) return;
 
-      console.log("Sending message:", { taskId, message, model, queue });
       setIsStreaming(true);
       socket.emit("user-message", {
         taskId,
@@ -1072,7 +1062,6 @@ export function useTaskSocket(taskId: string | undefined) {
   const stopStream = useCallback(() => {
     if (!socket || !taskId || !isStreaming) return;
 
-    console.log("Stopping stream for task:", taskId);
     socket.emit("stop-stream", { taskId });
     clearStreamingState();
   }, [socket, taskId, isStreaming, clearStreamingState]);

@@ -59,10 +59,6 @@ export async function generateTaskTitleAndBranch(
 
     const title = cleanTitle(generatedText);
 
-    console.log(
-      `[GENERATE_TITLE_BRANCH] Generated title for task ${taskId}: "${title}" using ${modelConfig.provider} ${modelConfig.modelChoice}`
-    );
-
     return { title, shadowBranch: generateShadowBranchName(title, taskId) };
   } catch (error) {
     console.error(
