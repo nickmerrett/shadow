@@ -50,10 +50,8 @@ Mode selection is controlled by `NODE_ENV` and `AGENT_MODE` environment variable
 
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 22
 - PostgreSQL
-- Docker (for containerized development)
-- AWS CLI (for production deployment)
 
 ### Installation
 
@@ -245,7 +243,6 @@ Shadow provides a comprehensive set of tools for AI agents:
 - Keep initialization steps mode-aware and properly abstracted
 - Maintain WebSocket event compatibility across frontend/backend changes
 - **Remote mode requires Amazon Linux 2023 nodes** for Kata Containers compatibility
-- Use `kata-qemu` RuntimeClass for Kata QEMU container isolation
 
 ## Contributing
 
@@ -260,6 +257,8 @@ We're excited to see what you've built with Shadow!
 
 ---
 
-[Ishaan Dey](https://ishaand.com) [X](https://x.com/ishaandey_) —— 
-[Rajan Agarwal](https://github.com/rajansagarwal) [X](https://x.com/_rajanagarwal) ——
-[Elijah Kurien](https://github.com/elijahkurien), [X](https://x.com/ElijahKurien)
+[Ishaan Dey](https://ishaand.com) — [X](https://x.com/ishaandey_)
+
+[Rajan Agarwal](https://www.rajan.sh/) — [X](https://x.com/_rajanagarwal)
+
+[Elijah Kurien](https://www.elijahkurien.com/) — [X](https://x.com/ElijahKurien)
