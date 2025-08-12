@@ -5,7 +5,7 @@ import Image from "next/image";
 export function LoadingPRCard() {
   return (
     <>
-      <Card className="hover:bg-card/70 mt-4 gap-1 rounded-lg p-3 text-left">
+      <Card className="hover:bg-card/70 mt-4 animate-pulse gap-1 rounded-lg p-3 text-left">
         <div className="flex h-6 items-center gap-2 overflow-hidden font-medium">
           <Image src="/github.svg" alt="GitHub" width={16} height={16} />
           <div className="bg-border h-4 w-full max-w-48 rounded"></div>
