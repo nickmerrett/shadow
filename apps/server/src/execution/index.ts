@@ -47,7 +47,6 @@ export async function createToolExecutor(
 
     // Use direct pod IP connectivity (same approach as working file operations)
     const sidecarUrl = `http://${podIP}:8080`;
-    console.log(`[CREATE_TOOL_EXECUTOR] Using dynamic pod IP: ${sidecarUrl}`);
     return new RemoteToolExecutor(taskId, sidecarUrl);
   } catch (error) {
     console.error(

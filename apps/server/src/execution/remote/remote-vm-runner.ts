@@ -57,10 +57,6 @@ export class RemoteVMRunner {
       ? k8sHost
       : `https://${k8sHost}:${k8sPort}`;
 
-    console.log(
-      `[REMOTE_VM_RUNNER] Connecting to Kubernetes cluster: ${serverUrl}`
-    );
-
     // Manually configure kubeconfig structure
     // This creates the complete cluster + user + context configuration
     this.k8sConfig.clusters = [
@@ -320,8 +316,6 @@ export class RemoteVMRunner {
         name: podName,
         namespace: this.namespace,
       });
-
-      console.log(`[REMOTE_VM_RUNNER] Deleted VM pod: ${podName}`);
     } catch (error) {
       console.error(
         `[REMOTE_VM_RUNNER] Failed to delete VM pod ${podName}:`,
@@ -378,7 +372,6 @@ export class RemoteVMRunner {
         );
 
         if (phase === "Running" && readyCondition?.status === "True") {
-          console.log(`[REMOTE_VM_RUNNER] VM pod ${podName} is ready`);
           return;
         }
 
@@ -386,9 +379,6 @@ export class RemoteVMRunner {
           throw new Error(`VM pod ${podName} failed to start`);
         }
 
-        console.log(
-          `[REMOTE_VM_RUNNER] Waiting for VM pod ${podName} to be ready... (${phase})`
-        );
         await new Promise((resolve) => setTimeout(resolve, pollInterval));
       } catch (error) {
         if (Date.now() - startTime >= maxWaitTime) {
