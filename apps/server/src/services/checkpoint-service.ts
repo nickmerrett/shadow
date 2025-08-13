@@ -2,12 +2,12 @@ import { prisma } from "@repo/db";
 import {
   CheckpointData,
   MessageMetadata,
-  RecursiveDirectoryEntry,
 } from "@repo/types";
 import type { Todo } from "@repo/db";
 import { emitStreamChunk } from "../socket";
 import { createToolExecutor, createGitService } from "../execution";
 import { getFileSystemWatcher } from "../agent/tools";
+import { buildTreeFromEntries } from "../files/build-tree";
 import config from "../config";
 
 /**
@@ -290,12 +290,7 @@ export class CheckpointService {
       const treeResult = await toolExecutor.listDirectoryRecursive(".");
 
       const codebaseTree = treeResult.success
-        ? treeResult.entries.map((entry: RecursiveDirectoryEntry) => ({
-            name: entry.name,
-            type: entry.type as "file" | "folder",
-            path: entry.relativePath,
-            children: undefined, // Simplified - frontend will handle nested structure
-          }))
+        ? buildTreeFromEntries(treeResult.entries)
         : [];
 
       console.log(`[CHECKPOINT] ✅ Found ${codebaseTree.length} tree entries`);

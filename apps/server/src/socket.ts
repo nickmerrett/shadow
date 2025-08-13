@@ -285,16 +285,8 @@ export function createSocketServer(
     const cookieHeader = socket.request.headers.cookie;
 
     console.log(`[SOCKET] User connected: ${connectionId}`);
-    // console.log(`[SOCKET] Raw cookie header:`, cookieHeader || "undefined");
 
     const apiKeys = parseApiKeysFromCookies(cookieHeader);
-
-    console.log(`[SOCKET] Parsed API keys:`, {
-      hasOpenAI: !!apiKeys.openai,
-      hasAnthropic: !!apiKeys.anthropic,
-      openaiLength: apiKeys.openai?.length || 0,
-      anthropicLength: apiKeys.anthropic?.length || 0,
-    });
 
     // Initialize connection state
     const existingState = connectionStates.get(connectionId);

@@ -4,7 +4,7 @@ import { FileNode, RecursiveDirectoryEntry } from "@repo/types";
 /**
  * Convert a flat list of recursive directory entries into a hierarchical tree structure
  */
-function buildTreeFromEntries(entries: RecursiveDirectoryEntry[]): FileNode[] {
+export function buildTreeFromEntries(entries: RecursiveDirectoryEntry[]): FileNode[] {
   const nodeMap = new Map<string, FileNode>();
   const rootNodes: FileNode[] = [];
 

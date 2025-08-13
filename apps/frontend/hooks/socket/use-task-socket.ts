@@ -300,8 +300,7 @@ export function useTaskSocket(taskId: string | undefined) {
       socket.emit("get-chat-history", { taskId: taskId!, complete: false });
     }
 
-    function onDisconnect() {
-    }
+    function onDisconnect() {}
 
     function onChatHistory(data: {
       taskId: string;
@@ -386,8 +385,11 @@ export function useTaskSocket(taskId: string | undefined) {
             // Check if we already have a starting version
             const existingPart = newPartsMap.get(partId);
             // Preserve any existing partial args from streaming
-            const existingPartialArgs = existingPart?.type === "tool-call" ? existingPart.partialArgs : undefined;
-            
+            const existingPartialArgs =
+              existingPart?.type === "tool-call"
+                ? existingPart.partialArgs
+                : undefined;
+
             const toolCallPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
@@ -496,8 +498,11 @@ export function useTaskSocket(taskId: string | undefined) {
           if (chunk.toolCall) {
             // Preserve any existing partial args from the streaming part
             const existingPart = streamingParts.current.get(chunk.toolCall.id);
-            const existingPartialArgs = existingPart?.type === "tool-call" ? existingPart.partialArgs : undefined;
-            
+            const existingPartialArgs =
+              existingPart?.type === "tool-call"
+                ? existingPart.partialArgs
+                : undefined;
+
             const toolCallPart: ToolCallPart = {
               type: "tool-call",
               toolCallId: chunk.toolCall.id,
@@ -576,7 +581,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "fs-change":
           if (chunk.fsChange) {
-
             queryClient.setQueryData(
               ["task", taskId],
               (oldData: TaskWithDetails) => {
@@ -628,7 +632,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
         case "fs-override":
           if (chunk.fsOverride) {
-
             // Replace entire file state (not optimistic merge)
             queryClient.setQueryData(
               ["task", taskId],
@@ -871,7 +874,6 @@ export function useTaskSocket(taskId: string | undefined) {
       newTaskId?: string;
     }) {
       if (data.taskId === taskId) {
-
         const optimisticMessage: Message = {
           id: `temp-queued-${Date.now()}`,
           role: "user",
@@ -918,7 +920,6 @@ export function useTaskSocket(taskId: string | undefined) {
 
     function onTaskStatusUpdate(data: TaskStatusUpdateEvent) {
       if (data.taskId === taskId) {
-
         queryClient.setQueryData(
           ["task", taskId],
           (oldData: TaskWithDetails) => {
@@ -1076,7 +1077,7 @@ export function useTaskSocket(taskId: string | undefined) {
       if (!socket || !taskId || !message.trim()) return;
 
       const newTaskId = generateTaskId();
-      
+
       socket.emit("create-stacked-pr", {
         taskId,
         message: message.trim(),
