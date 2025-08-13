@@ -161,6 +161,9 @@ function TaskPageContent() {
           task?.status === "RUNNING" && streamingPartsMap.size === 0
         }
         isStreaming={isStreaming}
+        isReInitializing={
+          task?.status === "INITIALIZING" && task?.hasBeenInitialized
+        }
       />
 
       {task?.status !== "ARCHIVED" && (

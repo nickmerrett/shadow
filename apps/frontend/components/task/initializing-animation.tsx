@@ -55,6 +55,9 @@ export default function InitializingAnimation({
         "font-departureMono bg-background pointer-events-none absolute z-20 flex w-full select-none flex-col gap-1 px-3 tracking-tight transition-[visibility,opacity,transform] duration-1000 ease-in-out",
         currentStepIndex === steps.length ||
           status !== "INITIALIZING" ||
+          // hasBeenInitialized serves as a check for
+          // 1. whether it's initializing, and
+          // 2. if it's re-initializing (we don't wanna show in this case)
           hasBeenInitialized === true
           ? "invisible opacity-0"
           : "visible opacity-100"

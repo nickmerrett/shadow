@@ -547,14 +547,19 @@ export class ChatService {
   /**
    * Handle follow-up logic for tasks
    */
-  private async handleFollowUpLogic(taskId: string): Promise<void> {
+  private async handleFollowUpLogic(
+    taskId: string,
+    userId: string,
+    context: TaskModelContext
+  ): Promise<void> {
     try {
+      // Always cancel any scheduled cleanup when user sends follow-up message
+      await cancelTaskCleanup(taskId);
+
       const task = await prisma.task.findUnique({
         where: { id: taskId },
         select: {
-          status: true,
           initStatus: true,
-          scheduledCleanupAt: true,
         },
       });
 
@@ -565,21 +570,23 @@ export class ChatService {
 
       // Handle tasks with inactive workspaces (VM spun down)
       if (task.initStatus === "INACTIVE") {
-        // If task has scheduled cleanup, cancel it since user wants to resume
-        if (task.scheduledCleanupAt) {
-          await cancelTaskCleanup(taskId);
-        }
+        console.log(
+          `[CHAT] Task ${taskId} is inactive, re-initializing workspace...`
+        );
 
-        // Set task to INITIALIZING to trigger workspace spin-up
+        // Set task to INITIALIZING to indicate re-initialization is happening
         await updateTaskStatus(taskId, "INITIALIZING", "CHAT");
-        await prisma.task.update({
-          where: { id: taskId },
-          data: { initStatus: "INACTIVE" },
-        });
 
-        // Note: Re-initialization will be triggered by the initialization system
-        // when it detects INITIALIZING status with INACTIVE init status
-        return;
+        const initializationEngine = new TaskInitializationEngine();
+        const initSteps = await initializationEngine.getDefaultStepsForTask();
+        await initializationEngine.initializeTask(
+          taskId,
+          initSteps,
+          userId,
+          context
+        );
+
+        await updateTaskStatus(taskId, "RUNNING", "CHAT");
       }
 
       // ARCHIVED is permanent - no follow-up handling
@@ -589,6 +596,14 @@ export class ChatService {
         `[CHAT] Error in follow-up logic for task ${taskId}:`,
         error
       );
+      // Set task to failed state on initialization error
+      await updateTaskStatus(
+        taskId,
+        "FAILED",
+        "CHAT",
+        error instanceof Error ? error.message : "Re-initialization failed"
+      );
+      throw error;
     }
   }
 
@@ -649,8 +664,18 @@ export class ChatService {
     workspacePath?: string;
     queue?: boolean;
   }) {
+    // Get task info for follow-up logic
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { userId: true },
+    });
+
+    if (!task) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+
     // Handle follow-up logic for COMPLETED tasks
-    await this.handleFollowUpLogic(taskId);
+    await this.handleFollowUpLogic(taskId, task.userId, context);
 
     if (queue) {
       if (this.activeStreams.has(taskId)) {

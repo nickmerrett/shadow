@@ -56,12 +56,14 @@ function MessagesComponent({
   disableEditing,
   isStreamPending,
   isStreaming,
+  isReInitializing,
 }: {
   taskId: string;
   messages: Message[];
   disableEditing: boolean;
   isStreamPending: boolean;
   isStreaming: boolean;
+  isReInitializing: boolean;
 }) {
   // Used to properly space the initializing animation
   const userMessageWrapperRef = useRef<HTMLButtonElement>(null);
@@ -141,11 +143,15 @@ function MessagesComponent({
             })}
 
             {/* Show GeneratingMessage when task is RUNNING but no streaming content exists */}
-            {shouldShowGenerating && (
+            {isReInitializing ? (
+              <div className="shimmer flex h-7 w-fit items-center px-3 text-[13px]">
+                Re-initializing inactive workspace (may take a minute)...
+              </div>
+            ) : shouldShowGenerating ? (
               <div className="shimmer flex h-7 w-fit items-center px-3 text-[13px]">
                 Generating
               </div>
-            )}
+            ) : null}
           </div>
         );
       })}
