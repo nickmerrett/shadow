@@ -17,8 +17,6 @@ if (nodeEnv === "production") {
   config = devConfig;
 }
 
-console.log(config);
-
 export default config;
 
 export type { DevConfig } from "./dev";

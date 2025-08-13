@@ -1,6 +1,6 @@
 import { prisma, TaskStatus, InitStatus } from "@repo/db";
 import { emitTaskStatusUpdate } from "../socket";
-import { getAgentMode } from "../execution";
+import config from "@/config";
 
 /**
  * Updates a task's status in the database and emits a real-time update
@@ -135,40 +135,29 @@ export async function scheduleTaskCleanup(
   taskId: string,
   delayMinutes: number
 ): Promise<void> {
-  const agentMode = getAgentMode();
-
-  // Only schedule cleanup for remote mode
-  if (agentMode !== "remote") {
+  if (config.nodeEnv !== "production") {
+    console.log(
+      `[TASK_CLEANUP] Skipping cleanup (non-production mode): ${taskId}`
+    );
     return;
   }
 
   const scheduledAt = new Date(Date.now() + delayMinutes * 60 * 1000);
 
-  // Get current task to preserve its status
-  const currentTask = await prisma.task.findUnique({
-    where: { id: taskId },
-    select: { status: true },
-  });
+  try {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        scheduledCleanupAt: scheduledAt,
+      },
+    });
 
-  if (!currentTask) {
-    throw new Error(`Task ${taskId} not found`);
+    console.log(
+      `[TASK_CLEANUP] Task ${taskId} scheduled for cleanup at ${scheduledAt.toISOString()}`
+    );
+  } catch (error) {
+    console.error(`Failed to schedule cleanup for task ${taskId}:`, error);
   }
-
-  // Only schedule cleanup for COMPLETED or STOPPED tasks
-  if (currentTask.status !== "COMPLETED" && currentTask.status !== "STOPPED") {
-    return;
-  }
-
-  await prisma.task.update({
-    where: { id: taskId },
-    data: {
-      scheduledCleanupAt: scheduledAt,
-    },
-  });
-
-  console.log(
-    `[TASK_CLEANUP] Task ${taskId} scheduled for cleanup at ${scheduledAt.toISOString()}`
-  );
 }
 
 /**
