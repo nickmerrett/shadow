@@ -44,8 +44,8 @@ COPY packages/command-security/package*.json ./packages/command-security/
 COPY packages/eslint-config/package*.json ./packages/eslint-config/
 COPY packages/typescript-config/package*.json ./packages/typescript-config/
 
-# Install dependencies using npm ci (as per CI workflow)
-RUN npm i
+# Install dependencies with proper platform-specific binaries
+RUN npm i --force --platform=linux --arch=x64
 
 # Turbo is included in devDependencies, so it should be available via npm scripts
 # Verify turbo installation
@@ -53,6 +53,10 @@ RUN npx turbo --version
 
 # Copy source code
 COPY . .
+
+# Fix rollup binary issue by explicitly installing and rebuilding
+RUN npm install @rollup/rollup-linux-x64-gnu --force
+RUN npm rebuild
 
 # Follow CI workflow build steps
 RUN npm run generate
